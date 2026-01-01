@@ -190,6 +190,52 @@ const POSITION_REQUIREMENTS: Record<ExerciseType, PositionRequirement> = {
     },
     getStartPosition: () => 'Stand with feet shoulder-width apart',
   },
+  
+  rdl: {
+    checkVisibility: (pose) => {
+      const required = [
+        KEYPOINTS.LEFT_SHOULDER, KEYPOINTS.RIGHT_SHOULDER,
+        KEYPOINTS.LEFT_HIP, KEYPOINTS.RIGHT_HIP,
+        KEYPOINTS.LEFT_KNEE, KEYPOINTS.RIGHT_KNEE,
+        KEYPOINTS.LEFT_ANKLE, KEYPOINTS.RIGHT_ANKLE,
+      ];
+      const missing: string[] = [];
+      required.forEach(idx => {
+        if (!pose.keypoints[idx] || pose.keypoints[idx].score < 0.5) {
+          missing.push(getKeypointName(idx));
+        }
+      });
+      return { visible: missing.length === 0, missing };
+    },
+    checkPosition: (pose) => {
+      const issues: string[] = [];
+      const kp = pose.keypoints;
+      
+      // Check if standing upright
+      if (kp[KEYPOINTS.LEFT_HIP] && kp[KEYPOINTS.LEFT_KNEE]) {
+        const hipY = kp[KEYPOINTS.LEFT_HIP].y;
+        const kneeY = kp[KEYPOINTS.LEFT_KNEE].y;
+        
+        // Hip should be above knee when standing
+        if (hipY > kneeY - 30) {
+          issues.push('Stand up straight to start');
+        }
+      }
+      
+      // Check back is straight (shoulders above hips)
+      if (kp[KEYPOINTS.LEFT_SHOULDER] && kp[KEYPOINTS.LEFT_HIP]) {
+        const shoulderY = kp[KEYPOINTS.LEFT_SHOULDER].y;
+        const hipY = kp[KEYPOINTS.LEFT_HIP].y;
+        
+        if (shoulderY > hipY) {
+          issues.push('Stand tall with shoulders above hips');
+        }
+      }
+      
+      return { correct: issues.length === 0, issues };
+    },
+    getStartPosition: () => 'Stand with feet hip-width apart, slight knee bend',
+  },
 };
 
 // Motivational phrases

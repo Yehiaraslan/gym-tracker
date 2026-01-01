@@ -56,6 +56,18 @@ const EXERCISES: ExerciseOption[] = [
       'Wear fitted clothing for better detection',
     ],
   },
+  {
+    type: 'rdl',
+    name: 'Romanian Deadlift',
+    description: 'Track your hip hinge form and depth automatically',
+    icon: '🏋️‍♀️',
+    tips: [
+      'Position camera to your side (90° angle)',
+      'Stand 2-3 meters from camera',
+      'Keep your full body in frame',
+      'Ensure good lighting on your side profile',
+    ],
+  },
 ];
 
 export default function FormCoachScreen() {

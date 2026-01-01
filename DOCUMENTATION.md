@@ -409,3 +409,63 @@ The AI Form Coach uses:
 - **17-point skeleton** - Tracks nose, eyes, ears, shoulders, elbows, wrists, hips, knees, and ankles
 - **~10 FPS inference** - Throttled for smooth performance on mobile devices
 - **Demo mode** - Falls back to simulated tracking on web or when model unavailable
+
+
+### Reliability Features (v1.6)
+
+The AI Form Coach includes advanced reliability features to ensure accurate tracking:
+
+#### Confidence Gating
+
+The system monitors tracking quality and automatically pauses rep counting when confidence is low:
+
+- **Good tracking** (green indicator) - All features active, rep counting enabled
+- **Weak tracking** (yellow indicator) - Form feedback suppressed, rep counting paused
+- **Lost tracking** (red indicator) - Displays guidance to improve positioning
+
+When tracking is weak, you'll see messages like:
+- "Tracking weak: adjust angle/lighting, keep full body visible"
+- "Can't see your left shoulder. Adjust camera angle or move back."
+
+This prevents false "you're doing it wrong" messages when the issue is actually camera positioning.
+
+#### Setup Guidance
+
+Before starting, the app provides exercise-specific setup instructions:
+
+| Exercise | Camera Angle | Distance | Tips |
+|----------|-------------|----------|------|
+| Push-up | Side view (90°) | 2-3 meters | Keep full body in frame |
+| Pull-up | Front view | 2-3 meters | Upper body visible |
+| Squat | Side view (45-90°) | 2-3 meters | Full body from head to feet |
+| RDL | Side view (90°) | 2-3 meters | Focus on hip hinge movement |
+
+#### Debug Mode
+
+For troubleshooting, enable debug mode to see:
+- Current joint angles in real-time
+- Confidence scores for each keypoint
+- State machine transitions
+- Frame rate and inference timing
+
+#### Improved Rep Counting
+
+The rep state machine includes:
+- **Angle smoothing** - Reduces noise from jittery keypoint detection
+- **Debounce protection** - Prevents double-counting from small movements
+- **Minimum rep duration** - Ensures full range of motion before counting
+- **Hysteresis thresholds** - Different thresholds for up/down transitions
+
+---
+
+## Version History
+
+| Version | Features |
+|---------|----------|
+| 1.0 | Initial release with 8-week program, weight tracking, history |
+| 1.1 | Added body measurements, warm-up/cool-down sections |
+| 1.2 | Added AI Form Coach with push-up and pull-up tracking |
+| 1.3 | Added squat tracking, camera switching, visual form guides |
+| 1.4 | Added audio feedback with rep counting and verbal corrections |
+| 1.5 | Added skeleton overlay and real-time AI coaching |
+| 1.6 | Added confidence gating, setup guidance, debug mode, RDL tracking |

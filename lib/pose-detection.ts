@@ -26,7 +26,7 @@ export const KEYPOINTS = {
   RIGHT_ANKLE: 16,
 } as const;
 
-export type ExerciseType = 'pushup' | 'pullup' | 'squat';
+export type ExerciseType = 'pushup' | 'pullup' | 'squat' | 'rdl';
 
 export interface Keypoint {
   x: number;
@@ -51,6 +51,9 @@ export interface RepData {
   formScore: number;
   flags: FormFlag[];
   timestamp: number;
+  duration?: number;
+  minAngle?: number;
+  maxAngle?: number;
 }
 
 export interface ExerciseSession {

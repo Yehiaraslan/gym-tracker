@@ -107,3 +107,15 @@
 - [x] Integrate TensorFlow.js pose detection model with camera frames
 - [x] Connect real pose data to skeleton overlay
 - [x] Test pose detection accuracy on actual device (requires native testing)
+
+## AI Form Coach Reliability Enhancements
+- [x] Implement confidence gating system (pause counting when tracking weak)
+- [x] Add smoothed keypoint confidence calculation with temporal averaging
+- [x] Show "Tracking weak" message instead of form errors when confidence low
+- [x] Add setup guidance screen with camera angle, distance, lighting instructions
+- [x] Create skeleton overlay toggle and confidence indicator (Good/Weak)
+- [x] Add internal debug mode showing angles, thresholds, confidence values
+- [x] Improve rep state machines with smoothing and debounce to prevent double-counting
+- [x] Throttle inference to 8-12 FPS for smooth UI performance
+- [x] Add RDL (Romanian Deadlift) exercise tracking
+- [ ] Validate rep counting accuracy ≥90% in good conditions

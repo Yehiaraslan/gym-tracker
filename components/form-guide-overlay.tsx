@@ -20,6 +20,7 @@ export function FormGuideOverlay({ exerciseType, isTracking, currentState }: For
       {exerciseType === 'pushup' && <PushupGuide currentState={currentState} />}
       {exerciseType === 'pullup' && <PullupGuide currentState={currentState} />}
       {exerciseType === 'squat' && <SquatGuide currentState={currentState} />}
+      {exerciseType === 'rdl' && <RdlGuide currentState={currentState} />}
     </View>
   );
 }
@@ -212,6 +213,78 @@ function SquatGuide({ currentState }: { currentState: string }) {
         </Text>
         <Text style={styles.tipText}>
           {isDown ? 'Drive through heels' : 'Knees track over toes'}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+function RdlGuide({ currentState }: { currentState: string }) {
+  const isDown = currentState === 'down';
+  const primaryColor = isDown ? '#22C55E' : '#0a7ea4';
+  const secondaryColor = 'rgba(255,255,255,0.3)';
+  
+  // RDL side view positions - hip hinge movement
+  const headY = isDown ? 60 : 30;
+  const headX = isDown ? 60 : 100;
+  const shoulderY = isDown ? 75 : 45;
+  const shoulderX = isDown ? 75 : 100;
+  const hipY = isDown ? 90 : 70;
+  const hipX = isDown ? 110 : 100;
+  const handY = isDown ? 110 : 90;
+  const handX = isDown ? 90 : 100;
+  
+  return (
+    <View style={styles.guideContainer}>
+      <Svg width="240" height="180" viewBox="0 0 240 180">
+        {/* Ground line */}
+        <Line x1="20" y1="150" x2="220" y2="150" stroke={secondaryColor} strokeWidth="2" strokeDasharray="5,5" />
+        
+        {/* Body outline */}
+        <G opacity={0.7}>
+          {/* Head */}
+          <Circle cx={headX} cy={headY} r="12" fill="none" stroke={primaryColor} strokeWidth="3" />
+          
+          {/* Torso (hinged forward when down) */}
+          <Line x1={headX} y1={headY + 12} x2={shoulderX} y2={shoulderY} stroke={primaryColor} strokeWidth="3" />
+          <Line x1={shoulderX} y1={shoulderY} x2={hipX} y2={hipY} stroke={primaryColor} strokeWidth="3" />
+          
+          {/* Arms (hanging down) */}
+          <Line x1={shoulderX} y1={shoulderY + 5} x2={handX} y2={handY} stroke={primaryColor} strokeWidth="3" />
+          
+          {/* Legs (slight knee bend) */}
+          <Line x1={hipX} y1={hipY} x2="115" y2="120" stroke={primaryColor} strokeWidth="3" />
+          <Line x1="115" y1="120" x2="110" y2="145" stroke={primaryColor} strokeWidth="3" />
+        </G>
+        
+        {/* Back angle indicator */}
+        {isDown && (
+          <Line 
+            x1={shoulderX - 20} y1={shoulderY} 
+            x2={hipX + 20} y2={hipY} 
+            stroke="#22C55E" 
+            strokeWidth="1" 
+            strokeDasharray="5,5" 
+          />
+        )}
+        
+        {/* Hip hinge arc */}
+        <Path
+          d={isDown ? "M 130 70 A 30 30 0 0 1 110 90" : "M 120 50 A 20 20 0 0 1 100 70"}
+          stroke={secondaryColor}
+          strokeWidth="1"
+          fill="none"
+          strokeDasharray="3,3"
+        />
+      </Svg>
+      
+      {/* Text cues */}
+      <View style={styles.cueContainer}>
+        <Text style={[styles.cueText, { color: primaryColor }]}>
+          {isDown ? '✓ Good hip hinge!' : 'Push hips back'}
+        </Text>
+        <Text style={styles.tipText}>
+          {isDown ? 'Feel hamstring stretch' : 'Keep back flat, slight knee bend'}
         </Text>
       </View>
     </View>
