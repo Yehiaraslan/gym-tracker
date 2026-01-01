@@ -68,3 +68,13 @@
 ## Bug Fixes
 - [x] Fix "invalid hook call" error in AI Form Coach tracking screen
 - [x] Fix camera view not rendering after permission granted on native devices
+
+## AI Form Coach Enhancements
+- [x] Add camera switching between front and back cameras
+- [x] Create visual form guide overlay for push-ups
+- [x] Create visual form guide overlay for pull-ups
+- [x] Create visual form guide overlay for squats
+- [x] Add squat exercise type to pose detection
+- [x] Implement squat rep counting algorithm
+- [x] Add squat form scoring and feedback
+- [x] Update exercise selection screen with squats option

@@ -18,6 +18,7 @@ import {
   ExerciseType, 
   PushupTracker, 
   PullupTracker,
+  SquatTracker,
   RepData,
   ExerciseSession,
   createExerciseSession,
@@ -27,7 +28,8 @@ import {
   calculatePoseConfidence,
   Pose,
 } from '@/lib/pose-detection';
-import { CameraView } from 'expo-camera';
+import { CameraView, CameraType } from 'expo-camera';
+import { FormGuideOverlay } from '@/components/form-guide-overlay';
 
 type TrackingState = 'setup' | 'ready' | 'tracking' | 'completed';
 
@@ -47,8 +49,10 @@ export default function FormCoachTrackingScreen() {
   const [isModelLoading, setIsModelLoading] = useState(true);
   const [modelError, setModelError] = useState<string | null>(null);
   const [cameraReady, setCameraReady] = useState(false);
+  const [cameraFacing, setCameraFacing] = useState<CameraType>('front');
+  const [showFormGuide, setShowFormGuide] = useState(true);
 
-  const trackerRef = useRef<PushupTracker | PullupTracker | null>(null);
+  const trackerRef = useRef<PushupTracker | PullupTracker | SquatTracker | null>(null);
   const sessionRef = useRef<ExerciseSession | null>(null);
   const frameCountRef = useRef(0);
   const lastProcessTimeRef = useRef(0);
@@ -75,12 +79,14 @@ export default function FormCoachTrackingScreen() {
     requestCameraPermission();
   }, []);
 
-  // Initialize tracker
+  // Initialize tracker based on exercise type
   useEffect(() => {
     if (exerciseType === 'pushup') {
       trackerRef.current = new PushupTracker();
-    } else {
+    } else if (exerciseType === 'pullup') {
       trackerRef.current = new PullupTracker();
+    } else {
+      trackerRef.current = new SquatTracker();
     }
     
     // Simulate model loading (in real implementation, this would load TensorFlow model)
@@ -230,7 +236,22 @@ export default function FormCoachTrackingScreen() {
     setLastRepData(null);
   };
 
-  const exerciseName = exerciseType === 'pushup' ? 'Push-up' : 'Pull-up';
+  const toggleCamera = () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    setCameraFacing(current => current === 'front' ? 'back' : 'front');
+  };
+
+  const toggleFormGuide = () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    setShowFormGuide(current => !current);
+  };
+
+  const exerciseName = exerciseType === 'pushup' ? 'Push-up' : 
+                       exerciseType === 'pullup' ? 'Pull-up' : 'Squat';
 
   // Render loading state
   if (isModelLoading) {
@@ -454,7 +475,7 @@ export default function FormCoachTrackingScreen() {
       <CameraView
         ref={cameraRef}
         style={styles.camera}
-        facing="front"
+        facing={cameraFacing}
         onCameraReady={() => setCameraReady(true)}
       />
     );
@@ -466,6 +487,15 @@ export default function FormCoachTrackingScreen() {
       {/* Camera View (or placeholder) */}
       <View style={styles.cameraContainer}>
         {renderCameraView()}
+
+        {/* Form Guide Overlay */}
+        {showFormGuide && (
+          <FormGuideOverlay 
+            exerciseType={exerciseType}
+            isTracking={trackingState === 'tracking'}
+            currentState={currentState}
+          />
+        )}
 
         {/* Overlay UI */}
         <View style={styles.overlay}>
@@ -480,7 +510,24 @@ export default function FormCoachTrackingScreen() {
             <View style={styles.exerciseLabel}>
               <Text style={styles.exerciseLabelText}>{exerciseName}</Text>
             </View>
-            <View style={{ width: 44 }} />
+            <View style={styles.topBarRight}>
+              {/* Camera Switch Button */}
+              {Platform.OS !== 'web' && hasCameraPermission && (
+                <TouchableOpacity 
+                  onPress={toggleCamera}
+                  style={styles.iconButton}
+                >
+                  <IconSymbol name="camera.rotate.fill" size={22} color="#FFFFFF" />
+                </TouchableOpacity>
+              )}
+              {/* Form Guide Toggle */}
+              <TouchableOpacity 
+                onPress={toggleFormGuide}
+                style={[styles.iconButton, !showFormGuide && styles.iconButtonInactive]}
+              >
+                <IconSymbol name="figure.stand" size={22} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Confidence Indicator */}
@@ -551,8 +598,11 @@ export default function FormCoachTrackingScreen() {
                   <Text style={styles.tipText}>
                     • {exerciseType === 'pushup' 
                       ? 'Side view works best for push-ups' 
-                      : 'Front view works best for pull-ups'}
+                      : exerciseType === 'pullup'
+                      ? 'Front view works best for pull-ups'
+                      : 'Side view works best for squats'}
                   </Text>
+                  <Text style={styles.tipText}>• Tap camera icon to switch front/back</Text>
                 </View>
                 <TouchableOpacity
                   onPress={handleStartTracking}
@@ -616,6 +666,11 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingHorizontal: 16,
   },
+  topBarRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   closeButton: {
     width: 44,
     height: 44,
@@ -623,6 +678,17 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  iconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconButtonInactive: {
+    opacity: 0.5,
   },
   exerciseLabel: {
     backgroundColor: 'rgba(0,0,0,0.5)',

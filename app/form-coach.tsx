@@ -44,6 +44,18 @@ const EXERCISES: ExerciseOption[] = [
       'Keep your upper body in frame',
     ],
   },
+  {
+    type: 'squat',
+    name: 'Squat',
+    description: 'Track your squat form and depth automatically',
+    icon: '🦵',
+    tips: [
+      'Position camera to your side for best tracking',
+      'Ensure good lighting',
+      'Keep your full body in frame',
+      'Wear fitted clothing for better detection',
+    ],
+  },
 ];
 
 export default function FormCoachScreen() {

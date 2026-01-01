@@ -40,6 +40,8 @@ const MAPPING = {
   "camera.fill": "camera-alt",
   "exclamationmark.triangle.fill": "warning",
   "chevron.left": "chevron-left",
+  "camera.rotate.fill": "flip-camera-ios",
+  "figure.stand": "accessibility",
 } as IconMapping;
 
 /**

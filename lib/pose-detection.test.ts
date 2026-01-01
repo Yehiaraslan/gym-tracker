@@ -6,6 +6,7 @@ import {
   calculatePoseConfidence,
   PushupTracker,
   PullupTracker,
+  SquatTracker,
   createExerciseSession,
   addRepToSession,
   finalizeSession,
@@ -355,5 +356,63 @@ describe('getFormSummary', () => {
     expect(summary.feedback).toContain('Go deeper');
     expect(summary.feedback).toContain('Extend arms');
     expect(summary.feedback).toHaveLength(2);
+  });
+});
+
+describe('SquatTracker', () => {
+  let tracker: SquatTracker;
+
+  beforeEach(() => {
+    tracker = new SquatTracker();
+  });
+
+  it('should start with 0 reps', () => {
+    expect(tracker.getRepCount()).toBe(0);
+  });
+
+  it('should start in standing state', () => {
+    expect(tracker.getCurrentState()).toBe('standing');
+  });
+
+  it('should reset properly', () => {
+    tracker.reset();
+    expect(tracker.getRepCount()).toBe(0);
+    expect(tracker.getCurrentState()).toBe('standing');
+  });
+
+  it('should count a rep when going from standing to down and back up', () => {
+    // Go to down position - knee angle < 100 degrees
+    // Hip at top, knee in middle bent forward, ankle below and back
+    const downPose = createPose({
+      [KEYPOINTS.LEFT_HIP]: createKeypoint(100, 50, 0.9),
+      [KEYPOINTS.LEFT_KNEE]: createKeypoint(150, 100, 0.9), // Knee forward
+      [KEYPOINTS.LEFT_ANKLE]: createKeypoint(100, 150, 0.9), // Ankle below hip
+    });
+    tracker.processFrame(downPose);
+    expect(tracker.getCurrentState()).toBe('down');
+    
+    // Go back to standing - knee angle > 160 degrees (nearly straight leg)
+    const standingPose = createPose({
+      [KEYPOINTS.LEFT_HIP]: createKeypoint(100, 50, 0.9),
+      [KEYPOINTS.LEFT_KNEE]: createKeypoint(100, 100, 0.9), // Knee directly below hip
+      [KEYPOINTS.LEFT_ANKLE]: createKeypoint(100, 150, 0.9), // Ankle directly below knee
+    });
+    
+    const result = tracker.processFrame(standingPose);
+    expect(result.repCompleted).toBe(true);
+    expect(result.repData?.repNumber).toBe(1);
+    expect(tracker.getRepCount()).toBe(1);
+  });
+
+  it('should not count rep without valid keypoints', () => {
+    const invalidPose = createPose({
+      [KEYPOINTS.LEFT_HIP]: createKeypoint(100, 50, 0.1), // Low confidence
+      [KEYPOINTS.LEFT_KNEE]: createKeypoint(100, 100, 0.1),
+      [KEYPOINTS.LEFT_ANKLE]: createKeypoint(100, 150, 0.1),
+    });
+    
+    const result = tracker.processFrame(invalidPose);
+    expect(result.repCompleted).toBe(false);
+    expect(tracker.getRepCount()).toBe(0);
   });
 });

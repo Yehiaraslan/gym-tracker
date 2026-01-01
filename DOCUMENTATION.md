@@ -1,4 +1,4 @@
-# GymTracker - User Documentation
+# GymTracker Documentation
 
 ## Overview
 
@@ -58,7 +58,7 @@ This is where you add all the exercises you'll use in your program.
 **To delete an exercise:**
 - Tap the trash icon next to the exercise
 
-### Warmup Tab (NEW)
+### Warmup Tab
 
 This is where you configure your warm-up and cool-down routines that run before and after every workout.
 
@@ -101,396 +101,205 @@ This is where you configure your 8-week training program.
 
 ### Settings Tab
 
-**Cycle Start Date:**
-- Enter the date your 8-week program begins (format: YYYY-MM-DD)
-- This determines which week/day the app shows as "today"
-- After 8 weeks, the cycle automatically repeats
-
-**Statistics:**
-- View total exercises, configured program days, and completed workouts
-
-**Whoop Integration:**
-- Tap to access Whoop device connection settings
-- Connect your Whoop to see recovery, strain, and sleep data
+- **Cycle Start Date**: Set the date when your 8-week program begins
+- **Whoop Integration**: Connect to your Whoop device for recovery/strain data (requires Whoop developer account)
 
 ---
 
-## Schedule Screen (Calendar View)
+## Today Tab (Workout)
 
-The Schedule tab provides a visual calendar view of your entire 8-week program.
+The Today tab shows your scheduled workout for the current day.
 
-### Features
+**Starting a workout:**
+1. Tap **Start Workout** to begin
+2. The workout flows through three phases:
+   - **Warm-up**: Timed exercises to prepare your body
+   - **Main Workout**: Your strength exercises with weight tracking
+   - **Cool-down**: Stretching and recovery exercises
 
-**Cycle Overview:**
-- Total workout days across all 8 weeks
-- Total exercises configured
+**During the main workout:**
+- Each exercise shows:
+  - Exercise name and video button (if video URL is set)
+  - Personal notes (coaching cues)
+  - Last weight used as reference
+  - Input fields for weight and reps for each set
+  - Rest timer between sets
+- Enter your weight for each set
+- If you exceed your previous weight, you'll see a congratulations message!
+- Tap **Complete Set** to move to the next set
+- Rest timer automatically starts between sets
 
-**Week Selector:**
-- Horizontal scroll through weeks 1-8
-- Shows number of workout days per week
-- Green dot indicates current week
-
-**Weekly Calendar Grid:**
-- Visual representation of each day
-- Dumbbell icon = workout day
-- "Rest" = no workout scheduled
-- Current day highlighted
-
-**Day Details:**
-- Tap any day to see workout details
-- Shows all exercises with sets, reps, and rest times
-- Displays personal notes for each exercise
-
----
-
-## Today Screen
-
-The home screen shows:
-- Current date
-- Current cycle, week, and day in your program
-- Week progress bar
-- List of exercises scheduled for today
-- Last weight used for each exercise (if available)
-- **Start Workout** button
-
-If no workout is scheduled, you'll see a "Rest Day" message.
+**Video Player:**
+- Tap the video icon to view exercise demonstration
+- Videos play inline with thumbnail preview
+- Supports YouTube URLs
 
 ---
 
-## Active Workout
+## AI Form Coach
 
-When you tap **Start Workout**, you enter the active workout mode with three phases:
+The AI Form Coach uses on-device pose estimation to track your bodyweight exercises in real-time.
 
-### Phase 1: Warm-up (🔥)
+### Supported Exercises
 
-If you have warm-up exercises configured:
-1. Each warm-up exercise is shown one at a time
-2. **Video player** displays if a video URL is configured
-3. **Timer** shows the exercise duration
-4. Tap **Start Timer** to begin countdown
-5. Tap **Done** when finished, or **Skip** to move on
-6. Tap **Skip All** to skip the entire warm-up phase
+| Exercise | Camera Position | Form Checks |
+|----------|-----------------|-------------|
+| **Push-up** | Side view | Depth, lockout, hip sag |
+| **Pull-up** | Front view | Chin over bar, full extension, kipping |
+| **Squat** | Side view | Depth, lockout, knee cave, forward lean |
 
-### Phase 2: Main Workout
+### How to Use
 
-#### Video Player
+1. From the Today tab, tap **AI Form Coach**
+2. Select your exercise (Push-up, Pull-up, or Squat)
+3. Review the tips for camera positioning
+4. Tap **Start Tracking**
+5. Grant camera permission when prompted
+6. Position yourself in frame
+7. Perform your reps - the AI will count automatically
+8. Tap **Stop** when finished
+9. Review your session summary with form score and feedback
 
-If an exercise has a video URL configured:
-- A thumbnail preview appears at the top
-- Tap to open the full video player
-- Watch the exercise demonstration while working out
-- Play/pause controls available
+### Camera Controls
 
-#### Personal Notes Display
+- **Camera Switch Button** (top right): Toggle between front and back cameras for better angles
+- **Form Guide Toggle** (figure icon): Show/hide the visual form guide overlay
 
-If an exercise has notes configured:
-- A highlighted "Coach Notes" section appears
-- Shows your custom cues (e.g., "pause 2 sec", "lift heavy")
-- Helps maintain proper form and technique
+### Visual Form Guides
 
-#### During the Main Workout
+When enabled, the form guide overlay shows:
+- Stick figure animation of correct form
+- Real-time feedback on your current position
+- Tips for the current phase of the movement
 
-1. **Current Exercise** is displayed with:
-   - Exercise name
-   - Video player (if configured)
-   - Personal notes (if configured)
-   - Target reps
-   - Last weight reference (if available)
+### Form Scoring
 
-2. **Enter your data:**
-   - Weight in kg
-   - Reps completed
+- **Excellent (90-100)**: Near-perfect form
+- **Good (75-89)**: Minor form issues
+- **Fair (60-74)**: Some form corrections needed
+- **Needs Work (<60)**: Focus on form improvement
 
-3. **Tap "Complete Set"** to log the set
+### Form Flags Detected
 
-4. **Rest Timer** automatically starts between sets
-   - Shows countdown
-   - Tap "Skip Rest" to continue immediately
-   - Haptic feedback when timer ends
+| Flag | Description | Deduction |
+|------|-------------|-----------|
+| Partial ROM | Not reaching full range of motion | -20 |
+| No Lockout | Not fully extending at top/bottom | -15 |
+| Hip Sag | Core not engaged (push-ups) | -10 |
+| Kipping | Excessive hip swing (pull-ups) | -10 |
+| Knees Caving | Knees moving inward (squats) | -15 |
+| Forward Lean | Excessive torso lean (squats) | -10 |
 
-5. **Progress bar** shows overall workout completion
+### Tips for Best Results
 
-#### Personal Records (PR)
-When you lift more weight than your previous best for an exercise:
-- A celebration popup appears
-- Shows how much you improved
-- Haptic success feedback
-
-### Phase 3: Cool-down (❄️)
-
-If you have cool-down exercises configured:
-1. Each cool-down exercise is shown one at a time
-2. **Video player** displays if a video URL is configured
-3. **Timer** shows the exercise duration
-4. Tap **Start Timer** to begin countdown
-5. Tap **Done** when finished, or **Skip** to move on
-6. Tap **Skip All** to finish the workout immediately
-
-### Completing a Workout
-
-After all phases are done:
-- Workout is automatically saved
-- Success message appears
-- Tap "Done" to return to home
-
-### Canceling a Workout
-
-- Tap the X button in the top left
-- Confirm to cancel (progress will be lost)
+- Ensure good lighting
+- Place phone at a stable position
+- Keep your full body in frame
+- Wear fitted clothing for better detection
+- Use side view for push-ups and squats
+- Use front view for pull-ups
 
 ---
 
-## History Screen
+## Schedule Tab
 
-The History screen now has three views:
+The Schedule tab displays a calendar view of your entire 8-week program.
 
-### Workouts View
+**Features:**
+- Visual overview of all 8 weeks
+- Days with workouts are highlighted
+- Tap any day to see scheduled exercises
+- Current day is marked
+- Shows which cycle you're in
 
-Shows all completed workouts sorted by date (newest first).
+---
 
-**Each workout card shows:**
-- Date
-- Cycle, week, and day
-- Number of exercises and total sets
+## History Tab
 
-**Tap a workout to expand** and see:
-- Each exercise performed
-- Weight and reps for each set
+The History tab has two sections:
 
-### Exercises View
+### Workouts Section
 
-Shows all exercises with their weight history.
+- View all completed workouts
+- Filter by exercise to see progression
+- Each workout shows:
+  - Date and exercises performed
+  - Sets, reps, and weights used
+  - Duration
 
-**Each exercise card shows:**
-- Exercise name
-- Number of workouts logged
-- Best weight (PR) with trophy icon
+### Body Section
 
-**Tap an exercise to expand** and see:
-- Weight history (last 10 entries)
-- Date, weight, and reps for each entry
-- Trophy icon marks your best weight
+Track your physical measurements over time.
 
-**Search:**
-- Use the search bar to filter exercises by name
-
-### Body View (NEW)
-
-Track your body weight and measurements over time.
-
-**Body Weight:**
-- Log your weight with date
-- View weight history
-- See change from previous entry
-
-**Body Measurements:**
-- Track multiple body parts: Chest, Waist, Hips, Left Arm, Right Arm, Left Thigh, Right Thigh
-- Log measurements with date
-- View measurement history
-- See progress compared to previous entries
-
-**To add a body weight entry:**
-1. Go to History → Body tab
-2. Tap **+ Add Weight**
-3. Enter your weight in kg
+**To add a measurement:**
+1. Tap **Add Measurement**
+2. Enter your body weight
+3. Enter measurements (all optional):
+   - Chest
+   - Waist
+   - Hips
+   - Left/Right Arm
+   - Left/Right Thigh
 4. Tap **Save**
 
-**To add body measurements:**
-1. Go to History → Body tab
-2. Tap **+ Add Measurements**
-3. Enter measurements for each body part (in cm)
-4. Tap **Save**
+**Progress Tracking:**
+- Measurements show comparison to previous entry
+- Green arrows indicate improvement
+- Red arrows indicate areas to watch
 
 ---
 
 ## Whoop Integration
 
-Access via Admin → Settings → Whoop Integration
+The app supports optional Whoop integration for recovery and strain data.
 
-### Features
-
-**Connection Status:**
-- Shows whether Whoop is connected
-- Last sync timestamp
-
-**Recovery Metrics (when connected):**
-- **Recovery Score** - How recovered your body is (0-100%)
-- **Day Strain** - Cardiovascular load for the day
-- **Sleep Performance** - Quality of last night's sleep
+**Setup (requires Whoop developer account):**
+1. Go to Admin → Settings → Whoop Integration
+2. Follow the OAuth flow to connect your Whoop account
+3. Once connected, view recovery score and strain data
 
 **Demo Mode:**
-- Try the feature with sample data before connecting
-- Useful for previewing the interface
-
-**Full Integration:**
-- Requires creating an app at developer.whoop.com
-- OAuth authentication flow
-- Real-time data sync from your Whoop device
-
----
-
-## 8-Week Cycle Logic
-
-The app automatically calculates your position in the program:
-
-| Days Since Start | Cycle | Week | Day |
-|-----------------|-------|------|-----|
-| 0-6 | 1 | 1 | 1-7 |
-| 7-13 | 1 | 2 | 1-7 |
-| ... | ... | ... | ... |
-| 49-55 | 1 | 8 | 1-7 |
-| 56-62 | 2 | 1 | 1-7 |
-
-After 8 weeks (56 days), the cycle number increments and the week resets to 1. Your weight history is preserved across all cycles.
+- If not connected, the app shows simulated Whoop data for preview
 
 ---
 
 ## Data Storage
 
-All data is stored locally on your device using AsyncStorage:
-- Exercises
-- Program configuration
-- Workout history
-- Warm-up and cool-down routines
-- Body measurements
-- Settings
-- Whoop connection data
-
-**Data persists** even when you close the app or restart your phone.
-
-**To backup your data:** Currently, data is device-local only. Consider taking screenshots of your history for backup.
-
----
-
-## Tips for Best Experience
-
-1. **Configure your full 8-week program** before starting to avoid gaps
-2. **Set up warm-up and cool-down routines** for proper preparation and recovery
-3. **Add video URLs** for exercises you want to review form (YouTube links work best)
-4. **Add personal notes** with coaching cues for proper technique
-5. **Set accurate rest times** for each exercise type
-6. **Log every workout** to build accurate weight history
-7. **Track body measurements weekly** to see physical progress
-8. **Use the Schedule tab** to plan ahead and see your full program
-9. **Check the History tab** to track your progress over time
-10. **Connect Whoop** (if you have one) to optimize training based on recovery
+- All data is stored locally on your device using AsyncStorage
+- No cloud sync or backup (data stays on your phone)
+- Data persists across app restarts
+- Uninstalling the app will delete all data
 
 ---
 
 ## Troubleshooting
 
-| Issue | Solution |
-|-------|----------|
-| App shows wrong day | Check your Cycle Start Date in Admin > Settings |
-| No exercises showing | Configure the program in Admin > Program |
-| Weight not saving | Make sure to tap "Complete Set" for each set |
-| Rest timer not working | Ensure the app is in the foreground |
-| Video not playing | Check that the YouTube URL is correct |
-| Whoop not connecting | Ensure you've set up OAuth credentials |
-| Warm-up not showing | Add warm-up exercises in Admin > Warmup tab |
-| Body measurements not saving | Ensure you tap Save after entering values |
+**App not loading:**
+- Ensure Expo Go is up to date
+- Check your internet connection
+- Try reloading the app in Expo Go
 
----
+**Workout not showing:**
+- Verify the cycle start date is set correctly
+- Check that exercises are configured for today's day in the Program tab
 
-## Technical Details
+**AI Form Coach issues:**
+- Ensure camera permission is granted
+- Check lighting conditions
+- Position camera at correct angle for the exercise
+- Try switching between front and back cameras
 
-- **Platform:** React Native with Expo SDK 54
-- **Storage:** AsyncStorage (local device storage)
-- **Video Player:** YouTube iframe integration
-- **Styling:** NativeWind (Tailwind CSS for React Native)
-- **Compatible with:** Android (Google Pixel and other devices)
-
----
-
-## Quick Reference
-
-### Adding Your First Exercise
-Admin → Exercises → + → Enter name, reps, video URL, notes → Save
-
-### Setting Up Warm-up Routine
-Admin → Warmup → Warm-up tab → + → Enter name, duration, video URL → Save
-
-### Setting Up Cool-down Routine
-Admin → Warmup → Cool-down tab → + → Enter name, duration, video URL → Save
-
-### Setting Up Week 1, Day 1
-Admin → Program → Select Week 1 → Select Mon → Edit → Add exercises → Save
-
-### Starting a Workout
-Today → Start Workout → Complete Warm-up → Main Workout → Cool-down → Done
-
-### Tracking Body Measurements
-History → Body tab → + Add Weight or + Add Measurements → Enter values → Save
-
-### Viewing Your Schedule
-Schedule → Select week → Tap day → View workout details
-
-### Viewing Progress
-History → Exercises → Tap exercise → View weight history
-
-### Connecting Whoop
-Admin → Settings → Whoop Integration → Connect or Try Demo Mode
-
-
----
-
-## AI Form Coach (NEW)
-
-The AI Form Coach uses on-device pose estimation to track your push-ups and pull-ups, count reps automatically, and provide form feedback.
-
-### Accessing AI Form Coach
-
-From the Today screen, tap the **AI Form Coach** card to access this feature.
-
-### Supported Exercises
-
-| Exercise | Camera Position | What's Tracked |
-|----------|-----------------|----------------|
-| **Push-up** | Side view | Elbow angle, hip position |
-| **Pull-up** | Front view | Chin position, arm extension |
-
-### How It Works
-
-1. **Select Exercise** - Choose Push-up or Pull-up
-2. **Position Camera** - Follow the tips for optimal tracking
-3. **Start Tracking** - Tap Start to begin your set
-4. **Perform Reps** - The AI counts reps and monitors form in real-time
-5. **Stop & Review** - Tap Stop to see your session summary
-
-### Form Scoring
-
-Each rep receives a form score (0-100) based on:
-
-| Criteria | Deduction | Description |
-|----------|-----------|-------------|
-| Partial ROM | -20 | Not going deep enough on push-ups, or not pulling high enough on pull-ups |
-| No Lockout | -15 | Not fully extending arms at the top of push-ups or bottom of pull-ups |
-| Hip Sag | -10 | (Push-ups) Hips dropping below shoulder line |
-| Kipping | -10 | (Pull-ups) Excessive hip swing |
-
-### Session Summary
-
-After completing a set, you'll see:
-- **Total Reps** - Number of reps counted
-- **Form Score** - Average score across all reps
-- **Grade** - Excellent (90+), Good (75+), Fair (60+), or Needs Work (<60)
-- **Form Feedback** - Specific tips to improve your technique
-- **Rep Details** - Score and flags for each individual rep
-
-### Tips for Best Results
-
-1. **Good Lighting** - Ensure the room is well-lit
-2. **Stable Camera** - Place your phone on a stable surface or tripod
-3. **Full Body in Frame** - Make sure your entire body is visible
-4. **Side View for Push-ups** - Position camera perpendicular to your body
-5. **Front View for Pull-ups** - Position camera facing you
-6. **Consistent Distance** - Stay at a consistent distance from the camera
-
-### Technical Notes
-
-- All processing happens **on-device** - no video is uploaded
-- Pose detection runs at approximately 5 frames per second to maintain performance
-- Works best on devices with good processing power
+**Camera not showing:**
 - Camera preview may not be available on web (demo mode will be active)
+- On native devices, ensure camera permission is granted
 
 ---
+
+## Version History
+
+| Version | Features |
+|---------|----------|
+| 1.0 | Initial release with 8-week program, weight tracking, history |
+| 1.1 | Added body measurements, warm-up/cool-down sections |
+| 1.2 | Added AI Form Coach with push-ups and pull-ups |
+| 1.3 | Added camera switching, visual form guides, squat tracking |

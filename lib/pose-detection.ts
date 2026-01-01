@@ -2,7 +2,7 @@
  * Pose Detection Utilities for AI Form Coach
  * 
  * Uses TensorFlow.js MoveNet for on-device pose estimation
- * Implements rep counting and form analysis for push-ups and pull-ups
+ * Implements rep counting and form analysis for push-ups, pull-ups, and squats
  */
 
 // Keypoint indices for MoveNet model
@@ -26,7 +26,7 @@ export const KEYPOINTS = {
   RIGHT_ANKLE: 16,
 } as const;
 
-export type ExerciseType = 'pushup' | 'pullup';
+export type ExerciseType = 'pushup' | 'pullup' | 'squat';
 
 export interface Keypoint {
   x: number;
@@ -41,7 +41,7 @@ export interface Pose {
 }
 
 export interface FormFlag {
-  type: 'partial_rom' | 'no_lockout' | 'hip_sag' | 'kipping';
+  type: 'partial_rom' | 'no_lockout' | 'hip_sag' | 'kipping' | 'knees_caving' | 'forward_lean' | 'heels_rising';
   message: string;
   deduction: number;
 }
@@ -105,14 +105,30 @@ export function getAveragePoint(kp1: Keypoint, kp2: Keypoint): Keypoint {
  * Calculate the overall confidence of pose detection
  */
 export function calculatePoseConfidence(pose: Pose, exerciseType: ExerciseType): number {
-  const relevantKeypoints = exerciseType === 'pushup'
-    ? [KEYPOINTS.LEFT_SHOULDER, KEYPOINTS.RIGHT_SHOULDER, 
-       KEYPOINTS.LEFT_ELBOW, KEYPOINTS.RIGHT_ELBOW,
-       KEYPOINTS.LEFT_WRIST, KEYPOINTS.RIGHT_WRIST,
-       KEYPOINTS.LEFT_HIP, KEYPOINTS.RIGHT_HIP]
-    : [KEYPOINTS.NOSE, KEYPOINTS.LEFT_SHOULDER, KEYPOINTS.RIGHT_SHOULDER,
-       KEYPOINTS.LEFT_ELBOW, KEYPOINTS.RIGHT_ELBOW,
-       KEYPOINTS.LEFT_WRIST, KEYPOINTS.RIGHT_WRIST];
+  let relevantKeypoints: number[];
+  
+  if (exerciseType === 'pushup') {
+    relevantKeypoints = [
+      KEYPOINTS.LEFT_SHOULDER, KEYPOINTS.RIGHT_SHOULDER, 
+      KEYPOINTS.LEFT_ELBOW, KEYPOINTS.RIGHT_ELBOW,
+      KEYPOINTS.LEFT_WRIST, KEYPOINTS.RIGHT_WRIST,
+      KEYPOINTS.LEFT_HIP, KEYPOINTS.RIGHT_HIP
+    ];
+  } else if (exerciseType === 'pullup') {
+    relevantKeypoints = [
+      KEYPOINTS.NOSE, KEYPOINTS.LEFT_SHOULDER, KEYPOINTS.RIGHT_SHOULDER,
+      KEYPOINTS.LEFT_ELBOW, KEYPOINTS.RIGHT_ELBOW,
+      KEYPOINTS.LEFT_WRIST, KEYPOINTS.RIGHT_WRIST
+    ];
+  } else {
+    // squat
+    relevantKeypoints = [
+      KEYPOINTS.LEFT_HIP, KEYPOINTS.RIGHT_HIP,
+      KEYPOINTS.LEFT_KNEE, KEYPOINTS.RIGHT_KNEE,
+      KEYPOINTS.LEFT_ANKLE, KEYPOINTS.RIGHT_ANKLE,
+      KEYPOINTS.LEFT_SHOULDER, KEYPOINTS.RIGHT_SHOULDER
+    ];
+  }
 
   let totalScore = 0;
   let validCount = 0;
@@ -433,6 +449,187 @@ export class PullupTracker {
     }
 
     this.lastChinPosition = chinY;
+    
+    return { repCompleted, repData, currentState: this.state };
+  }
+
+  getRepCount(): number {
+    return this.repCount;
+  }
+
+  getCurrentState(): string {
+    return this.state;
+  }
+}
+
+/**
+ * Squat state machine
+ */
+export class SquatTracker {
+  private state: 'standing' | 'down' | 'transitioning' = 'standing';
+  private repCount = 0;
+  private currentRepFlags: FormFlag[] = [];
+  private lastKneeAngle = 180;
+  private lowestKneeAngle = 180;
+  private highestKneeAngle = 0;
+  private initialKneeX = 0;
+  private initialAnkleX = 0;
+  private repStartTime = 0;
+  
+  // Thresholds
+  private readonly DOWN_ANGLE_THRESHOLD = 100; // Knee angle to consider "down" (parallel or below)
+  private readonly UP_ANGLE_THRESHOLD = 160; // Knee angle to consider "standing"
+  private readonly PARTIAL_ROM_THRESHOLD = 110; // If lowest angle > this, partial ROM
+  private readonly KNEE_CAVE_THRESHOLD = 30; // Pixels knees can move inward
+
+  reset(): void {
+    this.state = 'standing';
+    this.repCount = 0;
+    this.currentRepFlags = [];
+    this.lastKneeAngle = 180;
+    this.lowestKneeAngle = 180;
+    this.highestKneeAngle = 0;
+    this.initialKneeX = 0;
+    this.initialAnkleX = 0;
+    this.repStartTime = Date.now();
+  }
+
+  processFrame(pose: Pose): { repCompleted: boolean; repData: RepData | null; currentState: string } {
+    const leftHip = pose.keypoints[KEYPOINTS.LEFT_HIP];
+    const rightHip = pose.keypoints[KEYPOINTS.RIGHT_HIP];
+    const leftKnee = pose.keypoints[KEYPOINTS.LEFT_KNEE];
+    const rightKnee = pose.keypoints[KEYPOINTS.RIGHT_KNEE];
+    const leftAnkle = pose.keypoints[KEYPOINTS.LEFT_ANKLE];
+    const rightAnkle = pose.keypoints[KEYPOINTS.RIGHT_ANKLE];
+    const leftShoulder = pose.keypoints[KEYPOINTS.LEFT_SHOULDER];
+    const rightShoulder = pose.keypoints[KEYPOINTS.RIGHT_SHOULDER];
+
+    // Check if we have valid keypoints
+    const hasValidKeypoints = 
+      (isKeypointValid(leftHip) || isKeypointValid(rightHip)) &&
+      (isKeypointValid(leftKnee) || isKeypointValid(rightKnee)) &&
+      (isKeypointValid(leftAnkle) || isKeypointValid(rightAnkle));
+
+    if (!hasValidKeypoints) {
+      return { repCompleted: false, repData: null, currentState: this.state };
+    }
+
+    // Calculate knee angle (use the side with better detection)
+    let kneeAngle = 180;
+    
+    if (isKeypointValid(leftHip) && isKeypointValid(leftKnee) && isKeypointValid(leftAnkle)) {
+      kneeAngle = calculateAngle(leftHip, leftKnee, leftAnkle);
+    } else if (isKeypointValid(rightHip) && isKeypointValid(rightKnee) && isKeypointValid(rightAnkle)) {
+      kneeAngle = calculateAngle(rightHip, rightKnee, rightAnkle);
+    }
+
+    // Track angle extremes during rep
+    if (kneeAngle < this.lowestKneeAngle) {
+      this.lowestKneeAngle = kneeAngle;
+    }
+    if (kneeAngle > this.highestKneeAngle) {
+      this.highestKneeAngle = kneeAngle;
+    }
+
+    // Set initial knee/ankle position at start of rep
+    if (this.state === 'standing' && this.initialKneeX === 0) {
+      if (isKeypointValid(leftKnee) && isKeypointValid(rightKnee)) {
+        this.initialKneeX = Math.abs(leftKnee.x - rightKnee.x);
+      }
+      if (isKeypointValid(leftAnkle) && isKeypointValid(rightAnkle)) {
+        this.initialAnkleX = Math.abs(leftAnkle.x - rightAnkle.x);
+      }
+    }
+
+    // Check for knee cave (knees moving inward during squat)
+    if (this.state === 'down' && isKeypointValid(leftKnee) && isKeypointValid(rightKnee)) {
+      const currentKneeWidth = Math.abs(leftKnee.x - rightKnee.x);
+      if (this.initialKneeX > 0 && currentKneeWidth < this.initialKneeX - this.KNEE_CAVE_THRESHOLD) {
+        const hasKneeCaveFlag = this.currentRepFlags.some(f => f.type === 'knees_caving');
+        if (!hasKneeCaveFlag) {
+          this.currentRepFlags.push({
+            type: 'knees_caving',
+            message: 'Push knees out - they are caving inward',
+            deduction: 15,
+          });
+        }
+      }
+    }
+
+    // Check for excessive forward lean
+    if (isKeypointValid(leftShoulder) && isKeypointValid(leftHip) && isKeypointValid(rightShoulder) && isKeypointValid(rightHip)) {
+      const shoulderX = (leftShoulder.x + rightShoulder.x) / 2;
+      const hipX = (leftHip.x + rightHip.x) / 2;
+      const shoulderY = (leftShoulder.y + rightShoulder.y) / 2;
+      const hipY = (leftHip.y + rightHip.y) / 2;
+      
+      // Calculate torso angle from vertical
+      const torsoAngle = Math.abs(Math.atan2(shoulderX - hipX, hipY - shoulderY) * 180 / Math.PI);
+      
+      if (torsoAngle > 45 && this.state === 'down') {
+        const hasForwardLeanFlag = this.currentRepFlags.some(f => f.type === 'forward_lean');
+        if (!hasForwardLeanFlag) {
+          this.currentRepFlags.push({
+            type: 'forward_lean',
+            message: 'Keep chest up - excessive forward lean',
+            deduction: 10,
+          });
+        }
+      }
+    }
+
+    let repCompleted = false;
+    let repData: RepData | null = null;
+
+    // State machine
+    if (this.state === 'standing' && kneeAngle < this.DOWN_ANGLE_THRESHOLD) {
+      this.state = 'down';
+      this.repStartTime = Date.now();
+    } else if (this.state === 'down' && kneeAngle > this.UP_ANGLE_THRESHOLD) {
+      // Rep completed
+      this.state = 'standing';
+      this.repCount++;
+      
+      // Check for form issues
+      if (this.lowestKneeAngle > this.PARTIAL_ROM_THRESHOLD) {
+        this.currentRepFlags.push({
+          type: 'partial_rom',
+          message: 'Go deeper - aim for parallel or below',
+          deduction: 20,
+        });
+      }
+      
+      if (this.highestKneeAngle < this.UP_ANGLE_THRESHOLD - 10) {
+        this.currentRepFlags.push({
+          type: 'no_lockout',
+          message: 'Fully stand up at the top',
+          deduction: 15,
+        });
+      }
+
+      // Calculate form score
+      let formScore = 100;
+      for (const flag of this.currentRepFlags) {
+        formScore -= flag.deduction;
+      }
+      formScore = Math.max(0, formScore);
+
+      repData = {
+        repNumber: this.repCount,
+        formScore,
+        flags: [...this.currentRepFlags],
+        timestamp: Date.now(),
+      };
+
+      // Reset for next rep
+      this.currentRepFlags = [];
+      this.lowestKneeAngle = 180;
+      this.highestKneeAngle = 0;
+      this.initialKneeX = 0;
+      repCompleted = true;
+    }
+
+    this.lastKneeAngle = kneeAngle;
     
     return { repCompleted, repData, currentState: this.state };
   }
