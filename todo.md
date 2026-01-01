@@ -148,3 +148,53 @@
 - [x] Implement joint loss detection during tracking
 - [x] Add audio alert when joint loses tracking
 - [x] Add haptic feedback when joint loses tracking
+
+## Production Pose Detection System (Major Refactor)
+
+### Phase 1: Camera & Model Setup
+- [ ] Install TensorFlow.js and pose detection dependencies
+- [ ] Configure expo-gl for GPU acceleration
+- [ ] Create TensorCamera wrapper component
+- [ ] Load MoveNet Lightning model on app start
+- [ ] Verify model loads and produces keypoints
+
+### Phase 2: Keypoint Smoothing & Confidence
+- [ ] Implement temporal keypoint smoothing (exponential moving average)
+- [x] Create smoothed confidence score tracker
+- [x] Define confidence thresholds (good >= 0.6, weak 0.3-0.6, lost < 0.3)
+- [x] Track confidence stability over consecutive frames
+
+### Phase 3: Calibration Phase (Strict)
+- [x] Require all exercise-relevant joints detected
+- [x] Require average confidence above threshold for N consecutive frames
+- [x] User must hold still (low keypoint variance)
+- [x] Show skeleton overlay during calibration
+- [x] Clear instructions if calibration fails
+- [x] Only enable "Start Set" after calibration passes
+- [x] No rep counting or feedback during calibration
+
+### Phase 4: Confidence-Gated Tracking
+- [x] Pause rep counting when confidence drops below threshold
+- [x] Suppress all form feedback when confidence is weak
+- [x] Show "Tracking weak: adjust angle/lighting" message
+- [x] Resume tracking when confidence recovers
+- [x] Never show form errors when confidence is weak
+
+### Phase 5: Rep Counting & Rules Engine
+- [x] Add debounce to state machine transitions
+- [x] Only flag major form issues (partial ROM, no lockout)
+- [x] Implement conservative FormScore (0-100)
+- [x] Reduce false positives in rep detection
+
+### Phase 6: UX Updates
+- [x] Confidence indicator always visible during set
+- [x] Skeleton overlay toggle (off by default after calibration)
+- [x] Minimal cues only when confidence is good
+- [x] Post-set summary: reps, FormScore, top 1-3 issues, 1 fix tip
+- [x] Save derived metrics only (no video)
+
+### Phase 7: Performance
+- [x] Throttle inference to 8-12 FPS
+- [x] Proper tensor disposal to prevent memory leaks
+- [ ] Test on real device for performance validation
+- [x] Ensure app remains responsive during tracking
