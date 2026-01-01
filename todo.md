@@ -241,3 +241,15 @@
 - [x] Load from cache when offline or API unavailable
 - [x] Add cache size indicator in settings
 - [x] Add "Clear Cache" button in settings
+
+## Exercise Guidance During Workout
+- [x] Add exercise demonstration video/GIF at top of workout screen
+- [x] Display exercise instructions below the video
+- [x] Show form tips and cues during workout
+- [x] Make video collapsible to save screen space
+
+## Exercise Guidance During Workout
+- [x] Add exercise demonstration video/GIF at top of workout screen
+- [x] Display exercise instructions below the video
+- [x] Show form tips and cues during workout
+- [x] Make video collapsible to save screen space

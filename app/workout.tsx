@@ -14,6 +14,7 @@ import { useRouter } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { VideoPlayer } from '@/components/video-player';
+import { ExerciseGuidance } from '@/components/exercise-guidance';
 import { useColors } from '@/hooks/use-colors';
 import { useGym } from '@/lib/gym-context';
 import { 
@@ -712,15 +713,16 @@ export default function WorkoutScreen() {
           </View>
         ) : (
           <>
-            {/* Video Player Section */}
-            {currentExercise?.videoUrl ? (
-              <View className="mb-4">
-                <VideoPlayer 
-                  videoUrl={currentExercise.videoUrl} 
-                  exerciseName={currentExercise.name}
-                />
-              </View>
-            ) : null}
+            {/* Exercise Guidance - Video/GIF and Instructions */}
+            {currentExercise && (
+              <ExerciseGuidance
+                exerciseName={currentExercise.name}
+                exerciseId={currentExercise.id}
+                videoUrl={currentExercise.videoUrl}
+                notes={currentExercise.notes}
+                apiKey={store.settings.rapidApiKey}
+              />
+            )}
 
             {/* Current Exercise Card */}
             <View 
@@ -735,26 +737,6 @@ export default function WorkoutScreen() {
                   Set {currentSetIndex + 1} of {currentDayExercise?.sets}
                 </Text>
               </View>
-
-              {/* Personal Notes */}
-              {currentExercise?.notes ? (
-                <View 
-                  className="mb-4 p-4 rounded-xl"
-                  style={{ backgroundColor: colors.warning + '15' }}
-                >
-                  <View className="flex-row items-start">
-                    <Text style={{ fontSize: 16, marginRight: 8 }}>📝</Text>
-                    <View className="flex-1">
-                      <Text className="text-sm font-medium" style={{ color: colors.warning }}>
-                        Coach Notes
-                      </Text>
-                      <Text className="text-foreground mt-1">
-                        {currentExercise.notes}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-              ) : null}
 
               {/* Target Reps */}
               <View 
