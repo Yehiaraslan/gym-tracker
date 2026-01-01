@@ -206,3 +206,12 @@
 - [x] Show visual feedback as each joint is found
 - [x] Add user confirmation button after all joints detected
 - [x] Only start tracking after user confirms joint positions
+
+## BUG: Pose Detection Not Using Real Camera Data
+- [x] Fix: Pose detection now requires real camera data or explicit demo mode
+- [x] Remove automatic simulated pose generation
+- [x] Added demo mode toggle for UI testing without real camera
+- [x] Only return keypoints when a real person is detected (or demo mode is active)
+- [x] Return null/empty pose when no person is visible in frame
+- [x] Show "No person detected" message when waiting for real detection
+- [ ] Implement actual TensorFlow.js MoveNet model inference (requires custom dev build)

@@ -38,7 +38,15 @@ import { ProgressiveCalibrationOverlay, JOINT_DETECTION_ORDER, JointDetectionSta
 import { ProgressiveCalibrationManager } from '@/lib/progressive-calibration';
 import { AICoach } from '@/lib/ai-coach';
 import { audioFeedback, stopSpeech } from '@/lib/audio-feedback';
-import { detectPoseFromFrame, resetRealPoseDetector } from '@/lib/real-pose-detection';
+import { 
+  detectPoseFromFrame, 
+  resetRealPoseDetector,
+  setDetectionMode,
+  startDemoDetection,
+  stopDemoDetection,
+  isDemoActive,
+  getDetectionMode,
+} from '@/lib/real-pose-detection';
 import { ConfidenceLegend } from '@/components/confidence-legend';
 import { JointLossAlertManager } from '@/lib/joint-loss-alert';
 
@@ -96,6 +104,8 @@ export default function FormCoachTrackingScreen() {
 
   const [lostJointsWarning, setLostJointsWarning] = useState<string[]>([]);
   const [showLegend, setShowLegend] = useState(true);
+  const [demoMode, setDemoMode] = useState(false);
+  const [waitingForPerson, setWaitingForPerson] = useState(true);
 
   const trackerRef = useRef<PushupTracker | PullupTracker | SquatTracker | RDLTracker | null>(null);
   const sessionRef = useRef<ExerciseSession | null>(null);
@@ -196,9 +206,15 @@ export default function FormCoachTrackingScreen() {
     if (!pose) {
       setCurrentPose(null);
       setConfidence(0);
+      // Still waiting for a person to be detected
+      if (trackingState === 'calibrating') {
+        setWaitingForPerson(true);
+      }
       return;
     }
 
+    // Person detected!
+    setWaitingForPerson(false);
     setCurrentPose(pose);
     const poseConfidence = calculatePoseConfidence(pose, exerciseType);
     setConfidence(poseConfidence);
@@ -413,6 +429,11 @@ export default function FormCoachTrackingScreen() {
       jointLossAlertRef.current.stop();
       jointLossAlertRef.current.reset();
     }
+    
+    // Reset demo mode
+    setDemoMode(false);
+    setDetectionMode('real');
+    stopDemoDetection();
     resetRealPoseDetector();
     
     // Reset all calibration state
@@ -422,6 +443,7 @@ export default function FormCoachTrackingScreen() {
     setCalibrationConfirmed(false);
     setCalibratedPose(null);
     setLostJointsWarning([]);
+    setWaitingForPerson(true);
     
     setTrackingState('calibrating');
     setCoachMessage('Looking for your body...');
@@ -687,12 +709,26 @@ export default function FormCoachTrackingScreen() {
         <View style={[styles.bottomPanel, { backgroundColor: colors.background }]}>
           {/* Coach Message */}
           <View style={styles.coachMessageContainer}>
-            <Text style={[styles.coachMessage, { color: colors.foreground }]}>
-              {coachMessage}
-            </Text>
-            <Text style={[styles.coachSubMessage, { color: colors.muted }]}>
-              {coachSubMessage}
-            </Text>
+            {trackingState === 'calibrating' && waitingForPerson && !demoMode ? (
+              <>
+                <Text style={[styles.coachMessage, { color: colors.warning }]}>
+                  📷 No person detected
+                </Text>
+                <Text style={[styles.coachSubMessage, { color: colors.muted }]}>
+                  Stand in front of the camera so your full body is visible.
+                  {Platform.OS === 'web' ? '\nNote: Real detection requires a native app build.' : ''}
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text style={[styles.coachMessage, { color: colors.foreground }]}>
+                  {coachMessage}
+                </Text>
+                <Text style={[styles.coachSubMessage, { color: colors.muted }]}>
+                  {coachSubMessage}
+                </Text>
+              </>
+            )}
           </View>
 
           {/* Rep Counter (during tracking) */}
@@ -706,14 +742,44 @@ export default function FormCoachTrackingScreen() {
           {/* Action Buttons */}
           <View style={styles.actionButtons}>
             {trackingState === 'calibrating' && !allJointsDetected && (
-              <TouchableOpacity
-                style={[styles.secondaryButton, { backgroundColor: colors.surface }]}
-                onPress={handleRecalibrate}
-              >
-                <Text style={[styles.secondaryButtonText, { color: colors.foreground }]}>
-                  Restart
-                </Text>
-              </TouchableOpacity>
+              <>
+                {/* Demo Mode Toggle - for testing without real pose detection */}
+                <TouchableOpacity
+                  style={[
+                    styles.secondaryButton, 
+                    { backgroundColor: demoMode ? colors.warning : colors.surface }
+                  ]}
+                  onPress={() => {
+                    const newDemoMode = !demoMode;
+                    setDemoMode(newDemoMode);
+                    if (newDemoMode) {
+                      setDetectionMode('demo');
+                      startDemoDetection();
+                      setCoachMessage('Demo Mode Active');
+                      setCoachSubMessage('Simulating pose detection for testing');
+                    } else {
+                      setDetectionMode('real');
+                      stopDemoDetection();
+                      setWaitingForPerson(true);
+                      setCoachMessage('Step into frame');
+                      setCoachSubMessage('Stand so your full body is visible');
+                    }
+                  }}
+                >
+                  <Text style={[styles.secondaryButtonText, { color: demoMode ? '#000' : colors.foreground }]}>
+                    {demoMode ? '🎭 Demo ON' : '🎭 Demo'}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.secondaryButton, { backgroundColor: colors.surface }]}
+                  onPress={handleRecalibrate}
+                >
+                  <Text style={[styles.secondaryButtonText, { color: colors.foreground }]}>
+                    Restart
+                  </Text>
+                </TouchableOpacity>
+              </>
             )}
 
             {(trackingState === 'positioning' || trackingState === 'ready') && (
