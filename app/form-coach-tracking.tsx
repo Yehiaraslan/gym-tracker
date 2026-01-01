@@ -27,6 +27,7 @@ import {
   calculatePoseConfidence,
   Pose,
 } from '@/lib/pose-detection';
+import { CameraView } from 'expo-camera';
 
 type TrackingState = 'setup' | 'ready' | 'tracking' | 'completed';
 
@@ -45,11 +46,13 @@ export default function FormCoachTrackingScreen() {
   const [lastRepData, setLastRepData] = useState<RepData | null>(null);
   const [isModelLoading, setIsModelLoading] = useState(true);
   const [modelError, setModelError] = useState<string | null>(null);
+  const [cameraReady, setCameraReady] = useState(false);
 
   const trackerRef = useRef<PushupTracker | PullupTracker | null>(null);
   const sessionRef = useRef<ExerciseSession | null>(null);
   const frameCountRef = useRef(0);
   const lastProcessTimeRef = useRef(0);
+  const cameraRef = useRef<any>(null);
 
   // Request camera permission on native
   useEffect(() => {
@@ -418,23 +421,51 @@ export default function FormCoachTrackingScreen() {
     );
   }
 
+  // Render camera view for native, placeholder for web
+  const renderCameraView = () => {
+    if (Platform.OS === 'web') {
+      return (
+        <View style={[styles.camera, { backgroundColor: '#1a1a1a' }]}>
+          <View style={styles.cameraPlaceholder}>
+            <IconSymbol name="camera.fill" size={48} color="#666" />
+            <Text style={styles.placeholderText}>
+              Camera preview not available on web{'\n'}(Demo mode active)
+            </Text>
+          </View>
+        </View>
+      );
+    }
+
+    if (!hasCameraPermission) {
+      return (
+        <View style={[styles.camera, { backgroundColor: '#1a1a1a' }]}>
+          <View style={styles.cameraPlaceholder}>
+            <IconSymbol name="camera.fill" size={48} color="#666" />
+            <Text style={styles.placeholderText}>
+              Camera permission required
+            </Text>
+          </View>
+        </View>
+      );
+    }
+
+    // Native camera view
+    return (
+      <CameraView
+        ref={cameraRef}
+        style={styles.camera}
+        facing="front"
+        onCameraReady={() => setCameraReady(true)}
+      />
+    );
+  };
+
   // Render tracking/ready state
   return (
     <View style={styles.container}>
       {/* Camera View (or placeholder) */}
       <View style={styles.cameraContainer}>
-        <View style={[styles.camera, { backgroundColor: '#1a1a1a' }]}>
-          <View style={styles.cameraPlaceholder}>
-            <IconSymbol name="camera.fill" size={48} color="#666" />
-            <Text style={styles.placeholderText}>
-              {Platform.OS === 'web' 
-                ? 'Camera preview not available on web\n(Demo mode active)'
-                : hasCameraPermission 
-                  ? 'Position yourself in frame'
-                  : 'Camera permission required'}
-            </Text>
-          </View>
-        </View>
+        {renderCameraView()}
 
         {/* Overlay UI */}
         <View style={styles.overlay}>

@@ -67,3 +67,4 @@
 
 ## Bug Fixes
 - [x] Fix "invalid hook call" error in AI Form Coach tracking screen
+- [x] Fix camera view not rendering after permission granted on native devices
