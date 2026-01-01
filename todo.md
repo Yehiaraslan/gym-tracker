@@ -131,3 +131,9 @@
 - [x] Add "Calibrating..." status with progress indicator
 - [x] Voice announcement when calibration is complete
 - [ ] Integrate actual TensorFlow.js MoveNet model for real pose detection (requires native device testing)
+
+## Calibration Visual Effects
+- [x] Create pulsing animation effect for calibrated joints
+- [x] Show joint highlight overlay after successful calibration
+- [x] Animate joints from calibration state to tracking state
+- [x] Add celebratory visual feedback when all joints locked

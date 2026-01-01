@@ -33,6 +33,7 @@ import {
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { FormGuideOverlay } from '@/components/form-guide-overlay';
 import { SkeletonOverlay } from '@/components/skeleton-overlay';
+import { CalibratedJointsOverlay } from '@/components/calibrated-joints-overlay';
 import { AICoach } from '@/lib/ai-coach';
 import { audioFeedback, stopSpeech } from '@/lib/audio-feedback';
 import { PoseCalibrator, CalibrationState, CalibrationStatus } from '@/lib/pose-calibration';
@@ -83,6 +84,8 @@ export default function FormCoachTrackingScreen() {
   const [formIssues, setFormIssues] = useState<string[]>([]);
   const [calibrationState, setCalibrationState] = useState<CalibrationState | null>(null);
   const [showDebug, setShowDebug] = useState(false);
+  const [showCalibrationSuccess, setShowCalibrationSuccess] = useState(false);
+  const [calibratedPose, setCalibratedPose] = useState<Pose | null>(null);
 
   const trackerRef = useRef<PushupTracker | PullupTracker | SquatTracker | RDLTracker | null>(null);
   const sessionRef = useRef<ExerciseSession | null>(null);
@@ -177,6 +180,15 @@ export default function FormCoachTrackingScreen() {
         setTrackingState('positioning');
         setCoachMessage('Calibration complete!');
         setCoachSubMessage(getStartPositionMessage());
+        
+        // Store calibrated pose and show success animation
+        setCalibratedPose(pose);
+        setShowCalibrationSuccess(true);
+        
+        // Hide celebration after 3 seconds
+        setTimeout(() => {
+          setShowCalibrationSuccess(false);
+        }, 3000);
         
         if (audioEnabled) {
           audioFeedback.speak('Calibration complete! ' + getStartPositionMessage());
@@ -342,8 +354,13 @@ export default function FormCoachTrackingScreen() {
     if (calibratorRef.current) {
       calibratorRef.current.reset();
     }
+    if (aiCoachRef.current) {
+      aiCoachRef.current.reset();
+    }
     resetRealPoseDetector();
     setCalibrationState(null);
+    setCalibratedPose(null);
+    setShowCalibrationSuccess(false);
     setTrackingState('calibrating');
     setCoachMessage('Stand still for calibration');
     setCoachSubMessage('Keep your full body visible in frame');
@@ -487,6 +504,17 @@ export default function FormCoachTrackingScreen() {
               height={SCREEN_HEIGHT * 0.6}
               exerciseType={exerciseType}
               formIssues={formIssues}
+            />
+          )}
+
+          {/* Calibrated Joints Highlight Overlay */}
+          {(trackingState === 'positioning' || trackingState === 'ready') && calibratedPose && (
+            <CalibratedJointsOverlay
+              pose={calibratedPose}
+              width={SCREEN_WIDTH}
+              height={SCREEN_HEIGHT * 0.6}
+              isCalibrated={true}
+              showCelebration={showCalibrationSuccess}
             />
           )}
 
