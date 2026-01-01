@@ -56,6 +56,38 @@ export interface WorkoutLog {
   isCompleted: boolean;
 }
 
+// Body measurement entry
+export interface BodyMeasurement {
+  id: string;
+  date: string; // ISO date string
+  weight?: number; // kg
+  chest?: number; // cm
+  waist?: number; // cm
+  hips?: number; // cm
+  leftArm?: number; // cm
+  rightArm?: number; // cm
+  leftThigh?: number; // cm
+  rightThigh?: number; // cm
+  notes?: string;
+  createdAt: number;
+}
+
+// Warm-up/Cool-down exercise
+export interface WarmupCooldownExercise {
+  id: string;
+  name: string;
+  duration: number; // seconds
+  videoUrl?: string;
+  notes?: string;
+  order: number;
+}
+
+// Warm-up/Cool-down configuration
+export interface WarmupCooldownConfig {
+  warmupExercises: WarmupCooldownExercise[];
+  cooldownExercises: WarmupCooldownExercise[];
+}
+
 // App settings
 export interface AppSettings {
   cycleStartDate: string; // ISO date string
@@ -67,6 +99,8 @@ export interface GymStore {
   exercises: Exercise[];
   programDays: ProgramDay[];
   workoutLogs: WorkoutLog[];
+  bodyMeasurements: BodyMeasurement[];
+  warmupCooldown: WarmupCooldownConfig;
   settings: AppSettings;
 }
 

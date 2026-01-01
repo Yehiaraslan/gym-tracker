@@ -19,7 +19,8 @@ GymTracker is a personal gym workout tracking app designed for an 8-week cycling
 1. Go to the **Admin** tab
 2. Set your **Cycle Start Date** in the Settings section (format: YYYY-MM-DD)
 3. Add your exercises in the **Exercises** section
-4. Configure your 8-week program in the **Program** section
+4. Configure warm-up and cool-down routines in the **Warmup** section
+5. Configure your 8-week program in the **Program** section
 
 ---
 
@@ -31,8 +32,8 @@ The app has four main tabs:
 |-----|---------|
 | **Today** | View and start today's workout |
 | **Schedule** | View 8-week calendar with all workouts |
-| **History** | Review past workouts and weight progression |
-| **Admin** | Configure exercises, program, and settings |
+| **History** | Review past workouts, weight progression, and body measurements |
+| **Admin** | Configure exercises, warm-up/cool-down, program, and settings |
 
 ---
 
@@ -56,6 +57,29 @@ This is where you add all the exercises you'll use in your program.
 
 **To delete an exercise:**
 - Tap the trash icon next to the exercise
+
+### Warmup Tab (NEW)
+
+This is where you configure your warm-up and cool-down routines that run before and after every workout.
+
+**Warm-up Section (🔥):**
+- Exercises to prepare your body before the main workout
+- Each exercise has a name, duration timer, optional video URL, and notes
+- Examples: Jumping Jacks, Arm Circles, Leg Swings, Light Cardio
+
+**Cool-down Section (❄️):**
+- Exercises to help your body recover after the main workout
+- Each exercise has a name, duration timer, optional video URL, and notes
+- Examples: Stretching, Foam Rolling, Deep Breathing
+
+**To add a warm-up/cool-down exercise:**
+1. Select the **Warm-up** or **Cool-down** tab
+2. Tap the **+** button
+3. Enter the **Exercise Name** (required)
+4. Set the **Duration** in seconds (default: 30)
+5. Add a **Video URL** (optional) for demonstration
+6. Add **Notes** (optional) for instructions
+7. Tap **Save**
 
 ### Program Tab
 
@@ -135,9 +159,21 @@ If no workout is scheduled, you'll see a "Rest Day" message.
 
 ## Active Workout
 
-When you tap **Start Workout**, you enter the active workout mode.
+When you tap **Start Workout**, you enter the active workout mode with three phases:
 
-### Video Player
+### Phase 1: Warm-up (🔥)
+
+If you have warm-up exercises configured:
+1. Each warm-up exercise is shown one at a time
+2. **Video player** displays if a video URL is configured
+3. **Timer** shows the exercise duration
+4. Tap **Start Timer** to begin countdown
+5. Tap **Done** when finished, or **Skip** to move on
+6. Tap **Skip All** to skip the entire warm-up phase
+
+### Phase 2: Main Workout
+
+#### Video Player
 
 If an exercise has a video URL configured:
 - A thumbnail preview appears at the top
@@ -145,14 +181,14 @@ If an exercise has a video URL configured:
 - Watch the exercise demonstration while working out
 - Play/pause controls available
 
-### Personal Notes Display
+#### Personal Notes Display
 
 If an exercise has notes configured:
 - A highlighted "Coach Notes" section appears
 - Shows your custom cues (e.g., "pause 2 sec", "lift heavy")
 - Helps maintain proper form and technique
 
-### During a Workout
+#### During the Main Workout
 
 1. **Current Exercise** is displayed with:
    - Exercise name
@@ -174,16 +210,25 @@ If an exercise has notes configured:
 
 5. **Progress bar** shows overall workout completion
 
-### Personal Records (PR)
-
+#### Personal Records (PR)
 When you lift more weight than your previous best for an exercise:
 - A celebration popup appears
 - Shows how much you improved
 - Haptic success feedback
 
+### Phase 3: Cool-down (❄️)
+
+If you have cool-down exercises configured:
+1. Each cool-down exercise is shown one at a time
+2. **Video player** displays if a video URL is configured
+3. **Timer** shows the exercise duration
+4. Tap **Start Timer** to begin countdown
+5. Tap **Done** when finished, or **Skip** to move on
+6. Tap **Skip All** to finish the workout immediately
+
 ### Completing a Workout
 
-After all sets are done:
+After all phases are done:
 - Workout is automatically saved
 - Success message appears
 - Tap "Done" to return to home
@@ -196,6 +241,8 @@ After all sets are done:
 ---
 
 ## History Screen
+
+The History screen now has three views:
 
 ### Workouts View
 
@@ -226,6 +273,33 @@ Shows all exercises with their weight history.
 
 **Search:**
 - Use the search bar to filter exercises by name
+
+### Body View (NEW)
+
+Track your body weight and measurements over time.
+
+**Body Weight:**
+- Log your weight with date
+- View weight history
+- See change from previous entry
+
+**Body Measurements:**
+- Track multiple body parts: Chest, Waist, Hips, Left Arm, Right Arm, Left Thigh, Right Thigh
+- Log measurements with date
+- View measurement history
+- See progress compared to previous entries
+
+**To add a body weight entry:**
+1. Go to History → Body tab
+2. Tap **+ Add Weight**
+3. Enter your weight in kg
+4. Tap **Save**
+
+**To add body measurements:**
+1. Go to History → Body tab
+2. Tap **+ Add Measurements**
+3. Enter measurements for each body part (in cm)
+4. Tap **Save**
 
 ---
 
@@ -277,6 +351,8 @@ All data is stored locally on your device using AsyncStorage:
 - Exercises
 - Program configuration
 - Workout history
+- Warm-up and cool-down routines
+- Body measurements
 - Settings
 - Whoop connection data
 
@@ -289,13 +365,15 @@ All data is stored locally on your device using AsyncStorage:
 ## Tips for Best Experience
 
 1. **Configure your full 8-week program** before starting to avoid gaps
-2. **Add video URLs** for exercises you want to review form (YouTube links work best)
-3. **Add personal notes** with coaching cues for proper technique
-4. **Set accurate rest times** for each exercise type
-5. **Log every workout** to build accurate weight history
-6. **Use the Schedule tab** to plan ahead and see your full program
-7. **Check the History tab** to track your progress over time
-8. **Connect Whoop** (if you have one) to optimize training based on recovery
+2. **Set up warm-up and cool-down routines** for proper preparation and recovery
+3. **Add video URLs** for exercises you want to review form (YouTube links work best)
+4. **Add personal notes** with coaching cues for proper technique
+5. **Set accurate rest times** for each exercise type
+6. **Log every workout** to build accurate weight history
+7. **Track body measurements weekly** to see physical progress
+8. **Use the Schedule tab** to plan ahead and see your full program
+9. **Check the History tab** to track your progress over time
+10. **Connect Whoop** (if you have one) to optimize training based on recovery
 
 ---
 
@@ -309,6 +387,8 @@ All data is stored locally on your device using AsyncStorage:
 | Rest timer not working | Ensure the app is in the foreground |
 | Video not playing | Check that the YouTube URL is correct |
 | Whoop not connecting | Ensure you've set up OAuth credentials |
+| Warm-up not showing | Add warm-up exercises in Admin > Warmup tab |
+| Body measurements not saving | Ensure you tap Save after entering values |
 
 ---
 
@@ -327,11 +407,20 @@ All data is stored locally on your device using AsyncStorage:
 ### Adding Your First Exercise
 Admin → Exercises → + → Enter name, reps, video URL, notes → Save
 
+### Setting Up Warm-up Routine
+Admin → Warmup → Warm-up tab → + → Enter name, duration, video URL → Save
+
+### Setting Up Cool-down Routine
+Admin → Warmup → Cool-down tab → + → Enter name, duration, video URL → Save
+
 ### Setting Up Week 1, Day 1
 Admin → Program → Select Week 1 → Select Mon → Edit → Add exercises → Save
 
 ### Starting a Workout
-Today → Start Workout → Watch video → Enter weight → Complete Set → Repeat
+Today → Start Workout → Complete Warm-up → Main Workout → Cool-down → Done
+
+### Tracking Body Measurements
+History → Body tab → + Add Weight or + Add Measurements → Enter values → Save
 
 ### Viewing Your Schedule
 Schedule → Select week → Tap day → View workout details

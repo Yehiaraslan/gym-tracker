@@ -19,6 +19,11 @@ const createEmptyStore = (): GymStore => ({
   exercises: [],
   programDays: [],
   workoutLogs: [],
+  bodyMeasurements: [],
+  warmupCooldown: {
+    warmupExercises: [],
+    cooldownExercises: [],
+  },
   settings: {
     cycleStartDate: '2024-01-01',
     currentCycle: 1,

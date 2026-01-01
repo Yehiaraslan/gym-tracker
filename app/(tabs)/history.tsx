@@ -12,9 +12,10 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useColors } from '@/hooks/use-colors';
 import { useGym } from '@/lib/gym-context';
 import { WorkoutLog, formatDate, getDayName } from '@/lib/types';
+import { BodyMeasurementsView } from '@/components/body-measurements';
 import * as Haptics from 'expo-haptics';
 
-type ViewMode = 'workouts' | 'exercises';
+type ViewMode = 'workouts' | 'exercises' | 'body';
 
 export default function HistoryScreen() {
   const colors = useColors();
@@ -133,7 +134,6 @@ export default function HistoryScreen() {
   const renderExerciseItem = ({ item }: { item: typeof store.exercises[0] }) => {
     const history = getWeightHistory(item.id);
     const isSelected = selectedExercise === item.id;
-    const latestWeight = history.length > 0 ? history[history.length - 1].weight : null;
     const maxWeight = history.length > 0 ? Math.max(...history.map(h => h.weight)) : null;
 
     return (
@@ -210,7 +210,7 @@ export default function HistoryScreen() {
         <Text className="text-2xl font-bold text-foreground">History</Text>
       </View>
 
-      {/* View Mode Toggle */}
+      {/* View Mode Toggle - 3 tabs */}
       <View className="flex-row px-4 mb-4">
         <TouchableOpacity
           onPress={() => {
@@ -230,6 +230,7 @@ export default function HistoryScreen() {
               textAlign: 'center', 
               fontWeight: '600',
               color: viewMode === 'workouts' ? '#FFFFFF' : colors.foreground,
+              fontSize: 13,
             }}
           >
             Workouts
@@ -244,7 +245,7 @@ export default function HistoryScreen() {
             flex: 1,
             paddingVertical: 10,
             borderRadius: 8,
-            marginLeft: 4,
+            marginHorizontal: 2,
             backgroundColor: viewMode === 'exercises' ? colors.primary : colors.surface,
           }}
         >
@@ -253,9 +254,34 @@ export default function HistoryScreen() {
               textAlign: 'center', 
               fontWeight: '600',
               color: viewMode === 'exercises' ? '#FFFFFF' : colors.foreground,
+              fontSize: 13,
             }}
           >
             Exercises
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => {
+            if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setViewMode('body');
+          }}
+          style={{
+            flex: 1,
+            paddingVertical: 10,
+            borderRadius: 8,
+            marginLeft: 4,
+            backgroundColor: viewMode === 'body' ? colors.primary : colors.surface,
+          }}
+        >
+          <Text 
+            style={{ 
+              textAlign: 'center', 
+              fontWeight: '600',
+              color: viewMode === 'body' ? '#FFFFFF' : colors.foreground,
+              fontSize: 13,
+            }}
+          >
+            Body
           </Text>
         </TouchableOpacity>
       </View>
@@ -291,7 +317,7 @@ export default function HistoryScreen() {
           }
           contentContainerStyle={{ paddingBottom: 100 }}
         />
-      ) : (
+      ) : viewMode === 'exercises' ? (
         <FlatList
           data={filteredExercises}
           keyExtractor={(item) => item.id}
@@ -311,6 +337,8 @@ export default function HistoryScreen() {
           }
           contentContainerStyle={{ paddingBottom: 100 }}
         />
+      ) : (
+        <BodyMeasurementsView />
       )}
     </ScreenContainer>
   );

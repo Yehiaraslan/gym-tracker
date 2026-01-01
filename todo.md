@@ -39,3 +39,13 @@
 - [x] Video player with thumbnail during workout
 - [x] Calendar view for 8-week workout schedule
 - [x] Whoop integration (demo mode + OAuth setup guide)
+
+## Body Measurements & Warm-up/Cool-down Features
+- [x] Body weight tracking with date entries
+- [x] Body measurements (chest, waist, arms, legs, etc.)
+- [x] Measurements history view in History tab
+- [x] Progress tracking for body measurements (comparison with previous)
+- [x] Warm-up section before main workout
+- [x] Cool-down section after main workout
+- [x] Admin configuration for warm-up exercises
+- [x] Admin configuration for cool-down exercises

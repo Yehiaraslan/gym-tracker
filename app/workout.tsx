@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Text, 
   View, 
@@ -8,6 +8,7 @@ import {
   Alert,
   Modal,
   Platform,
+  Linking,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
@@ -21,9 +22,12 @@ import {
   ExerciseLog, 
   SetLog,
   getDayName,
+  WarmupCooldownExercise,
 } from '@/lib/types';
 import * as Haptics from 'expo-haptics';
 import { useKeepAwake } from 'expo-keep-awake';
+
+type WorkoutPhase = 'warmup' | 'main' | 'cooldown' | 'complete';
 
 export default function WorkoutScreen() {
   useKeepAwake();
@@ -31,6 +35,7 @@ export default function WorkoutScreen() {
   const colors = useColors();
   const router = useRouter();
   const { 
+    store,
     currentCycleInfo, 
     getTodayProgram, 
     getExerciseById,
@@ -40,6 +45,15 @@ export default function WorkoutScreen() {
   } = useGym();
 
   const todayProgram = getTodayProgram();
+  const warmupExercises = store.warmupCooldown.warmupExercises.sort((a, b) => a.order - b.order);
+  const cooldownExercises = store.warmupCooldown.cooldownExercises.sort((a, b) => a.order - b.order);
+  
+  const [phase, setPhase] = useState<WorkoutPhase>(warmupExercises.length > 0 ? 'warmup' : 'main');
+  const [warmupIndex, setWarmupIndex] = useState(0);
+  const [cooldownIndex, setCooldownIndex] = useState(0);
+  const [warmupTimer, setWarmupTimer] = useState(0);
+  const [isWarmupTimerRunning, setIsWarmupTimerRunning] = useState(false);
+  
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const [currentSetIndex, setCurrentSetIndex] = useState(0);
   const [weight, setWeight] = useState('');
@@ -50,6 +64,7 @@ export default function WorkoutScreen() {
   const [congratsMessage, setCongratsMessage] = useState('');
   const [workoutLog, setWorkoutLog] = useState<WorkoutLog | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const warmupTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Initialize workout log
   useEffect(() => {
@@ -91,6 +106,44 @@ export default function WorkoutScreen() {
     }
   }, []);
 
+  // Initialize warmup timer
+  useEffect(() => {
+    if (phase === 'warmup' && warmupExercises.length > 0) {
+      setWarmupTimer(warmupExercises[warmupIndex]?.duration || 30);
+    }
+  }, [phase, warmupIndex]);
+
+  // Initialize cooldown timer
+  useEffect(() => {
+    if (phase === 'cooldown' && cooldownExercises.length > 0) {
+      setWarmupTimer(cooldownExercises[cooldownIndex]?.duration || 30);
+    }
+  }, [phase, cooldownIndex]);
+
+  // Warmup/Cooldown timer
+  useEffect(() => {
+    if (isWarmupTimerRunning && warmupTimer > 0) {
+      warmupTimerRef.current = setInterval(() => {
+        setWarmupTimer(prev => {
+          if (prev <= 1) {
+            setIsWarmupTimerRunning(false);
+            if (Platform.OS !== 'web') {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            }
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+
+    return () => {
+      if (warmupTimerRef.current) {
+        clearInterval(warmupTimerRef.current);
+      }
+    };
+  }, [isWarmupTimerRunning, warmupTimer]);
+
   // Rest timer
   useEffect(() => {
     if (isResting && restTime > 0) {
@@ -117,8 +170,86 @@ export default function WorkoutScreen() {
 
   const currentDayExercise = todayProgram?.exercises[currentExerciseIndex];
   const currentExercise = currentDayExercise ? getExerciseById(currentDayExercise.exerciseId) : null;
-  const lastWeight = currentDayExercise ? getLastWeight(currentDayExercise.exerciseId) : null;
+  const lastWeightValue = currentDayExercise ? getLastWeight(currentDayExercise.exerciseId) : null;
   const bestWeight = currentDayExercise ? getBestWeight(currentDayExercise.exerciseId) : null;
+
+  const currentWarmupExercise = warmupExercises[warmupIndex];
+  const currentCooldownExercise = cooldownExercises[cooldownIndex];
+
+  const startWarmupTimer = () => {
+    setIsWarmupTimerRunning(true);
+  };
+
+  const skipWarmupExercise = () => {
+    setIsWarmupTimerRunning(false);
+    if (warmupTimerRef.current) clearInterval(warmupTimerRef.current);
+    
+    if (phase === 'warmup') {
+      if (warmupIndex + 1 < warmupExercises.length) {
+        setWarmupIndex(prev => prev + 1);
+        setWarmupTimer(warmupExercises[warmupIndex + 1]?.duration || 30);
+      } else {
+        setPhase('main');
+      }
+    } else if (phase === 'cooldown') {
+      if (cooldownIndex + 1 < cooldownExercises.length) {
+        setCooldownIndex(prev => prev + 1);
+        setWarmupTimer(cooldownExercises[cooldownIndex + 1]?.duration || 30);
+      } else {
+        setPhase('complete');
+        Alert.alert(
+          'Workout Complete! 💪',
+          'Great job! Your workout has been saved.',
+          [{ text: 'Done', onPress: () => router.back() }]
+        );
+      }
+    }
+  };
+
+  const completeWarmupExercise = () => {
+    setIsWarmupTimerRunning(false);
+    if (warmupTimerRef.current) clearInterval(warmupTimerRef.current);
+    
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+
+    if (phase === 'warmup') {
+      if (warmupIndex + 1 < warmupExercises.length) {
+        setWarmupIndex(prev => prev + 1);
+        setWarmupTimer(warmupExercises[warmupIndex + 1]?.duration || 30);
+      } else {
+        setPhase('main');
+      }
+    } else if (phase === 'cooldown') {
+      if (cooldownIndex + 1 < cooldownExercises.length) {
+        setCooldownIndex(prev => prev + 1);
+        setWarmupTimer(cooldownExercises[cooldownIndex + 1]?.duration || 30);
+      } else {
+        setPhase('complete');
+        Alert.alert(
+          'Workout Complete! 💪',
+          'Great job! Your workout has been saved.',
+          [{ text: 'Done', onPress: () => router.back() }]
+        );
+      }
+    }
+  };
+
+  const skipWarmupPhase = () => {
+    setPhase('main');
+    setIsWarmupTimerRunning(false);
+    if (warmupTimerRef.current) clearInterval(warmupTimerRef.current);
+  };
+
+  const skipCooldownPhase = () => {
+    setPhase('complete');
+    Alert.alert(
+      'Workout Complete! 💪',
+      'Great job! Your workout has been saved.',
+      [{ text: 'Done', onPress: () => router.back() }]
+    );
+  };
 
   const completeSet = useCallback(() => {
     if (!workoutLog || !todayProgram || !currentDayExercise) return;
@@ -180,13 +311,13 @@ export default function WorkoutScreen() {
         }
         setReps(nextExercise.reps.split('-')[0]);
       } else {
-        // Workout complete
-        completeWorkout(updatedLog);
+        // Main workout complete - move to cooldown or finish
+        completeMainWorkout(updatedLog);
       }
     }
   }, [workoutLog, todayProgram, currentDayExercise, currentExerciseIndex, currentSetIndex, weight, reps, bestWeight]);
 
-  const completeWorkout = async (log: WorkoutLog) => {
+  const completeMainWorkout = async (log: WorkoutLog) => {
     const finalLog = {
       ...log,
       completedAt: Date.now(),
@@ -199,11 +330,17 @@ export default function WorkoutScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
     
-    Alert.alert(
-      'Workout Complete! 💪',
-      'Great job! Your workout has been saved.',
-      [{ text: 'Done', onPress: () => router.back() }]
-    );
+    if (cooldownExercises.length > 0) {
+      setPhase('cooldown');
+      setWarmupTimer(cooldownExercises[0]?.duration || 30);
+    } else {
+      setPhase('complete');
+      Alert.alert(
+        'Workout Complete! 💪',
+        'Great job! Your workout has been saved.',
+        [{ text: 'Done', onPress: () => router.back() }]
+      );
+    }
   };
 
   const skipRest = () => {
@@ -231,6 +368,10 @@ export default function WorkoutScreen() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const openVideo = (url: string) => {
+    Linking.openURL(url);
+  };
+
   if (!todayProgram || todayProgram.exercises.length === 0) {
     return (
       <ScreenContainer className="flex-1 items-center justify-center px-6">
@@ -247,6 +388,273 @@ export default function WorkoutScreen() {
     );
   }
 
+  // Render Warmup Phase
+  if (phase === 'warmup' && currentWarmupExercise) {
+    return (
+      <ScreenContainer className="flex-1">
+        {/* Header */}
+        <View className="flex-row items-center justify-between px-4 py-3">
+          <TouchableOpacity onPress={cancelWorkout} className="p-2">
+            <IconSymbol name="xmark.circle.fill" size={28} color={colors.muted} />
+          </TouchableOpacity>
+          <View className="items-center">
+            <Text className="text-lg font-semibold" style={{ color: colors.warning }}>
+              🔥 Warm-up
+            </Text>
+            <Text className="text-sm text-muted">
+              {warmupIndex + 1} of {warmupExercises.length}
+            </Text>
+          </View>
+          <TouchableOpacity onPress={skipWarmupPhase} className="p-2">
+            <Text style={{ color: colors.muted }}>Skip All</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Progress Bar */}
+        <View className="px-4 mb-4">
+          <View 
+            className="h-2 rounded-full overflow-hidden"
+            style={{ backgroundColor: colors.border }}
+          >
+            <View 
+              className="h-full rounded-full"
+              style={{ 
+                width: `${((warmupIndex + 1) / warmupExercises.length) * 100}%`,
+                backgroundColor: colors.warning,
+              }}
+            />
+          </View>
+        </View>
+
+        <ScrollView className="flex-1 px-4" showsVerticalScrollIndicator={false}>
+          {/* Video Player */}
+          {currentWarmupExercise.videoUrl && (
+            <View className="mb-4">
+              <VideoPlayer 
+                videoUrl={currentWarmupExercise.videoUrl} 
+                exerciseName={currentWarmupExercise.name}
+              />
+            </View>
+          )}
+
+          {/* Exercise Card */}
+          <View 
+            className="bg-surface rounded-3xl p-6 mb-6"
+            style={{ borderWidth: 2, borderColor: colors.warning }}
+          >
+            <Text className="text-2xl font-bold text-foreground text-center">
+              {currentWarmupExercise.name}
+            </Text>
+            
+            {currentWarmupExercise.notes && (
+              <View 
+                className="mt-4 p-4 rounded-xl"
+                style={{ backgroundColor: colors.warning + '15' }}
+              >
+                <Text className="text-foreground text-center">
+                  {currentWarmupExercise.notes}
+                </Text>
+              </View>
+            )}
+
+            {/* Timer */}
+            <View className="items-center mt-6">
+              <Text className="text-6xl font-bold text-foreground">
+                {formatTime(warmupTimer)}
+              </Text>
+              <Text className="text-muted mt-2">
+                {isWarmupTimerRunning ? 'Time remaining' : 'Tap Start to begin'}
+              </Text>
+            </View>
+
+            {/* Controls */}
+            <View className="flex-row mt-6">
+              {!isWarmupTimerRunning ? (
+                <TouchableOpacity
+                  onPress={startWarmupTimer}
+                  style={{
+                    flex: 1,
+                    backgroundColor: colors.warning,
+                    paddingVertical: 16,
+                    borderRadius: 12,
+                    marginRight: 8,
+                  }}
+                >
+                  <Text className="text-white font-bold text-center text-lg">Start Timer</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  onPress={() => setIsWarmupTimerRunning(false)}
+                  style={{
+                    flex: 1,
+                    backgroundColor: colors.muted,
+                    paddingVertical: 16,
+                    borderRadius: 12,
+                    marginRight: 8,
+                  }}
+                >
+                  <Text className="text-white font-bold text-center text-lg">Pause</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                onPress={completeWarmupExercise}
+                style={{
+                  flex: 1,
+                  backgroundColor: colors.success,
+                  paddingVertical: 16,
+                  borderRadius: 12,
+                  marginLeft: 8,
+                }}
+              >
+                <Text className="text-white font-bold text-center text-lg">Done ✓</Text>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              onPress={skipWarmupExercise}
+              className="mt-4"
+            >
+              <Text className="text-center text-muted">Skip this exercise</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </ScreenContainer>
+    );
+  }
+
+  // Render Cooldown Phase
+  if (phase === 'cooldown' && currentCooldownExercise) {
+    return (
+      <ScreenContainer className="flex-1">
+        {/* Header */}
+        <View className="flex-row items-center justify-between px-4 py-3">
+          <View style={{ width: 44 }} />
+          <View className="items-center">
+            <Text className="text-lg font-semibold" style={{ color: colors.primary }}>
+              ❄️ Cool-down
+            </Text>
+            <Text className="text-sm text-muted">
+              {cooldownIndex + 1} of {cooldownExercises.length}
+            </Text>
+          </View>
+          <TouchableOpacity onPress={skipCooldownPhase} className="p-2">
+            <Text style={{ color: colors.muted }}>Skip All</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Progress Bar */}
+        <View className="px-4 mb-4">
+          <View 
+            className="h-2 rounded-full overflow-hidden"
+            style={{ backgroundColor: colors.border }}
+          >
+            <View 
+              className="h-full rounded-full"
+              style={{ 
+                width: `${((cooldownIndex + 1) / cooldownExercises.length) * 100}%`,
+                backgroundColor: colors.primary,
+              }}
+            />
+          </View>
+        </View>
+
+        <ScrollView className="flex-1 px-4" showsVerticalScrollIndicator={false}>
+          {/* Video Player */}
+          {currentCooldownExercise.videoUrl && (
+            <View className="mb-4">
+              <VideoPlayer 
+                videoUrl={currentCooldownExercise.videoUrl} 
+                exerciseName={currentCooldownExercise.name}
+              />
+            </View>
+          )}
+
+          {/* Exercise Card */}
+          <View 
+            className="bg-surface rounded-3xl p-6 mb-6"
+            style={{ borderWidth: 2, borderColor: colors.primary }}
+          >
+            <Text className="text-2xl font-bold text-foreground text-center">
+              {currentCooldownExercise.name}
+            </Text>
+            
+            {currentCooldownExercise.notes && (
+              <View 
+                className="mt-4 p-4 rounded-xl"
+                style={{ backgroundColor: colors.primary + '15' }}
+              >
+                <Text className="text-foreground text-center">
+                  {currentCooldownExercise.notes}
+                </Text>
+              </View>
+            )}
+
+            {/* Timer */}
+            <View className="items-center mt-6">
+              <Text className="text-6xl font-bold text-foreground">
+                {formatTime(warmupTimer)}
+              </Text>
+              <Text className="text-muted mt-2">
+                {isWarmupTimerRunning ? 'Time remaining' : 'Tap Start to begin'}
+              </Text>
+            </View>
+
+            {/* Controls */}
+            <View className="flex-row mt-6">
+              {!isWarmupTimerRunning ? (
+                <TouchableOpacity
+                  onPress={startWarmupTimer}
+                  style={{
+                    flex: 1,
+                    backgroundColor: colors.primary,
+                    paddingVertical: 16,
+                    borderRadius: 12,
+                    marginRight: 8,
+                  }}
+                >
+                  <Text className="text-white font-bold text-center text-lg">Start Timer</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  onPress={() => setIsWarmupTimerRunning(false)}
+                  style={{
+                    flex: 1,
+                    backgroundColor: colors.muted,
+                    paddingVertical: 16,
+                    borderRadius: 12,
+                    marginRight: 8,
+                  }}
+                >
+                  <Text className="text-white font-bold text-center text-lg">Pause</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                onPress={completeWarmupExercise}
+                style={{
+                  flex: 1,
+                  backgroundColor: colors.success,
+                  paddingVertical: 16,
+                  borderRadius: 12,
+                  marginLeft: 8,
+                }}
+              >
+                <Text className="text-white font-bold text-center text-lg">Done ✓</Text>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              onPress={skipWarmupExercise}
+              className="mt-4"
+            >
+              <Text className="text-center text-muted">Skip this exercise</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </ScreenContainer>
+    );
+  }
+
+  // Main Workout Phase
   const progress = ((currentExerciseIndex * currentDayExercise!.sets + currentSetIndex) / 
     todayProgram.exercises.reduce((acc, ex) => acc + ex.sets, 0)) * 100;
 
@@ -360,14 +768,14 @@ export default function WorkoutScreen() {
               </View>
 
               {/* Last Weight Reference */}
-              {lastWeight !== null && (
+              {lastWeightValue !== null && (
                 <View 
                   className="flex-row items-center mb-4 p-3 rounded-xl"
                   style={{ backgroundColor: colors.primary + '10' }}
                 >
                   <IconSymbol name="info.circle.fill" size={20} color={colors.primary} />
                   <Text className="ml-2 text-foreground">
-                    Last time: <Text className="font-bold">{lastWeight} kg</Text>
+                    Last time: <Text className="font-bold">{lastWeightValue} kg</Text>
                   </Text>
                 </View>
               )}

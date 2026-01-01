@@ -6,7 +6,10 @@ import {
   AppSettings, 
   GymStore,
   generateId,
-  DayExercise
+  DayExercise,
+  BodyMeasurement,
+  WarmupCooldownExercise,
+  WarmupCooldownConfig
 } from './types';
 
 const STORAGE_KEY = '@gym_tracker_data';
@@ -16,6 +19,11 @@ const defaultState: GymStore = {
   exercises: [],
   programDays: [],
   workoutLogs: [],
+  bodyMeasurements: [],
+  warmupCooldown: {
+    warmupExercises: [],
+    cooldownExercises: [],
+  },
   settings: {
     cycleStartDate: new Date().toISOString().split('T')[0],
     currentCycle: 1,
@@ -33,6 +41,8 @@ export async function loadStore(): Promise<GymStore> {
         exercises: parsed.exercises || [],
         programDays: parsed.programDays || [],
         workoutLogs: parsed.workoutLogs || [],
+        bodyMeasurements: parsed.bodyMeasurements || [],
+        warmupCooldown: parsed.warmupCooldown || defaultState.warmupCooldown,
         settings: parsed.settings || defaultState.settings,
       };
     }
@@ -243,5 +253,181 @@ export function updateSettings(
   return {
     ...store,
     settings: { ...store.settings, ...updates },
+  };
+}
+
+
+// Body measurement operations
+export function addBodyMeasurement(
+  store: GymStore,
+  measurement: Omit<BodyMeasurement, 'id' | 'createdAt'>
+): GymStore {
+  const newMeasurement: BodyMeasurement = {
+    ...measurement,
+    id: generateId(),
+    createdAt: Date.now(),
+  };
+  return {
+    ...store,
+    bodyMeasurements: [...store.bodyMeasurements, newMeasurement],
+  };
+}
+
+export function updateBodyMeasurement(
+  store: GymStore,
+  id: string,
+  updates: Partial<Omit<BodyMeasurement, 'id' | 'createdAt'>>
+): GymStore {
+  return {
+    ...store,
+    bodyMeasurements: store.bodyMeasurements.map(m =>
+      m.id === id ? { ...m, ...updates } : m
+    ),
+  };
+}
+
+export function deleteBodyMeasurement(store: GymStore, id: string): GymStore {
+  return {
+    ...store,
+    bodyMeasurements: store.bodyMeasurements.filter(m => m.id !== id),
+  };
+}
+
+export function getBodyMeasurementHistory(store: GymStore): BodyMeasurement[] {
+  return [...store.bodyMeasurements].sort((a, b) => 
+    new Date(b.date).getTime() - new Date(a.date).getTime()
+  );
+}
+
+// Warm-up/Cool-down operations
+export function addWarmupExercise(
+  store: GymStore,
+  exercise: Omit<WarmupCooldownExercise, 'id' | 'order'>
+): GymStore {
+  const newExercise: WarmupCooldownExercise = {
+    ...exercise,
+    id: generateId(),
+    order: store.warmupCooldown.warmupExercises.length,
+  };
+  return {
+    ...store,
+    warmupCooldown: {
+      ...store.warmupCooldown,
+      warmupExercises: [...store.warmupCooldown.warmupExercises, newExercise],
+    },
+  };
+}
+
+export function addCooldownExercise(
+  store: GymStore,
+  exercise: Omit<WarmupCooldownExercise, 'id' | 'order'>
+): GymStore {
+  const newExercise: WarmupCooldownExercise = {
+    ...exercise,
+    id: generateId(),
+    order: store.warmupCooldown.cooldownExercises.length,
+  };
+  return {
+    ...store,
+    warmupCooldown: {
+      ...store.warmupCooldown,
+      cooldownExercises: [...store.warmupCooldown.cooldownExercises, newExercise],
+    },
+  };
+}
+
+export function updateWarmupExercise(
+  store: GymStore,
+  id: string,
+  updates: Partial<Omit<WarmupCooldownExercise, 'id'>>
+): GymStore {
+  return {
+    ...store,
+    warmupCooldown: {
+      ...store.warmupCooldown,
+      warmupExercises: store.warmupCooldown.warmupExercises.map(ex =>
+        ex.id === id ? { ...ex, ...updates } : ex
+      ),
+    },
+  };
+}
+
+export function updateCooldownExercise(
+  store: GymStore,
+  id: string,
+  updates: Partial<Omit<WarmupCooldownExercise, 'id'>>
+): GymStore {
+  return {
+    ...store,
+    warmupCooldown: {
+      ...store.warmupCooldown,
+      cooldownExercises: store.warmupCooldown.cooldownExercises.map(ex =>
+        ex.id === id ? { ...ex, ...updates } : ex
+      ),
+    },
+  };
+}
+
+export function deleteWarmupExercise(store: GymStore, id: string): GymStore {
+  return {
+    ...store,
+    warmupCooldown: {
+      ...store.warmupCooldown,
+      warmupExercises: store.warmupCooldown.warmupExercises
+        .filter(ex => ex.id !== id)
+        .map((ex, index) => ({ ...ex, order: index })),
+    },
+  };
+}
+
+export function deleteCooldownExercise(store: GymStore, id: string): GymStore {
+  return {
+    ...store,
+    warmupCooldown: {
+      ...store.warmupCooldown,
+      cooldownExercises: store.warmupCooldown.cooldownExercises
+        .filter(ex => ex.id !== id)
+        .map((ex, index) => ({ ...ex, order: index })),
+    },
+  };
+}
+
+export function reorderWarmupExercises(
+  store: GymStore,
+  exerciseIds: string[]
+): GymStore {
+  const reordered = exerciseIds
+    .map((id, index) => {
+      const ex = store.warmupCooldown.warmupExercises.find(e => e.id === id);
+      return ex ? { ...ex, order: index } : null;
+    })
+    .filter((ex): ex is WarmupCooldownExercise => ex !== null);
+  
+  return {
+    ...store,
+    warmupCooldown: {
+      ...store.warmupCooldown,
+      warmupExercises: reordered,
+    },
+  };
+}
+
+export function reorderCooldownExercises(
+  store: GymStore,
+  exerciseIds: string[]
+): GymStore {
+  const reordered = exerciseIds
+    .map((id, index) => {
+      const ex = store.warmupCooldown.cooldownExercises.find(e => e.id === id);
+      return ex ? { ...ex, order: index } : null;
+    })
+    .filter((ex): ex is WarmupCooldownExercise => ex !== null);
+  
+  return {
+    ...store,
+    warmupCooldown: {
+      ...store.warmupCooldown,
+      cooldownExercises: reordered,
+    },
   };
 }

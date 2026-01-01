@@ -19,7 +19,9 @@ import { Exercise, DayExercise, getDayName } from '@/lib/types';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 
-type AdminTab = 'exercises' | 'program' | 'settings';
+import { WarmupCooldownAdmin } from '@/components/warmup-cooldown-admin';
+
+type AdminTab = 'exercises' | 'program' | 'warmup' | 'settings';
 
 export default function AdminScreen() {
   const colors = useColors();
@@ -34,7 +36,7 @@ export default function AdminScreen() {
 
       {/* Tab Bar */}
       <View className="flex-row px-4 mb-4">
-        {(['exercises', 'program', 'settings'] as AdminTab[]).map((tab) => (
+        {(['exercises', 'program', 'warmup', 'settings'] as AdminTab[]).map((tab) => (
           <TouchableOpacity
             key={tab}
             onPress={() => {
@@ -66,6 +68,7 @@ export default function AdminScreen() {
       <View className="flex-1">
         {activeTab === 'exercises' && <ExercisesTab />}
         {activeTab === 'program' && <ProgramTab />}
+        {activeTab === 'warmup' && <WarmupCooldownAdmin />}
         {activeTab === 'settings' && <SettingsTab />}
       </View>
     </ScreenContainer>

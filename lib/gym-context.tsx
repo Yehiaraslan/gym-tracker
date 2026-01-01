@@ -7,6 +7,8 @@ import {
   AppSettings,
   DayExercise,
   calculateCycleInfo,
+  BodyMeasurement,
+  WarmupCooldownExercise,
 } from './types';
 import {
   loadStore,
@@ -22,6 +24,16 @@ import {
   getBestWeight as getBestWeightFromStore,
   getWeightHistory as getWeightHistoryFromStore,
   updateSettings as updateSettingsInStore,
+  addBodyMeasurement as addBodyMeasurementToStore,
+  updateBodyMeasurement as updateBodyMeasurementInStore,
+  deleteBodyMeasurement as deleteBodyMeasurementFromStore,
+  getBodyMeasurementHistory as getBodyMeasurementHistoryFromStore,
+  addWarmupExercise as addWarmupExerciseToStore,
+  addCooldownExercise as addCooldownExerciseToStore,
+  updateWarmupExercise as updateWarmupExerciseInStore,
+  updateCooldownExercise as updateCooldownExerciseInStore,
+  deleteWarmupExercise as deleteWarmupExerciseFromStore,
+  deleteCooldownExercise as deleteCooldownExerciseFromStore,
 } from './store';
 
 interface GymContextType {
@@ -53,6 +65,20 @@ interface GymContextType {
   // Settings
   updateSettings: (updates: Partial<AppSettings>) => Promise<void>;
   
+  // Body measurements
+  addBodyMeasurement: (measurement: Omit<BodyMeasurement, 'id' | 'createdAt'>) => Promise<void>;
+  updateBodyMeasurement: (id: string, updates: Partial<Omit<BodyMeasurement, 'id' | 'createdAt'>>) => Promise<void>;
+  deleteBodyMeasurement: (id: string) => Promise<void>;
+  getBodyMeasurementHistory: () => BodyMeasurement[];
+  
+  // Warm-up/Cool-down
+  addWarmupExercise: (exercise: Omit<WarmupCooldownExercise, 'id' | 'order'>) => Promise<void>;
+  addCooldownExercise: (exercise: Omit<WarmupCooldownExercise, 'id' | 'order'>) => Promise<void>;
+  updateWarmupExercise: (id: string, updates: Partial<Omit<WarmupCooldownExercise, 'id'>>) => Promise<void>;
+  updateCooldownExercise: (id: string, updates: Partial<Omit<WarmupCooldownExercise, 'id'>>) => Promise<void>;
+  deleteWarmupExercise: (id: string) => Promise<void>;
+  deleteCooldownExercise: (id: string) => Promise<void>;
+  
   // Refresh
   refresh: () => Promise<void>;
 }
@@ -64,6 +90,11 @@ export function GymProvider({ children }: { children: ReactNode }) {
     exercises: [],
     programDays: [],
     workoutLogs: [],
+    bodyMeasurements: [],
+    warmupCooldown: {
+      warmupExercises: [],
+      cooldownExercises: [],
+    },
     settings: {
       cycleStartDate: new Date().toISOString().split('T')[0],
       currentCycle: 1,
@@ -157,6 +188,57 @@ export function GymProvider({ children }: { children: ReactNode }) {
     await updateAndSave(newStore);
   }, [store, updateAndSave]);
 
+  // Body measurements
+  const addBodyMeasurement = useCallback(async (measurement: Omit<BodyMeasurement, 'id' | 'createdAt'>) => {
+    const newStore = addBodyMeasurementToStore(store, measurement);
+    await updateAndSave(newStore);
+  }, [store, updateAndSave]);
+
+  const updateBodyMeasurement = useCallback(async (id: string, updates: Partial<Omit<BodyMeasurement, 'id' | 'createdAt'>>) => {
+    const newStore = updateBodyMeasurementInStore(store, id, updates);
+    await updateAndSave(newStore);
+  }, [store, updateAndSave]);
+
+  const deleteBodyMeasurement = useCallback(async (id: string) => {
+    const newStore = deleteBodyMeasurementFromStore(store, id);
+    await updateAndSave(newStore);
+  }, [store, updateAndSave]);
+
+  const getBodyMeasurementHistory = useCallback(() => {
+    return getBodyMeasurementHistoryFromStore(store);
+  }, [store]);
+
+  // Warm-up/Cool-down
+  const addWarmupExercise = useCallback(async (exercise: Omit<WarmupCooldownExercise, 'id' | 'order'>) => {
+    const newStore = addWarmupExerciseToStore(store, exercise);
+    await updateAndSave(newStore);
+  }, [store, updateAndSave]);
+
+  const addCooldownExercise = useCallback(async (exercise: Omit<WarmupCooldownExercise, 'id' | 'order'>) => {
+    const newStore = addCooldownExerciseToStore(store, exercise);
+    await updateAndSave(newStore);
+  }, [store, updateAndSave]);
+
+  const updateWarmupExercise = useCallback(async (id: string, updates: Partial<Omit<WarmupCooldownExercise, 'id'>>) => {
+    const newStore = updateWarmupExerciseInStore(store, id, updates);
+    await updateAndSave(newStore);
+  }, [store, updateAndSave]);
+
+  const updateCooldownExercise = useCallback(async (id: string, updates: Partial<Omit<WarmupCooldownExercise, 'id'>>) => {
+    const newStore = updateCooldownExerciseInStore(store, id, updates);
+    await updateAndSave(newStore);
+  }, [store, updateAndSave]);
+
+  const deleteWarmupExercise = useCallback(async (id: string) => {
+    const newStore = deleteWarmupExerciseFromStore(store, id);
+    await updateAndSave(newStore);
+  }, [store, updateAndSave]);
+
+  const deleteCooldownExercise = useCallback(async (id: string) => {
+    const newStore = deleteCooldownExerciseFromStore(store, id);
+    await updateAndSave(newStore);
+  }, [store, updateAndSave]);
+
   // Refresh
   const refresh = useCallback(async () => {
     setIsLoading(true);
@@ -182,6 +264,16 @@ export function GymProvider({ children }: { children: ReactNode }) {
     getBestWeight,
     getWeightHistory,
     updateSettings,
+    addBodyMeasurement,
+    updateBodyMeasurement,
+    deleteBodyMeasurement,
+    getBodyMeasurementHistory,
+    addWarmupExercise,
+    addCooldownExercise,
+    updateWarmupExercise,
+    updateCooldownExercise,
+    deleteWarmupExercise,
+    deleteCooldownExercise,
     refresh,
   };
 
