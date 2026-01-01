@@ -137,3 +137,8 @@
 - [x] Show joint highlight overlay after successful calibration
 - [x] Animate joints from calibration state to tracking state
 - [x] Add celebratory visual feedback when all joints locked
+
+## Joint Tracking UX Enhancements
+- [x] Add text labels next to each joint (L.Shoulder, R.Hip, etc.)
+- [x] Change joint colors based on tracking confidence during workout
+- [x] Trigger haptic feedback for each joint detected during calibration

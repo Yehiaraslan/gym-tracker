@@ -33,6 +33,8 @@ export interface CalibrationState {
   joints: JointCalibration[];
   referencepose: Pose | null;
   calibrationTime: number;
+  newlyDetectedJoints: string[]; // Joints detected in this frame (for haptic feedback)
+  newlyStableJoints: string[];   // Joints that became stable in this frame
 }
 
 // Required joints for each exercise type
@@ -126,6 +128,8 @@ export class PoseCalibrator {
       joints,
       referencepose: null,
       calibrationTime: 0,
+      newlyDetectedJoints: [],
+      newlyStableJoints: [],
     };
   }
 
@@ -179,11 +183,20 @@ export class PoseCalibrator {
     // Update joint detection status
     let detectedCount = 0;
     let stableCount = 0;
+    const newlyDetected: string[] = [];
+    const newlyStable: string[] = [];
 
     for (const joint of this.state.joints) {
       const keypoint = pose.keypoints[joint.keypoint];
+      const wasDetected = joint.detected;
+      const wasStable = joint.stable;
       
       if (keypoint && keypoint.score >= CONFIG.MIN_CONFIDENCE) {
+        // Track newly detected joints (for haptic feedback)
+        if (!wasDetected) {
+          newlyDetected.push(joint.name);
+        }
+        
         joint.detected = true;
         joint.confidence = keypoint.score;
         
@@ -202,6 +215,12 @@ export class PoseCalibrator {
         // Check stability
         if (joint.history.length >= CONFIG.STABILITY_FRAMES) {
           const isStable = this.checkJointStability(joint);
+          
+          // Track newly stable joints (for haptic feedback)
+          if (isStable && !wasStable) {
+            newlyStable.push(joint.name);
+          }
+          
           joint.stable = isStable;
           if (isStable) {
             joint.position = { x: keypoint.x, y: keypoint.y };
@@ -217,6 +236,10 @@ export class PoseCalibrator {
         joint.history = [];
       }
     }
+    
+    // Update newly detected/stable joints in state
+    this.state.newlyDetectedJoints = newlyDetected;
+    this.state.newlyStableJoints = newlyStable;
 
     const totalJoints = this.state.joints.length;
     const detectionProgress = (detectedCount / totalJoints) * 50;

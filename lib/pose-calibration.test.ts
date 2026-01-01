@@ -180,6 +180,56 @@ describe('PoseCalibrator', () => {
     });
   });
 
+  describe('haptic feedback tracking', () => {
+    it('should track newly detected joints', () => {
+      const calibrator = new PoseCalibrator('squat');
+      
+      // First frame with pose - all joints should be newly detected
+      const pose = createMockPose({ confidence: 0.8 });
+      const state = calibrator.processFrame(pose);
+      
+      expect(state.newlyDetectedJoints).toBeDefined();
+      expect(state.newlyDetectedJoints.length).toBeGreaterThan(0);
+    });
+
+    it('should not report already detected joints as new', () => {
+      const calibrator = new PoseCalibrator('squat');
+      const pose = createMockPose({ confidence: 0.8 });
+      
+      // First frame - joints are new
+      calibrator.processFrame(pose);
+      
+      // Second frame - same joints, should not be new
+      const state = calibrator.processFrame(pose);
+      expect(state.newlyDetectedJoints.length).toBe(0);
+    });
+
+    it('should track newly stable joints', () => {
+      const calibrator = new PoseCalibrator('squat');
+      const pose = createMockPose({ confidence: 0.9 });
+      
+      // Process frames until some joints become stable
+      let foundNewlyStable = false;
+      for (let i = 0; i < 20; i++) {
+        const state = calibrator.processFrame(pose);
+        if (state.newlyStableJoints && state.newlyStableJoints.length > 0) {
+          foundNewlyStable = true;
+          break;
+        }
+      }
+      
+      expect(foundNewlyStable).toBe(true);
+    });
+
+    it('should have empty arrays in initial state', () => {
+      const calibrator = new PoseCalibrator('squat');
+      const state = calibrator.getState();
+      
+      expect(state.newlyDetectedJoints).toEqual([]);
+      expect(state.newlyStableJoints).toEqual([]);
+    });
+  });
+
   describe('reset', () => {
     it('should reset calibration state', () => {
       const pose = createMockPose({ confidence: 0.9 });

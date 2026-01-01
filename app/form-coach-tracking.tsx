@@ -175,6 +175,20 @@ export default function FormCoachTrackingScreen() {
       setCoachMessage(calState.message);
       setCoachSubMessage(calState.subMessage);
       
+      // Haptic feedback for newly detected joints
+      if (calState.newlyDetectedJoints && calState.newlyDetectedJoints.length > 0) {
+        if (Platform.OS !== 'web') {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }
+      }
+      
+      // Haptic feedback for newly stable joints (slightly stronger)
+      if (calState.newlyStableJoints && calState.newlyStableJoints.length > 0) {
+        if (Platform.OS !== 'web') {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        }
+      }
+      
       if (calState.status === 'calibrated') {
         // Calibration complete - move to positioning
         setTrackingState('positioning');
@@ -507,7 +521,7 @@ export default function FormCoachTrackingScreen() {
             />
           )}
 
-          {/* Calibrated Joints Highlight Overlay */}
+          {/* Calibrated Joints Highlight Overlay - positioning/ready phase */}
           {(trackingState === 'positioning' || trackingState === 'ready') && calibratedPose && (
             <CalibratedJointsOverlay
               pose={calibratedPose}
@@ -515,6 +529,21 @@ export default function FormCoachTrackingScreen() {
               height={SCREEN_HEIGHT * 0.6}
               isCalibrated={true}
               showCelebration={showCalibrationSuccess}
+              showLabels={true}
+              confidenceMode={false}
+            />
+          )}
+
+          {/* Calibrated Joints Overlay during tracking - with confidence colors */}
+          {trackingState === 'tracking' && currentPose && showSkeleton && (
+            <CalibratedJointsOverlay
+              pose={currentPose}
+              width={SCREEN_WIDTH}
+              height={SCREEN_HEIGHT * 0.6}
+              isCalibrated={true}
+              showCelebration={false}
+              showLabels={false}
+              confidenceMode={true}
             />
           )}
 
