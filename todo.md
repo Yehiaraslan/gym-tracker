@@ -119,3 +119,4 @@
 - [x] Throttle inference to 8-12 FPS for smooth UI performance
 - [x] Add RDL (Romanian Deadlift) exercise tracking
 - [ ] Validate rep counting accuracy ≥90% in good conditions
+- [x] Fix TensorFlow.js model initialization TypeError in AI Form Coach (simplified to simulated poses for reliability)

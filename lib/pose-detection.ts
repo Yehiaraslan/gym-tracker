@@ -715,3 +715,150 @@ export function getFormSummary(session: ExerciseSession): {
     feedback: Array.from(feedbackSet),
   };
 }
+
+
+/**
+ * RDL (Romanian Deadlift) state machine
+ */
+export class RDLTracker {
+  private state: 'standing' | 'down' | 'transitioning' = 'standing';
+  private repCount = 0;
+  private currentRepFlags: FormFlag[] = [];
+  private lastHipAngle = 180;
+  private lowestHipAngle = 180;
+  private highestHipAngle = 0;
+  private repStartTime = 0;
+  
+  // Thresholds
+  private readonly DOWN_ANGLE_THRESHOLD = 120; // Hip hinge angle to consider "down"
+  private readonly UP_ANGLE_THRESHOLD = 165; // Hip angle to consider "standing"
+  private readonly PARTIAL_ROM_THRESHOLD = 130; // If lowest angle > this, partial ROM
+  private readonly BACK_ROUND_THRESHOLD = 20; // Degrees of back rounding tolerance
+
+  reset(): void {
+    this.state = 'standing';
+    this.repCount = 0;
+    this.currentRepFlags = [];
+    this.lastHipAngle = 180;
+    this.lowestHipAngle = 180;
+    this.highestHipAngle = 0;
+    this.repStartTime = Date.now();
+  }
+
+  processFrame(pose: Pose): { repCompleted: boolean; repData: RepData | null; currentState: string } {
+    const leftShoulder = pose.keypoints[KEYPOINTS.LEFT_SHOULDER];
+    const rightShoulder = pose.keypoints[KEYPOINTS.RIGHT_SHOULDER];
+    const leftHip = pose.keypoints[KEYPOINTS.LEFT_HIP];
+    const rightHip = pose.keypoints[KEYPOINTS.RIGHT_HIP];
+    const leftKnee = pose.keypoints[KEYPOINTS.LEFT_KNEE];
+    const rightKnee = pose.keypoints[KEYPOINTS.RIGHT_KNEE];
+
+    // Check if we have valid keypoints
+    const hasValidKeypoints = 
+      (isKeypointValid(leftShoulder) || isKeypointValid(rightShoulder)) &&
+      (isKeypointValid(leftHip) || isKeypointValid(rightHip)) &&
+      (isKeypointValid(leftKnee) || isKeypointValid(rightKnee));
+
+    if (!hasValidKeypoints) {
+      return { repCompleted: false, repData: null, currentState: this.state };
+    }
+
+    // Calculate hip hinge angle (shoulder-hip-knee angle)
+    let hipAngle = 180;
+    
+    if (isKeypointValid(leftShoulder) && isKeypointValid(leftHip) && isKeypointValid(leftKnee)) {
+      hipAngle = calculateAngle(leftShoulder, leftHip, leftKnee);
+    } else if (isKeypointValid(rightShoulder) && isKeypointValid(rightHip) && isKeypointValid(rightKnee)) {
+      hipAngle = calculateAngle(rightShoulder, rightHip, rightKnee);
+    }
+
+    // Track angle extremes during rep
+    if (hipAngle < this.lowestHipAngle) {
+      this.lowestHipAngle = hipAngle;
+    }
+    if (hipAngle > this.highestHipAngle) {
+      this.highestHipAngle = hipAngle;
+    }
+
+    // Check for back rounding (simplified - if shoulders drop too far below expected line)
+    if (isKeypointValid(leftShoulder) && isKeypointValid(leftHip) && isKeypointValid(rightShoulder) && isKeypointValid(rightHip)) {
+      const shoulderY = (leftShoulder.y + rightShoulder.y) / 2;
+      const hipY = (leftHip.y + rightHip.y) / 2;
+      
+      // In RDL, shoulders should stay relatively high compared to hips
+      // If shoulders drop too much relative to hip angle, it's back rounding
+      if (this.state === 'down' && shoulderY > hipY + 100) {
+        const hasBackRoundFlag = this.currentRepFlags.some(f => f.type === 'forward_lean');
+        if (!hasBackRoundFlag) {
+          this.currentRepFlags.push({
+            type: 'forward_lean',
+            message: 'Keep your back straight - avoid rounding',
+            deduction: 15,
+          });
+        }
+      }
+    }
+
+    let repCompleted = false;
+    let repData: RepData | null = null;
+
+    // State machine
+    if (this.state === 'standing' && hipAngle < this.DOWN_ANGLE_THRESHOLD) {
+      this.state = 'down';
+      this.repStartTime = Date.now();
+    } else if (this.state === 'down' && hipAngle > this.UP_ANGLE_THRESHOLD) {
+      // Rep completed
+      this.state = 'standing';
+      this.repCount++;
+      
+      // Check for form issues
+      if (this.lowestHipAngle > this.PARTIAL_ROM_THRESHOLD) {
+        this.currentRepFlags.push({
+          type: 'partial_rom',
+          message: 'Hinge deeper - feel the hamstring stretch',
+          deduction: 20,
+        });
+      }
+      
+      if (this.highestHipAngle < this.UP_ANGLE_THRESHOLD - 10) {
+        this.currentRepFlags.push({
+          type: 'no_lockout',
+          message: 'Fully stand up and squeeze glutes at the top',
+          deduction: 15,
+        });
+      }
+
+      // Calculate form score
+      let formScore = 100;
+      for (const flag of this.currentRepFlags) {
+        formScore -= flag.deduction;
+      }
+      formScore = Math.max(0, formScore);
+
+      repData = {
+        repNumber: this.repCount,
+        formScore,
+        flags: [...this.currentRepFlags],
+        timestamp: Date.now(),
+      };
+
+      // Reset for next rep
+      this.currentRepFlags = [];
+      this.lowestHipAngle = 180;
+      this.highestHipAngle = 0;
+      repCompleted = true;
+    }
+
+    this.lastHipAngle = hipAngle;
+    
+    return { repCompleted, repData, currentState: this.state };
+  }
+
+  getRepCount(): number {
+    return this.repCount;
+  }
+
+  getCurrentState(): string {
+    return this.state;
+  }
+}
