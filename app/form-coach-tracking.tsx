@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Text, 
   View, 
@@ -30,15 +30,20 @@ import {
   Pose,
   KEYPOINTS,
 } from '@/lib/pose-detection';
-import { CameraView, CameraType } from 'expo-camera';
+import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { FormGuideOverlay } from '@/components/form-guide-overlay';
 import { SkeletonOverlay } from '@/components/skeleton-overlay';
 import { AICoach, CoachingPhase } from '@/lib/ai-coach';
 import { audioFeedback, stopSpeech } from '@/lib/audio-feedback';
 
+// TensorFlow imports for real pose detection
+import * as tf from '@tensorflow/tfjs';
+import * as posedetection from '@tensorflow-models/pose-detection';
+
 type TrackingState = 'setup' | 'positioning' | 'ready' | 'tracking' | 'completed';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const MIN_KEYPOINT_SCORE = 0.3;
 
 export default function FormCoachTrackingScreen() {
   const colors = useColors();
@@ -47,7 +52,7 @@ export default function FormCoachTrackingScreen() {
   const exerciseType = (params.exercise as ExerciseType) || 'pushup';
 
   const [trackingState, setTrackingState] = useState<TrackingState>('setup');
-  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+  const [permission, requestPermission] = useCameraPermissions();
   const [session, setSession] = useState<ExerciseSession | null>(null);
   const [currentRep, setCurrentRep] = useState(0);
   const [confidence, setConfidence] = useState(0);
@@ -60,6 +65,8 @@ export default function FormCoachTrackingScreen() {
   const [showFormGuide, setShowFormGuide] = useState(true);
   const [showSkeleton, setShowSkeleton] = useState(true);
   const [audioEnabled, setAudioEnabled] = useState(true);
+  const [fps, setFps] = useState(0);
+  const [modelStatus, setModelStatus] = useState('Loading...');
   
   // AI Coach state
   const [coachMessage, setCoachMessage] = useState('');
@@ -68,44 +75,90 @@ export default function FormCoachTrackingScreen() {
   const [currentPose, setCurrentPose] = useState<Pose | null>(null);
   const [formIssues, setFormIssues] = useState<string[]>([]);
 
+  // Refs
   const trackerRef = useRef<PushupTracker | PullupTracker | SquatTracker | null>(null);
   const sessionRef = useRef<ExerciseSession | null>(null);
-  const frameCountRef = useRef(0);
-  const lastProcessTimeRef = useRef(0);
   const cameraRef = useRef<any>(null);
   const aiCoachRef = useRef<AICoach | null>(null);
+  const modelRef = useRef<posedetection.PoseDetector | null>(null);
+  const rafIdRef = useRef<number | null>(null);
+  const lastInferenceTimeRef = useRef<number>(0);
+  const isProcessingRef = useRef<boolean>(false);
+  const frameCountRef = useRef(0);
+  const lastFpsUpdateRef = useRef(Date.now());
 
-  // Cleanup audio on unmount
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       stopSpeech();
       audioFeedback.reset();
-    };
-  }, []);
-
-  // Request camera permission on native
-  useEffect(() => {
-    const requestCameraPermission = async () => {
-      if (Platform.OS !== 'web') {
-        try {
-          const { Camera } = require('expo-camera');
-          const { status } = await Camera.requestCameraPermissionsAsync();
-          setHasCameraPermission(status === 'granted');
-        } catch (e) {
-          console.log('Camera not available:', e);
-          setHasCameraPermission(false);
-        }
-      } else {
-        // On web, we'll use demo mode
-        setHasCameraPermission(true);
+      if (rafIdRef.current) {
+        cancelAnimationFrame(rafIdRef.current);
+      }
+      if (modelRef.current) {
+        modelRef.current.dispose();
       }
     };
-    
-    requestCameraPermission();
   }, []);
 
-  // Initialize tracker and AI coach based on exercise type
+  // Request camera permission
   useEffect(() => {
+    if (!permission?.granted && Platform.OS !== 'web') {
+      requestPermission();
+    }
+  }, [permission, requestPermission]);
+
+  // Initialize TensorFlow.js and MoveNet model
+  useEffect(() => {
+    let isMounted = true;
+
+    async function initializeModel() {
+      try {
+        setIsModelLoading(true);
+        setModelStatus('Initializing TensorFlow.js...');
+
+        // Initialize TensorFlow.js
+        await tf.ready();
+        if (!isMounted) return;
+        
+        console.log('[FormCoach] TF.js ready, backend:', tf.getBackend());
+        setModelStatus('Loading MoveNet model...');
+
+        // Load MoveNet model - SINGLEPOSE_LIGHTNING is fastest
+        const detector = await posedetection.createDetector(
+          posedetection.SupportedModels.MoveNet,
+          {
+            modelType: posedetection.movenet.modelType.SINGLEPOSE_LIGHTNING,
+            enableSmoothing: true,
+          }
+        );
+
+        if (!isMounted) {
+          detector.dispose();
+          return;
+        }
+
+        console.log('[FormCoach] MoveNet model loaded successfully');
+        modelRef.current = detector;
+        setIsModelLoading(false);
+        setTrackingState('positioning');
+        setCoachMessage('Position yourself in frame');
+        setCoachSubMessage(getStartPositionMessage());
+
+      } catch (error) {
+        console.error('[FormCoach] Model initialization error:', error);
+        if (isMounted) {
+          // Fall back to demo mode on error
+          setModelError(null);
+          setIsModelLoading(false);
+          setTrackingState('positioning');
+          setCoachMessage('Position yourself in frame');
+          setCoachSubMessage(getStartPositionMessage() + '\n(Demo mode - model unavailable)');
+        }
+      }
+    }
+
+    // Initialize exercise tracker
     if (exerciseType === 'pushup') {
       trackerRef.current = new PushupTracker();
     } else if (exerciseType === 'pullup') {
@@ -116,24 +169,12 @@ export default function FormCoachTrackingScreen() {
     
     // Initialize AI Coach
     aiCoachRef.current = new AICoach(exerciseType);
-    
-    // Simulate model loading (in real implementation, this would load TensorFlow model)
-    const loadModel = async () => {
-      setIsModelLoading(true);
-      try {
-        // Simulate async model loading
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        setIsModelLoading(false);
-        setTrackingState('positioning');
-        setCoachMessage('Position yourself in frame');
-        setCoachSubMessage(getStartPositionMessage());
-      } catch (error) {
-        setModelError('Failed to load AI model. Please try again.');
-        setIsModelLoading(false);
-      }
+
+    initializeModel();
+
+    return () => {
+      isMounted = false;
     };
-    
-    loadModel();
   }, [exerciseType]);
 
   const getStartPositionMessage = () => {
@@ -149,211 +190,273 @@ export default function FormCoachTrackingScreen() {
     }
   };
 
-  // Generate realistic pose based on exercise type and state
-  const generateSimulatedPose = useCallback((isPositioning: boolean): Pose => {
-    const baseConfidence = 0.75 + Math.random() * 0.2;
-    const centerX = SCREEN_WIDTH / 2;
-    const centerY = SCREEN_HEIGHT / 2;
-    
-    // Generate keypoints based on exercise type
-    let keypoints: Pose['keypoints'];
-    
-    if (exerciseType === 'pushup') {
-      // Side view push-up position
-      const bodyLength = 300;
-      const armLength = 80;
+  // Convert detected pose to our Pose format
+  const convertToInternalPose = useCallback((detectedPose: posedetection.Pose): Pose => {
+    const keypoints = detectedPose.keypoints.map((kp, idx) => {
+      // Flip X coordinate for front camera
+      let x = kp.x;
+      if (cameraFacing === 'front') {
+        x = SCREEN_WIDTH - x;
+      }
       
-      keypoints = [
-        // Face (nose, eyes, ears)
-        { x: centerX - 100, y: centerY - 80, score: baseConfidence, name: 'nose' },
-        { x: centerX - 110, y: centerY - 90, score: baseConfidence * 0.9, name: 'left_eye' },
-        { x: centerX - 90, y: centerY - 90, score: baseConfidence * 0.9, name: 'right_eye' },
-        { x: centerX - 120, y: centerY - 80, score: baseConfidence * 0.8, name: 'left_ear' },
-        { x: centerX - 80, y: centerY - 80, score: baseConfidence * 0.8, name: 'right_ear' },
-        // Shoulders
-        { x: centerX - 60, y: centerY - 40, score: baseConfidence, name: 'left_shoulder' },
-        { x: centerX - 60, y: centerY - 20, score: baseConfidence, name: 'right_shoulder' },
-        // Elbows
-        { x: centerX - 60, y: centerY + 40, score: baseConfidence, name: 'left_elbow' },
-        { x: centerX - 60, y: centerY + 60, score: baseConfidence, name: 'right_elbow' },
-        // Wrists
-        { x: centerX - 60, y: centerY + 100, score: baseConfidence, name: 'left_wrist' },
-        { x: centerX - 60, y: centerY + 120, score: baseConfidence, name: 'right_wrist' },
-        // Hips
-        { x: centerX + 80, y: centerY - 30, score: baseConfidence, name: 'left_hip' },
-        { x: centerX + 80, y: centerY - 10, score: baseConfidence, name: 'right_hip' },
-        // Knees
-        { x: centerX + 180, y: centerY + 20, score: baseConfidence, name: 'left_knee' },
-        { x: centerX + 180, y: centerY + 40, score: baseConfidence, name: 'right_knee' },
-        // Ankles
-        { x: centerX + 250, y: centerY + 60, score: baseConfidence, name: 'left_ankle' },
-        { x: centerX + 250, y: centerY + 80, score: baseConfidence, name: 'right_ankle' },
-      ];
-    } else if (exerciseType === 'pullup') {
-      // Front view pull-up position (hanging)
-      keypoints = [
-        // Face
-        { x: centerX, y: centerY - 100, score: baseConfidence, name: 'nose' },
-        { x: centerX - 15, y: centerY - 110, score: baseConfidence * 0.9, name: 'left_eye' },
-        { x: centerX + 15, y: centerY - 110, score: baseConfidence * 0.9, name: 'right_eye' },
-        { x: centerX - 30, y: centerY - 100, score: baseConfidence * 0.8, name: 'left_ear' },
-        { x: centerX + 30, y: centerY - 100, score: baseConfidence * 0.8, name: 'right_ear' },
-        // Shoulders
-        { x: centerX - 60, y: centerY - 50, score: baseConfidence, name: 'left_shoulder' },
-        { x: centerX + 60, y: centerY - 50, score: baseConfidence, name: 'right_shoulder' },
-        // Elbows (arms extended up)
-        { x: centerX - 70, y: centerY - 120, score: baseConfidence, name: 'left_elbow' },
-        { x: centerX + 70, y: centerY - 120, score: baseConfidence, name: 'right_elbow' },
-        // Wrists (on bar)
-        { x: centerX - 80, y: centerY - 180, score: baseConfidence, name: 'left_wrist' },
-        { x: centerX + 80, y: centerY - 180, score: baseConfidence, name: 'right_wrist' },
-        // Hips
-        { x: centerX - 30, y: centerY + 50, score: baseConfidence, name: 'left_hip' },
-        { x: centerX + 30, y: centerY + 50, score: baseConfidence, name: 'right_hip' },
-        // Knees
-        { x: centerX - 30, y: centerY + 150, score: baseConfidence, name: 'left_knee' },
-        { x: centerX + 30, y: centerY + 150, score: baseConfidence, name: 'right_knee' },
-        // Ankles
-        { x: centerX - 30, y: centerY + 250, score: baseConfidence, name: 'left_ankle' },
-        { x: centerX + 30, y: centerY + 250, score: baseConfidence, name: 'right_ankle' },
-      ];
-    } else {
-      // Side view squat position (standing)
-      keypoints = [
-        // Face
-        { x: centerX, y: centerY - 200, score: baseConfidence, name: 'nose' },
-        { x: centerX - 10, y: centerY - 210, score: baseConfidence * 0.9, name: 'left_eye' },
-        { x: centerX + 10, y: centerY - 210, score: baseConfidence * 0.9, name: 'right_eye' },
-        { x: centerX - 20, y: centerY - 200, score: baseConfidence * 0.8, name: 'left_ear' },
-        { x: centerX + 20, y: centerY - 200, score: baseConfidence * 0.8, name: 'right_ear' },
-        // Shoulders
-        { x: centerX - 40, y: centerY - 140, score: baseConfidence, name: 'left_shoulder' },
-        { x: centerX + 40, y: centerY - 140, score: baseConfidence, name: 'right_shoulder' },
-        // Elbows
-        { x: centerX - 60, y: centerY - 80, score: baseConfidence, name: 'left_elbow' },
-        { x: centerX + 60, y: centerY - 80, score: baseConfidence, name: 'right_elbow' },
-        // Wrists
-        { x: centerX - 50, y: centerY - 20, score: baseConfidence, name: 'left_wrist' },
-        { x: centerX + 50, y: centerY - 20, score: baseConfidence, name: 'right_wrist' },
-        // Hips
-        { x: centerX - 35, y: centerY, score: baseConfidence, name: 'left_hip' },
-        { x: centerX + 35, y: centerY, score: baseConfidence, name: 'right_hip' },
-        // Knees
-        { x: centerX - 40, y: centerY + 120, score: baseConfidence, name: 'left_knee' },
-        { x: centerX + 40, y: centerY + 120, score: baseConfidence, name: 'right_knee' },
-        // Ankles
-        { x: centerX - 45, y: centerY + 240, score: baseConfidence, name: 'left_ankle' },
-        { x: centerX + 45, y: centerY + 240, score: baseConfidence, name: 'right_ankle' },
-      ];
+      return {
+        x: x,
+        y: kp.y,
+        score: kp.score || 0,
+        name: kp.name || `keypoint_${idx}`,
+      };
+    });
+
+    return { keypoints };
+  }, [cameraFacing]);
+
+  // Process a single frame for pose detection
+  const processFrame = useCallback(async () => {
+    // Skip if not active or already processing
+    if (!cameraRef.current || isProcessingRef.current || !cameraReady) {
+      if (trackingState === 'positioning' || trackingState === 'ready' || trackingState === 'tracking') {
+        rafIdRef.current = requestAnimationFrame(processFrame);
+      }
+      return;
     }
 
-    // Add some natural movement/jitter
-    keypoints = keypoints.map(kp => ({
-      ...kp,
-      x: kp.x + (Math.random() - 0.5) * 10,
-      y: kp.y + (Math.random() - 0.5) * 10,
-    }));
-
-    return {
-      keypoints,
-      score: baseConfidence,
-    };
-  }, [exerciseType]);
-
-  // Process positioning phase
-  const processPositioning = useCallback(() => {
-    if (trackingState !== 'positioning' || !aiCoachRef.current) return;
-
+    // Throttle to ~10 FPS for performance
     const now = Date.now();
-    if (now - lastProcessTimeRef.current < 300) return;
-    lastProcessTimeRef.current = now;
-
-    // Generate simulated pose
-    const pose = generateSimulatedPose(true);
-    setCurrentPose(pose);
-
-    // Process through AI coach
-    const coachState = aiCoachRef.current.processPositioning(pose);
-    setCoachMessage(coachState.message);
-    setCoachSubMessage(coachState.subMessage || '');
-    setFormIssues(coachState.positionIssues);
-
-    if (coachState.phase === 'ready') {
-      setIsPositionReady(true);
-      setTrackingState('ready');
+    const throttleMs = 100;
+    if (now - lastInferenceTimeRef.current < throttleMs) {
+      rafIdRef.current = requestAnimationFrame(processFrame);
+      return;
     }
-  }, [trackingState, generateSimulatedPose]);
 
-  // Run positioning check loop
-  useEffect(() => {
-    if (trackingState !== 'positioning') return;
+    isProcessingRef.current = true;
+    lastInferenceTimeRef.current = now;
 
-    const interval = setInterval(processPositioning, 200);
-    return () => clearInterval(interval);
-  }, [trackingState, processPositioning]);
+    try {
+      // If we have a real model, use it
+      if (modelRef.current && Platform.OS !== 'web') {
+        // Take picture from camera
+        const photo = await cameraRef.current.takePictureAsync({
+          base64: true,
+          quality: 0.3,
+          skipProcessing: true,
+          exif: false,
+        });
 
-  // Process frame for pose detection during tracking (throttled)
-  const processFrame = useCallback(() => {
-    if (trackingState !== 'tracking' || !trackerRef.current) return;
+        if (photo && photo.base64 && modelRef.current) {
+          // Decode image to tensor
+          const { decodeJpeg } = await import('@tensorflow/tfjs-react-native');
+          const imageData = tf.util.encodeString(photo.base64, 'base64');
+          const imageTensor = decodeJpeg(new Uint8Array(imageData.buffer));
+          
+          // Run pose detection
+          const poses = await modelRef.current.estimatePoses(imageTensor as tf.Tensor3D);
+          
+          tf.dispose(imageTensor);
 
-    const now = Date.now();
-    // Throttle to ~5 FPS for pose detection
-    if (now - lastProcessTimeRef.current < 200) return;
-    lastProcessTimeRef.current = now;
+          if (poses.length > 0) {
+            const pose = convertToInternalPose(poses[0]);
+            handlePoseDetected(pose);
+          } else {
+            handlePoseDetected(null);
+          }
+        }
+      } else {
+        // Demo mode - generate simulated pose
+        const simulatedPose = generateSimulatedPose();
+        handlePoseDetected(simulatedPose);
+      }
 
-    frameCountRef.current++;
+      // Update FPS counter
+      frameCountRef.current++;
+      if (now - lastFpsUpdateRef.current >= 1000) {
+        setFps(frameCountRef.current);
+        frameCountRef.current = 0;
+        lastFpsUpdateRef.current = now;
+      }
 
-    // Generate pose
-    const pose = generateSimulatedPose(false);
+    } catch (error) {
+      // Silently handle errors to avoid spam
+    } finally {
+      isProcessingRef.current = false;
+    }
+
+    // Continue processing
+    if (trackingState === 'positioning' || trackingState === 'ready' || trackingState === 'tracking') {
+      rafIdRef.current = requestAnimationFrame(processFrame);
+    }
+  }, [trackingState, cameraReady, cameraFacing, convertToInternalPose]);
+
+  // Handle detected pose
+  const handlePoseDetected = useCallback((pose: Pose | null) => {
+    if (!pose) {
+      setCurrentPose(null);
+      setConfidence(0);
+      return;
+    }
+
     setCurrentPose(pose);
-
-    // Calculate confidence
     const poseConfidence = calculatePoseConfidence(pose, exerciseType);
     setConfidence(poseConfidence);
 
-    // Process pose through tracker
-    const result = trackerRef.current.processFrame(pose);
-    setCurrentState(result.currentState);
+    // AI Coach positioning check
+    if (trackingState === 'positioning' && aiCoachRef.current) {
+      const coachResult = aiCoachRef.current.processPositioning(pose);
+      setCoachMessage(coachResult.message);
+      setCoachSubMessage(coachResult.subMessage || '');
+      setFormIssues(coachResult.positionIssues || []);
 
-    // Check for form issues during movement
-    if (result.repData && result.repData.flags.length > 0) {
-      setFormIssues(result.repData.flags.map(f => f.type));
-      aiCoachRef.current?.onFormIssueDetected(result.repData.flags);
+      if (coachResult.isPositionCorrect && coachResult.phase === 'ready') {
+        setIsPositionReady(true);
+        setTrackingState('ready');
+        setCoachMessage('Ready! Tap Start when ready');
+        setCoachSubMessage('Your form looks good');
+      }
+    }
+
+    // Process rep during tracking
+    if (trackingState === 'tracking' && trackerRef.current && sessionRef.current) {
+      const repResult = trackerRef.current.processFrame(pose);
+      setCurrentState(repResult.currentState);
+
+      if (repResult.repCompleted && repResult.repData) {
+        // Rep completed!
+        const updatedSession = addRepToSession(sessionRef.current, repResult.repData);
+        sessionRef.current = updatedSession;
+        setSession({ ...updatedSession });
+        setCurrentRep(updatedSession.totalReps);
+        setLastRepData(repResult.repData);
+        setFormIssues(repResult.repData.flags?.map(f => f.message) || []);
+
+        // AI Coach feedback
+        if (aiCoachRef.current) {
+          aiCoachRef.current.onRepCompleted(
+            updatedSession.totalReps,
+            repResult.repData.formScore,
+            repResult.repData.flags || []
+          );
+        }
+
+        // Haptic feedback
+        if (Platform.OS !== 'web') {
+          if (repResult.repData.formScore >= 80) {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          } else {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          }
+        }
+      }
+
+      // Update coach message during tracking
+      if (aiCoachRef.current && repResult.repData?.flags && repResult.repData.flags.length > 0) {
+        aiCoachRef.current.onFormIssueDetected(repResult.repData.flags);
+        setFormIssues(repResult.repData.flags.map(f => f.message));
+      }
+    }
+  }, [trackingState, audioEnabled]);
+
+  // Generate simulated pose for demo mode
+  const generateSimulatedPose = useCallback((): Pose => {
+    const baseConfidence = 0.75 + Math.random() * 0.2;
+    const centerX = SCREEN_WIDTH / 2;
+    const centerY = SCREEN_HEIGHT / 2;
+    const time = Date.now() / 1000;
+    
+    // Animate based on tracking state
+    const animOffset = trackingState === 'tracking' ? Math.sin(time * 2) * 30 : 0;
+    
+    let keypoints: Pose['keypoints'];
+    
+    if (exerciseType === 'squat') {
+      // Front view squat
+      const squat = trackingState === 'tracking' ? Math.sin(time * 1.5) * 0.5 + 0.5 : 0;
+      const kneeY = centerY + 50 + squat * 100;
+      const hipY = centerY - 20 + squat * 80;
+      
+      keypoints = [
+        { x: centerX, y: centerY - 150, score: baseConfidence, name: 'nose' },
+        { x: centerX - 15, y: centerY - 160, score: baseConfidence * 0.9, name: 'left_eye' },
+        { x: centerX + 15, y: centerY - 160, score: baseConfidence * 0.9, name: 'right_eye' },
+        { x: centerX - 30, y: centerY - 150, score: baseConfidence * 0.8, name: 'left_ear' },
+        { x: centerX + 30, y: centerY - 150, score: baseConfidence * 0.8, name: 'right_ear' },
+        { x: centerX - 60, y: centerY - 100, score: baseConfidence, name: 'left_shoulder' },
+        { x: centerX + 60, y: centerY - 100, score: baseConfidence, name: 'right_shoulder' },
+        { x: centerX - 80, y: centerY - 50, score: baseConfidence, name: 'left_elbow' },
+        { x: centerX + 80, y: centerY - 50, score: baseConfidence, name: 'right_elbow' },
+        { x: centerX - 60, y: centerY, score: baseConfidence, name: 'left_wrist' },
+        { x: centerX + 60, y: centerY, score: baseConfidence, name: 'right_wrist' },
+        { x: centerX - 50, y: hipY, score: baseConfidence, name: 'left_hip' },
+        { x: centerX + 50, y: hipY, score: baseConfidence, name: 'right_hip' },
+        { x: centerX - 60, y: kneeY, score: baseConfidence, name: 'left_knee' },
+        { x: centerX + 60, y: kneeY, score: baseConfidence, name: 'right_knee' },
+        { x: centerX - 60, y: centerY + 200, score: baseConfidence, name: 'left_ankle' },
+        { x: centerX + 60, y: centerY + 200, score: baseConfidence, name: 'right_ankle' },
+      ];
+    } else if (exerciseType === 'pushup') {
+      // Side view push-up
+      const pushup = trackingState === 'tracking' ? Math.sin(time * 2) * 0.5 + 0.5 : 0;
+      const elbowY = centerY + 20 + pushup * 60;
+      
+      keypoints = [
+        { x: centerX - 100, y: centerY - 80 + animOffset, score: baseConfidence, name: 'nose' },
+        { x: centerX - 110, y: centerY - 90 + animOffset, score: baseConfidence * 0.9, name: 'left_eye' },
+        { x: centerX - 90, y: centerY - 90 + animOffset, score: baseConfidence * 0.9, name: 'right_eye' },
+        { x: centerX - 120, y: centerY - 80 + animOffset, score: baseConfidence * 0.8, name: 'left_ear' },
+        { x: centerX - 80, y: centerY - 80 + animOffset, score: baseConfidence * 0.8, name: 'right_ear' },
+        { x: centerX - 60, y: centerY - 40 + animOffset * 0.5, score: baseConfidence, name: 'left_shoulder' },
+        { x: centerX - 60, y: centerY - 20 + animOffset * 0.5, score: baseConfidence, name: 'right_shoulder' },
+        { x: centerX - 60, y: elbowY, score: baseConfidence, name: 'left_elbow' },
+        { x: centerX - 60, y: elbowY + 20, score: baseConfidence, name: 'right_elbow' },
+        { x: centerX - 60, y: centerY + 100, score: baseConfidence, name: 'left_wrist' },
+        { x: centerX - 60, y: centerY + 120, score: baseConfidence, name: 'right_wrist' },
+        { x: centerX + 80, y: centerY - 30, score: baseConfidence, name: 'left_hip' },
+        { x: centerX + 80, y: centerY - 10, score: baseConfidence, name: 'right_hip' },
+        { x: centerX + 180, y: centerY + 20, score: baseConfidence, name: 'left_knee' },
+        { x: centerX + 180, y: centerY + 40, score: baseConfidence, name: 'right_knee' },
+        { x: centerX + 250, y: centerY + 60, score: baseConfidence, name: 'left_ankle' },
+        { x: centerX + 250, y: centerY + 80, score: baseConfidence, name: 'right_ankle' },
+      ];
     } else {
-      setFormIssues([]);
+      // Pull-up front view
+      const pullup = trackingState === 'tracking' ? Math.sin(time * 1.5) * 0.5 + 0.5 : 0;
+      const bodyY = centerY - pullup * 100;
+      
+      keypoints = [
+        { x: centerX, y: bodyY - 100, score: baseConfidence, name: 'nose' },
+        { x: centerX - 15, y: bodyY - 110, score: baseConfidence * 0.9, name: 'left_eye' },
+        { x: centerX + 15, y: bodyY - 110, score: baseConfidence * 0.9, name: 'right_eye' },
+        { x: centerX - 30, y: bodyY - 100, score: baseConfidence * 0.8, name: 'left_ear' },
+        { x: centerX + 30, y: bodyY - 100, score: baseConfidence * 0.8, name: 'right_ear' },
+        { x: centerX - 80, y: bodyY - 60, score: baseConfidence, name: 'left_shoulder' },
+        { x: centerX + 80, y: bodyY - 60, score: baseConfidence, name: 'right_shoulder' },
+        { x: centerX - 120, y: bodyY - 120, score: baseConfidence, name: 'left_elbow' },
+        { x: centerX + 120, y: bodyY - 120, score: baseConfidence, name: 'right_elbow' },
+        { x: centerX - 100, y: bodyY - 180, score: baseConfidence, name: 'left_wrist' },
+        { x: centerX + 100, y: bodyY - 180, score: baseConfidence, name: 'right_wrist' },
+        { x: centerX - 40, y: bodyY + 40, score: baseConfidence, name: 'left_hip' },
+        { x: centerX + 40, y: bodyY + 40, score: baseConfidence, name: 'right_hip' },
+        { x: centerX - 40, y: bodyY + 140, score: baseConfidence, name: 'left_knee' },
+        { x: centerX + 40, y: bodyY + 140, score: baseConfidence, name: 'right_knee' },
+        { x: centerX - 40, y: bodyY + 220, score: baseConfidence, name: 'left_ankle' },
+        { x: centerX + 40, y: bodyY + 220, score: baseConfidence, name: 'right_ankle' },
+      ];
     }
 
-    if (result.repCompleted && result.repData) {
-      // Rep completed!
-      if (Platform.OS !== 'web') {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      }
-      
-      setCurrentRep(result.repData.repNumber);
-      setLastRepData(result.repData);
-      
-      // AI Coach feedback for rep
-      aiCoachRef.current?.onRepCompleted(
-        result.repData.repNumber,
-        result.repData.formScore,
-        result.repData.flags
-      );
-      
-      // Update session
-      if (sessionRef.current) {
-        sessionRef.current = addRepToSession(sessionRef.current, result.repData);
-        setSession({ ...sessionRef.current });
-      }
-    }
-  }, [trackingState, exerciseType, generateSimulatedPose]);
+    return { keypoints };
+  }, [exerciseType, trackingState]);
 
-  // Run pose detection loop when tracking
+  // Start frame processing when camera is ready
   useEffect(() => {
-    if (trackingState !== 'tracking') return;
+    if (cameraReady && (trackingState === 'positioning' || trackingState === 'ready' || trackingState === 'tracking')) {
+      rafIdRef.current = requestAnimationFrame(processFrame);
+    }
 
-    const interval = setInterval(processFrame, 100);
-    return () => clearInterval(interval);
-  }, [trackingState, processFrame]);
+    return () => {
+      if (rafIdRef.current) {
+        cancelAnimationFrame(rafIdRef.current);
+        rafIdRef.current = null;
+      }
+    };
+  }, [cameraReady, trackingState, processFrame]);
 
   const handleStartTracking = () => {
     if (Platform.OS !== 'web') {
@@ -376,6 +479,8 @@ export default function FormCoachTrackingScreen() {
     aiCoachRef.current?.startTracking();
     
     setTrackingState('tracking');
+    setCoachMessage('Go!');
+    setCoachSubMessage('');
   };
 
   const handleStopTracking = () => {
@@ -474,7 +579,7 @@ export default function FormCoachTrackingScreen() {
       <ScreenContainer className="flex-1 items-center justify-center">
         <ActivityIndicator size="large" color={colors.primary} />
         <Text className="text-foreground mt-4 text-lg">Loading AI Coach...</Text>
-        <Text className="text-muted mt-2">Preparing pose detection model</Text>
+        <Text className="text-muted mt-2">{modelStatus}</Text>
       </ScreenContainer>
     );
   }
@@ -587,7 +692,7 @@ export default function FormCoachTrackingScreen() {
       );
     }
 
-    if (!hasCameraPermission) {
+    if (!permission?.granted) {
       return (
         <View style={[styles.camera, { backgroundColor: '#1a1a1a' }]}>
           <View style={styles.cameraPlaceholder}>
@@ -595,6 +700,12 @@ export default function FormCoachTrackingScreen() {
             <Text style={styles.placeholderText}>
               Camera permission required
             </Text>
+            <TouchableOpacity
+              onPress={requestPermission}
+              style={{ marginTop: 16, padding: 12, backgroundColor: colors.primary, borderRadius: 8 }}
+            >
+              <Text style={{ color: '#fff', fontWeight: '600' }}>Grant Permission</Text>
+            </TouchableOpacity>
           </View>
         </View>
       );
@@ -618,7 +729,7 @@ export default function FormCoachTrackingScreen() {
       <View style={styles.cameraContainer}>
         {renderCameraView()}
 
-        {/* Skeleton Overlay */}
+        {/* Skeleton Overlay - shows detected pose */}
         {showSkeleton && currentPose && (
           <SkeletonOverlay
             pose={currentPose}
@@ -648,157 +759,125 @@ export default function FormCoachTrackingScreen() {
             >
               <IconSymbol name="xmark" size={24} color="#FFFFFF" />
             </TouchableOpacity>
-            <View style={styles.exerciseLabel}>
-              <Text style={styles.exerciseLabelText}>{exerciseName}</Text>
-            </View>
+            
+            <Text style={styles.exerciseTitle}>{exerciseName}</Text>
+            
             <View style={styles.topBarRight}>
-              {/* Audio Toggle Button */}
-              <TouchableOpacity 
-                onPress={toggleAudio}
-                style={[styles.iconButton, !audioEnabled && styles.iconButtonInactive]}
-              >
-                <IconSymbol 
-                  name={audioEnabled ? "speaker.wave.2.fill" : "speaker.slash.fill"} 
-                  size={22} 
-                  color="#FFFFFF" 
-                />
-              </TouchableOpacity>
-              {/* Skeleton Toggle */}
-              <TouchableOpacity 
-                onPress={toggleSkeleton}
-                style={[styles.iconButton, !showSkeleton && styles.iconButtonInactive]}
-              >
-                <IconSymbol name="figure.stand" size={22} color="#FFFFFF" />
-              </TouchableOpacity>
-              {/* Camera Switch Button */}
-              {Platform.OS !== 'web' && hasCameraPermission && (
-                <TouchableOpacity 
-                  onPress={toggleCamera}
-                  style={styles.iconButton}
-                >
-                  <IconSymbol name="camera.rotate.fill" size={22} color="#FFFFFF" />
+              {/* FPS indicator */}
+              <View style={styles.fpsContainer}>
+                <Text style={styles.fpsText}>{fps} FPS</Text>
+              </View>
+              
+              {/* Camera switch */}
+              {Platform.OS !== 'web' && (
+                <TouchableOpacity onPress={toggleCamera} style={styles.iconButton}>
+                  <IconSymbol name="camera.rotate.fill" size={24} color="#FFFFFF" />
                 </TouchableOpacity>
               )}
+              
+              {/* Skeleton toggle */}
+              <TouchableOpacity onPress={toggleSkeleton} style={styles.iconButton}>
+                <IconSymbol 
+                  name="figure.stand" 
+                  size={24} 
+                  color={showSkeleton ? colors.primary : '#FFFFFF'} 
+                />
+              </TouchableOpacity>
+              
+              {/* Audio toggle */}
+              <TouchableOpacity onPress={toggleAudio} style={styles.iconButton}>
+                <IconSymbol 
+                  name={audioEnabled ? "speaker.wave.2.fill" : "speaker.slash.fill"} 
+                  size={24} 
+                  color={audioEnabled ? '#FFFFFF' : '#666'} 
+                />
+              </TouchableOpacity>
             </View>
           </View>
 
-          {/* Coach Message (Positioning/Ready phase) */}
-          {(trackingState === 'positioning' || trackingState === 'ready') && (
-            <View style={styles.coachMessageContainer}>
-              <View style={[
-                styles.coachMessageBox,
-                { backgroundColor: isPositionReady ? 'rgba(34, 197, 94, 0.9)' : 'rgba(0,0,0,0.7)' }
-              ]}>
-                <Text style={styles.coachMessageText}>{coachMessage}</Text>
-                {coachSubMessage && (
-                  <Text style={styles.coachSubMessageText}>{coachSubMessage}</Text>
-                )}
-              </View>
+          {/* Coach Message */}
+          <View style={styles.coachMessageContainer}>
+            <Text style={styles.coachMessage}>{coachMessage}</Text>
+            {coachSubMessage ? (
+              <Text style={styles.coachSubMessage}>{coachSubMessage}</Text>
+            ) : null}
+          </View>
+
+          {/* Form Issues */}
+          {formIssues.length > 0 && trackingState === 'tracking' && (
+            <View style={styles.formIssuesContainer}>
+              {formIssues.slice(0, 2).map((issue, index) => (
+                <View key={index} style={styles.formIssueBadge}>
+                  <IconSymbol name="exclamationmark.triangle.fill" size={14} color="#FFA500" />
+                  <Text style={styles.formIssueText}>{issue}</Text>
+                </View>
+              ))}
             </View>
           )}
 
-          {/* Confidence Indicator */}
-          {trackingState === 'tracking' && (
+          {/* Bottom Stats & Controls */}
+          <View style={styles.bottomContainer}>
+            {/* Confidence indicator */}
             <View style={styles.confidenceContainer}>
+              <Text style={styles.confidenceLabel}>Tracking</Text>
               <View style={styles.confidenceBar}>
                 <View 
                   style={[
-                    styles.confidenceFill,
+                    styles.confidenceFill, 
                     { 
-                      width: `${confidence}%`,
-                      backgroundColor: confidence >= 50 ? colors.success : colors.warning,
+                      width: `${confidence * 100}%`,
+                      backgroundColor: confidence > 0.6 ? colors.success : confidence > 0.3 ? colors.warning : colors.error
                     }
                   ]} 
                 />
               </View>
-              <Text style={styles.confidenceText}>
-                Tracking: {confidence}%
-              </Text>
+              <Text style={styles.confidenceValue}>{Math.round(confidence * 100)}%</Text>
             </View>
-          )}
 
-          {/* Rep Counter */}
-          <View style={styles.repCounterContainer}>
-            {trackingState === 'tracking' ? (
-              <>
-                <View style={styles.repCounter}>
-                  <Text style={styles.repCounterNumber}>{currentRep}</Text>
-                  <Text style={styles.repCounterLabel}>REPS</Text>
-                </View>
-                
-                {/* Current State Indicator */}
-                <View style={[
-                  styles.stateIndicator,
-                  { backgroundColor: currentState === 'down' ? colors.primary : colors.success }
-                ]}>
-                  <Text style={styles.stateText}>
-                    {currentState.toUpperCase()}
+            {/* Rep counter (during tracking) */}
+            {trackingState === 'tracking' && (
+              <View style={styles.repCounterContainer}>
+                <Text style={styles.repCounterLabel}>REPS</Text>
+                <Text style={styles.repCounter}>{currentRep}</Text>
+                {lastRepData && (
+                  <Text style={[
+                    styles.lastRepScore,
+                    { color: lastRepData.formScore >= 80 ? colors.success : colors.warning }
+                  ]}>
+                    Last: {Math.round(lastRepData.formScore)}%
                   </Text>
-                </View>
-              </>
-            ) : trackingState === 'positioning' ? (
-              <View style={styles.positioningIndicator}>
-                <ActivityIndicator size="large" color="#FFFFFF" />
-                <Text style={styles.positioningText}>Analyzing position...</Text>
+                )}
               </View>
-            ) : null}
-          </View>
+            )}
 
-          {/* Last Rep Feedback */}
-          {lastRepData && trackingState === 'tracking' && (
-            <View style={styles.lastRepContainer}>
-              <Text style={[
-                styles.lastRepScore,
-                { color: lastRepData.formScore >= 80 ? colors.success : colors.warning }
-              ]}>
-                +{lastRepData.formScore}
-              </Text>
-              {lastRepData.flags.length > 0 && (
-                <Text style={styles.lastRepFlag}>
-                  {lastRepData.flags[0].message}
+            {/* Control buttons */}
+            <View style={styles.controlsContainer}>
+              {trackingState === 'positioning' && (
+                <Text style={styles.positioningHint}>
+                  Get into position and hold steady
                 </Text>
               )}
-            </View>
-          )}
-
-          {/* Bottom Controls */}
-          <View style={styles.bottomControls}>
-            {trackingState === 'positioning' && (
-              <View style={styles.tipsContainer}>
-                <Text style={styles.tipsTitle}>Getting ready...</Text>
-                <Text style={styles.tipText}>• Position your full body in frame</Text>
-                <Text style={styles.tipText}>• The AI coach will guide you</Text>
-                <Text style={styles.tipText}>• Hold still when in position</Text>
-              </View>
-            )}
-
-            {trackingState === 'ready' && (
-              <>
-                <View style={styles.tipsContainer}>
-                  <Text style={[styles.tipsTitle, { color: colors.success }]}>✓ Position looks good!</Text>
-                  <Text style={styles.tipText}>• Audio coaching is {audioEnabled ? 'ON' : 'OFF'}</Text>
-                  <Text style={styles.tipText}>• Skeleton tracking is {showSkeleton ? 'ON' : 'OFF'}</Text>
-                  <Text style={styles.tipText}>• Tap Start when ready</Text>
-                </View>
+              
+              {trackingState === 'ready' && (
                 <TouchableOpacity
                   onPress={handleStartTracking}
-                  style={[styles.actionButton, { backgroundColor: colors.success }]}
+                  style={[styles.startButton, { backgroundColor: colors.success }]}
                 >
-                  <IconSymbol name="play.fill" size={28} color="#FFFFFF" />
-                  <Text style={styles.actionButtonText}>Start Workout</Text>
+                  <IconSymbol name="play.fill" size={32} color="#FFFFFF" />
+                  <Text style={styles.startButtonText}>Start</Text>
                 </TouchableOpacity>
-              </>
-            )}
-
-            {trackingState === 'tracking' && (
-              <TouchableOpacity
-                onPress={handleStopTracking}
-                style={[styles.actionButton, { backgroundColor: colors.error }]}
-              >
-                <IconSymbol name="stop.fill" size={28} color="#FFFFFF" />
-                <Text style={styles.actionButtonText}>Stop</Text>
-              </TouchableOpacity>
-            )}
+              )}
+              
+              {trackingState === 'tracking' && (
+                <TouchableOpacity
+                  onPress={handleStopTracking}
+                  style={[styles.stopButton, { backgroundColor: colors.error }]}
+                >
+                  <IconSymbol name="stop.fill" size={24} color="#FFFFFF" />
+                  <Text style={styles.stopButtonText}>Stop</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
         </View>
       </View>
@@ -820,16 +899,15 @@ const styles = StyleSheet.create({
   },
   cameraPlaceholder: {
     flex: 1,
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
     padding: 20,
   },
   placeholderText: {
     color: '#888',
     textAlign: 'center',
     marginTop: 16,
-    fontSize: 14,
-    lineHeight: 20,
+    lineHeight: 22,
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
@@ -839,185 +917,190 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 60,
     paddingHorizontal: 16,
+    paddingTop: 50,
+    paddingBottom: 12,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  closeButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  exerciseTitle: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '600',
   },
   topBarRight: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  closeButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  fpsContainer: {
     backgroundColor: 'rgba(0,0,0,0.5)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  fpsText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
   },
   iconButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconButtonInactive: {
-    opacity: 0.5,
-  },
-  exerciseLabel: {
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    width: 40,
+    height: 40,
     borderRadius: 20,
-  },
-  exerciseLabelText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   coachMessageContainer: {
     alignItems: 'center',
     paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    marginHorizontal: 20,
+    borderRadius: 16,
     marginTop: 20,
   },
-  coachMessageBox: {
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    borderRadius: 16,
-    alignItems: 'center',
-  },
-  coachMessageText: {
+  coachMessage: {
     color: '#FFFFFF',
     fontSize: 20,
     fontWeight: '700',
     textAlign: 'center',
   },
-  coachSubMessageText: {
-    color: 'rgba(255,255,255,0.8)',
+  coachSubMessage: {
+    color: '#CCCCCC',
     fontSize: 14,
-    marginTop: 4,
     textAlign: 'center',
+    marginTop: 4,
+  },
+  formIssuesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 20,
+    marginTop: 12,
+  },
+  formIssueBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 165, 0, 0.3)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 6,
+  },
+  formIssueText: {
+    color: '#FFA500',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  bottomContainer: {
+    padding: 20,
+    paddingBottom: 40,
+    backgroundColor: 'rgba(0,0,0,0.6)',
   },
   confidenceContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 40,
-    marginTop: 20,
+    marginBottom: 16,
+  },
+  confidenceLabel: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+    width: 60,
   },
   confidenceBar: {
-    width: '100%',
-    height: 6,
+    flex: 1,
+    height: 8,
     backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 3,
+    borderRadius: 4,
+    marginHorizontal: 12,
     overflow: 'hidden',
   },
   confidenceFill: {
     height: '100%',
-    borderRadius: 3,
+    borderRadius: 4,
   },
-  confidenceText: {
+  confidenceValue: {
     color: '#FFFFFF',
     fontSize: 12,
-    marginTop: 6,
+    fontWeight: '600',
+    width: 40,
+    textAlign: 'right',
   },
   repCounterContainer: {
     alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-  },
-  repCounter: {
-    alignItems: 'center',
-  },
-  repCounterNumber: {
-    color: '#FFFFFF',
-    fontSize: 120,
-    fontWeight: '700',
-    lineHeight: 130,
-  },
-  repCounterLabel: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 24,
-    fontWeight: '600',
-    letterSpacing: 4,
-  },
-  positioningIndicator: {
-    alignItems: 'center',
-  },
-  positioningText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    marginTop: 16,
-  },
-  stateIndicator: {
-    marginTop: 20,
-    paddingHorizontal: 24,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  stateText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
-    letterSpacing: 2,
-  },
-  lastRepContainer: {
-    alignItems: 'center',
     marginBottom: 20,
   },
-  lastRepScore: {
-    fontSize: 32,
-    fontWeight: '700',
-  },
-  lastRepFlag: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 14,
-    marginTop: 4,
-  },
-  bottomControls: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  tipsContainer: {
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-  },
-  tipsTitle: {
-    color: '#FFFFFF',
+  repCounterLabel: {
+    color: '#888',
     fontSize: 14,
     fontWeight: '600',
-    marginBottom: 8,
   },
-  tipText: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 13,
-    marginBottom: 4,
+  repCounter: {
+    color: '#FFFFFF',
+    fontSize: 72,
+    fontWeight: '700',
+    lineHeight: 80,
   },
-  actionButton: {
+  lastRepScore: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  controlsContainer: {
+    alignItems: 'center',
+  },
+  positioningHint: {
+    color: '#888',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  startButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 18,
-    borderRadius: 16,
-    gap: 10,
+    paddingHorizontal: 40,
+    paddingVertical: 16,
+    borderRadius: 30,
+    gap: 12,
   },
-  actionButtonText: {
+  startButtonText: {
     color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
   },
-  // Completed screen styles
+  stopButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 25,
+    gap: 8,
+  },
+  stopButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
   completedHeader: {
     alignItems: 'center',
-    paddingVertical: 40,
+    marginBottom: 24,
   },
   statsCard: {
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,
-    marginBottom: 20,
+    marginBottom: 16,
   },
   statRow: {
     flexDirection: 'row',
@@ -1036,8 +1119,8 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
   },
   gradeText: {
     color: '#FFFFFF',
@@ -1048,7 +1131,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,
-    marginBottom: 20,
+    marginBottom: 24,
   },
   feedbackItem: {
     flexDirection: 'row',
@@ -1057,11 +1140,23 @@ const styles = StyleSheet.create({
   },
   completedActions: {
     gap: 12,
-    marginTop: 20,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    borderRadius: 12,
+    gap: 8,
+  },
+  actionButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '600',
   },
   secondaryButton: {
-    paddingVertical: 16,
-    borderRadius: 16,
+    padding: 16,
+    borderRadius: 12,
     borderWidth: 1,
     alignItems: 'center',
   },

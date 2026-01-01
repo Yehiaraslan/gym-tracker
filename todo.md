@@ -99,3 +99,11 @@
 - [x] Enhance real-time coaching with motivational phrases
 - [x] Add specific corrective guidance ("Lower your hips", "Keep back straight")
 - [x] Integrate skeleton overlay into form-coach-tracking screen
+
+## Real Pose Detection Implementation
+- [x] Research Kinect technology and how it detected body movements
+- [x] Research modern mobile pose detection (TensorFlow.js MoveNet, MediaPipe)
+- [x] Implement real camera frame capture from expo-camera
+- [x] Integrate TensorFlow.js pose detection model with camera frames
+- [x] Connect real pose data to skeleton overlay
+- [x] Test pose detection accuracy on actual device (requires native testing)

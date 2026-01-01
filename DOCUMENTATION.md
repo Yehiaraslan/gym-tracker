@@ -382,10 +382,30 @@ During your workout, the AI coach provides:
 | **Pull-ups** | Front view | Full hang, chin over bar, no kipping |
 | **Squats** | Side view | Depth below parallel, knees tracking over toes, upright torso |
 
+### Skeleton Overlay
+
+The AI Form Coach displays a real-time skeleton overlay on your camera feed, similar to how Microsoft Kinect tracked body movements:
+
+- **Green joints** - Body parts detected with good confidence and correct form
+- **Red joints** - Body parts with form issues that need correction
+- **White connections** - Lines connecting joints to show body alignment
+
+The skeleton helps you visualize exactly what the AI is tracking and understand where your form needs adjustment.
+
 ### Tips for Best Results
 
-1. **Lighting** - Ensure good, even lighting on your body
+1. **Lighting** - Ensure good, even lighting on your body (avoid backlighting)
 2. **Camera position** - Place phone on a stable surface at the recommended angle
 3. **Clothing** - Wear fitted clothing so the AI can track your joints accurately
-4. **Distance** - Position yourself so your full body is visible in frame
+4. **Distance** - Position yourself 6-10 feet from the camera so your full body is visible
 5. **Audio** - Enable audio feedback for hands-free coaching
+6. **Background** - Use a plain background for better pose detection accuracy
+7. **Stability** - Keep the phone steady during tracking (use a tripod or prop)
+
+### Technical Details
+
+The AI Form Coach uses:
+- **TensorFlow.js MoveNet** - On-device pose estimation model (no data sent to servers)
+- **17-point skeleton** - Tracks nose, eyes, ears, shoulders, elbows, wrists, hips, knees, and ankles
+- **~10 FPS inference** - Throttled for smooth performance on mobile devices
+- **Demo mode** - Falls back to simulated tracking on web or when model unavailable
