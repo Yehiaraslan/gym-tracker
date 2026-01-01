@@ -190,6 +190,31 @@ When enabled, the form guide overlay shows:
 | Knees Caving | Knees moving inward (squats) | -15 |
 | Forward Lean | Excessive torso lean (squats) | -10 |
 
+### Audio Feedback
+
+The AI Form Coach provides real-time audio cues to help you track your workout without looking at the screen:
+
+**Rep Counting:**
+- Voice announces each completed rep ("1", "2", "3"...)
+
+**Form Feedback:**
+- "Go deeper" - Partial range of motion detected
+- "Full extension" - Not locking out at top/bottom
+- "Tighten core" - Hip sag detected (push-ups)
+- "Control the swing" - Kipping detected (pull-ups)
+- "Push knees out" - Knees caving in (squats)
+- "Chest up" - Excessive forward lean (squats)
+- "Heels down" - Heels rising (squats)
+
+**Session Feedback:**
+- Announces exercise name when starting
+- Provides summary with total reps and grade when finished
+- Gives encouragement every 3 consecutive good-form reps
+
+**Toggle Audio:**
+- Tap the speaker icon in the top bar to enable/disable audio
+- Audio is enabled by default
+
 ### Tips for Best Results
 
 - Ensure good lighting
@@ -198,6 +223,7 @@ When enabled, the form guide overlay shows:
 - Wear fitted clothing for better detection
 - Use side view for push-ups and squats
 - Use front view for pull-ups
+- Enable audio feedback for hands-free tracking
 
 ---
 
@@ -303,3 +329,4 @@ The app supports optional Whoop integration for recovery and strain data.
 | 1.1 | Added body measurements, warm-up/cool-down sections |
 | 1.2 | Added AI Form Coach with push-ups and pull-ups |
 | 1.3 | Added camera switching, visual form guides, squat tracking |
+| 1.4 | Added audio cues for rep counting and real-time verbal form feedback |

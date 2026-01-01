@@ -42,6 +42,8 @@ const MAPPING = {
   "chevron.left": "chevron-left",
   "camera.rotate.fill": "flip-camera-ios",
   "figure.stand": "accessibility",
+  "speaker.wave.2.fill": "volume-up",
+  "speaker.slash.fill": "volume-off",
 } as IconMapping;
 
 /**

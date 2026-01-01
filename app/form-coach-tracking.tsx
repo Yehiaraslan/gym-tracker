@@ -30,6 +30,7 @@ import {
 } from '@/lib/pose-detection';
 import { CameraView, CameraType } from 'expo-camera';
 import { FormGuideOverlay } from '@/components/form-guide-overlay';
+import { audioFeedback, stopSpeech } from '@/lib/audio-feedback';
 
 type TrackingState = 'setup' | 'ready' | 'tracking' | 'completed';
 
@@ -51,12 +52,21 @@ export default function FormCoachTrackingScreen() {
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraFacing, setCameraFacing] = useState<CameraType>('front');
   const [showFormGuide, setShowFormGuide] = useState(true);
+  const [audioEnabled, setAudioEnabled] = useState(true);
 
   const trackerRef = useRef<PushupTracker | PullupTracker | SquatTracker | null>(null);
   const sessionRef = useRef<ExerciseSession | null>(null);
   const frameCountRef = useRef(0);
   const lastProcessTimeRef = useRef(0);
   const cameraRef = useRef<any>(null);
+
+  // Cleanup audio on unmount
+  useEffect(() => {
+    return () => {
+      stopSpeech();
+      audioFeedback.reset();
+    };
+  }, []);
 
   // Request camera permission on native
   useEffect(() => {
@@ -159,6 +169,13 @@ export default function FormCoachTrackingScreen() {
       setCurrentRep(result.repData.repNumber);
       setLastRepData(result.repData);
       
+      // Audio feedback for rep
+      audioFeedback.onRepCompleted(
+        result.repData.repNumber,
+        result.repData.formScore,
+        result.repData.flags
+      );
+      
       // Update session
       if (sessionRef.current) {
         sessionRef.current = addRepToSession(sessionRef.current, result.repData);
@@ -185,10 +202,17 @@ export default function FormCoachTrackingScreen() {
     sessionRef.current = newSession;
     setSession(newSession);
     
-    // Reset tracker
+    // Reset tracker and audio
     trackerRef.current?.reset();
+    audioFeedback.reset();
+    audioFeedback.setEnabled(audioEnabled);
     setCurrentRep(0);
     setLastRepData(null);
+    
+    // Announce session start
+    const exerciseName = exerciseType === 'pushup' ? 'Push-up' : 
+                         exerciseType === 'pullup' ? 'Pull-up' : 'Squat';
+    audioFeedback.onSessionStart(exerciseName);
     
     setTrackingState('tracking');
   };
@@ -202,12 +226,19 @@ export default function FormCoachTrackingScreen() {
     if (sessionRef.current) {
       sessionRef.current = finalizeSession(sessionRef.current);
       setSession({ ...sessionRef.current });
+      
+      // Announce session end
+      audioFeedback.onSessionEnd(
+        sessionRef.current.totalReps,
+        sessionRef.current.averageFormScore
+      );
     }
     
     setTrackingState('completed');
   };
 
   const handleClose = () => {
+    stopSpeech();
     if (trackingState === 'tracking') {
       Alert.alert(
         'Stop Tracking?',
@@ -230,6 +261,8 @@ export default function FormCoachTrackingScreen() {
   };
 
   const handleNewSession = () => {
+    stopSpeech();
+    audioFeedback.reset();
     setTrackingState('ready');
     setSession(null);
     setCurrentRep(0);
@@ -248,6 +281,15 @@ export default function FormCoachTrackingScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
     setShowFormGuide(current => !current);
+  };
+
+  const toggleAudio = () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    const newState = !audioEnabled;
+    setAudioEnabled(newState);
+    audioFeedback.setEnabled(newState);
   };
 
   const exerciseName = exerciseType === 'pushup' ? 'Push-up' : 
@@ -511,6 +553,17 @@ export default function FormCoachTrackingScreen() {
               <Text style={styles.exerciseLabelText}>{exerciseName}</Text>
             </View>
             <View style={styles.topBarRight}>
+              {/* Audio Toggle Button */}
+              <TouchableOpacity 
+                onPress={toggleAudio}
+                style={[styles.iconButton, !audioEnabled && styles.iconButtonInactive]}
+              >
+                <IconSymbol 
+                  name={audioEnabled ? "speaker.wave.2.fill" : "speaker.slash.fill"} 
+                  size={22} 
+                  color="#FFFFFF" 
+                />
+              </TouchableOpacity>
               {/* Camera Switch Button */}
               {Platform.OS !== 'web' && hasCameraPermission && (
                 <TouchableOpacity 
@@ -602,7 +655,7 @@ export default function FormCoachTrackingScreen() {
                       ? 'Front view works best for pull-ups'
                       : 'Side view works best for squats'}
                   </Text>
-                  <Text style={styles.tipText}>• Tap camera icon to switch front/back</Text>
+                  <Text style={styles.tipText}>• Audio feedback is {audioEnabled ? 'ON' : 'OFF'} (tap speaker icon to toggle)</Text>
                 </View>
                 <TouchableOpacity
                   onPress={handleStartTracking}

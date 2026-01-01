@@ -78,3 +78,11 @@
 - [x] Implement squat rep counting algorithm
 - [x] Add squat form scoring and feedback
 - [x] Update exercise selection screen with squats option
+
+## Audio Cues & Verbal Feedback
+- [x] Create audio/speech service using expo-speech
+- [x] Add voice announcement for rep counting ("1", "2", "3"...)
+- [x] Add real-time verbal feedback for form errors
+- [x] Add audio cues for session start/stop
+- [x] Add toggle to enable/disable audio feedback
+- [x] Integrate audio into AI Form Coach tracking screen
