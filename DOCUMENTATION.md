@@ -430,3 +430,67 @@ History → Exercises → Tap exercise → View weight history
 
 ### Connecting Whoop
 Admin → Settings → Whoop Integration → Connect or Try Demo Mode
+
+
+---
+
+## AI Form Coach (NEW)
+
+The AI Form Coach uses on-device pose estimation to track your push-ups and pull-ups, count reps automatically, and provide form feedback.
+
+### Accessing AI Form Coach
+
+From the Today screen, tap the **AI Form Coach** card to access this feature.
+
+### Supported Exercises
+
+| Exercise | Camera Position | What's Tracked |
+|----------|-----------------|----------------|
+| **Push-up** | Side view | Elbow angle, hip position |
+| **Pull-up** | Front view | Chin position, arm extension |
+
+### How It Works
+
+1. **Select Exercise** - Choose Push-up or Pull-up
+2. **Position Camera** - Follow the tips for optimal tracking
+3. **Start Tracking** - Tap Start to begin your set
+4. **Perform Reps** - The AI counts reps and monitors form in real-time
+5. **Stop & Review** - Tap Stop to see your session summary
+
+### Form Scoring
+
+Each rep receives a form score (0-100) based on:
+
+| Criteria | Deduction | Description |
+|----------|-----------|-------------|
+| Partial ROM | -20 | Not going deep enough on push-ups, or not pulling high enough on pull-ups |
+| No Lockout | -15 | Not fully extending arms at the top of push-ups or bottom of pull-ups |
+| Hip Sag | -10 | (Push-ups) Hips dropping below shoulder line |
+| Kipping | -10 | (Pull-ups) Excessive hip swing |
+
+### Session Summary
+
+After completing a set, you'll see:
+- **Total Reps** - Number of reps counted
+- **Form Score** - Average score across all reps
+- **Grade** - Excellent (90+), Good (75+), Fair (60+), or Needs Work (<60)
+- **Form Feedback** - Specific tips to improve your technique
+- **Rep Details** - Score and flags for each individual rep
+
+### Tips for Best Results
+
+1. **Good Lighting** - Ensure the room is well-lit
+2. **Stable Camera** - Place your phone on a stable surface or tripod
+3. **Full Body in Frame** - Make sure your entire body is visible
+4. **Side View for Push-ups** - Position camera perpendicular to your body
+5. **Front View for Pull-ups** - Position camera facing you
+6. **Consistent Distance** - Stay at a consistent distance from the camera
+
+### Technical Notes
+
+- All processing happens **on-device** - no video is uploaded
+- Pose detection runs at approximately 5 frames per second to maintain performance
+- Works best on devices with good processing power
+- Camera preview may not be available on web (demo mode will be active)
+
+---

@@ -49,3 +49,18 @@
 - [x] Cool-down section after main workout
 - [x] Admin configuration for warm-up exercises
 - [x] Admin configuration for cool-down exercises
+
+## AI Form Coach Feature (MVP)
+- [x] Research and set up TensorFlow.js pose estimation for React Native
+- [x] Integrate expo-camera for live video feed
+- [x] Implement pose detection with throttled inference
+- [x] Create exercise selection screen (Push-up / Pull-up)
+- [x] Implement push-up rep counting algorithm
+- [x] Implement pull-up rep counting algorithm
+- [x] Add form scoring (0-100) based on pose analysis
+- [x] Detect basic form flags (partial ROM, no lockout)
+- [x] Build live tracking UI with rep counter and confidence
+- [x] Create post-set summary card
+- [x] Add graceful fallback for low confidence
+- [x] Optimize performance (throttled inference at ~5 FPS)
+- [x] Add AI Form Coach entry point in app navigation

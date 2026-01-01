@@ -164,6 +164,38 @@ export default function HomeScreen() {
           </View>
         )}
 
+        {/* AI Form Coach */}
+        <View className="px-6 mt-6">
+          <TouchableOpacity
+            onPress={() => {
+              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push('/form-coach');
+            }}
+            style={{
+              backgroundColor: colors.surface,
+              borderWidth: 1,
+              borderColor: colors.primary + '40',
+              paddingVertical: 16,
+              paddingHorizontal: 20,
+              borderRadius: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+            }}
+          >
+            <View 
+              className="w-12 h-12 rounded-xl items-center justify-center mr-4"
+              style={{ backgroundColor: colors.primary + '15' }}
+            >
+              <Text style={{ fontSize: 24 }}>🤖</Text>
+            </View>
+            <View className="flex-1">
+              <Text className="font-semibold text-foreground">AI Form Coach</Text>
+              <Text className="text-sm text-muted mt-0.5">Track push-ups & pull-ups with AI</Text>
+            </View>
+            <IconSymbol name="chevron.right" size={20} color={colors.muted} />
+          </TouchableOpacity>
+        </View>
+
         {/* Quick Stats */}
         {store.workoutLogs.filter(l => l.isCompleted).length > 0 && (
           <View className="px-6 mt-8">

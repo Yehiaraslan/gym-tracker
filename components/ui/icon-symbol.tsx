@@ -35,6 +35,11 @@ const MAPPING = {
   "trophy.fill": "emoji-events",
   "chart.line.uptrend.xyaxis": "trending-up",
   "info.circle.fill": "info",
+  "xmark": "close",
+  "stop.fill": "stop",
+  "camera.fill": "camera-alt",
+  "exclamationmark.triangle.fill": "warning",
+  "chevron.left": "chevron-left",
 } as IconMapping;
 
 /**

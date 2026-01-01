@@ -90,6 +90,8 @@ export default function RootLayout() {
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="workout" options={{ presentation: 'fullScreenModal' }} />
             <Stack.Screen name="whoop" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="form-coach" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="form-coach-tracking" options={{ presentation: 'fullScreenModal' }} />
             <Stack.Screen name="oauth/callback" />
           </Stack>
           <StatusBar style="auto" />
