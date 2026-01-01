@@ -102,7 +102,7 @@ function ExercisesTab() {
   const [showVideoSuggestions, setShowVideoSuggestions] = useState(false);
   
   // RapidAPI key for ExerciseDB (stored in settings)
-  const [rapidApiKey, setRapidApiKey] = useState<string | null>(null);
+  const apiKey = store.settings.rapidApiKey || null;
 
   const openAddModal = () => {
     setEditingExercise(null);
@@ -138,54 +138,74 @@ function ExercisesTab() {
       return;
     }
 
-    // For now, use a demo mode that shows a placeholder
-    // In production, this would use the RapidAPI key
     setIsSearchingVideo(true);
     setShowVideoSuggestions(true);
     
     try {
-      // Simulate API delay for demo
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Create demo suggestions based on exercise name
-      const demoSuggestions: VideoSearchResult[] = [
-        {
-          exerciseId: 'demo-1',
-          exerciseName: `${name} (Standard Form)`,
-          gifUrl: `https://via.placeholder.com/360x360/1a1a2e/ffffff?text=${encodeURIComponent(name)}`,
-          bodyPart: 'full body',
-          target: 'multiple muscles',
-          equipment: 'body weight',
-          instructions: ['Maintain proper form throughout the movement', 'Control the eccentric phase', 'Breathe steadily'],
-        },
-        {
-          exerciseId: 'demo-2',
-          exerciseName: `${name} (With Barbell)`,
-          gifUrl: `https://via.placeholder.com/360x360/16213e/ffffff?text=${encodeURIComponent(name + ' Barbell')}`,
-          bodyPart: 'full body',
-          target: 'multiple muscles',
-          equipment: 'barbell',
-          instructions: ['Keep your back straight', 'Engage your core', 'Use full range of motion'],
-        },
-        {
-          exerciseId: 'demo-3',
-          exerciseName: `${name} (With Dumbbells)`,
-          gifUrl: `https://via.placeholder.com/360x360/0f3460/ffffff?text=${encodeURIComponent(name + ' DB')}`,
-          bodyPart: 'full body',
-          target: 'multiple muscles',
-          equipment: 'dumbbell',
-          instructions: ['Equal weight on both sides', 'Slow and controlled', 'Full extension'],
-        },
-      ];
-      
-      setVideoSuggestions(demoSuggestions);
+      // Use real API if key is configured
+      if (apiKey) {
+        const results = await getExerciseSuggestions(name.trim(), apiKey, 5);
+        if (results.length > 0) {
+          setVideoSuggestions(results);
+        } else {
+          // No results found, show message
+          Alert.alert(
+            'No Results',
+            `No exercises found matching "${name}". Try a different search term.`
+          );
+          setVideoSuggestions([]);
+          setShowVideoSuggestions(false);
+        }
+      } else {
+        // Demo mode - show placeholder suggestions
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        const demoSuggestions: VideoSearchResult[] = [
+          {
+            exerciseId: 'demo-1',
+            exerciseName: `${name} (Standard Form)`,
+            gifUrl: `https://via.placeholder.com/360x360/1a1a2e/ffffff?text=${encodeURIComponent(name)}`,
+            bodyPart: 'full body',
+            target: 'multiple muscles',
+            equipment: 'body weight',
+            instructions: ['Maintain proper form throughout the movement', 'Control the eccentric phase', 'Breathe steadily'],
+          },
+          {
+            exerciseId: 'demo-2',
+            exerciseName: `${name} (With Barbell)`,
+            gifUrl: `https://via.placeholder.com/360x360/16213e/ffffff?text=${encodeURIComponent(name + ' Barbell')}`,
+            bodyPart: 'full body',
+            target: 'multiple muscles',
+            equipment: 'barbell',
+            instructions: ['Keep your back straight', 'Engage your core', 'Use full range of motion'],
+          },
+          {
+            exerciseId: 'demo-3',
+            exerciseName: `${name} (With Dumbbells)`,
+            gifUrl: `https://via.placeholder.com/360x360/0f3460/ffffff?text=${encodeURIComponent(name + ' DB')}`,
+            bodyPart: 'full body',
+            target: 'multiple muscles',
+            equipment: 'dumbbell',
+            instructions: ['Equal weight on both sides', 'Slow and controlled', 'Full extension'],
+          },
+        ];
+        
+        setVideoSuggestions(demoSuggestions);
+        
+        // Show hint about API key
+        Alert.alert(
+          'Demo Mode',
+          'Add your RapidAPI key in Settings to fetch real exercise GIFs from ExerciseDB.',
+          [{ text: 'OK' }]
+        );
+      }
     } catch (error) {
       console.error('Error searching videos:', error);
-      Alert.alert('Error', 'Failed to search for exercise videos');
+      Alert.alert('Error', 'Failed to search for exercise videos. Please check your API key.');
     } finally {
       setIsSearchingVideo(false);
     }
-  }, [name]);
+  }, [name, apiKey]);
 
   const handleSelectVideo = (video: VideoSearchResult) => {
     setSelectedVideo(video);
@@ -817,6 +837,12 @@ function SettingsTab() {
   const router = useRouter();
   const { store, updateSettings } = useGym();
   const [startDate, setStartDate] = useState(store.settings.cycleStartDate);
+  const [rapidApiKey, setRapidApiKey] = useState(store.settings.rapidApiKey || '');
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [isValidatingKey, setIsValidatingKey] = useState(false);
+  const [apiKeyStatus, setApiKeyStatus] = useState<'none' | 'valid' | 'invalid'>(
+    store.settings.rapidApiKey ? 'valid' : 'none'
+  );
 
   const handleSaveDate = async () => {
     // Validate date format
@@ -828,6 +854,48 @@ function SettingsTab() {
     await updateSettings({ cycleStartDate: startDate });
     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     Alert.alert('Success', 'Cycle start date updated');
+  };
+
+  const handleSaveApiKey = async () => {
+    if (!rapidApiKey.trim()) {
+      await updateSettings({ rapidApiKey: '' });
+      setApiKeyStatus('none');
+      Alert.alert('Cleared', 'API key has been removed');
+      return;
+    }
+
+    setIsValidatingKey(true);
+    try {
+      // Test the API key with a simple request
+      const response = await fetch(
+        'https://exercisedb.p.rapidapi.com/exercises?limit=1',
+        {
+          method: 'GET',
+          headers: {
+            'X-RapidAPI-Key': rapidApiKey.trim(),
+            'X-RapidAPI-Host': 'exercisedb.p.rapidapi.com',
+          },
+        }
+      );
+
+      if (response.ok) {
+        await updateSettings({ rapidApiKey: rapidApiKey.trim() });
+        setApiKeyStatus('valid');
+        if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Alert.alert('Success', 'ExerciseDB API key saved and validated!');
+      } else {
+        setApiKeyStatus('invalid');
+        Alert.alert(
+          'Invalid API Key',
+          'The API key could not be validated. Please check that you have subscribed to the ExerciseDB API on RapidAPI.'
+        );
+      }
+    } catch (error) {
+      setApiKeyStatus('invalid');
+      Alert.alert('Error', 'Failed to validate API key. Please check your internet connection.');
+    } finally {
+      setIsValidatingKey(false);
+    }
   };
 
   return (
@@ -856,6 +924,85 @@ function SettingsTab() {
           style={{ backgroundColor: colors.primary }}
         >
           <Text className="text-center font-semibold text-white">Save Start Date</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* ExerciseDB API Key Settings */}
+      <View 
+        className="bg-surface rounded-xl p-4 mb-4"
+        style={{ borderWidth: 1, borderColor: colors.border }}
+      >
+        <View className="flex-row items-center justify-between mb-4">
+          <Text className="text-lg font-semibold text-foreground">ExerciseDB API</Text>
+          <View 
+            className="px-2 py-1 rounded-full"
+            style={{ 
+              backgroundColor: apiKeyStatus === 'valid' ? colors.success + '20' : 
+                             apiKeyStatus === 'invalid' ? colors.error + '20' : colors.surface 
+            }}
+          >
+            <Text style={{ 
+              color: apiKeyStatus === 'valid' ? colors.success : 
+                     apiKeyStatus === 'invalid' ? colors.error : colors.muted,
+              fontSize: 12,
+              fontWeight: '600',
+            }}>
+              {apiKeyStatus === 'valid' ? 'Connected' : 
+               apiKeyStatus === 'invalid' ? 'Invalid' : 'Not configured'}
+            </Text>
+          </View>
+        </View>
+        
+        <Text className="text-sm text-muted mb-3">
+          Enter your RapidAPI key to fetch real exercise demonstration GIFs from ExerciseDB.
+        </Text>
+        
+        <Text className="text-sm font-medium text-muted mb-2">RapidAPI Key</Text>
+        <View className="flex-row items-center mb-4">
+          <TextInput
+            value={rapidApiKey}
+            onChangeText={setRapidApiKey}
+            placeholder="Enter your RapidAPI key"
+            placeholderTextColor={colors.muted}
+            secureTextEntry={!showApiKey}
+            className="flex-1 bg-background rounded-xl p-4 text-foreground"
+            style={{ borderWidth: 1, borderColor: colors.border }}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          <TouchableOpacity
+            onPress={() => setShowApiKey(!showApiKey)}
+            className="ml-2 p-4"
+          >
+            <Text style={{ fontSize: 18 }}>{showApiKey ? '🙈' : '👁️'}</Text>
+          </TouchableOpacity>
+        </View>
+        
+        <TouchableOpacity
+          onPress={handleSaveApiKey}
+          disabled={isValidatingKey}
+          className="py-3 rounded-xl mb-3"
+          style={{ 
+            backgroundColor: colors.primary,
+            opacity: isValidatingKey ? 0.7 : 1,
+          }}
+        >
+          {isValidatingKey ? (
+            <ActivityIndicator color="white" size="small" />
+          ) : (
+            <Text className="text-center font-semibold text-white">
+              {rapidApiKey.trim() ? 'Validate & Save Key' : 'Clear Key'}
+            </Text>
+          )}
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          onPress={() => Linking.openURL('https://rapidapi.com/justin-WFnsXH_t6/api/exercisedb')}
+          className="py-2"
+        >
+          <Text className="text-center text-sm" style={{ color: colors.primary }}>
+            Get your free API key from RapidAPI →
+          </Text>
         </TouchableOpacity>
       </View>
 

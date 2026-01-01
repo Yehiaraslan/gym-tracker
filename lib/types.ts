@@ -92,6 +92,7 @@ export interface WarmupCooldownConfig {
 export interface AppSettings {
   cycleStartDate: string; // ISO date string
   currentCycle: number;
+  rapidApiKey?: string; // RapidAPI key for ExerciseDB API
 }
 
 // Store state

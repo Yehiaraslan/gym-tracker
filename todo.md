@@ -224,3 +224,12 @@
 - [x] Show video suggestions with thumbnails for selection
 - [ ] Integrate with real ExerciseDB API (requires RapidAPI key)
 - [ ] Cache fetched videos for offline use
+
+## ExerciseDB API Integration
+- [x] Add RapidAPI key input field in Admin Settings tab
+- [x] Store API key securely in AsyncStorage (via gym store)
+- [x] Update exercise video search to use real ExerciseDB API
+- [x] Show API key status (configured/not configured) in settings
+- [x] Handle API errors gracefully with user-friendly messages
+- [x] Validate API key before saving
+- [x] Link to RapidAPI signup page
