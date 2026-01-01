@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
@@ -27,20 +28,6 @@ import {
   Pose,
 } from '@/lib/pose-detection';
 
-// Conditionally import camera - only on native
-let CameraView: any = null;
-let useCameraPermissions: any = null;
-
-if (Platform.OS !== 'web') {
-  try {
-    const ExpoCamera = require('expo-camera');
-    CameraView = ExpoCamera.CameraView;
-    useCameraPermissions = ExpoCamera.useCameraPermissions;
-  } catch (e) {
-    console.log('Camera not available');
-  }
-}
-
 type TrackingState = 'setup' | 'ready' | 'tracking' | 'completed';
 
 export default function FormCoachTrackingScreen() {
@@ -50,7 +37,7 @@ export default function FormCoachTrackingScreen() {
   const exerciseType = (params.exercise as ExerciseType) || 'pushup';
 
   const [trackingState, setTrackingState] = useState<TrackingState>('setup');
-  const [permission, setPermission] = useState<{ granted: boolean } | null>(null);
+  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [session, setSession] = useState<ExerciseSession | null>(null);
   const [currentRep, setCurrentRep] = useState(0);
   const [confidence, setConfidence] = useState(0);
@@ -66,20 +53,23 @@ export default function FormCoachTrackingScreen() {
 
   // Request camera permission on native
   useEffect(() => {
-    if (Platform.OS !== 'web' && useCameraPermissions) {
-      (async () => {
-        const [status, requestPermission] = useCameraPermissions();
-        if (!status?.granted) {
-          const result = await requestPermission();
-          setPermission(result);
-        } else {
-          setPermission(status);
+    const requestCameraPermission = async () => {
+      if (Platform.OS !== 'web') {
+        try {
+          const { Camera } = require('expo-camera');
+          const { status } = await Camera.requestCameraPermissionsAsync();
+          setHasCameraPermission(status === 'granted');
+        } catch (e) {
+          console.log('Camera not available:', e);
+          setHasCameraPermission(false);
         }
-      })();
-    } else {
-      // On web, simulate permission granted for demo
-      setPermission({ granted: true });
-    }
+      } else {
+        // On web, we'll use demo mode
+        setHasCameraPermission(true);
+      }
+    };
+    
+    requestCameraPermission();
   }, []);
 
   // Initialize tracker
@@ -287,7 +277,7 @@ export default function FormCoachTrackingScreen() {
           <View style={{ width: 40 }} />
         </View>
 
-        <View className="flex-1 px-4">
+        <ScrollView className="flex-1 px-4">
           {/* Score Card */}
           <View 
             className="bg-surface rounded-3xl p-6 items-center mb-6"
@@ -316,8 +306,9 @@ export default function FormCoachTrackingScreen() {
                 <Text 
                   className="text-xl font-semibold"
                   style={{ 
-                    color: summary.score >= 75 ? colors.success : 
-                           summary.score >= 50 ? colors.warning : colors.error 
+                    color: summary.grade === 'Excellent' ? colors.success :
+                           summary.grade === 'Good' ? colors.primary :
+                           summary.grade === 'Fair' ? colors.warning : colors.error
                   }}
                 >
                   {summary.grade}
@@ -327,79 +318,71 @@ export default function FormCoachTrackingScreen() {
             </View>
           </View>
 
-          {/* Feedback */}
+          {/* Form Feedback */}
           {summary.feedback.length > 0 && (
-            <View className="mb-6">
+            <View 
+              className="bg-surface rounded-2xl p-4 mb-6"
+              style={{ borderWidth: 1, borderColor: colors.border }}
+            >
               <Text className="text-lg font-semibold text-foreground mb-3">
                 Form Feedback
               </Text>
-              <View 
-                className="bg-surface rounded-2xl p-4"
-                style={{ borderWidth: 1, borderColor: colors.border }}
-              >
-                {summary.feedback.map((feedback, index) => (
-                  <View 
-                    key={index} 
-                    className="flex-row items-start mb-3 last:mb-0"
-                  >
-                    <IconSymbol 
-                      name="info.circle.fill" 
-                      size={18} 
-                      color={colors.warning} 
-                    />
-                    <Text className="flex-1 ml-3 text-foreground">
-                      {feedback}
-                    </Text>
-                  </View>
-                ))}
-              </View>
+              {summary.feedback.map((tip, index) => (
+                <View key={index} className="flex-row items-start mb-2">
+                  <IconSymbol 
+                    name="exclamationmark.triangle.fill" 
+                    size={16} 
+                    color={colors.warning} 
+                    style={{ marginTop: 2, marginRight: 8 }}
+                  />
+                  <Text className="text-foreground flex-1">{tip}</Text>
+                </View>
+              ))}
             </View>
           )}
 
           {/* Rep Details */}
           {session.reps.length > 0 && (
-            <View className="mb-6">
+            <View 
+              className="bg-surface rounded-2xl p-4 mb-6"
+              style={{ borderWidth: 1, borderColor: colors.border }}
+            >
               <Text className="text-lg font-semibold text-foreground mb-3">
                 Rep Details
               </Text>
-              <View 
-                className="bg-surface rounded-2xl p-4"
-                style={{ borderWidth: 1, borderColor: colors.border }}
-              >
-                {session.reps.map((rep, index) => (
-                  <View 
-                    key={index}
-                    className="flex-row items-center justify-between py-2"
-                    style={{
-                      borderBottomWidth: index < session.reps.length - 1 ? 1 : 0,
-                      borderBottomColor: colors.border,
-                    }}
-                  >
-                    <Text className="text-foreground">Rep {rep.repNumber}</Text>
-                    <View className="flex-row items-center">
-                      <Text 
-                        className="font-semibold mr-2"
-                        style={{ 
-                          color: rep.formScore >= 75 ? colors.success : 
-                                 rep.formScore >= 50 ? colors.warning : colors.error 
-                        }}
-                      >
-                        {rep.formScore}
-                      </Text>
-                      {rep.flags.length > 0 && (
-                        <IconSymbol 
-                          name="exclamationmark.triangle.fill" 
-                          size={16} 
-                          color={colors.warning} 
-                        />
-                      )}
-                    </View>
+              {session.reps.map((rep, index) => (
+                <View 
+                  key={index}
+                  className="flex-row items-center justify-between py-2"
+                  style={{ 
+                    borderTopWidth: index > 0 ? 1 : 0, 
+                    borderTopColor: colors.border 
+                  }}
+                >
+                  <Text className="text-foreground">Rep {rep.repNumber}</Text>
+                  <View className="flex-row items-center">
+                    <Text 
+                      className="font-semibold mr-2"
+                      style={{ 
+                        color: rep.formScore >= 80 ? colors.success :
+                               rep.formScore >= 60 ? colors.warning : colors.error
+                      }}
+                    >
+                      {rep.formScore}
+                    </Text>
+                    {rep.flags.length > 0 && (
+                      <IconSymbol 
+                        name="exclamationmark.triangle.fill" 
+                        size={14} 
+                        color={colors.warning} 
+                      />
+                    )}
                   </View>
-                ))}
-              </View>
+                </View>
+              ))}
             </View>
           )}
-        </View>
+        </ScrollView>
 
         {/* Action Buttons */}
         <View className="px-4 pb-6">
@@ -438,25 +421,20 @@ export default function FormCoachTrackingScreen() {
   // Render tracking/ready state
   return (
     <View style={styles.container}>
-      {/* Camera View (or placeholder on web) */}
+      {/* Camera View (or placeholder) */}
       <View style={styles.cameraContainer}>
-        {Platform.OS !== 'web' && CameraView && permission?.granted ? (
-          <CameraView
-            style={styles.camera}
-            facing="front"
-          />
-        ) : (
-          <View style={[styles.camera, { backgroundColor: '#1a1a1a' }]}>
-            <View style={styles.cameraPlaceholder}>
-              <IconSymbol name="camera.fill" size={48} color="#666" />
-              <Text style={styles.placeholderText}>
-                {Platform.OS === 'web' 
-                  ? 'Camera preview not available on web\n(Demo mode active)'
+        <View style={[styles.camera, { backgroundColor: '#1a1a1a' }]}>
+          <View style={styles.cameraPlaceholder}>
+            <IconSymbol name="camera.fill" size={48} color="#666" />
+            <Text style={styles.placeholderText}>
+              {Platform.OS === 'web' 
+                ? 'Camera preview not available on web\n(Demo mode active)'
+                : hasCameraPermission 
+                  ? 'Position yourself in frame'
                   : 'Camera permission required'}
-              </Text>
-            </View>
+            </Text>
           </View>
-        )}
+        </View>
 
         {/* Overlay UI */}
         <View style={styles.overlay}>
@@ -501,16 +479,14 @@ export default function FormCoachTrackingScreen() {
               <Text style={styles.repCounterLabel}>REPS</Text>
             </View>
             
+            {/* Current State Indicator */}
             {trackingState === 'tracking' && (
-              <View style={styles.stateIndicator}>
-                <View 
-                  style={[
-                    styles.stateLight,
-                    { backgroundColor: currentState === 'down' ? colors.primary : colors.success }
-                  ]}
-                />
+              <View style={[
+                styles.stateIndicator,
+                { backgroundColor: currentState === 'down' ? colors.primary : colors.success }
+              ]}>
                 <Text style={styles.stateText}>
-                  {currentState === 'up' ? 'UP' : currentState === 'down' ? 'DOWN' : 'READY'}
+                  {currentState.toUpperCase()}
                 </Text>
               </View>
             )}
@@ -518,9 +494,12 @@ export default function FormCoachTrackingScreen() {
 
           {/* Last Rep Feedback */}
           {lastRepData && trackingState === 'tracking' && (
-            <View style={styles.lastRepFeedback}>
-              <Text style={styles.lastRepScore}>
-                Rep {lastRepData.repNumber}: {lastRepData.formScore} pts
+            <View style={styles.lastRepContainer}>
+              <Text style={[
+                styles.lastRepScore,
+                { color: lastRepData.formScore >= 80 ? colors.success : colors.warning }
+              ]}>
+                +{lastRepData.formScore}
               </Text>
               {lastRepData.flags.length > 0 && (
                 <Text style={styles.lastRepFlag}>
@@ -533,22 +512,34 @@ export default function FormCoachTrackingScreen() {
           {/* Bottom Controls */}
           <View style={styles.bottomControls}>
             {trackingState === 'ready' && (
-              <TouchableOpacity
-                onPress={handleStartTracking}
-                style={[styles.startButton, { backgroundColor: colors.primary }]}
-              >
-                <IconSymbol name="play.fill" size={32} color="#FFFFFF" />
-                <Text style={styles.startButtonText}>Start</Text>
-              </TouchableOpacity>
+              <>
+                <View style={styles.tipsContainer}>
+                  <Text style={styles.tipsTitle}>Tips for best results:</Text>
+                  <Text style={styles.tipText}>• Ensure good lighting</Text>
+                  <Text style={styles.tipText}>• Place phone at a stable position</Text>
+                  <Text style={styles.tipText}>
+                    • {exerciseType === 'pushup' 
+                      ? 'Side view works best for push-ups' 
+                      : 'Front view works best for pull-ups'}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={handleStartTracking}
+                  style={[styles.actionButton, { backgroundColor: colors.primary }]}
+                >
+                  <IconSymbol name="play.fill" size={28} color="#FFFFFF" />
+                  <Text style={styles.actionButtonText}>Start Tracking</Text>
+                </TouchableOpacity>
+              </>
             )}
-            
+
             {trackingState === 'tracking' && (
               <TouchableOpacity
                 onPress={handleStopTracking}
-                style={[styles.stopButton, { backgroundColor: colors.error }]}
+                style={[styles.actionButton, { backgroundColor: colors.error }]}
               >
                 <IconSymbol name="stop.fill" size={28} color="#FFFFFF" />
-                <Text style={styles.stopButtonText}>Stop</Text>
+                <Text style={styles.actionButtonText}>Stop</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -565,6 +556,7 @@ const styles = StyleSheet.create({
   },
   cameraContainer: {
     flex: 1,
+    position: 'relative',
   },
   camera: {
     flex: 1,
@@ -573,12 +565,14 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    padding: 20,
   },
   placeholderText: {
-    color: '#666',
-    marginTop: 16,
+    color: '#888',
     textAlign: 'center',
-    lineHeight: 22,
+    marginTop: 16,
+    fontSize: 14,
+    lineHeight: 20,
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
@@ -607,8 +601,8 @@ const styles = StyleSheet.create({
   },
   exerciseLabelText: {
     color: '#FFFFFF',
-    fontWeight: '600',
     fontSize: 16,
+    fontWeight: '600',
   },
   confidenceContainer: {
     alignItems: 'center',
@@ -628,95 +622,86 @@ const styles = StyleSheet.create({
   },
   confidenceText: {
     color: '#FFFFFF',
-    marginTop: 8,
-    fontSize: 14,
+    fontSize: 12,
+    marginTop: 6,
   },
   repCounterContainer: {
     alignItems: 'center',
-    flex: 1,
     justifyContent: 'center',
+    flex: 1,
   },
   repCounter: {
     alignItems: 'center',
   },
   repCounterNumber: {
-    fontSize: 120,
-    fontWeight: 'bold',
     color: '#FFFFFF',
-    textShadowColor: 'rgba(0,0,0,0.5)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 10,
+    fontSize: 120,
+    fontWeight: '700',
+    lineHeight: 130,
   },
   repCounterLabel: {
-    fontSize: 24,
     color: 'rgba(255,255,255,0.7)',
+    fontSize: 24,
     fontWeight: '600',
-    marginTop: -10,
+    letterSpacing: 4,
   },
   stateIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
     marginTop: 20,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    paddingHorizontal: 16,
+    paddingHorizontal: 24,
     paddingVertical: 8,
     borderRadius: 20,
   },
-  stateLight: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 8,
-  },
   stateText: {
     color: '#FFFFFF',
-    fontWeight: '600',
-    fontSize: 16,
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 2,
   },
-  lastRepFeedback: {
+  lastRepContainer: {
     alignItems: 'center',
-    paddingHorizontal: 20,
     marginBottom: 20,
   },
   lastRepScore: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 32,
+    fontWeight: '700',
   },
   lastRepFlag: {
-    color: '#FFB800',
+    color: 'rgba(255,255,255,0.7)',
     fontSize: 14,
     marginTop: 4,
-    textAlign: 'center',
   },
   bottomControls: {
-    alignItems: 'center',
-    paddingBottom: 60,
+    padding: 20,
+    paddingBottom: 40,
   },
-  startButton: {
+  tipsContainer: {
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+  },
+  tipsTitle: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  tipText: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 13,
+    marginBottom: 4,
+  },
+  actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 40,
+    justifyContent: 'center',
     paddingVertical: 18,
-    borderRadius: 30,
+    borderRadius: 16,
+    gap: 10,
   },
-  startButtonText: {
+  actionButtonText: {
     color: '#FFFFFF',
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginLeft: 12,
-  },
-  stopButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 36,
-    paddingVertical: 16,
-    borderRadius: 30,
-  },
-  stopButtonText: {
-    color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginLeft: 10,
+    fontSize: 18,
+    fontWeight: '700',
   },
 });

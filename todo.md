@@ -64,3 +64,6 @@
 - [x] Add graceful fallback for low confidence
 - [x] Optimize performance (throttled inference at ~5 FPS)
 - [x] Add AI Form Coach entry point in app navigation
+
+## Bug Fixes
+- [x] Fix "invalid hook call" error in AI Form Coach tracking screen
