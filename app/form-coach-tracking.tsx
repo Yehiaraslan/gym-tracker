@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Text, 
   View, 
@@ -34,9 +34,10 @@ import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { FormGuideOverlay } from '@/components/form-guide-overlay';
 import { SkeletonOverlay } from '@/components/skeleton-overlay';
 import { CalibratedJointsOverlay } from '@/components/calibrated-joints-overlay';
+import { ProgressiveCalibrationOverlay, JOINT_DETECTION_ORDER, JointDetectionStatus } from '@/components/progressive-calibration-overlay';
+import { ProgressiveCalibrationManager } from '@/lib/progressive-calibration';
 import { AICoach } from '@/lib/ai-coach';
 import { audioFeedback, stopSpeech } from '@/lib/audio-feedback';
-import { PoseCalibrator, CalibrationState, CalibrationStatus } from '@/lib/pose-calibration';
 import { detectPoseFromFrame, resetRealPoseDetector } from '@/lib/real-pose-detection';
 import { ConfidenceLegend } from '@/components/confidence-legend';
 import { JointLossAlertManager } from '@/lib/joint-loss-alert';
@@ -75,19 +76,23 @@ export default function FormCoachTrackingScreen() {
   const [currentRep, setCurrentRep] = useState(0);
   const [confidence, setConfidence] = useState(0);
   const [cameraReady, setCameraReady] = useState(false);
-  const [cameraFacing, setCameraFacing] = useState<CameraType>('front');
+  const [cameraFacing, setCameraFacing] = useState<CameraType>('back');
   const [showFormGuide, setShowFormGuide] = useState(true);
-  const [showSkeleton, setShowSkeleton] = useState(true);
+  const [showSkeleton, setShowSkeleton] = useState(false); // Off by default after calibration
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [fps, setFps] = useState(0);
   const [coachMessage, setCoachMessage] = useState('');
   const [coachSubMessage, setCoachSubMessage] = useState('');
   const [currentPose, setCurrentPose] = useState<Pose | null>(null);
   const [formIssues, setFormIssues] = useState<string[]>([]);
-  const [calibrationState, setCalibrationState] = useState<CalibrationState | null>(null);
   const [showDebug, setShowDebug] = useState(false);
-  const [showCalibrationSuccess, setShowCalibrationSuccess] = useState(false);
   const [calibratedPose, setCalibratedPose] = useState<Pose | null>(null);
+
+  // Progressive calibration state
+  const [detectedJoints, setDetectedJoints] = useState<JointDetectionStatus[]>([]);
+  const [currentSearchingGroup, setCurrentSearchingGroup] = useState(0);
+  const [allJointsDetected, setAllJointsDetected] = useState(false);
+  const [calibrationConfirmed, setCalibrationConfirmed] = useState(false);
 
   const [lostJointsWarning, setLostJointsWarning] = useState<string[]>([]);
   const [showLegend, setShowLegend] = useState(true);
@@ -96,7 +101,7 @@ export default function FormCoachTrackingScreen() {
   const sessionRef = useRef<ExerciseSession | null>(null);
   const cameraRef = useRef<CameraView>(null);
   const aiCoachRef = useRef<AICoach | null>(null);
-  const calibratorRef = useRef<PoseCalibrator | null>(null);
+  const progressiveCalibrationRef = useRef<ProgressiveCalibrationManager | null>(null);
   const jointLossAlertRef = useRef<JointLossAlertManager | null>(null);
   const rafIdRef = useRef<number | null>(null);
   const lastInferenceTimeRef = useRef<number>(0);
@@ -121,7 +126,7 @@ export default function FormCoachTrackingScreen() {
     }
   }, [permission, requestPermission]);
 
-  // Initialize tracker, coach, and calibrator
+  // Initialize tracker, coach, and calibration manager
   useEffect(() => {
     // Create exercise tracker
     if (exerciseType === 'pushup') {
@@ -137,8 +142,26 @@ export default function FormCoachTrackingScreen() {
     // Create AI coach
     aiCoachRef.current = new AICoach(exerciseType);
     
-    // Create calibrator
-    calibratorRef.current = new PoseCalibrator(exerciseType);
+    // Create progressive calibration manager
+    progressiveCalibrationRef.current = new ProgressiveCalibrationManager();
+    progressiveCalibrationRef.current.setOnJointDetected((groupIndex, groupName) => {
+      // Haptic feedback when joint group is detected
+      if (Platform.OS !== 'web') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+      if (audioEnabled) {
+        audioFeedback.speak(`${groupName} detected`);
+      }
+    });
+    progressiveCalibrationRef.current.setOnAllDetected(() => {
+      // Haptic feedback when all joints detected
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+      if (audioEnabled) {
+        audioFeedback.speak('All joints detected! Tap Confirm to start.');
+      }
+    });
     
     // Create joint loss alert manager
     jointLossAlertRef.current = new JointLossAlertManager();
@@ -150,11 +173,11 @@ export default function FormCoachTrackingScreen() {
     
     // Start with calibration phase
     setTrackingState('calibrating');
-    setCoachMessage('Stand still for calibration');
-    setCoachSubMessage('Keep your full body visible in frame');
+    setCoachMessage('Looking for your body...');
+    setCoachSubMessage('Stand so your full body is visible');
     
     if (audioEnabled) {
-      audioFeedback.speak('Stand still for calibration. Keep your full body visible.');
+      audioFeedback.speak('Stand so your full body is visible. I will find your joints.');
     }
   }, [exerciseType, audioEnabled]);
 
@@ -180,57 +203,25 @@ export default function FormCoachTrackingScreen() {
     const poseConfidence = calculatePoseConfidence(pose, exerciseType);
     setConfidence(poseConfidence);
 
-    // Handle calibration phase
-    if (trackingState === 'calibrating' && calibratorRef.current) {
-      const calState = calibratorRef.current.processFrame(pose);
-      setCalibrationState(calState);
-      setCoachMessage(calState.message);
-      setCoachSubMessage(calState.subMessage);
+    // Handle calibration phase with progressive detection
+    if (trackingState === 'calibrating' && progressiveCalibrationRef.current) {
+      const calState = progressiveCalibrationRef.current.processFrame(pose);
       
-      // Haptic feedback for newly detected joints
-      if (calState.newlyDetectedJoints && calState.newlyDetectedJoints.length > 0) {
-        if (Platform.OS !== 'web') {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        }
+      // Update UI state
+      setDetectedJoints(calState.detectedJoints);
+      setCurrentSearchingGroup(calState.currentGroupIndex);
+      setAllJointsDetected(calState.allDetected);
+      
+      // Update coach message based on current state
+      if (calState.allDetected) {
+        setCoachMessage('All joints found!');
+        setCoachSubMessage('Tap "Confirm & Start" when ready');
+      } else {
+        const currentGroup = JOINT_DETECTION_ORDER[calState.currentGroupIndex];
+        setCoachMessage(`Looking for ${currentGroup?.name || 'joints'}...`);
+        setCoachSubMessage('Keep your full body visible');
       }
       
-      // Haptic feedback for newly stable joints (slightly stronger)
-      if (calState.newlyStableJoints && calState.newlyStableJoints.length > 0) {
-        if (Platform.OS !== 'web') {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        }
-      }
-      
-      if (calState.status === 'calibrated') {
-        // Calibration complete - move to positioning
-        setTrackingState('positioning');
-        setCoachMessage('Calibration complete!');
-        setCoachSubMessage(getStartPositionMessage());
-        
-        // Store calibrated pose and show success animation
-        setCalibratedPose(pose);
-        setShowCalibrationSuccess(true);
-        
-        // Hide celebration after 3 seconds
-        setTimeout(() => {
-          setShowCalibrationSuccess(false);
-        }, 3000);
-        
-        if (audioEnabled) {
-          audioFeedback.speak('Calibration complete! ' + getStartPositionMessage());
-        }
-        
-        if (Platform.OS !== 'web') {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        }
-      } else if (calState.status === 'failed') {
-        setCoachMessage('Calibration failed');
-        setCoachSubMessage('Please try again with better lighting');
-        
-        if (audioEnabled) {
-          audioFeedback.speak('Calibration failed. Please try again.');
-        }
-      }
       return;
     }
 
@@ -341,6 +332,28 @@ export default function FormCoachTrackingScreen() {
     };
   }, [trackingState, processFrame]);
 
+  // Handle calibration confirmation
+  const handleConfirmCalibration = useCallback(() => {
+    if (!progressiveCalibrationRef.current || !allJointsDetected) return;
+    
+    const calibratedPoseResult = progressiveCalibrationRef.current.confirm();
+    if (calibratedPoseResult) {
+      setCalibratedPose(calibratedPoseResult);
+      setCalibrationConfirmed(true);
+      setTrackingState('positioning');
+      setCoachMessage('Calibration confirmed!');
+      setCoachSubMessage(getStartPositionMessage());
+      
+      if (audioEnabled) {
+        audioFeedback.speak('Calibration confirmed! ' + getStartPositionMessage());
+      }
+      
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    }
+  }, [allJointsDetected, audioEnabled, getStartPositionMessage]);
+
   const handleReadyToStart = useCallback(() => {
     if (audioEnabled) {
       audioFeedback.onSessionStart(getExerciseName());
@@ -350,21 +363,16 @@ export default function FormCoachTrackingScreen() {
     sessionRef.current = newSession;
     setSession(newSession);
     setCurrentRep(0);
-    
-    if (trackerRef.current) {
-      trackerRef.current.reset();
-    }
+    setTrackingState('tracking');
+    setCoachMessage('Go!');
+    setCoachSubMessage('');
+    setShowSkeleton(false); // Hide skeleton by default during tracking
     
     // Start joint loss monitoring
     if (jointLossAlertRef.current && calibratedPose) {
-      jointLossAlertRef.current.initializeFromPose(calibratedPose);
       jointLossAlertRef.current.start();
+      jointLossAlertRef.current.initializeFromPose(calibratedPose);
     }
-    
-    setTrackingState('tracking');
-    setCoachMessage('Go!');
-    setCoachSubMessage('Perform your reps with good form');
-    setLostJointsWarning([]);
     
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
@@ -372,8 +380,9 @@ export default function FormCoachTrackingScreen() {
   }, [exerciseType, audioEnabled, calibratedPose]);
 
   const handleFinish = useCallback(() => {
-    if (rafIdRef.current) {
-      cancelAnimationFrame(rafIdRef.current);
+    if (sessionRef.current) {
+      sessionRef.current = finalizeSession(sessionRef.current);
+      setSession(sessionRef.current);
     }
     
     // Stop joint loss monitoring
@@ -381,17 +390,11 @@ export default function FormCoachTrackingScreen() {
       jointLossAlertRef.current.stop();
     }
     
-    if (sessionRef.current) {
-      sessionRef.current = finalizeSession(sessionRef.current);
-      setSession(sessionRef.current);
-    }
-    
     setTrackingState('completed');
-    setLostJointsWarning([]);
     
     if (audioEnabled && sessionRef.current) {
-      const summary = getFormSummary(sessionRef.current);
-      audioFeedback.onSessionEnd(currentRep, summary.score);
+      const summary = getFormSummaryExtended(sessionRef.current);
+      audioFeedback.onSessionEnd(currentRep, summary.averageScore);
     }
     
     if (Platform.OS !== 'web') {
@@ -400,8 +403,8 @@ export default function FormCoachTrackingScreen() {
   }, [currentRep, audioEnabled]);
 
   const handleRecalibrate = useCallback(() => {
-    if (calibratorRef.current) {
-      calibratorRef.current.reset();
+    if (progressiveCalibrationRef.current) {
+      progressiveCalibrationRef.current.reset();
     }
     if (aiCoachRef.current) {
       aiCoachRef.current.reset();
@@ -411,22 +414,29 @@ export default function FormCoachTrackingScreen() {
       jointLossAlertRef.current.reset();
     }
     resetRealPoseDetector();
-    setCalibrationState(null);
+    
+    // Reset all calibration state
+    setDetectedJoints([]);
+    setCurrentSearchingGroup(0);
+    setAllJointsDetected(false);
+    setCalibrationConfirmed(false);
     setCalibratedPose(null);
-    setShowCalibrationSuccess(false);
     setLostJointsWarning([]);
+    
     setTrackingState('calibrating');
-    setCoachMessage('Stand still for calibration');
-    setCoachSubMessage('Keep your full body visible in frame');
+    setCoachMessage('Looking for your body...');
+    setCoachSubMessage('Stand so your full body is visible');
     
     if (audioEnabled) {
-      audioFeedback.speak('Recalibrating. Stand still.');
+      audioFeedback.speak('Recalibrating. Stand so your full body is visible.');
     }
   }, [audioEnabled]);
 
   const toggleCamera = useCallback(() => {
     setCameraFacing(prev => prev === 'front' ? 'back' : 'front');
-  }, []);
+    // Reset calibration when switching camera
+    handleRecalibrate();
+  }, [handleRecalibrate]);
 
   const getExerciseName = () => {
     switch (exerciseType) {
@@ -448,10 +458,6 @@ export default function FormCoachTrackingScreen() {
     if (confidence >= 0.7) return 'Good';
     if (confidence >= 0.4) return 'Weak';
     return 'Lost';
-  };
-
-  const getCalibrationProgress = () => {
-    return calibrationState?.progress || 0;
   };
 
   // Render loading state
@@ -503,39 +509,38 @@ export default function FormCoachTrackingScreen() {
             )}
 
             {summary.tip && (
-              <View className="mt-4 bg-primary/10 rounded-lg p-3">
-                <Text className="text-sm text-primary">{summary.tip}</Text>
+              <View className="mt-4 p-3 bg-primary/10 rounded-lg">
+                <Text className="text-sm text-primary">💡 {summary.tip}</Text>
               </View>
             )}
           </View>
 
-          <TouchableOpacity
-            className="bg-primary rounded-xl py-4 items-center mb-4"
-            onPress={() => router.back()}
-          >
-            <Text className="text-background font-semibold text-lg">Done</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            className="bg-surface rounded-xl py-4 items-center"
-            onPress={() => {
-              handleRecalibrate();
-            }}
-          >
-            <Text className="text-foreground font-semibold">Try Again</Text>
-          </TouchableOpacity>
+          <View className="flex-row gap-3">
+            <TouchableOpacity
+              className="flex-1 bg-surface py-4 rounded-xl items-center"
+              onPress={() => router.back()}
+            >
+              <Text className="text-foreground font-semibold">Done</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              className="flex-1 bg-primary py-4 rounded-xl items-center"
+              onPress={handleRecalibrate}
+            >
+              <Text className="text-background font-semibold">New Set</Text>
+            </TouchableOpacity>
+          </View>
         </ScrollView>
       </ScreenContainer>
     );
   }
 
-  // Render camera/tracking view
+  // Render camera view
   return (
-    <ScreenContainer edges={['top', 'left', 'right']} className="flex-1">
+    <ScreenContainer edges={['top', 'left', 'right']}>
       <View style={styles.container}>
         {/* Camera View */}
         <View style={styles.cameraContainer}>
-          {Platform.OS !== 'web' && permission?.granted ? (
+          {Platform.OS !== 'web' ? (
             <CameraView
               ref={cameraRef}
               style={styles.camera}
@@ -544,14 +549,67 @@ export default function FormCoachTrackingScreen() {
             />
           ) : (
             <View style={[styles.camera, { backgroundColor: colors.surface }]}>
-              <Text className="text-muted text-center">
-                {Platform.OS === 'web' ? 'Camera preview (Web)' : 'Camera not available'}
-              </Text>
+              <Text className="text-muted">Camera preview (web simulation)</Text>
             </View>
           )}
 
-          {/* Skeleton Overlay */}
-          {showSkeleton && currentPose && (
+          {/* Top Controls */}
+          <View style={styles.topControls}>
+            <TouchableOpacity
+              style={[styles.backButton, { backgroundColor: colors.surface }]}
+              onPress={() => router.back()}
+            >
+              <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
+            </TouchableOpacity>
+
+            <View style={styles.topRightControls}>
+              {/* Camera Switch */}
+              <TouchableOpacity
+                style={[styles.controlButton, { backgroundColor: colors.surface }]}
+                onPress={toggleCamera}
+              >
+                <IconSymbol name="camera.rotate" size={20} color={colors.foreground} />
+              </TouchableOpacity>
+
+              {/* Audio Toggle */}
+              <TouchableOpacity
+                style={[styles.controlButton, { backgroundColor: audioEnabled ? colors.primary : colors.surface }]}
+                onPress={() => setAudioEnabled(!audioEnabled)}
+              >
+                <IconSymbol 
+                  name={audioEnabled ? "speaker.wave.2.fill" : "speaker.slash.fill"} 
+                  size={20} 
+                  color={audioEnabled ? colors.background : colors.foreground} 
+                />
+              </TouchableOpacity>
+
+              {/* Skeleton Toggle (only during tracking) */}
+              {trackingState === 'tracking' && (
+                <TouchableOpacity
+                  style={[styles.controlButton, { backgroundColor: showSkeleton ? colors.primary : colors.surface }]}
+                  onPress={() => setShowSkeleton(!showSkeleton)}
+                >
+                  <IconSymbol name="figure.stand" size={20} color={showSkeleton ? colors.background : colors.foreground} />
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+
+          {/* Progressive Calibration Overlay */}
+          {trackingState === 'calibrating' && (
+            <ProgressiveCalibrationOverlay
+              pose={currentPose}
+              width={SCREEN_WIDTH}
+              height={SCREEN_HEIGHT * 0.6}
+              detectedJoints={detectedJoints}
+              currentSearchingGroup={currentSearchingGroup}
+              allDetected={allJointsDetected}
+              onConfirm={handleConfirmCalibration}
+            />
+          )}
+
+          {/* Skeleton Overlay (after calibration, during tracking if enabled) */}
+          {showSkeleton && trackingState === 'tracking' && currentPose && (
             <SkeletonOverlay
               pose={currentPose}
               width={SCREEN_WIDTH}
@@ -561,29 +619,16 @@ export default function FormCoachTrackingScreen() {
             />
           )}
 
-          {/* Calibrated Joints Highlight Overlay - positioning/ready phase */}
+          {/* Calibrated Joints Overlay - positioning/ready phase */}
           {(trackingState === 'positioning' || trackingState === 'ready') && calibratedPose && (
             <CalibratedJointsOverlay
               pose={calibratedPose}
               width={SCREEN_WIDTH}
               height={SCREEN_HEIGHT * 0.6}
               isCalibrated={true}
-              showCelebration={showCalibrationSuccess}
+              showCelebration={false}
               showLabels={true}
               confidenceMode={false}
-            />
-          )}
-
-          {/* Calibrated Joints Overlay during tracking - with confidence colors */}
-          {trackingState === 'tracking' && currentPose && showSkeleton && (
-            <CalibratedJointsOverlay
-              pose={currentPose}
-              width={SCREEN_WIDTH}
-              height={SCREEN_HEIGHT * 0.6}
-              isCalibrated={true}
-              showCelebration={false}
-              showLabels={false}
-              confidenceMode={true}
             />
           )}
 
@@ -611,113 +656,20 @@ export default function FormCoachTrackingScreen() {
             </View>
           )}
 
-          {/* Calibration Progress Overlay */}
-          {trackingState === 'calibrating' && calibrationState && (
-            <View style={styles.calibrationOverlay}>
-              <View style={styles.calibrationCard}>
-                <Text style={[styles.calibrationTitle, { color: colors.foreground }]}>
-                  Calibrating...
+          {/* Confidence Indicator (during tracking) */}
+          {trackingState === 'tracking' && (
+            <View style={[styles.confidenceIndicator, { backgroundColor: colors.surface }]}>
+              <View style={[styles.confidenceDot, { backgroundColor: getConfidenceColor() }]} />
+              <Text style={[styles.confidenceText, { color: colors.foreground }]}>
+                {getConfidenceLabel()}
+              </Text>
+              {showDebug && (
+                <Text style={[styles.fpsText, { color: colors.muted }]}>
+                  {fps} FPS | {Math.round(confidence * 100)}%
                 </Text>
-                <View style={styles.progressBarContainer}>
-                  <View 
-                    style={[
-                      styles.progressBar, 
-                      { 
-                        width: `${getCalibrationProgress()}%`,
-                        backgroundColor: colors.primary 
-                      }
-                    ]} 
-                  />
-                </View>
-                <Text style={[styles.calibrationProgress, { color: colors.muted }]}>
-                  {getCalibrationProgress()}%
-                </Text>
-                
-                {/* Joint status indicators */}
-                {calibrationState.joints && (
-                  <View style={styles.jointStatusContainer}>
-                    {calibrationState.joints.slice(0, 6).map((joint, idx) => (
-                      <View key={idx} style={styles.jointStatus}>
-                        <View 
-                          style={[
-                            styles.jointDot,
-                            { 
-                              backgroundColor: joint.stable ? colors.success : 
-                                joint.detected ? colors.warning : colors.error 
-                            }
-                          ]} 
-                        />
-                        <Text style={[styles.jointName, { color: colors.muted }]}>
-                          {joint.name.replace('Left ', 'L ').replace('Right ', 'R ')}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                )}
-              </View>
+              )}
             </View>
           )}
-
-          {/* Top Controls */}
-          <View style={styles.topControls}>
-            <TouchableOpacity
-              style={[styles.controlButton, { backgroundColor: colors.surface }]}
-              onPress={() => router.back()}
-            >
-              <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
-            </TouchableOpacity>
-
-            <View style={styles.topRightControls}>
-              {/* Debug Toggle */}
-              <TouchableOpacity
-                style={[styles.controlButton, { backgroundColor: showDebug ? colors.primary : colors.surface }]}
-                onPress={() => setShowDebug(!showDebug)}
-              >
-                <IconSymbol name="info.circle" size={20} color={showDebug ? colors.background : colors.foreground} />
-              </TouchableOpacity>
-
-              {/* Camera Toggle */}
-              <TouchableOpacity
-                style={[styles.controlButton, { backgroundColor: colors.surface }]}
-                onPress={toggleCamera}
-              >
-                <IconSymbol name="camera.rotate" size={20} color={colors.foreground} />
-              </TouchableOpacity>
-
-              {/* Audio Toggle */}
-              <TouchableOpacity
-                style={[styles.controlButton, { backgroundColor: audioEnabled ? colors.primary : colors.surface }]}
-                onPress={() => setAudioEnabled(!audioEnabled)}
-              >
-                <IconSymbol 
-                  name={audioEnabled ? "speaker.wave.2.fill" : "speaker.slash.fill"} 
-                  size={20} 
-                  color={audioEnabled ? colors.background : colors.foreground} 
-                />
-              </TouchableOpacity>
-
-              {/* Skeleton Toggle */}
-              <TouchableOpacity
-                style={[styles.controlButton, { backgroundColor: showSkeleton ? colors.primary : colors.surface }]}
-                onPress={() => setShowSkeleton(!showSkeleton)}
-              >
-                <IconSymbol name="figure.stand" size={20} color={showSkeleton ? colors.background : colors.foreground} />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Confidence Indicator */}
-          <View style={[styles.confidenceIndicator, { backgroundColor: colors.surface }]}>
-            <View style={[styles.confidenceDot, { backgroundColor: getConfidenceColor() }]} />
-            <Text style={[styles.confidenceText, { color: colors.foreground }]}>
-              {getConfidenceLabel()}
-            </Text>
-            {showDebug && (
-              <Text style={[styles.fpsText, { color: colors.muted }]}>
-                {fps} FPS | {Math.round(confidence * 100)}%
-              </Text>
-            )}
-          </View>
 
           {/* Debug Overlay */}
           {showDebug && currentPose && (
@@ -726,9 +678,7 @@ export default function FormCoachTrackingScreen() {
               <Text style={styles.debugText}>Confidence: {Math.round(confidence * 100)}%</Text>
               <Text style={styles.debugText}>State: {trackingState}</Text>
               <Text style={styles.debugText}>Reps: {currentRep}</Text>
-              {calibrationState && (
-                <Text style={styles.debugText}>Cal: {calibrationState.status}</Text>
-              )}
+              <Text style={styles.debugText}>Camera: {cameraFacing}</Text>
             </View>
           )}
         </View>
@@ -755,13 +705,13 @@ export default function FormCoachTrackingScreen() {
 
           {/* Action Buttons */}
           <View style={styles.actionButtons}>
-            {trackingState === 'calibrating' && (
+            {trackingState === 'calibrating' && !allJointsDetected && (
               <TouchableOpacity
                 style={[styles.secondaryButton, { backgroundColor: colors.surface }]}
                 onPress={handleRecalibrate}
               >
                 <Text style={[styles.secondaryButtonText, { color: colors.foreground }]}>
-                  Restart Calibration
+                  Restart
                 </Text>
               </TouchableOpacity>
             )}
@@ -835,6 +785,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
   },
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   controlButton: {
     width: 44,
     height: 44,
@@ -866,62 +823,9 @@ const styles = StyleSheet.create({
     fontSize: 10,
     marginLeft: 8,
   },
-  calibrationOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  calibrationCard: {
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    borderRadius: 16,
-    padding: 24,
-    width: '80%',
-    alignItems: 'center',
-  },
-  calibrationTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 16,
-  },
-  progressBarContainer: {
-    width: '100%',
-    height: 8,
-    backgroundColor: '#E5E7EB',
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  progressBar: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  calibrationProgress: {
-    fontSize: 14,
-    marginTop: 8,
-  },
-  jointStatusContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    marginTop: 16,
-    gap: 8,
-  },
-  jointStatus: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  jointDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  jointName: {
-    fontSize: 10,
-  },
   debugOverlay: {
     position: 'absolute',
-    bottom: 16,
+    top: 110,
     left: 16,
     padding: 8,
     borderRadius: 8,
@@ -929,12 +833,14 @@ const styles = StyleSheet.create({
   debugText: {
     color: '#fff',
     fontSize: 10,
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontFamily: 'monospace',
   },
   bottomPanel: {
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingTop: 16,
     paddingBottom: 32,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
   },
   coachMessageContainer: {
     alignItems: 'center',
@@ -942,7 +848,7 @@ const styles = StyleSheet.create({
   },
   coachMessage: {
     fontSize: 20,
-    fontWeight: '600',
+    fontWeight: '700',
     textAlign: 'center',
   },
   coachSubMessage: {
@@ -955,25 +861,17 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   repCount: {
-    fontSize: 48,
-    fontWeight: '700',
+    fontSize: 64,
+    fontWeight: '800',
   },
   repLabel: {
     fontSize: 14,
+    textTransform: 'uppercase',
+    letterSpacing: 2,
   },
   actionButtons: {
     flexDirection: 'row',
     gap: 12,
-  },
-  primaryButton: {
-    flex: 1,
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  primaryButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
   },
   secondaryButton: {
     flex: 1,
@@ -985,6 +883,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  primaryButton: {
+    flex: 1,
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  primaryButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
   finishButton: {
     flex: 1,
     paddingVertical: 16,
@@ -993,22 +901,22 @@ const styles = StyleSheet.create({
   },
   finishButtonText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   lostJointsWarning: {
     position: 'absolute',
-    top: 100,
+    top: 110,
     left: 16,
     right: 16,
     backgroundColor: 'rgba(239, 68, 68, 0.9)',
-    paddingVertical: 8,
     paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 8,
-    alignItems: 'center',
   },
   lostJointsText: {
-    color: '#ffffff',
-    fontSize: 13,
+    color: '#fff',
+    fontSize: 12,
     fontWeight: '600',
+    textAlign: 'center',
   },
 });

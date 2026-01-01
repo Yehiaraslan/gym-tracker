@@ -198,3 +198,11 @@
 - [x] Proper tensor disposal to prevent memory leaks
 - [ ] Test on real device for performance validation
 - [x] Ensure app remains responsive during tracking
+
+## Camera Switching & Progressive Joint Detection
+- [x] Add camera switching toggle (front/back) to form-coach-tracking screen
+- [x] Start calibration with no green points visible
+- [x] Progressively detect joints one by one (shoulders, elbows, waist, legs)
+- [x] Show visual feedback as each joint is found
+- [x] Add user confirmation button after all joints detected
+- [x] Only start tracking after user confirms joint positions
