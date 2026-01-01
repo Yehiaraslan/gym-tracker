@@ -32,3 +32,10 @@
 - [x] Cycle start date configuration
 - [x] Auto-repeat after 8 weeks
 - [x] Cycle number tracking
+
+## New Feature Requests
+- [x] Add default reps field to exercise definition
+- [x] Add personal notes field to exercises (e.g., "pause 2 sec", "lift heavy")
+- [x] Video player with thumbnail during workout
+- [x] Calendar view for 8-week workout schedule
+- [x] Whoop integration (demo mode + OAuth setup guide)

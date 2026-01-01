@@ -31,7 +31,7 @@ interface GymContextType {
   currentCycleInfo: { cycle: number; week: number; day: number };
   
   // Exercise operations
-  addExercise: (name: string, videoUrl: string, defaultRestSeconds: number) => Promise<void>;
+  addExercise: (name: string, videoUrl: string, defaultRestSeconds: number, defaultReps: string, notes: string) => Promise<void>;
   updateExercise: (id: string, updates: Partial<Omit<Exercise, 'id' | 'createdAt'>>) => Promise<void>;
   deleteExercise: (id: string) => Promise<void>;
   getExerciseById: (id: string) => Exercise | undefined;
@@ -89,8 +89,8 @@ export function GymProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Exercise operations
-  const addExercise = useCallback(async (name: string, videoUrl: string, defaultRestSeconds: number) => {
-    const newStore = addExerciseToStore(store, name, videoUrl, defaultRestSeconds);
+  const addExercise = useCallback(async (name: string, videoUrl: string, defaultRestSeconds: number, defaultReps: string, notes: string) => {
+    const newStore = addExerciseToStore(store, name, videoUrl, defaultRestSeconds, defaultReps, notes);
     await updateAndSave(newStore);
   }, [store, updateAndSave]);
 

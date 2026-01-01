@@ -89,6 +89,7 @@ export default function RootLayout() {
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="workout" options={{ presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="whoop" options={{ presentation: 'modal' }} />
             <Stack.Screen name="oauth/callback" />
           </Stack>
           <StatusBar style="auto" />

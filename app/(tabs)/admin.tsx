@@ -17,6 +17,7 @@ import { useColors } from '@/hooks/use-colors';
 import { useGym } from '@/lib/gym-context';
 import { Exercise, DayExercise, getDayName } from '@/lib/types';
 import * as Haptics from 'expo-haptics';
+import { useRouter } from 'expo-router';
 
 type AdminTab = 'exercises' | 'program' | 'settings';
 
@@ -80,12 +81,16 @@ function ExercisesTab() {
   const [name, setName] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
   const [restSeconds, setRestSeconds] = useState('90');
+  const [defaultReps, setDefaultReps] = useState('8-12');
+  const [notes, setNotes] = useState('');
 
   const openAddModal = () => {
     setEditingExercise(null);
     setName('');
     setVideoUrl('');
     setRestSeconds('90');
+    setDefaultReps('8-12');
+    setNotes('');
     setModalVisible(true);
   };
 
@@ -94,6 +99,8 @@ function ExercisesTab() {
     setName(exercise.name);
     setVideoUrl(exercise.videoUrl);
     setRestSeconds(exercise.defaultRestSeconds.toString());
+    setDefaultReps(exercise.defaultReps || '8-12');
+    setNotes(exercise.notes || '');
     setModalVisible(true);
   };
 
@@ -109,9 +116,11 @@ function ExercisesTab() {
         name: name.trim(),
         videoUrl: videoUrl.trim(),
         defaultRestSeconds: rest,
+        defaultReps: defaultReps.trim() || '8-12',
+        notes: notes.trim(),
       });
     } else {
-      await addExercise(name.trim(), videoUrl.trim(), rest);
+      await addExercise(name.trim(), videoUrl.trim(), rest, defaultReps.trim() || '8-12', notes.trim());
     }
     
     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -144,7 +153,19 @@ function ExercisesTab() {
       <View className="flex-row items-center justify-between">
         <View className="flex-1">
           <Text className="text-lg font-semibold text-foreground">{item.name}</Text>
-          <Text className="text-sm text-muted mt-1">Rest: {item.defaultRestSeconds}s</Text>
+          <Text className="text-sm text-muted mt-1">
+            {item.defaultReps || '8-12'} reps • Rest: {item.defaultRestSeconds}s
+          </Text>
+          {item.notes ? (
+            <View 
+              className="mt-2 p-2 rounded-lg"
+              style={{ backgroundColor: colors.warning + '15' }}
+            >
+              <Text className="text-sm" style={{ color: colors.warning }}>
+                📝 {item.notes}
+              </Text>
+            </View>
+          ) : null}
           {item.videoUrl ? (
             <TouchableOpacity 
               onPress={() => Linking.openURL(item.videoUrl)}
@@ -220,9 +241,10 @@ function ExercisesTab() {
         onRequestClose={() => setModalVisible(false)}
       >
         <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <View 
-            className="bg-background rounded-t-3xl p-6"
-            style={{ maxHeight: '80%' }}
+          <ScrollView 
+            className="bg-background rounded-t-3xl"
+            style={{ maxHeight: '90%' }}
+            contentContainerStyle={{ padding: 24 }}
           >
             <Text className="text-xl font-bold text-foreground mb-6">
               {editingExercise ? 'Edit Exercise' : 'Add Exercise'}
@@ -233,6 +255,16 @@ function ExercisesTab() {
               value={name}
               onChangeText={setName}
               placeholder="e.g., Bench Press"
+              placeholderTextColor={colors.muted}
+              className="bg-surface rounded-xl p-4 text-foreground mb-4"
+              style={{ borderWidth: 1, borderColor: colors.border }}
+            />
+
+            <Text className="text-sm font-medium text-muted mb-2">Default Reps</Text>
+            <TextInput
+              value={defaultReps}
+              onChangeText={setDefaultReps}
+              placeholder="e.g., 8-12 or 10"
               placeholderTextColor={colors.muted}
               className="bg-surface rounded-xl p-4 text-foreground mb-4"
               style={{ borderWidth: 1, borderColor: colors.border }}
@@ -256,9 +288,22 @@ function ExercisesTab() {
               onChangeText={setRestSeconds}
               placeholder="90"
               placeholderTextColor={colors.muted}
-              className="bg-surface rounded-xl p-4 text-foreground mb-6"
+              className="bg-surface rounded-xl p-4 text-foreground mb-4"
               style={{ borderWidth: 1, borderColor: colors.border }}
               keyboardType="numeric"
+            />
+
+            <Text className="text-sm font-medium text-muted mb-2">Personal Notes (optional)</Text>
+            <TextInput
+              value={notes}
+              onChangeText={setNotes}
+              placeholder="e.g., Pause 2 sec at bottom, lift heavy, slow eccentric..."
+              placeholderTextColor={colors.muted}
+              className="bg-surface rounded-xl p-4 text-foreground mb-6"
+              style={{ borderWidth: 1, borderColor: colors.border, minHeight: 80 }}
+              multiline
+              numberOfLines={3}
+              textAlignVertical="top"
             />
 
             <View className="flex-row">
@@ -277,7 +322,7 @@ function ExercisesTab() {
                 <Text className="text-center font-semibold text-white">Save</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </ScrollView>
         </View>
       </Modal>
     </View>
@@ -314,7 +359,7 @@ function ProgramTab() {
       {
         exerciseId,
         sets: 3,
-        reps: '8-12',
+        reps: exercise.defaultReps || '8-12',
         restSeconds: exercise.defaultRestSeconds,
         order: prev.length,
       }
@@ -449,6 +494,11 @@ function ProgramTab() {
                   <Text className="text-sm text-muted mt-1">
                     {ex.sets} sets × {ex.reps} reps • Rest: {ex.restSeconds}s
                   </Text>
+                  {exercise?.notes ? (
+                    <Text className="text-xs mt-1" style={{ color: colors.warning }}>
+                      📝 {exercise.notes}
+                    </Text>
+                  ) : null}
                 </View>
               );
             })}
@@ -593,6 +643,7 @@ function ProgramTab() {
 // Settings Tab Component
 function SettingsTab() {
   const colors = useColors();
+  const router = useRouter();
   const { store, updateSettings } = useGym();
   const [startDate, setStartDate] = useState(store.settings.cycleStartDate);
 
@@ -662,6 +713,36 @@ function SettingsTab() {
           </Text>
         </View>
       </View>
+
+      {/* Whoop Integration */}
+      <TouchableOpacity
+        onPress={() => router.push('/whoop' as any)}
+        className="bg-surface rounded-xl p-4 mb-8"
+        style={{ borderWidth: 1, borderColor: colors.border }}
+      >
+        <View className="flex-row items-center justify-between">
+          <View className="flex-row items-center">
+            <View 
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 22,
+                backgroundColor: colors.primary + '20',
+                justifyContent: 'center',
+                alignItems: 'center',
+                marginRight: 12,
+              }}
+            >
+              <Text style={{ fontSize: 20 }}>⌚</Text>
+            </View>
+            <View>
+              <Text className="text-lg font-semibold text-foreground">Whoop Integration</Text>
+              <Text className="text-sm text-muted">Connect your Whoop device</Text>
+            </View>
+          </View>
+          <IconSymbol name="chevron.right" size={20} color={colors.muted} />
+        </View>
+      </TouchableOpacity>
     </ScrollView>
   );
 }

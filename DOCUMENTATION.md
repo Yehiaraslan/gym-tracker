@@ -25,11 +25,12 @@ GymTracker is a personal gym workout tracking app designed for an 8-week cycling
 
 ## App Structure
 
-The app has three main tabs:
+The app has four main tabs:
 
 | Tab | Purpose |
 |-----|---------|
 | **Today** | View and start today's workout |
+| **Schedule** | View 8-week calendar with all workouts |
 | **History** | Review past workouts and weight progression |
 | **Admin** | Configure exercises, program, and settings |
 
@@ -44,9 +45,11 @@ This is where you add all the exercises you'll use in your program.
 **To add an exercise:**
 1. Tap the **+** button in the bottom right
 2. Enter the **Exercise Name** (required)
-3. Enter a **Video URL** (optional) - paste a YouTube or other video link
-4. Set the **Default Rest Time** in seconds (default: 90)
-5. Tap **Save**
+3. Enter **Default Reps** (e.g., "8-12" or "10")
+4. Enter a **Video URL** (optional) - paste a YouTube link for exercise demonstration
+5. Set the **Default Rest Time** in seconds (default: 90)
+6. Add **Personal Notes** (optional) - coaching cues like "pause 2 sec at bottom" or "lift heavy"
+7. Tap **Save**
 
 **To edit an exercise:**
 - Tap the pencil icon next to the exercise
@@ -82,6 +85,38 @@ This is where you configure your 8-week training program.
 **Statistics:**
 - View total exercises, configured program days, and completed workouts
 
+**Whoop Integration:**
+- Tap to access Whoop device connection settings
+- Connect your Whoop to see recovery, strain, and sleep data
+
+---
+
+## Schedule Screen (Calendar View)
+
+The Schedule tab provides a visual calendar view of your entire 8-week program.
+
+### Features
+
+**Cycle Overview:**
+- Total workout days across all 8 weeks
+- Total exercises configured
+
+**Week Selector:**
+- Horizontal scroll through weeks 1-8
+- Shows number of workout days per week
+- Green dot indicates current week
+
+**Weekly Calendar Grid:**
+- Visual representation of each day
+- Dumbbell icon = workout day
+- "Rest" = no workout scheduled
+- Current day highlighted
+
+**Day Details:**
+- Tap any day to see workout details
+- Shows all exercises with sets, reps, and rest times
+- Displays personal notes for each exercise
+
 ---
 
 ## Today Screen
@@ -102,11 +137,27 @@ If no workout is scheduled, you'll see a "Rest Day" message.
 
 When you tap **Start Workout**, you enter the active workout mode.
 
+### Video Player
+
+If an exercise has a video URL configured:
+- A thumbnail preview appears at the top
+- Tap to open the full video player
+- Watch the exercise demonstration while working out
+- Play/pause controls available
+
+### Personal Notes Display
+
+If an exercise has notes configured:
+- A highlighted "Coach Notes" section appears
+- Shows your custom cues (e.g., "pause 2 sec", "lift heavy")
+- Helps maintain proper form and technique
+
 ### During a Workout
 
 1. **Current Exercise** is displayed with:
    - Exercise name
-   - Video link button (if configured)
+   - Video player (if configured)
+   - Personal notes (if configured)
    - Target reps
    - Last weight reference (if available)
 
@@ -178,6 +229,32 @@ Shows all exercises with their weight history.
 
 ---
 
+## Whoop Integration
+
+Access via Admin → Settings → Whoop Integration
+
+### Features
+
+**Connection Status:**
+- Shows whether Whoop is connected
+- Last sync timestamp
+
+**Recovery Metrics (when connected):**
+- **Recovery Score** - How recovered your body is (0-100%)
+- **Day Strain** - Cardiovascular load for the day
+- **Sleep Performance** - Quality of last night's sleep
+
+**Demo Mode:**
+- Try the feature with sample data before connecting
+- Useful for previewing the interface
+
+**Full Integration:**
+- Requires creating an app at developer.whoop.com
+- OAuth authentication flow
+- Real-time data sync from your Whoop device
+
+---
+
 ## 8-Week Cycle Logic
 
 The app automatically calculates your position in the program:
@@ -201,6 +278,7 @@ All data is stored locally on your device using AsyncStorage:
 - Program configuration
 - Workout history
 - Settings
+- Whoop connection data
 
 **Data persists** even when you close the app or restart your phone.
 
@@ -211,10 +289,13 @@ All data is stored locally on your device using AsyncStorage:
 ## Tips for Best Experience
 
 1. **Configure your full 8-week program** before starting to avoid gaps
-2. **Add video URLs** for exercises you want to review form
-3. **Set accurate rest times** for each exercise type
-4. **Log every workout** to build accurate weight history
-5. **Check the History tab** to track your progress over time
+2. **Add video URLs** for exercises you want to review form (YouTube links work best)
+3. **Add personal notes** with coaching cues for proper technique
+4. **Set accurate rest times** for each exercise type
+5. **Log every workout** to build accurate weight history
+6. **Use the Schedule tab** to plan ahead and see your full program
+7. **Check the History tab** to track your progress over time
+8. **Connect Whoop** (if you have one) to optimize training based on recovery
 
 ---
 
@@ -226,6 +307,8 @@ All data is stored locally on your device using AsyncStorage:
 | No exercises showing | Configure the program in Admin > Program |
 | Weight not saving | Make sure to tap "Complete Set" for each set |
 | Rest timer not working | Ensure the app is in the foreground |
+| Video not playing | Check that the YouTube URL is correct |
+| Whoop not connecting | Ensure you've set up OAuth credentials |
 
 ---
 
@@ -233,6 +316,7 @@ All data is stored locally on your device using AsyncStorage:
 
 - **Platform:** React Native with Expo SDK 54
 - **Storage:** AsyncStorage (local device storage)
+- **Video Player:** YouTube iframe integration
 - **Styling:** NativeWind (Tailwind CSS for React Native)
 - **Compatible with:** Android (Google Pixel and other devices)
 
@@ -241,13 +325,19 @@ All data is stored locally on your device using AsyncStorage:
 ## Quick Reference
 
 ### Adding Your First Exercise
-Admin → Exercises → + → Enter name → Save
+Admin → Exercises → + → Enter name, reps, video URL, notes → Save
 
 ### Setting Up Week 1, Day 1
 Admin → Program → Select Week 1 → Select Mon → Edit → Add exercises → Save
 
 ### Starting a Workout
-Today → Start Workout → Enter weight → Complete Set → Repeat
+Today → Start Workout → Watch video → Enter weight → Complete Set → Repeat
+
+### Viewing Your Schedule
+Schedule → Select week → Tap day → View workout details
 
 ### Viewing Progress
 History → Exercises → Tap exercise → View weight history
+
+### Connecting Whoop
+Admin → Settings → Whoop Integration → Connect or Try Demo Mode

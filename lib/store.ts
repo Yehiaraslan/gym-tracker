@@ -57,13 +57,17 @@ export function addExercise(
   store: GymStore, 
   name: string, 
   videoUrl: string, 
-  defaultRestSeconds: number
+  defaultRestSeconds: number,
+  defaultReps: string = '8-12',
+  notes: string = ''
 ): GymStore {
   const exercise: Exercise = {
     id: generateId(),
     name,
     videoUrl,
     defaultRestSeconds,
+    defaultReps,
+    notes,
     createdAt: Date.now(),
   };
   return {

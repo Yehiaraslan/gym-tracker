@@ -7,12 +7,12 @@ import {
   ScrollView, 
   Alert,
   Modal,
-  Linking,
   Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { VideoPlayer } from '@/components/video-player';
 import { useColors } from '@/hooks/use-colors';
 import { useGym } from '@/lib/gym-context';
 import { 
@@ -37,7 +37,6 @@ export default function WorkoutScreen() {
     getLastWeight,
     getBestWeight,
     addWorkoutLog,
-    updateWorkoutLog,
   } = useGym();
 
   const todayProgram = getTodayProgram();
@@ -283,7 +282,7 @@ export default function WorkoutScreen() {
         </Text>
       </View>
 
-      <ScrollView className="flex-1 px-4">
+      <ScrollView className="flex-1 px-4" showsVerticalScrollIndicator={false}>
         {/* Rest Timer Overlay */}
         {isResting ? (
           <View 
@@ -305,30 +304,49 @@ export default function WorkoutScreen() {
           </View>
         ) : (
           <>
+            {/* Video Player Section */}
+            {currentExercise?.videoUrl ? (
+              <View className="mb-4">
+                <VideoPlayer 
+                  videoUrl={currentExercise.videoUrl} 
+                  exerciseName={currentExercise.name}
+                />
+              </View>
+            ) : null}
+
             {/* Current Exercise Card */}
             <View 
               className="bg-surface rounded-3xl p-6 mb-6"
               style={{ borderWidth: 1, borderColor: colors.border }}
             >
-              <View className="flex-row justify-between items-start mb-4">
-                <View className="flex-1">
-                  <Text className="text-2xl font-bold text-foreground">
-                    {currentExercise?.name}
-                  </Text>
-                  <Text className="text-muted mt-1">
-                    Set {currentSetIndex + 1} of {currentDayExercise?.sets}
-                  </Text>
-                </View>
-                {currentExercise?.videoUrl ? (
-                  <TouchableOpacity
-                    onPress={() => Linking.openURL(currentExercise.videoUrl)}
-                    className="p-3 rounded-full"
-                    style={{ backgroundColor: colors.primary + '20' }}
-                  >
-                    <IconSymbol name="video.fill" size={24} color={colors.primary} />
-                  </TouchableOpacity>
-                ) : null}
+              <View className="mb-4">
+                <Text className="text-2xl font-bold text-foreground">
+                  {currentExercise?.name}
+                </Text>
+                <Text className="text-muted mt-1">
+                  Set {currentSetIndex + 1} of {currentDayExercise?.sets}
+                </Text>
               </View>
+
+              {/* Personal Notes */}
+              {currentExercise?.notes ? (
+                <View 
+                  className="mb-4 p-4 rounded-xl"
+                  style={{ backgroundColor: colors.warning + '15' }}
+                >
+                  <View className="flex-row items-start">
+                    <Text style={{ fontSize: 16, marginRight: 8 }}>📝</Text>
+                    <View className="flex-1">
+                      <Text className="text-sm font-medium" style={{ color: colors.warning }}>
+                        Coach Notes
+                      </Text>
+                      <Text className="text-foreground mt-1">
+                        {currentExercise.notes}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              ) : null}
 
               {/* Target Reps */}
               <View 
@@ -401,7 +419,7 @@ export default function WorkoutScreen() {
 
         {/* Completed Sets */}
         {workoutLog && workoutLog.exercises[currentExerciseIndex].sets.length > 0 && (
-          <View className="mt-6">
+          <View className="mt-6 mb-8">
             <Text className="text-sm font-medium text-muted mb-3">Completed Sets</Text>
             {workoutLog.exercises[currentExerciseIndex].sets.map((set, index) => (
               <View 
@@ -436,7 +454,7 @@ export default function WorkoutScreen() {
           >
             <IconSymbol name="trophy.fill" size={64} color={colors.warning} />
             <Text className="text-3xl font-bold text-foreground mt-4">🎉 PR!</Text>
-            <Text className="text-xl text-success mt-2 font-semibold">{congratsMessage}</Text>
+            <Text className="text-xl mt-2 font-semibold" style={{ color: colors.success }}>{congratsMessage}</Text>
             <Text className="text-muted mt-2">Keep pushing!</Text>
           </View>
         </View>

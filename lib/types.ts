@@ -4,6 +4,8 @@ export interface Exercise {
   name: string;
   videoUrl: string;
   defaultRestSeconds: number;
+  defaultReps: string; // e.g., "8-10" or "12"
+  notes: string; // Personal notes like "pause 2 sec", "lift heavy"
   createdAt: number;
 }
 
