@@ -86,3 +86,16 @@
 - [x] Add audio cues for session start/stop
 - [x] Add toggle to enable/disable audio feedback
 - [x] Integrate audio into AI Form Coach tracking screen
+
+## Skeleton Overlay & AI Coaching
+- [x] Create skeleton overlay component (joints + connections visualization)
+- [x] Draw pose keypoints as circles on camera feed
+- [x] Draw skeleton connections (lines between joints)
+- [x] Color-code joints based on form quality (green=good, red=issue)
+- [x] Implement form adjustment phase before workout starts
+- [x] Add position guidance voice cues ("Move into frame", "Stand straighter")
+- [x] Detect when user is in proper starting position
+- [x] Voice announcement "Ready to start" when form is correct
+- [x] Enhance real-time coaching with motivational phrases
+- [x] Add specific corrective guidance ("Lower your hips", "Keep back straight")
+- [x] Integrate skeleton overlay into form-coach-tracking screen

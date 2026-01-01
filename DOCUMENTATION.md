@@ -330,3 +330,62 @@ The app supports optional Whoop integration for recovery and strain data.
 | 1.2 | Added AI Form Coach with push-ups and pull-ups |
 | 1.3 | Added camera switching, visual form guides, squat tracking |
 | 1.4 | Added audio cues for rep counting and real-time verbal form feedback |
+
+| 1.5 | Added skeleton overlay visualization and intelligent AI coaching with form adjustment phase |
+
+---
+
+## AI Form Coach - Advanced Features
+
+### Skeleton Overlay
+
+The AI Form Coach now displays a real-time skeleton overlay on the camera feed, showing:
+
+- **Joint points** (circles) at key body positions: shoulders, elbows, wrists, hips, knees, ankles
+- **Bone connections** (lines) linking joints to visualize body posture
+- **Color-coded feedback**:
+  - **Green** joints/lines: Good form
+  - **Yellow** joints/lines: Minor form issues
+  - **Red** joints/lines: Form problems that need correction
+
+**Toggle skeleton overlay:**
+- Tap the figure icon in the top bar to show/hide the skeleton visualization
+
+### Form Adjustment Phase
+
+Before each workout session, the AI coach guides you into the correct starting position:
+
+1. **Position yourself in frame** - The coach will tell you if body parts are not visible
+2. **Adjust your form** - Real-time guidance to correct your starting position
+3. **Ready confirmation** - When your form is correct, the coach says "Ready to start!"
+4. **Start workout** - Tap the green "Start Workout" button to begin tracking
+
+### Real-Time Coaching
+
+During your workout, the AI coach provides:
+
+- **Rep counting** - Voice announces each completed rep
+- **Form corrections** - Immediate verbal feedback when form issues are detected:
+  - "Go all the way down" (partial range of motion)
+  - "Extend fully at the top" (no lockout)
+  - "Tighten your core" (hip sag)
+  - "Push your knees out" (knees caving)
+  - "Chest up!" (forward lean)
+- **Motivational phrases** - Encouragement for good form reps
+- **Session summary** - Grade and feedback when you finish
+
+### Supported Exercises
+
+| Exercise | Best Camera Position | Key Form Points |
+|----------|---------------------|-----------------|
+| **Push-ups** | Side view | Straight body line, full arm extension, chest to floor |
+| **Pull-ups** | Front view | Full hang, chin over bar, no kipping |
+| **Squats** | Side view | Depth below parallel, knees tracking over toes, upright torso |
+
+### Tips for Best Results
+
+1. **Lighting** - Ensure good, even lighting on your body
+2. **Camera position** - Place phone on a stable surface at the recommended angle
+3. **Clothing** - Wear fitted clothing so the AI can track your joints accurately
+4. **Distance** - Position yourself so your full body is visible in frame
+5. **Audio** - Enable audio feedback for hands-free coaching

@@ -8,6 +8,7 @@ import {
   Alert,
   ActivityIndicator,
   ScrollView,
+  Dimensions,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
@@ -27,12 +28,17 @@ import {
   getFormSummary,
   calculatePoseConfidence,
   Pose,
+  KEYPOINTS,
 } from '@/lib/pose-detection';
 import { CameraView, CameraType } from 'expo-camera';
 import { FormGuideOverlay } from '@/components/form-guide-overlay';
+import { SkeletonOverlay } from '@/components/skeleton-overlay';
+import { AICoach, CoachingPhase } from '@/lib/ai-coach';
 import { audioFeedback, stopSpeech } from '@/lib/audio-feedback';
 
-type TrackingState = 'setup' | 'ready' | 'tracking' | 'completed';
+type TrackingState = 'setup' | 'positioning' | 'ready' | 'tracking' | 'completed';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function FormCoachTrackingScreen() {
   const colors = useColors();
@@ -52,13 +58,22 @@ export default function FormCoachTrackingScreen() {
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraFacing, setCameraFacing] = useState<CameraType>('front');
   const [showFormGuide, setShowFormGuide] = useState(true);
+  const [showSkeleton, setShowSkeleton] = useState(true);
   const [audioEnabled, setAudioEnabled] = useState(true);
+  
+  // AI Coach state
+  const [coachMessage, setCoachMessage] = useState('');
+  const [coachSubMessage, setCoachSubMessage] = useState('');
+  const [isPositionReady, setIsPositionReady] = useState(false);
+  const [currentPose, setCurrentPose] = useState<Pose | null>(null);
+  const [formIssues, setFormIssues] = useState<string[]>([]);
 
   const trackerRef = useRef<PushupTracker | PullupTracker | SquatTracker | null>(null);
   const sessionRef = useRef<ExerciseSession | null>(null);
   const frameCountRef = useRef(0);
   const lastProcessTimeRef = useRef(0);
   const cameraRef = useRef<any>(null);
+  const aiCoachRef = useRef<AICoach | null>(null);
 
   // Cleanup audio on unmount
   useEffect(() => {
@@ -89,7 +104,7 @@ export default function FormCoachTrackingScreen() {
     requestCameraPermission();
   }, []);
 
-  // Initialize tracker based on exercise type
+  // Initialize tracker and AI coach based on exercise type
   useEffect(() => {
     if (exerciseType === 'pushup') {
       trackerRef.current = new PushupTracker();
@@ -99,6 +114,9 @@ export default function FormCoachTrackingScreen() {
       trackerRef.current = new SquatTracker();
     }
     
+    // Initialize AI Coach
+    aiCoachRef.current = new AICoach(exerciseType);
+    
     // Simulate model loading (in real implementation, this would load TensorFlow model)
     const loadModel = async () => {
       setIsModelLoading(true);
@@ -106,7 +124,9 @@ export default function FormCoachTrackingScreen() {
         // Simulate async model loading
         await new Promise(resolve => setTimeout(resolve, 1500));
         setIsModelLoading(false);
-        setTrackingState('ready');
+        setTrackingState('positioning');
+        setCoachMessage('Position yourself in frame');
+        setCoachSubMessage(getStartPositionMessage());
       } catch (error) {
         setModelError('Failed to load AI model. Please try again.');
         setIsModelLoading(false);
@@ -116,28 +136,163 @@ export default function FormCoachTrackingScreen() {
     loadModel();
   }, [exerciseType]);
 
-  // Simulate pose detection (in real implementation, this would use TensorFlow.js)
-  const simulatePoseDetection = useCallback((): Pose | null => {
-    // This is a simulation - in real implementation, this would process camera frames
-    // through TensorFlow.js MoveNet model
+  const getStartPositionMessage = () => {
+    switch (exerciseType) {
+      case 'pushup':
+        return 'Get into plank position with arms extended';
+      case 'pullup':
+        return 'Hang from the bar with arms fully extended';
+      case 'squat':
+        return 'Stand with feet shoulder-width apart';
+      default:
+        return 'Position yourself in frame';
+    }
+  };
+
+  // Generate realistic pose based on exercise type and state
+  const generateSimulatedPose = useCallback((isPositioning: boolean): Pose => {
+    const baseConfidence = 0.75 + Math.random() * 0.2;
+    const centerX = SCREEN_WIDTH / 2;
+    const centerY = SCREEN_HEIGHT / 2;
     
-    // Generate simulated keypoints with some randomness
-    const baseConfidence = 0.7 + Math.random() * 0.25;
+    // Generate keypoints based on exercise type
+    let keypoints: Pose['keypoints'];
     
-    const keypoints = Array.from({ length: 17 }, (_, i) => ({
-      x: 100 + Math.random() * 200,
-      y: 100 + Math.random() * 300,
-      score: baseConfidence + (Math.random() - 0.5) * 0.2,
-      name: `keypoint_${i}`,
+    if (exerciseType === 'pushup') {
+      // Side view push-up position
+      const bodyLength = 300;
+      const armLength = 80;
+      
+      keypoints = [
+        // Face (nose, eyes, ears)
+        { x: centerX - 100, y: centerY - 80, score: baseConfidence, name: 'nose' },
+        { x: centerX - 110, y: centerY - 90, score: baseConfidence * 0.9, name: 'left_eye' },
+        { x: centerX - 90, y: centerY - 90, score: baseConfidence * 0.9, name: 'right_eye' },
+        { x: centerX - 120, y: centerY - 80, score: baseConfidence * 0.8, name: 'left_ear' },
+        { x: centerX - 80, y: centerY - 80, score: baseConfidence * 0.8, name: 'right_ear' },
+        // Shoulders
+        { x: centerX - 60, y: centerY - 40, score: baseConfidence, name: 'left_shoulder' },
+        { x: centerX - 60, y: centerY - 20, score: baseConfidence, name: 'right_shoulder' },
+        // Elbows
+        { x: centerX - 60, y: centerY + 40, score: baseConfidence, name: 'left_elbow' },
+        { x: centerX - 60, y: centerY + 60, score: baseConfidence, name: 'right_elbow' },
+        // Wrists
+        { x: centerX - 60, y: centerY + 100, score: baseConfidence, name: 'left_wrist' },
+        { x: centerX - 60, y: centerY + 120, score: baseConfidence, name: 'right_wrist' },
+        // Hips
+        { x: centerX + 80, y: centerY - 30, score: baseConfidence, name: 'left_hip' },
+        { x: centerX + 80, y: centerY - 10, score: baseConfidence, name: 'right_hip' },
+        // Knees
+        { x: centerX + 180, y: centerY + 20, score: baseConfidence, name: 'left_knee' },
+        { x: centerX + 180, y: centerY + 40, score: baseConfidence, name: 'right_knee' },
+        // Ankles
+        { x: centerX + 250, y: centerY + 60, score: baseConfidence, name: 'left_ankle' },
+        { x: centerX + 250, y: centerY + 80, score: baseConfidence, name: 'right_ankle' },
+      ];
+    } else if (exerciseType === 'pullup') {
+      // Front view pull-up position (hanging)
+      keypoints = [
+        // Face
+        { x: centerX, y: centerY - 100, score: baseConfidence, name: 'nose' },
+        { x: centerX - 15, y: centerY - 110, score: baseConfidence * 0.9, name: 'left_eye' },
+        { x: centerX + 15, y: centerY - 110, score: baseConfidence * 0.9, name: 'right_eye' },
+        { x: centerX - 30, y: centerY - 100, score: baseConfidence * 0.8, name: 'left_ear' },
+        { x: centerX + 30, y: centerY - 100, score: baseConfidence * 0.8, name: 'right_ear' },
+        // Shoulders
+        { x: centerX - 60, y: centerY - 50, score: baseConfidence, name: 'left_shoulder' },
+        { x: centerX + 60, y: centerY - 50, score: baseConfidence, name: 'right_shoulder' },
+        // Elbows (arms extended up)
+        { x: centerX - 70, y: centerY - 120, score: baseConfidence, name: 'left_elbow' },
+        { x: centerX + 70, y: centerY - 120, score: baseConfidence, name: 'right_elbow' },
+        // Wrists (on bar)
+        { x: centerX - 80, y: centerY - 180, score: baseConfidence, name: 'left_wrist' },
+        { x: centerX + 80, y: centerY - 180, score: baseConfidence, name: 'right_wrist' },
+        // Hips
+        { x: centerX - 30, y: centerY + 50, score: baseConfidence, name: 'left_hip' },
+        { x: centerX + 30, y: centerY + 50, score: baseConfidence, name: 'right_hip' },
+        // Knees
+        { x: centerX - 30, y: centerY + 150, score: baseConfidence, name: 'left_knee' },
+        { x: centerX + 30, y: centerY + 150, score: baseConfidence, name: 'right_knee' },
+        // Ankles
+        { x: centerX - 30, y: centerY + 250, score: baseConfidence, name: 'left_ankle' },
+        { x: centerX + 30, y: centerY + 250, score: baseConfidence, name: 'right_ankle' },
+      ];
+    } else {
+      // Side view squat position (standing)
+      keypoints = [
+        // Face
+        { x: centerX, y: centerY - 200, score: baseConfidence, name: 'nose' },
+        { x: centerX - 10, y: centerY - 210, score: baseConfidence * 0.9, name: 'left_eye' },
+        { x: centerX + 10, y: centerY - 210, score: baseConfidence * 0.9, name: 'right_eye' },
+        { x: centerX - 20, y: centerY - 200, score: baseConfidence * 0.8, name: 'left_ear' },
+        { x: centerX + 20, y: centerY - 200, score: baseConfidence * 0.8, name: 'right_ear' },
+        // Shoulders
+        { x: centerX - 40, y: centerY - 140, score: baseConfidence, name: 'left_shoulder' },
+        { x: centerX + 40, y: centerY - 140, score: baseConfidence, name: 'right_shoulder' },
+        // Elbows
+        { x: centerX - 60, y: centerY - 80, score: baseConfidence, name: 'left_elbow' },
+        { x: centerX + 60, y: centerY - 80, score: baseConfidence, name: 'right_elbow' },
+        // Wrists
+        { x: centerX - 50, y: centerY - 20, score: baseConfidence, name: 'left_wrist' },
+        { x: centerX + 50, y: centerY - 20, score: baseConfidence, name: 'right_wrist' },
+        // Hips
+        { x: centerX - 35, y: centerY, score: baseConfidence, name: 'left_hip' },
+        { x: centerX + 35, y: centerY, score: baseConfidence, name: 'right_hip' },
+        // Knees
+        { x: centerX - 40, y: centerY + 120, score: baseConfidence, name: 'left_knee' },
+        { x: centerX + 40, y: centerY + 120, score: baseConfidence, name: 'right_knee' },
+        // Ankles
+        { x: centerX - 45, y: centerY + 240, score: baseConfidence, name: 'left_ankle' },
+        { x: centerX + 45, y: centerY + 240, score: baseConfidence, name: 'right_ankle' },
+      ];
+    }
+
+    // Add some natural movement/jitter
+    keypoints = keypoints.map(kp => ({
+      ...kp,
+      x: kp.x + (Math.random() - 0.5) * 10,
+      y: kp.y + (Math.random() - 0.5) * 10,
     }));
 
     return {
       keypoints,
       score: baseConfidence,
     };
-  }, []);
+  }, [exerciseType]);
 
-  // Process frame for pose detection (throttled)
+  // Process positioning phase
+  const processPositioning = useCallback(() => {
+    if (trackingState !== 'positioning' || !aiCoachRef.current) return;
+
+    const now = Date.now();
+    if (now - lastProcessTimeRef.current < 300) return;
+    lastProcessTimeRef.current = now;
+
+    // Generate simulated pose
+    const pose = generateSimulatedPose(true);
+    setCurrentPose(pose);
+
+    // Process through AI coach
+    const coachState = aiCoachRef.current.processPositioning(pose);
+    setCoachMessage(coachState.message);
+    setCoachSubMessage(coachState.subMessage || '');
+    setFormIssues(coachState.positionIssues);
+
+    if (coachState.phase === 'ready') {
+      setIsPositionReady(true);
+      setTrackingState('ready');
+    }
+  }, [trackingState, generateSimulatedPose]);
+
+  // Run positioning check loop
+  useEffect(() => {
+    if (trackingState !== 'positioning') return;
+
+    const interval = setInterval(processPositioning, 200);
+    return () => clearInterval(interval);
+  }, [trackingState, processPositioning]);
+
+  // Process frame for pose detection during tracking (throttled)
   const processFrame = useCallback(() => {
     if (trackingState !== 'tracking' || !trackerRef.current) return;
 
@@ -148,9 +303,9 @@ export default function FormCoachTrackingScreen() {
 
     frameCountRef.current++;
 
-    // Simulate pose detection
-    const pose = simulatePoseDetection();
-    if (!pose) return;
+    // Generate pose
+    const pose = generateSimulatedPose(false);
+    setCurrentPose(pose);
 
     // Calculate confidence
     const poseConfidence = calculatePoseConfidence(pose, exerciseType);
@@ -159,6 +314,14 @@ export default function FormCoachTrackingScreen() {
     // Process pose through tracker
     const result = trackerRef.current.processFrame(pose);
     setCurrentState(result.currentState);
+
+    // Check for form issues during movement
+    if (result.repData && result.repData.flags.length > 0) {
+      setFormIssues(result.repData.flags.map(f => f.type));
+      aiCoachRef.current?.onFormIssueDetected(result.repData.flags);
+    } else {
+      setFormIssues([]);
+    }
 
     if (result.repCompleted && result.repData) {
       // Rep completed!
@@ -169,8 +332,8 @@ export default function FormCoachTrackingScreen() {
       setCurrentRep(result.repData.repNumber);
       setLastRepData(result.repData);
       
-      // Audio feedback for rep
-      audioFeedback.onRepCompleted(
+      // AI Coach feedback for rep
+      aiCoachRef.current?.onRepCompleted(
         result.repData.repNumber,
         result.repData.formScore,
         result.repData.flags
@@ -182,7 +345,7 @@ export default function FormCoachTrackingScreen() {
         setSession({ ...sessionRef.current });
       }
     }
-  }, [trackingState, exerciseType, simulatePoseDetection]);
+  }, [trackingState, exerciseType, generateSimulatedPose]);
 
   // Run pose detection loop when tracking
   useEffect(() => {
@@ -202,17 +365,15 @@ export default function FormCoachTrackingScreen() {
     sessionRef.current = newSession;
     setSession(newSession);
     
-    // Reset tracker and audio
+    // Reset tracker
     trackerRef.current?.reset();
-    audioFeedback.reset();
-    audioFeedback.setEnabled(audioEnabled);
     setCurrentRep(0);
     setLastRepData(null);
+    setFormIssues([]);
     
-    // Announce session start
-    const exerciseName = exerciseType === 'pushup' ? 'Push-up' : 
-                         exerciseType === 'pullup' ? 'Pull-up' : 'Squat';
-    audioFeedback.onSessionStart(exerciseName);
+    // Start AI coach tracking
+    aiCoachRef.current?.setEnabled(audioEnabled);
+    aiCoachRef.current?.startTracking();
     
     setTrackingState('tracking');
   };
@@ -227,8 +388,8 @@ export default function FormCoachTrackingScreen() {
       sessionRef.current = finalizeSession(sessionRef.current);
       setSession({ ...sessionRef.current });
       
-      // Announce session end
-      audioFeedback.onSessionEnd(
+      // AI Coach session complete
+      aiCoachRef.current?.onSessionComplete(
         sessionRef.current.totalReps,
         sessionRef.current.averageFormScore
       );
@@ -262,11 +423,16 @@ export default function FormCoachTrackingScreen() {
 
   const handleNewSession = () => {
     stopSpeech();
-    audioFeedback.reset();
-    setTrackingState('ready');
+    aiCoachRef.current?.reset();
+    setTrackingState('positioning');
     setSession(null);
     setCurrentRep(0);
     setLastRepData(null);
+    setIsPositionReady(false);
+    setCurrentPose(null);
+    setFormIssues([]);
+    setCoachMessage('Position yourself in frame');
+    setCoachSubMessage(getStartPositionMessage());
   };
 
   const toggleCamera = () => {
@@ -283,13 +449,20 @@ export default function FormCoachTrackingScreen() {
     setShowFormGuide(current => !current);
   };
 
+  const toggleSkeleton = () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    setShowSkeleton(current => !current);
+  };
+
   const toggleAudio = () => {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
     const newState = !audioEnabled;
     setAudioEnabled(newState);
-    audioFeedback.setEnabled(newState);
+    aiCoachRef.current?.setEnabled(newState);
   };
 
   const exerciseName = exerciseType === 'pushup' ? 'Push-up' : 
@@ -300,8 +473,8 @@ export default function FormCoachTrackingScreen() {
     return (
       <ScreenContainer className="flex-1 items-center justify-center">
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text className="text-foreground mt-4 text-lg">Loading AI Model...</Text>
-        <Text className="text-muted mt-2">This may take a few seconds</Text>
+        <Text className="text-foreground mt-4 text-lg">Loading AI Coach...</Text>
+        <Text className="text-muted mt-2">Preparing pose detection model</Text>
       </ScreenContainer>
     );
   }
@@ -319,172 +492,86 @@ export default function FormCoachTrackingScreen() {
             paddingHorizontal: 24,
             paddingVertical: 12,
             borderRadius: 12,
-            marginTop: 24,
+            marginTop: 20,
           }}
         >
-          <Text className="text-white font-semibold">Go Back</Text>
+          <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>Go Back</Text>
         </TouchableOpacity>
       </ScreenContainer>
     );
   }
 
-  // Render completed state (summary)
+  // Render completed state
   if (trackingState === 'completed' && session) {
     const summary = getFormSummary(session);
-    
     return (
       <ScreenContainer className="flex-1">
-        {/* Header */}
-        <View className="flex-row items-center justify-between px-4 py-3">
-          <TouchableOpacity onPress={() => router.back()} className="p-2">
-            <IconSymbol name="xmark" size={24} color={colors.foreground} />
-          </TouchableOpacity>
-          <Text className="text-lg font-semibold text-foreground">Session Complete</Text>
-          <View style={{ width: 40 }} />
-        </View>
+        <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 20 }}>
+          {/* Header */}
+          <View style={styles.completedHeader}>
+            <IconSymbol name="checkmark.circle.fill" size={64} color={colors.success} />
+            <Text className="text-foreground text-2xl font-bold mt-4">
+              Workout Complete!
+            </Text>
+          </View>
 
-        <ScrollView className="flex-1 px-4">
-          {/* Score Card */}
-          <View 
-            className="bg-surface rounded-3xl p-6 items-center mb-6"
-            style={{ borderWidth: 1, borderColor: colors.border }}
-          >
-            <Text className="text-6xl font-bold" style={{ color: colors.primary }}>
-              {session.totalReps}
-            </Text>
-            <Text className="text-xl text-muted mt-1">
-              {exerciseName} Reps
-            </Text>
-            
-            <View 
-              className="w-full h-px my-6"
-              style={{ backgroundColor: colors.border }}
-            />
-            
-            <View className="flex-row items-center justify-around w-full">
-              <View className="items-center">
-                <Text className="text-3xl font-bold text-foreground">
-                  {summary.score}
-                </Text>
-                <Text className="text-sm text-muted">Form Score</Text>
-              </View>
-              <View className="items-center">
-                <Text 
-                  className="text-xl font-semibold"
-                  style={{ 
-                    color: summary.grade === 'Excellent' ? colors.success :
-                           summary.grade === 'Good' ? colors.primary :
-                           summary.grade === 'Fair' ? colors.warning : colors.error
-                  }}
-                >
-                  {summary.grade}
-                </Text>
-                <Text className="text-sm text-muted">Grade</Text>
+          {/* Stats Card */}
+          <View style={[styles.statsCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={styles.statRow}>
+              <Text className="text-muted">Total Reps</Text>
+              <Text className="text-foreground text-3xl font-bold">{session.totalReps}</Text>
+            </View>
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+            <View style={styles.statRow}>
+              <Text className="text-muted">Average Form Score</Text>
+              <Text style={[styles.scoreText, { color: summary.grade === 'A' || summary.grade === 'B' ? colors.success : colors.warning }]}>
+                {Math.round(session.averageFormScore)}%
+              </Text>
+            </View>
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+            <View style={styles.statRow}>
+              <Text className="text-muted">Grade</Text>
+              <View style={[styles.gradeBadge, { backgroundColor: summary.grade === 'A' || summary.grade === 'B' ? colors.success : colors.warning }]}>
+                <Text style={styles.gradeText}>{summary.grade}</Text>
               </View>
             </View>
           </View>
 
-          {/* Form Feedback */}
+          {/* Feedback */}
           {summary.feedback.length > 0 && (
-            <View 
-              className="bg-surface rounded-2xl p-4 mb-6"
-              style={{ borderWidth: 1, borderColor: colors.border }}
-            >
-              <Text className="text-lg font-semibold text-foreground mb-3">
-                Form Feedback
-              </Text>
-              {summary.feedback.map((tip, index) => (
-                <View key={index} className="flex-row items-start mb-2">
-                  <IconSymbol 
-                    name="exclamationmark.triangle.fill" 
-                    size={16} 
-                    color={colors.warning} 
-                    style={{ marginTop: 2, marginRight: 8 }}
-                  />
-                  <Text className="text-foreground flex-1">{tip}</Text>
+            <View style={[styles.feedbackCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Text className="text-foreground font-semibold mb-3">Form Feedback</Text>
+              {summary.feedback.map((item, index) => (
+                <View key={index} style={styles.feedbackItem}>
+                  <IconSymbol name="info.circle.fill" size={16} color={colors.primary} />
+                  <Text className="text-muted flex-1 ml-2">{item}</Text>
                 </View>
               ))}
             </View>
           )}
 
-          {/* Rep Details */}
-          {session.reps.length > 0 && (
-            <View 
-              className="bg-surface rounded-2xl p-4 mb-6"
-              style={{ borderWidth: 1, borderColor: colors.border }}
+          {/* Actions */}
+          <View style={styles.completedActions}>
+            <TouchableOpacity
+              onPress={handleNewSession}
+              style={[styles.actionButton, { backgroundColor: colors.primary }]}
             >
-              <Text className="text-lg font-semibold text-foreground mb-3">
-                Rep Details
-              </Text>
-              {session.reps.map((rep, index) => (
-                <View 
-                  key={index}
-                  className="flex-row items-center justify-between py-2"
-                  style={{ 
-                    borderTopWidth: index > 0 ? 1 : 0, 
-                    borderTopColor: colors.border 
-                  }}
-                >
-                  <Text className="text-foreground">Rep {rep.repNumber}</Text>
-                  <View className="flex-row items-center">
-                    <Text 
-                      className="font-semibold mr-2"
-                      style={{ 
-                        color: rep.formScore >= 80 ? colors.success :
-                               rep.formScore >= 60 ? colors.warning : colors.error
-                      }}
-                    >
-                      {rep.formScore}
-                    </Text>
-                    {rep.flags.length > 0 && (
-                      <IconSymbol 
-                        name="exclamationmark.triangle.fill" 
-                        size={14} 
-                        color={colors.warning} 
-                      />
-                    )}
-                  </View>
-                </View>
-              ))}
-            </View>
-          )}
+              <IconSymbol name="play.fill" size={24} color="#FFFFFF" />
+              <Text style={styles.actionButtonText}>New Session</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={[styles.secondaryButton, { borderColor: colors.border }]}
+            >
+              <Text style={[styles.secondaryButtonText, { color: colors.foreground }]}>Done</Text>
+            </TouchableOpacity>
+          </View>
         </ScrollView>
-
-        {/* Action Buttons */}
-        <View className="px-4 pb-6">
-          <TouchableOpacity
-            onPress={handleNewSession}
-            style={{
-              backgroundColor: colors.primary,
-              paddingVertical: 16,
-              borderRadius: 14,
-              marginBottom: 12,
-            }}
-          >
-            <Text className="text-white font-bold text-center text-lg">
-              New Session
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={{
-              backgroundColor: colors.surface,
-              paddingVertical: 16,
-              borderRadius: 14,
-              borderWidth: 1,
-              borderColor: colors.border,
-            }}
-          >
-            <Text className="text-foreground font-semibold text-center">
-              Done
-            </Text>
-          </TouchableOpacity>
-        </View>
       </ScreenContainer>
     );
   }
 
-  // Render camera view for native, placeholder for web
+  // Render camera view
   const renderCameraView = () => {
     if (Platform.OS === 'web') {
       return (
@@ -492,7 +579,8 @@ export default function FormCoachTrackingScreen() {
           <View style={styles.cameraPlaceholder}>
             <IconSymbol name="camera.fill" size={48} color="#666" />
             <Text style={styles.placeholderText}>
-              Camera preview not available on web{'\n'}(Demo mode active)
+              Camera preview not available on web{'\n'}
+              Demo mode active - simulating pose detection
             </Text>
           </View>
         </View>
@@ -523,15 +611,26 @@ export default function FormCoachTrackingScreen() {
     );
   };
 
-  // Render tracking/ready state
+  // Render positioning/ready/tracking state
   return (
     <View style={styles.container}>
       {/* Camera View (or placeholder) */}
       <View style={styles.cameraContainer}>
         {renderCameraView()}
 
+        {/* Skeleton Overlay */}
+        {showSkeleton && currentPose && (
+          <SkeletonOverlay
+            pose={currentPose}
+            exerciseType={exerciseType}
+            width={SCREEN_WIDTH}
+            height={SCREEN_HEIGHT}
+            formIssues={formIssues}
+          />
+        )}
+
         {/* Form Guide Overlay */}
-        {showFormGuide && (
+        {showFormGuide && !showSkeleton && (
           <FormGuideOverlay 
             exerciseType={exerciseType}
             isTracking={trackingState === 'tracking'}
@@ -564,6 +663,13 @@ export default function FormCoachTrackingScreen() {
                   color="#FFFFFF" 
                 />
               </TouchableOpacity>
+              {/* Skeleton Toggle */}
+              <TouchableOpacity 
+                onPress={toggleSkeleton}
+                style={[styles.iconButton, !showSkeleton && styles.iconButtonInactive]}
+              >
+                <IconSymbol name="figure.stand" size={22} color="#FFFFFF" />
+              </TouchableOpacity>
               {/* Camera Switch Button */}
               {Platform.OS !== 'web' && hasCameraPermission && (
                 <TouchableOpacity 
@@ -573,15 +679,23 @@ export default function FormCoachTrackingScreen() {
                   <IconSymbol name="camera.rotate.fill" size={22} color="#FFFFFF" />
                 </TouchableOpacity>
               )}
-              {/* Form Guide Toggle */}
-              <TouchableOpacity 
-                onPress={toggleFormGuide}
-                style={[styles.iconButton, !showFormGuide && styles.iconButtonInactive]}
-              >
-                <IconSymbol name="figure.stand" size={22} color="#FFFFFF" />
-              </TouchableOpacity>
             </View>
           </View>
+
+          {/* Coach Message (Positioning/Ready phase) */}
+          {(trackingState === 'positioning' || trackingState === 'ready') && (
+            <View style={styles.coachMessageContainer}>
+              <View style={[
+                styles.coachMessageBox,
+                { backgroundColor: isPositionReady ? 'rgba(34, 197, 94, 0.9)' : 'rgba(0,0,0,0.7)' }
+              ]}>
+                <Text style={styles.coachMessageText}>{coachMessage}</Text>
+                {coachSubMessage && (
+                  <Text style={styles.coachSubMessageText}>{coachSubMessage}</Text>
+                )}
+              </View>
+            </View>
+          )}
 
           {/* Confidence Indicator */}
           {trackingState === 'tracking' && (
@@ -605,22 +719,29 @@ export default function FormCoachTrackingScreen() {
 
           {/* Rep Counter */}
           <View style={styles.repCounterContainer}>
-            <View style={styles.repCounter}>
-              <Text style={styles.repCounterNumber}>{currentRep}</Text>
-              <Text style={styles.repCounterLabel}>REPS</Text>
-            </View>
-            
-            {/* Current State Indicator */}
-            {trackingState === 'tracking' && (
-              <View style={[
-                styles.stateIndicator,
-                { backgroundColor: currentState === 'down' ? colors.primary : colors.success }
-              ]}>
-                <Text style={styles.stateText}>
-                  {currentState.toUpperCase()}
-                </Text>
+            {trackingState === 'tracking' ? (
+              <>
+                <View style={styles.repCounter}>
+                  <Text style={styles.repCounterNumber}>{currentRep}</Text>
+                  <Text style={styles.repCounterLabel}>REPS</Text>
+                </View>
+                
+                {/* Current State Indicator */}
+                <View style={[
+                  styles.stateIndicator,
+                  { backgroundColor: currentState === 'down' ? colors.primary : colors.success }
+                ]}>
+                  <Text style={styles.stateText}>
+                    {currentState.toUpperCase()}
+                  </Text>
+                </View>
+              </>
+            ) : trackingState === 'positioning' ? (
+              <View style={styles.positioningIndicator}>
+                <ActivityIndicator size="large" color="#FFFFFF" />
+                <Text style={styles.positioningText}>Analyzing position...</Text>
               </View>
-            )}
+            ) : null}
           </View>
 
           {/* Last Rep Feedback */}
@@ -642,27 +763,29 @@ export default function FormCoachTrackingScreen() {
 
           {/* Bottom Controls */}
           <View style={styles.bottomControls}>
+            {trackingState === 'positioning' && (
+              <View style={styles.tipsContainer}>
+                <Text style={styles.tipsTitle}>Getting ready...</Text>
+                <Text style={styles.tipText}>• Position your full body in frame</Text>
+                <Text style={styles.tipText}>• The AI coach will guide you</Text>
+                <Text style={styles.tipText}>• Hold still when in position</Text>
+              </View>
+            )}
+
             {trackingState === 'ready' && (
               <>
                 <View style={styles.tipsContainer}>
-                  <Text style={styles.tipsTitle}>Tips for best results:</Text>
-                  <Text style={styles.tipText}>• Ensure good lighting</Text>
-                  <Text style={styles.tipText}>• Place phone at a stable position</Text>
-                  <Text style={styles.tipText}>
-                    • {exerciseType === 'pushup' 
-                      ? 'Side view works best for push-ups' 
-                      : exerciseType === 'pullup'
-                      ? 'Front view works best for pull-ups'
-                      : 'Side view works best for squats'}
-                  </Text>
-                  <Text style={styles.tipText}>• Audio feedback is {audioEnabled ? 'ON' : 'OFF'} (tap speaker icon to toggle)</Text>
+                  <Text style={[styles.tipsTitle, { color: colors.success }]}>✓ Position looks good!</Text>
+                  <Text style={styles.tipText}>• Audio coaching is {audioEnabled ? 'ON' : 'OFF'}</Text>
+                  <Text style={styles.tipText}>• Skeleton tracking is {showSkeleton ? 'ON' : 'OFF'}</Text>
+                  <Text style={styles.tipText}>• Tap Start when ready</Text>
                 </View>
                 <TouchableOpacity
                   onPress={handleStartTracking}
-                  style={[styles.actionButton, { backgroundColor: colors.primary }]}
+                  style={[styles.actionButton, { backgroundColor: colors.success }]}
                 >
                   <IconSymbol name="play.fill" size={28} color="#FFFFFF" />
-                  <Text style={styles.actionButtonText}>Start Tracking</Text>
+                  <Text style={styles.actionButtonText}>Start Workout</Text>
                 </TouchableOpacity>
               </>
             )}
@@ -754,6 +877,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  coachMessageContainer: {
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginTop: 20,
+  },
+  coachMessageBox: {
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+  },
+  coachMessageText: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  coachSubMessageText: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 14,
+    marginTop: 4,
+    textAlign: 'center',
+  },
   confidenceContainer: {
     alignItems: 'center',
     paddingHorizontal: 40,
@@ -794,6 +940,14 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '600',
     letterSpacing: 4,
+  },
+  positioningIndicator: {
+    alignItems: 'center',
+  },
+  positioningText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    marginTop: 16,
   },
   stateIndicator: {
     marginTop: 20,
@@ -853,5 +1007,66 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '700',
+  },
+  // Completed screen styles
+  completedHeader: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  statsCard: {
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    marginBottom: 20,
+  },
+  statRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  divider: {
+    height: 1,
+  },
+  scoreText: {
+    fontSize: 28,
+    fontWeight: '700',
+  },
+  gradeBadge: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gradeText: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '700',
+  },
+  feedbackCard: {
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    marginBottom: 20,
+  },
+  feedbackItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  completedActions: {
+    gap: 12,
+    marginTop: 20,
+  },
+  secondaryButton: {
+    paddingVertical: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  secondaryButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
