@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Text, View, TouchableOpacity, ScrollView, Platform } from 'react-native';
+import { useState, useEffect } from 'react';
+import { Text, View, TouchableOpacity, ScrollView, Platform, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -7,6 +7,7 @@ import { useColors } from '@/hooks/use-colors';
 import { useGym } from '@/lib/gym-context';
 import { getDayName, generateId, WorkoutLog, ExerciseLog } from '@/lib/types';
 import * as Haptics from 'expo-haptics';
+import { predownloadWorkoutGifs, checkWorkoutCacheStatus, DownloadProgress } from '@/lib/workout-predownload';
 
 export default function HomeScreen() {
   const colors = useColors();
@@ -25,6 +26,46 @@ export default function HomeScreen() {
     month: 'long', 
     day: 'numeric' 
   });
+
+  // Pre-download state
+  const [downloadProgress, setDownloadProgress] = useState<DownloadProgress | null>(null);
+  const [cacheStatus, setCacheStatus] = useState<{ cached: number; total: number } | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  // Check cache status on mount
+  useEffect(() => {
+    if (todayProgram && todayProgram.exercises.length > 0) {
+      checkWorkoutCacheStatus(store.exercises, todayProgram.exercises)
+        .then(status => setCacheStatus(status));
+    }
+  }, [todayProgram, store.exercises]);
+
+  const handlePredownload = async () => {
+    if (!todayProgram || !store.settings.rapidApiKey) return;
+    
+    setIsDownloading(true);
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
+    try {
+      await predownloadWorkoutGifs(
+        store.exercises,
+        todayProgram.exercises,
+        store.settings.rapidApiKey,
+        (progress) => setDownloadProgress(progress)
+      );
+      
+      // Refresh cache status
+      const status = await checkWorkoutCacheStatus(store.exercises, todayProgram.exercises);
+      setCacheStatus(status);
+      
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      console.error('Pre-download failed:', error);
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   const startWorkout = () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -126,8 +167,72 @@ export default function HomeScreen() {
               );
             })}
 
+            {/* Pre-Download Button */}
+            {store.settings.rapidApiKey && (
+              <View className="px-6 mt-4">
+                <TouchableOpacity
+                  onPress={handlePredownload}
+                  disabled={isDownloading || !!(cacheStatus && cacheStatus.cached === cacheStatus.total && cacheStatus.total > 0)}
+                  style={{
+                    backgroundColor: cacheStatus && cacheStatus.cached === cacheStatus.total && cacheStatus.total > 0 
+                      ? colors.success + '20' 
+                      : colors.surface,
+                    borderWidth: 1,
+                    borderColor: cacheStatus && cacheStatus.cached === cacheStatus.total && cacheStatus.total > 0 
+                      ? colors.success 
+                      : colors.border,
+                    paddingVertical: 14,
+                    borderRadius: 12,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    opacity: isDownloading ? 0.7 : 1,
+                  }}
+                >
+                  {isDownloading ? (
+                    <>
+                      <ActivityIndicator size="small" color={colors.primary} />
+                      <Text className="font-semibold ml-2" style={{ color: colors.primary }}>
+                        Downloading {downloadProgress?.completed || 0}/{downloadProgress?.total || 0}...
+                      </Text>
+                    </>
+                  ) : cacheStatus && cacheStatus.cached === cacheStatus.total && cacheStatus.total > 0 ? (
+                    <>
+                      <IconSymbol name="checkmark.circle.fill" size={20} color={colors.success} />
+                      <Text className="font-semibold ml-2" style={{ color: colors.success }}>
+                        All GIFs Ready for Offline
+                      </Text>
+                    </>
+                  ) : (
+                    <>
+                      <IconSymbol name="arrow.down.circle.fill" size={20} color={colors.primary} />
+                      <Text className="font-semibold ml-2" style={{ color: colors.primary }}>
+                        Download GIFs for Offline ({cacheStatus?.cached || 0}/{cacheStatus?.total || todayProgram?.exercises.length || 0})
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+                
+                {/* Download Progress Details */}
+                {downloadProgress && downloadProgress.status !== 'idle' && (
+                  <View className="mt-2 px-2">
+                    {downloadProgress.current && (
+                      <Text className="text-xs text-muted text-center">
+                        Downloading: {downloadProgress.current}
+                      </Text>
+                    )}
+                    {downloadProgress.failed > 0 && downloadProgress.status === 'complete' && (
+                      <Text className="text-xs text-center mt-1" style={{ color: colors.warning }}>
+                        {downloadProgress.failed} exercise(s) not found in database
+                      </Text>
+                    )}
+                  </View>
+                )}
+              </View>
+            )}
+
             {/* Start Workout Button */}
-            <View className="px-6 mt-6">
+            <View className="px-6 mt-4">
               <TouchableOpacity
                 onPress={startWorkout}
                 style={{

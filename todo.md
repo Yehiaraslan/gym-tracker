@@ -253,3 +253,10 @@
 - [x] Display exercise instructions below the video
 - [x] Show form tips and cues during workout
 - [x] Make video collapsible to save screen space
+
+## Pre-Download Workout GIFs
+- [x] Create pre-download service function to fetch all exercise GIFs
+- [x] Add pre-download button to Today's Workout screen
+- [x] Show download progress indicator during download
+- [x] Display download status (completed/failed) for each exercise
+- [x] Cache downloaded GIFs for offline access
