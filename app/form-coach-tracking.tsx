@@ -32,6 +32,11 @@ import {
 } from '@/lib/pose-detection';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { FormGuideOverlay } from '@/components/form-guide-overlay';
+import { SkeletonOverlay } from '@/components/skeleton-overlay';
+import { AICoach } from '@/lib/ai-coach';
+import { audioFeedback, stopSpeech } from '@/lib/audio-feedback';
+import { PoseCalibrator, CalibrationState, CalibrationStatus } from '@/lib/pose-calibration';
+import { detectPoseFromFrame, resetRealPoseDetector } from '@/lib/real-pose-detection';
 
 // Helper to get summary with additional fields
 interface FormSummary {
@@ -50,11 +55,8 @@ function getFormSummaryExtended(session: ExerciseSession): FormSummary {
     tip: baseSummary.feedback.length > 0 ? 'Focus on form over speed' : undefined,
   };
 }
-import { SkeletonOverlay } from '@/components/skeleton-overlay';
-import { AICoach } from '@/lib/ai-coach';
-import { audioFeedback, stopSpeech } from '@/lib/audio-feedback';
 
-type TrackingState = 'setup' | 'positioning' | 'ready' | 'tracking' | 'completed';
+type TrackingState = 'setup' | 'calibrating' | 'positioning' | 'ready' | 'tracking' | 'completed';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -68,8 +70,7 @@ export default function FormCoachTrackingScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [session, setSession] = useState<ExerciseSession | null>(null);
   const [currentRep, setCurrentRep] = useState(0);
-  const [confidence, setConfidence] = useState(0.8);
-  const [isModelLoading, setIsModelLoading] = useState(true);
+  const [confidence, setConfidence] = useState(0);
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraFacing, setCameraFacing] = useState<CameraType>('front');
   const [showFormGuide, setShowFormGuide] = useState(true);
@@ -80,11 +81,14 @@ export default function FormCoachTrackingScreen() {
   const [coachSubMessage, setCoachSubMessage] = useState('');
   const [currentPose, setCurrentPose] = useState<Pose | null>(null);
   const [formIssues, setFormIssues] = useState<string[]>([]);
+  const [calibrationState, setCalibrationState] = useState<CalibrationState | null>(null);
+  const [showDebug, setShowDebug] = useState(false);
 
   const trackerRef = useRef<PushupTracker | PullupTracker | SquatTracker | RDLTracker | null>(null);
   const sessionRef = useRef<ExerciseSession | null>(null);
   const cameraRef = useRef<CameraView>(null);
   const aiCoachRef = useRef<AICoach | null>(null);
+  const calibratorRef = useRef<PoseCalibrator | null>(null);
   const rafIdRef = useRef<number | null>(null);
   const lastInferenceTimeRef = useRef<number>(0);
   const frameCountRef = useRef(0);
@@ -95,6 +99,7 @@ export default function FormCoachTrackingScreen() {
     return () => {
       stopSpeech();
       audioFeedback.reset();
+      resetRealPoseDetector();
       if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
     };
   }, []);
@@ -106,7 +111,7 @@ export default function FormCoachTrackingScreen() {
     }
   }, [permission, requestPermission]);
 
-  // Initialize tracker and coach - no TensorFlow.js model loading
+  // Initialize tracker, coach, and calibrator
   useEffect(() => {
     // Create exercise tracker
     if (exerciseType === 'pushup') {
@@ -122,12 +127,21 @@ export default function FormCoachTrackingScreen() {
     // Create AI coach
     aiCoachRef.current = new AICoach(exerciseType);
     
-    // Skip TensorFlow.js model loading - use demo mode
-    setIsModelLoading(false);
-    setTrackingState('positioning');
-    setCoachMessage('Position yourself in frame');
-    setCoachSubMessage(getStartPositionMessage() + '\n\n(Demo mode - simulated tracking)');
-  }, [exerciseType]);
+    // Create calibrator
+    calibratorRef.current = new PoseCalibrator(exerciseType);
+    
+    // Reset pose detector
+    resetRealPoseDetector();
+    
+    // Start with calibration phase
+    setTrackingState('calibrating');
+    setCoachMessage('Stand still for calibration');
+    setCoachSubMessage('Keep your full body visible in frame');
+    
+    if (audioEnabled) {
+      audioFeedback.speak('Stand still for calibration. Keep your full body visible.');
+    }
+  }, [exerciseType, audioEnabled]);
 
   const getStartPositionMessage = () => {
     switch (exerciseType) {
@@ -138,67 +152,6 @@ export default function FormCoachTrackingScreen() {
       default: return 'Position yourself in frame';
     }
   };
-
-  // Generate simulated pose for demo mode
-  const generateSimulatedPose = useCallback((): Pose => {
-    const time = Date.now() / 1000;
-    const phase = (time % 3) / 3; // 3-second cycle
-    
-    // Base standing pose keypoints
-    const baseKeypoints = [
-      { x: SCREEN_WIDTH * 0.5, y: SCREEN_HEIGHT * 0.15, score: 0.9, name: 'nose' },
-      { x: SCREEN_WIDTH * 0.48, y: SCREEN_HEIGHT * 0.13, score: 0.85, name: 'left_eye' },
-      { x: SCREEN_WIDTH * 0.52, y: SCREEN_HEIGHT * 0.13, score: 0.85, name: 'right_eye' },
-      { x: SCREEN_WIDTH * 0.45, y: SCREEN_HEIGHT * 0.14, score: 0.8, name: 'left_ear' },
-      { x: SCREEN_WIDTH * 0.55, y: SCREEN_HEIGHT * 0.14, score: 0.8, name: 'right_ear' },
-      { x: SCREEN_WIDTH * 0.4, y: SCREEN_HEIGHT * 0.25, score: 0.95, name: 'left_shoulder' },
-      { x: SCREEN_WIDTH * 0.6, y: SCREEN_HEIGHT * 0.25, score: 0.95, name: 'right_shoulder' },
-      { x: SCREEN_WIDTH * 0.35, y: SCREEN_HEIGHT * 0.35, score: 0.9, name: 'left_elbow' },
-      { x: SCREEN_WIDTH * 0.65, y: SCREEN_HEIGHT * 0.35, score: 0.9, name: 'right_elbow' },
-      { x: SCREEN_WIDTH * 0.3, y: SCREEN_HEIGHT * 0.45, score: 0.85, name: 'left_wrist' },
-      { x: SCREEN_WIDTH * 0.7, y: SCREEN_HEIGHT * 0.45, score: 0.85, name: 'right_wrist' },
-      { x: SCREEN_WIDTH * 0.45, y: SCREEN_HEIGHT * 0.5, score: 0.95, name: 'left_hip' },
-      { x: SCREEN_WIDTH * 0.55, y: SCREEN_HEIGHT * 0.5, score: 0.95, name: 'right_hip' },
-      { x: SCREEN_WIDTH * 0.45, y: SCREEN_HEIGHT * 0.7, score: 0.9, name: 'left_knee' },
-      { x: SCREEN_WIDTH * 0.55, y: SCREEN_HEIGHT * 0.7, score: 0.9, name: 'right_knee' },
-      { x: SCREEN_WIDTH * 0.45, y: SCREEN_HEIGHT * 0.9, score: 0.85, name: 'left_ankle' },
-      { x: SCREEN_WIDTH * 0.55, y: SCREEN_HEIGHT * 0.9, score: 0.85, name: 'right_ankle' },
-    ];
-
-    // Animate based on exercise type
-    const keypoints = baseKeypoints.map((kp, idx) => {
-      let y = kp.y;
-      
-      if (exerciseType === 'squat') {
-        // Squat animation - move hips and knees down
-        if (idx === 11 || idx === 12) { // hips
-          y += Math.sin(phase * Math.PI * 2) * SCREEN_HEIGHT * 0.15;
-        }
-        if (idx === 13 || idx === 14) { // knees
-          y += Math.sin(phase * Math.PI * 2) * SCREEN_HEIGHT * 0.1;
-        }
-      } else if (exerciseType === 'pushup') {
-        // Push-up animation - move body up and down
-        if (idx >= 5 && idx <= 12) { // upper body
-          y += Math.sin(phase * Math.PI * 2) * SCREEN_HEIGHT * 0.05;
-        }
-      } else if (exerciseType === 'pullup') {
-        // Pull-up animation - move body up
-        if (idx <= 12) { // upper body
-          y -= Math.sin(phase * Math.PI * 2) * SCREEN_HEIGHT * 0.1;
-        }
-      } else if (exerciseType === 'rdl') {
-        // RDL animation - hip hinge
-        if (idx === 5 || idx === 6) { // shoulders move forward/down
-          y += Math.sin(phase * Math.PI * 2) * SCREEN_HEIGHT * 0.1;
-        }
-      }
-      
-      return { ...kp, y };
-    });
-
-    return { keypoints };
-  }, [exerciseType]);
 
   // Handle pose detection result
   const handlePoseDetected = useCallback((pose: Pose | null) => {
@@ -212,17 +165,57 @@ export default function FormCoachTrackingScreen() {
     const poseConfidence = calculatePoseConfidence(pose, exerciseType);
     setConfidence(poseConfidence);
 
-    // Process with AI coach
-    if (aiCoachRef.current) {
-      let coachResult;
-      if (trackingState === 'positioning' || trackingState === 'ready') {
-        coachResult = aiCoachRef.current.processPositioning(pose);
-      } else {
-        coachResult = aiCoachRef.current.getState();
+    // Handle calibration phase
+    if (trackingState === 'calibrating' && calibratorRef.current) {
+      const calState = calibratorRef.current.processFrame(pose);
+      setCalibrationState(calState);
+      setCoachMessage(calState.message);
+      setCoachSubMessage(calState.subMessage);
+      
+      if (calState.status === 'calibrated') {
+        // Calibration complete - move to positioning
+        setTrackingState('positioning');
+        setCoachMessage('Calibration complete!');
+        setCoachSubMessage(getStartPositionMessage());
+        
+        if (audioEnabled) {
+          audioFeedback.speak('Calibration complete! ' + getStartPositionMessage());
+        }
+        
+        if (Platform.OS !== 'web') {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
+      } else if (calState.status === 'failed') {
+        setCoachMessage('Calibration failed');
+        setCoachSubMessage('Please try again with better lighting');
+        
+        if (audioEnabled) {
+          audioFeedback.speak('Calibration failed. Please try again.');
+        }
       }
-      if (coachResult.message) setCoachMessage(coachResult.message);
-      if (coachResult.subMessage) setCoachSubMessage(coachResult.subMessage);
-      if (coachResult.positionIssues) setFormIssues(coachResult.positionIssues);
+      return;
+    }
+
+    // Process with AI coach for positioning/ready states
+    if (aiCoachRef.current) {
+      if (trackingState === 'positioning' || trackingState === 'ready') {
+        const coachResult = aiCoachRef.current.processPositioning(pose);
+        
+        // Check if ready to start (phase changed to 'ready')
+        if (coachResult.phase === 'ready' && trackingState === 'positioning') {
+          setTrackingState('ready');
+          setCoachMessage('Ready!');
+          setCoachSubMessage('Tap Start when ready');
+          
+          if (audioEnabled) {
+            audioFeedback.speak('Ready to start!');
+          }
+        } else if (trackingState !== 'ready') {
+          setCoachMessage(coachResult.message);
+          if (coachResult.subMessage) setCoachSubMessage(coachResult.subMessage);
+        }
+        if (coachResult.positionIssues) setFormIssues(coachResult.positionIssues);
+      }
     }
 
     // Process rep tracking
@@ -246,9 +239,10 @@ export default function FormCoachTrackingScreen() {
     }
   }, [trackingState, exerciseType, currentRep, audioEnabled]);
 
-  // Frame processing loop using simulated poses
+  // Frame processing loop with real pose detection
   const processFrame = useCallback(async () => {
-    if (trackingState !== 'positioning' && trackingState !== 'ready' && trackingState !== 'tracking') {
+    if (trackingState !== 'calibrating' && trackingState !== 'positioning' && 
+        trackingState !== 'ready' && trackingState !== 'tracking') {
       return;
     }
 
@@ -261,9 +255,19 @@ export default function FormCoachTrackingScreen() {
     }
     lastInferenceTimeRef.current = now;
 
-    // Generate simulated pose for demo
-    const simulatedPose = generateSimulatedPose();
-    handlePoseDetected(simulatedPose);
+    try {
+      // Get pose from real detector (uses camera frame dimensions)
+      const pose = await detectPoseFromFrame(
+        { width: SCREEN_WIDTH, height: SCREEN_HEIGHT, timestamp: now },
+        currentPose
+      );
+      
+      if (pose) {
+        handlePoseDetected(pose);
+      }
+    } catch (error) {
+      console.warn('Pose detection error:', error);
+    }
 
     // Update FPS counter
     frameCountRef.current++;
@@ -274,11 +278,12 @@ export default function FormCoachTrackingScreen() {
     }
 
     rafIdRef.current = requestAnimationFrame(processFrame);
-  }, [trackingState, generateSimulatedPose, handlePoseDetected]);
+  }, [trackingState, currentPose, handlePoseDetected]);
 
   // Start/stop frame processing
   useEffect(() => {
-    if (trackingState === 'positioning' || trackingState === 'ready' || trackingState === 'tracking') {
+    if (trackingState === 'calibrating' || trackingState === 'positioning' || 
+        trackingState === 'ready' || trackingState === 'tracking') {
       rafIdRef.current = requestAnimationFrame(processFrame);
     }
     return () => {
@@ -333,6 +338,21 @@ export default function FormCoachTrackingScreen() {
     }
   }, [currentRep, audioEnabled]);
 
+  const handleRecalibrate = useCallback(() => {
+    if (calibratorRef.current) {
+      calibratorRef.current.reset();
+    }
+    resetRealPoseDetector();
+    setCalibrationState(null);
+    setTrackingState('calibrating');
+    setCoachMessage('Stand still for calibration');
+    setCoachSubMessage('Keep your full body visible in frame');
+    
+    if (audioEnabled) {
+      audioFeedback.speak('Recalibrating. Stand still.');
+    }
+  }, [audioEnabled]);
+
   const toggleCamera = useCallback(() => {
     setCameraFacing(prev => prev === 'front' ? 'back' : 'front');
   }, []);
@@ -359,339 +379,508 @@ export default function FormCoachTrackingScreen() {
     return 'Lost';
   };
 
-  // Loading state
-  if (isModelLoading) {
+  const getCalibrationProgress = () => {
+    return calibrationState?.progress || 0;
+  };
+
+  // Render loading state
+  if (trackingState === 'setup') {
     return (
       <ScreenContainer className="flex-1 items-center justify-center">
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text className="text-foreground mt-4 text-lg">Initializing AI Coach...</Text>
-        <Text className="text-muted mt-2 text-sm">This may take a moment</Text>
+        <Text className="text-foreground mt-4">Setting up...</Text>
       </ScreenContainer>
     );
   }
 
-  // Completed state
+  // Render completed state
   if (trackingState === 'completed' && session) {
     const summary = getFormSummaryExtended(session);
     return (
       <ScreenContainer className="flex-1">
-        <ScrollView className="flex-1 p-6">
-          <View className="items-center mb-8">
-            <Text className="text-4xl mb-2">🎉</Text>
-            <Text className="text-2xl font-bold text-foreground">Workout Complete!</Text>
+        <ScrollView className="flex-1 p-4">
+          <View className="items-center mb-6">
+            <IconSymbol name="checkmark.circle.fill" size={64} color={colors.success} />
+            <Text className="text-2xl font-bold text-foreground mt-4">Workout Complete!</Text>
           </View>
-          
-          <View className="bg-surface rounded-2xl p-6 mb-6">
+
+          <View className="bg-surface rounded-2xl p-6 mb-4">
             <Text className="text-lg font-semibold text-foreground mb-4">{getExerciseName()}</Text>
             
             <View className="flex-row justify-between mb-4">
-              <View className="items-center flex-1">
-                <Text className="text-4xl font-bold text-primary">{currentRep}</Text>
+              <View className="items-center">
+                <Text className="text-3xl font-bold text-primary">{currentRep}</Text>
                 <Text className="text-muted">Reps</Text>
               </View>
-              <View className="items-center flex-1">
-                <Text className="text-4xl font-bold" style={{ color: colors.success }}>{summary.averageScore}</Text>
+              <View className="items-center">
+                <Text className="text-3xl font-bold" style={{ color: colors.success }}>{summary.averageScore}</Text>
                 <Text className="text-muted">Form Score</Text>
               </View>
-              <View className="items-center flex-1">
-                <Text className="text-4xl font-bold text-foreground">{summary.grade}</Text>
+              <View className="items-center">
+                <Text className="text-3xl font-bold text-foreground">{summary.grade}</Text>
                 <Text className="text-muted">Grade</Text>
               </View>
             </View>
-            
+
             {summary.topIssues.length > 0 && (
               <View className="mt-4 pt-4 border-t border-border">
                 <Text className="text-sm font-medium text-foreground mb-2">Areas to Improve:</Text>
                 {summary.topIssues.map((issue, idx) => (
-                  <Text key={idx} className="text-muted text-sm">• {issue}</Text>
+                  <Text key={idx} className="text-sm text-muted">• {issue}</Text>
                 ))}
               </View>
             )}
+
+            {summary.tip && (
+              <View className="mt-4 bg-primary/10 rounded-lg p-3">
+                <Text className="text-sm text-primary">{summary.tip}</Text>
+              </View>
+            )}
           </View>
-          
-          <TouchableOpacity 
-            className="bg-primary py-4 rounded-xl items-center"
+
+          <TouchableOpacity
+            className="bg-primary rounded-xl py-4 items-center mb-4"
             onPress={() => router.back()}
           >
             <Text className="text-background font-semibold text-lg">Done</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            className="bg-surface rounded-xl py-4 items-center"
+            onPress={() => {
+              handleRecalibrate();
+            }}
+          >
+            <Text className="text-foreground font-semibold">Try Again</Text>
           </TouchableOpacity>
         </ScrollView>
       </ScreenContainer>
     );
   }
 
-  // Main tracking view
+  // Render camera/tracking view
   return (
-    <View style={styles.container}>
-      {/* Camera or Demo Background */}
-      {Platform.OS !== 'web' && permission?.granted ? (
-        <CameraView
-          ref={cameraRef}
-          style={StyleSheet.absoluteFill}
-          facing={cameraFacing}
-          onCameraReady={() => setCameraReady(true)}
-        />
-      ) : (
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.surface }]}>
-          <View style={styles.demoBackground}>
-            <Text style={[styles.demoText, { color: colors.muted }]}>Demo Mode</Text>
-            <Text style={[styles.demoSubtext, { color: colors.muted }]}>Simulated pose tracking</Text>
+    <ScreenContainer edges={['top', 'left', 'right']} className="flex-1">
+      <View style={styles.container}>
+        {/* Camera View */}
+        <View style={styles.cameraContainer}>
+          {Platform.OS !== 'web' && permission?.granted ? (
+            <CameraView
+              ref={cameraRef}
+              style={styles.camera}
+              facing={cameraFacing}
+              onCameraReady={() => setCameraReady(true)}
+            />
+          ) : (
+            <View style={[styles.camera, { backgroundColor: colors.surface }]}>
+              <Text className="text-muted text-center">
+                {Platform.OS === 'web' ? 'Camera preview (Web)' : 'Camera not available'}
+              </Text>
+            </View>
+          )}
+
+          {/* Skeleton Overlay */}
+          {showSkeleton && currentPose && (
+            <SkeletonOverlay
+              pose={currentPose}
+              width={SCREEN_WIDTH}
+              height={SCREEN_HEIGHT * 0.6}
+              exerciseType={exerciseType}
+              formIssues={formIssues}
+            />
+          )}
+
+          {/* Form Guide Overlay */}
+          {showFormGuide && trackingState === 'tracking' && (
+            <FormGuideOverlay
+              exerciseType={exerciseType}
+              isTracking={true}
+              currentState={'up'}
+            />
+          )}
+
+          {/* Calibration Progress Overlay */}
+          {trackingState === 'calibrating' && calibrationState && (
+            <View style={styles.calibrationOverlay}>
+              <View style={styles.calibrationCard}>
+                <Text style={[styles.calibrationTitle, { color: colors.foreground }]}>
+                  Calibrating...
+                </Text>
+                <View style={styles.progressBarContainer}>
+                  <View 
+                    style={[
+                      styles.progressBar, 
+                      { 
+                        width: `${getCalibrationProgress()}%`,
+                        backgroundColor: colors.primary 
+                      }
+                    ]} 
+                  />
+                </View>
+                <Text style={[styles.calibrationProgress, { color: colors.muted }]}>
+                  {getCalibrationProgress()}%
+                </Text>
+                
+                {/* Joint status indicators */}
+                {calibrationState.joints && (
+                  <View style={styles.jointStatusContainer}>
+                    {calibrationState.joints.slice(0, 6).map((joint, idx) => (
+                      <View key={idx} style={styles.jointStatus}>
+                        <View 
+                          style={[
+                            styles.jointDot,
+                            { 
+                              backgroundColor: joint.stable ? colors.success : 
+                                joint.detected ? colors.warning : colors.error 
+                            }
+                          ]} 
+                        />
+                        <Text style={[styles.jointName, { color: colors.muted }]}>
+                          {joint.name.replace('Left ', 'L ').replace('Right ', 'R ')}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+            </View>
+          )}
+
+          {/* Top Controls */}
+          <View style={styles.topControls}>
+            <TouchableOpacity
+              style={[styles.controlButton, { backgroundColor: colors.surface }]}
+              onPress={() => router.back()}
+            >
+              <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
+            </TouchableOpacity>
+
+            <View style={styles.topRightControls}>
+              {/* Debug Toggle */}
+              <TouchableOpacity
+                style={[styles.controlButton, { backgroundColor: showDebug ? colors.primary : colors.surface }]}
+                onPress={() => setShowDebug(!showDebug)}
+              >
+                <IconSymbol name="info.circle" size={20} color={showDebug ? colors.background : colors.foreground} />
+              </TouchableOpacity>
+
+              {/* Camera Toggle */}
+              <TouchableOpacity
+                style={[styles.controlButton, { backgroundColor: colors.surface }]}
+                onPress={toggleCamera}
+              >
+                <IconSymbol name="camera.rotate" size={20} color={colors.foreground} />
+              </TouchableOpacity>
+
+              {/* Audio Toggle */}
+              <TouchableOpacity
+                style={[styles.controlButton, { backgroundColor: audioEnabled ? colors.primary : colors.surface }]}
+                onPress={() => setAudioEnabled(!audioEnabled)}
+              >
+                <IconSymbol 
+                  name={audioEnabled ? "speaker.wave.2.fill" : "speaker.slash.fill"} 
+                  size={20} 
+                  color={audioEnabled ? colors.background : colors.foreground} 
+                />
+              </TouchableOpacity>
+
+              {/* Skeleton Toggle */}
+              <TouchableOpacity
+                style={[styles.controlButton, { backgroundColor: showSkeleton ? colors.primary : colors.surface }]}
+                onPress={() => setShowSkeleton(!showSkeleton)}
+              >
+                <IconSymbol name="figure.stand" size={20} color={showSkeleton ? colors.background : colors.foreground} />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Confidence Indicator */}
+          <View style={[styles.confidenceIndicator, { backgroundColor: colors.surface }]}>
+            <View style={[styles.confidenceDot, { backgroundColor: getConfidenceColor() }]} />
+            <Text style={[styles.confidenceText, { color: colors.foreground }]}>
+              {getConfidenceLabel()}
+            </Text>
+            {showDebug && (
+              <Text style={[styles.fpsText, { color: colors.muted }]}>
+                {fps} FPS | {Math.round(confidence * 100)}%
+              </Text>
+            )}
+          </View>
+
+          {/* Debug Overlay */}
+          {showDebug && currentPose && (
+            <View style={[styles.debugOverlay, { backgroundColor: 'rgba(0,0,0,0.7)' }]}>
+              <Text style={styles.debugText}>Keypoints: {currentPose.keypoints.length}</Text>
+              <Text style={styles.debugText}>Confidence: {Math.round(confidence * 100)}%</Text>
+              <Text style={styles.debugText}>State: {trackingState}</Text>
+              <Text style={styles.debugText}>Reps: {currentRep}</Text>
+              {calibrationState && (
+                <Text style={styles.debugText}>Cal: {calibrationState.status}</Text>
+              )}
+            </View>
+          )}
+        </View>
+
+        {/* Bottom Panel */}
+        <View style={[styles.bottomPanel, { backgroundColor: colors.background }]}>
+          {/* Coach Message */}
+          <View style={styles.coachMessageContainer}>
+            <Text style={[styles.coachMessage, { color: colors.foreground }]}>
+              {coachMessage}
+            </Text>
+            <Text style={[styles.coachSubMessage, { color: colors.muted }]}>
+              {coachSubMessage}
+            </Text>
+          </View>
+
+          {/* Rep Counter (during tracking) */}
+          {trackingState === 'tracking' && (
+            <View style={styles.repCounter}>
+              <Text style={[styles.repCount, { color: colors.primary }]}>{currentRep}</Text>
+              <Text style={[styles.repLabel, { color: colors.muted }]}>reps</Text>
+            </View>
+          )}
+
+          {/* Action Buttons */}
+          <View style={styles.actionButtons}>
+            {trackingState === 'calibrating' && (
+              <TouchableOpacity
+                style={[styles.secondaryButton, { backgroundColor: colors.surface }]}
+                onPress={handleRecalibrate}
+              >
+                <Text style={[styles.secondaryButtonText, { color: colors.foreground }]}>
+                  Restart Calibration
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {(trackingState === 'positioning' || trackingState === 'ready') && (
+              <>
+                <TouchableOpacity
+                  style={[styles.secondaryButton, { backgroundColor: colors.surface }]}
+                  onPress={handleRecalibrate}
+                >
+                  <Text style={[styles.secondaryButtonText, { color: colors.foreground }]}>
+                    Recalibrate
+                  </Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[
+                    styles.primaryButton, 
+                    { backgroundColor: trackingState === 'ready' ? colors.primary : colors.muted }
+                  ]}
+                  onPress={handleReadyToStart}
+                  disabled={trackingState !== 'ready'}
+                >
+                  <Text style={[styles.primaryButtonText, { color: colors.background }]}>
+                    Start
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            {trackingState === 'tracking' && (
+              <TouchableOpacity
+                style={[styles.finishButton, { backgroundColor: colors.error }]}
+                onPress={handleFinish}
+              >
+                <Text style={[styles.finishButtonText, { color: '#fff' }]}>
+                  Finish Set
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
-      )}
-
-      {/* Skeleton Overlay */}
-      {showSkeleton && currentPose && (
-        <SkeletonOverlay 
-          pose={currentPose} 
-          exerciseType={exerciseType}
-          width={SCREEN_WIDTH}
-          height={SCREEN_HEIGHT}
-          formIssues={formIssues}
-        />
-      )}
-
-      {/* Form Guide Overlay */}
-      {showFormGuide && trackingState !== 'completed' && (
-        <FormGuideOverlay 
-          exerciseType={exerciseType}
-          isTracking={trackingState === 'tracking'}
-          currentState={trackingState}
-        />
-      )}
-
-      {/* Top Bar */}
-      <View style={[styles.topBar, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
-          <IconSymbol name="chevron.left" size={24} color="white" />
-        </TouchableOpacity>
-        
-        <Text style={styles.exerciseTitle}>{getExerciseName()}</Text>
-        
-        <View style={styles.topBarRight}>
-          {Platform.OS !== 'web' && (
-            <TouchableOpacity onPress={toggleCamera} style={styles.iconButton}>
-              <IconSymbol name="camera.rotate" size={20} color="white" />
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity onPress={() => setAudioEnabled(!audioEnabled)} style={styles.iconButton}>
-            <IconSymbol 
-              name={audioEnabled ? "speaker.wave.2.fill" : "speaker.slash.fill"} 
-              size={20} 
-              color="white" 
-            />
-          </TouchableOpacity>
-        </View>
       </View>
-
-      {/* Stats Overlay */}
-      <View style={[styles.statsOverlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>{currentRep}</Text>
-          <Text style={styles.statLabel}>Reps</Text>
-        </View>
-        <View style={styles.statItem}>
-          <View style={[styles.confidenceDot, { backgroundColor: getConfidenceColor() }]} />
-          <Text style={styles.statLabel}>{getConfidenceLabel()}</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>{fps}</Text>
-          <Text style={styles.statLabel}>FPS</Text>
-        </View>
-      </View>
-
-      {/* Coach Message Overlay */}
-      <View style={[styles.coachOverlay, { backgroundColor: 'rgba(0,0,0,0.7)' }]}>
-        <Text style={styles.coachMessage}>{coachMessage}</Text>
-        {coachSubMessage && (
-          <Text style={styles.coachSubMessage}>{coachSubMessage}</Text>
-        )}
-      </View>
-
-      {/* Bottom Bar */}
-      <View style={[styles.bottomBar, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
-        {trackingState === 'positioning' && (
-          <TouchableOpacity 
-            style={[styles.startButton, { backgroundColor: colors.primary }]}
-            onPress={handleReadyToStart}
-          >
-            <Text style={styles.startButtonText}>Start Tracking</Text>
-          </TouchableOpacity>
-        )}
-        
-        {trackingState === 'tracking' && (
-          <TouchableOpacity 
-            style={[styles.finishButton, { backgroundColor: colors.error }]}
-            onPress={handleFinish}
-          >
-            <Text style={styles.finishButtonText}>Finish Set</Text>
-          </TouchableOpacity>
-        )}
-        
-        <View style={styles.toggleRow}>
-          <TouchableOpacity 
-            style={[styles.toggleButton, showSkeleton && styles.toggleActive]}
-            onPress={() => setShowSkeleton(!showSkeleton)}
-          >
-            <Text style={styles.toggleText}>Skeleton</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.toggleButton, showFormGuide && styles.toggleActive]}
-            onPress={() => setShowFormGuide(!showFormGuide)}
-          >
-            <Text style={styles.toggleText}>Guide</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </View>
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
   },
-  demoBackground: {
+  cameraContainer: {
+    flex: 1,
+    position: 'relative',
+  },
+  camera: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  demoText: {
-    fontSize: 24,
-    fontWeight: 'bold',
+  topControls: {
+    position: 'absolute',
+    top: 16,
+    left: 16,
+    right: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  demoSubtext: {
+  topRightControls: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  controlButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  confidenceIndicator: {
+    position: 'absolute',
+    top: 70,
+    left: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 6,
+  },
+  confidenceDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  confidenceText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  fpsText: {
+    fontSize: 10,
+    marginLeft: 8,
+  },
+  calibrationOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  calibrationCard: {
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: 16,
+    padding: 24,
+    width: '80%',
+    alignItems: 'center',
+  },
+  calibrationTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 16,
+  },
+  progressBarContainer: {
+    width: '100%',
+    height: 8,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  progressBar: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  calibrationProgress: {
     fontSize: 14,
     marginTop: 8,
   },
-  formGuide: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+  jointStatusContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    marginTop: 16,
+    gap: 8,
   },
-  topBar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
+  jointStatus: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 50,
-    paddingHorizontal: 16,
-    paddingBottom: 12,
+    gap: 4,
   },
-  topBarRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  jointDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
-  iconButton: {
+  jointName: {
+    fontSize: 10,
+  },
+  debugOverlay: {
+    position: 'absolute',
+    bottom: 16,
+    left: 16,
     padding: 8,
+    borderRadius: 8,
   },
-  exerciseTitle: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: '600',
+  debugText: {
+    color: '#fff',
+    fontSize: 10,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
-  statsOverlay: {
-    position: 'absolute',
-    top: 110,
-    left: 16,
-    right: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: 12,
-    borderRadius: 12,
+  bottomPanel: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    paddingBottom: 32,
   },
-  statItem: {
+  coachMessageContainer: {
     alignItems: 'center',
-  },
-  statValue: {
-    color: 'white',
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  statLabel: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 12,
-  },
-  confidenceDot: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    marginBottom: 4,
-  },
-  coachOverlay: {
-    position: 'absolute',
-    bottom: 200,
-    left: 16,
-    right: 16,
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
+    marginBottom: 16,
   },
   coachMessage: {
-    color: 'white',
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: '600',
     textAlign: 'center',
   },
   coachSubMessage: {
-    color: 'rgba(255,255,255,0.8)',
     fontSize: 14,
     textAlign: 'center',
-    marginTop: 8,
+    marginTop: 4,
   },
-  bottomBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 40,
+  repCounter: {
     alignItems: 'center',
-  },
-  startButton: {
-    paddingVertical: 16,
-    paddingHorizontal: 48,
-    borderRadius: 30,
     marginBottom: 16,
   },
-  startButtonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
+  repCount: {
+    fontSize: 48,
+    fontWeight: '700',
   },
-  finishButton: {
-    paddingVertical: 16,
-    paddingHorizontal: 48,
-    borderRadius: 30,
-    marginBottom: 16,
+  repLabel: {
+    fontSize: 14,
   },
-  finishButtonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  toggleRow: {
+  actionButtons: {
     flexDirection: 'row',
     gap: 12,
   },
-  toggleButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+  primaryButton: {
+    flex: 1,
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
   },
-  toggleActive: {
-    backgroundColor: 'rgba(255,255,255,0.4)',
+  primaryButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
-  toggleText: {
-    color: 'white',
-    fontSize: 12,
+  secondaryButton: {
+    flex: 1,
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  secondaryButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  finishButton: {
+    flex: 1,
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  finishButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

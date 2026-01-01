@@ -245,6 +245,14 @@ export class AudioFeedbackManager {
     if (!this.enabled) return;
     announceSessionEnd(totalReps, averageScore);
   }
+
+  /**
+   * Speak arbitrary text with the audio feedback system
+   */
+  speak(text: string, priority: 'high' | 'normal' = 'normal'): void {
+    if (!this.enabled) return;
+    speak(text, priority);
+  }
 }
 
 // Export singleton instance

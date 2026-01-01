@@ -120,3 +120,14 @@
 - [x] Add RDL (Romanian Deadlift) exercise tracking
 - [ ] Validate rep counting accuracy ≥90% in good conditions
 - [x] Fix TensorFlow.js model initialization TypeError in AI Form Coach (simplified to simulated poses for reliability)
+
+## Initialization Phase & Real Pose Estimation
+- [x] Create initialization phase where user stands still for joint mapping
+- [x] Detect and map all body joints (hands, shoulders, elbows, hips, knees, ankles)
+- [x] Show visual feedback as each joint is detected and locked
+- [x] Implement calibration to lock reference positions once stable
+- [x] Connect live camera feed to pose estimation module
+- [x] Use calibrated reference positions for form checking during tracking
+- [x] Add "Calibrating..." status with progress indicator
+- [x] Voice announcement when calibration is complete
+- [ ] Integrate actual TensorFlow.js MoveNet model for real pose detection (requires native device testing)
