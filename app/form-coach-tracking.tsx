@@ -38,6 +38,8 @@ import { AICoach } from '@/lib/ai-coach';
 import { audioFeedback, stopSpeech } from '@/lib/audio-feedback';
 import { PoseCalibrator, CalibrationState, CalibrationStatus } from '@/lib/pose-calibration';
 import { detectPoseFromFrame, resetRealPoseDetector } from '@/lib/real-pose-detection';
+import { ConfidenceLegend } from '@/components/confidence-legend';
+import { JointLossAlertManager } from '@/lib/joint-loss-alert';
 
 // Helper to get summary with additional fields
 interface FormSummary {
@@ -87,11 +89,15 @@ export default function FormCoachTrackingScreen() {
   const [showCalibrationSuccess, setShowCalibrationSuccess] = useState(false);
   const [calibratedPose, setCalibratedPose] = useState<Pose | null>(null);
 
+  const [lostJointsWarning, setLostJointsWarning] = useState<string[]>([]);
+  const [showLegend, setShowLegend] = useState(true);
+
   const trackerRef = useRef<PushupTracker | PullupTracker | SquatTracker | RDLTracker | null>(null);
   const sessionRef = useRef<ExerciseSession | null>(null);
   const cameraRef = useRef<CameraView>(null);
   const aiCoachRef = useRef<AICoach | null>(null);
   const calibratorRef = useRef<PoseCalibrator | null>(null);
+  const jointLossAlertRef = useRef<JointLossAlertManager | null>(null);
   const rafIdRef = useRef<number | null>(null);
   const lastInferenceTimeRef = useRef<number>(0);
   const frameCountRef = useRef(0);
@@ -104,6 +110,7 @@ export default function FormCoachTrackingScreen() {
       audioFeedback.reset();
       resetRealPoseDetector();
       if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
+      if (jointLossAlertRef.current) jointLossAlertRef.current.stop();
     };
   }, []);
 
@@ -132,6 +139,11 @@ export default function FormCoachTrackingScreen() {
     
     // Create calibrator
     calibratorRef.current = new PoseCalibrator(exerciseType);
+    
+    // Create joint loss alert manager
+    jointLossAlertRef.current = new JointLossAlertManager();
+    jointLossAlertRef.current.setAudioEnabled(audioEnabled);
+    jointLossAlertRef.current.setHapticEnabled(true);
     
     // Reset pose detector
     resetRealPoseDetector();
@@ -262,6 +274,16 @@ export default function FormCoachTrackingScreen() {
           audioFeedback.onRepCompleted(newRep, repData.formScore, repData.flags || []);
         }
       }
+      
+      // Check for joint loss during tracking
+      if (jointLossAlertRef.current) {
+        const alertState = jointLossAlertRef.current.processFrame(pose);
+        if (alertState.lostJoints.length > 0) {
+          setLostJointsWarning(jointLossAlertRef.current.getLostJoints());
+        } else if (alertState.recoveredJoints.length > 0) {
+          setLostJointsWarning(jointLossAlertRef.current.getLostJoints());
+        }
+      }
     }
   }, [trackingState, exerciseType, currentRep, audioEnabled]);
 
@@ -333,18 +355,30 @@ export default function FormCoachTrackingScreen() {
       trackerRef.current.reset();
     }
     
+    // Start joint loss monitoring
+    if (jointLossAlertRef.current && calibratedPose) {
+      jointLossAlertRef.current.initializeFromPose(calibratedPose);
+      jointLossAlertRef.current.start();
+    }
+    
     setTrackingState('tracking');
     setCoachMessage('Go!');
     setCoachSubMessage('Perform your reps with good form');
+    setLostJointsWarning([]);
     
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     }
-  }, [exerciseType, audioEnabled]);
+  }, [exerciseType, audioEnabled, calibratedPose]);
 
   const handleFinish = useCallback(() => {
     if (rafIdRef.current) {
       cancelAnimationFrame(rafIdRef.current);
+    }
+    
+    // Stop joint loss monitoring
+    if (jointLossAlertRef.current) {
+      jointLossAlertRef.current.stop();
     }
     
     if (sessionRef.current) {
@@ -353,6 +387,7 @@ export default function FormCoachTrackingScreen() {
     }
     
     setTrackingState('completed');
+    setLostJointsWarning([]);
     
     if (audioEnabled && sessionRef.current) {
       const summary = getFormSummary(sessionRef.current);
@@ -371,10 +406,15 @@ export default function FormCoachTrackingScreen() {
     if (aiCoachRef.current) {
       aiCoachRef.current.reset();
     }
+    if (jointLossAlertRef.current) {
+      jointLossAlertRef.current.stop();
+      jointLossAlertRef.current.reset();
+    }
     resetRealPoseDetector();
     setCalibrationState(null);
     setCalibratedPose(null);
     setShowCalibrationSuccess(false);
+    setLostJointsWarning([]);
     setTrackingState('calibrating');
     setCoachMessage('Stand still for calibration');
     setCoachSubMessage('Keep your full body visible in frame');
@@ -554,6 +594,21 @@ export default function FormCoachTrackingScreen() {
               isTracking={true}
               currentState={'up'}
             />
+          )}
+
+          {/* Confidence Legend */}
+          {trackingState === 'tracking' && showLegend && (
+            <ConfidenceLegend compact={true} visible={true} />
+          )}
+
+          {/* Lost Joints Warning Banner */}
+          {trackingState === 'tracking' && lostJointsWarning.length > 0 && (
+            <View style={styles.lostJointsWarning}>
+              <Text style={styles.lostJointsText}>
+                ⚠️ Lost: {lostJointsWarning.slice(0, 3).join(', ')}
+                {lostJointsWarning.length > 3 ? ` +${lostJointsWarning.length - 3} more` : ''}
+              </Text>
+            </View>
           )}
 
           {/* Calibration Progress Overlay */}
@@ -938,6 +993,22 @@ const styles = StyleSheet.create({
   },
   finishButtonText: {
     fontSize: 16,
+    fontWeight: '600',
+  },
+  lostJointsWarning: {
+    position: 'absolute',
+    top: 100,
+    left: 16,
+    right: 16,
+    backgroundColor: 'rgba(239, 68, 68, 0.9)',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  lostJointsText: {
+    color: '#ffffff',
+    fontSize: 13,
     fontWeight: '600',
   },
 });

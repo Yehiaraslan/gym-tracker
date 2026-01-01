@@ -142,3 +142,9 @@
 - [x] Add text labels next to each joint (L.Shoulder, R.Hip, etc.)
 - [x] Change joint colors based on tracking confidence during workout
 - [x] Trigger haptic feedback for each joint detected during calibration
+
+## Confidence Legend & Joint Loss Alerts
+- [x] Add confidence legend showing color meanings (green/yellow/red)
+- [x] Implement joint loss detection during tracking
+- [x] Add audio alert when joint loses tracking
+- [x] Add haptic feedback when joint loses tracking
