@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { 
   Text, 
   View, 
@@ -28,6 +28,12 @@ import {
   VideoSearchResult,
   getCuratedExerciseGifUrl,
 } from '@/lib/exercise-video-service';
+import {
+  getCacheMetadata,
+  clearExerciseCache,
+  formatCacheSize,
+  CacheMetadata,
+} from '@/lib/exercise-cache';
 
 type AdminTab = 'exercises' | 'program' | 'warmup' | 'settings';
 
@@ -843,6 +849,52 @@ function SettingsTab() {
   const [apiKeyStatus, setApiKeyStatus] = useState<'none' | 'valid' | 'invalid'>(
     store.settings.rapidApiKey ? 'valid' : 'none'
   );
+  
+  // Cache management state
+  const [cacheMetadata, setCacheMetadata] = useState<CacheMetadata | null>(null);
+  const [isClearingCache, setIsClearingCache] = useState(false);
+  
+  // Load cache metadata on mount
+  useEffect(() => {
+    loadCacheMetadata();
+  }, []);
+  
+  const loadCacheMetadata = async () => {
+    try {
+      const metadata = await getCacheMetadata();
+      setCacheMetadata(metadata);
+    } catch (error) {
+      console.error('Error loading cache metadata:', error);
+    }
+  };
+  
+  const handleClearCache = async () => {
+    Alert.alert(
+      'Clear Cache',
+      'This will delete all cached exercise GIFs and instructions. You will need to re-download them when online.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear',
+          style: 'destructive',
+          onPress: async () => {
+            setIsClearingCache(true);
+            try {
+              await clearExerciseCache();
+              await loadCacheMetadata();
+              if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              Alert.alert('Success', 'Exercise cache cleared');
+            } catch (error) {
+              console.error('Error clearing cache:', error);
+              Alert.alert('Error', 'Failed to clear cache');
+            } finally {
+              setIsClearingCache(false);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const handleSaveDate = async () => {
     // Validate date format
@@ -1030,6 +1082,58 @@ function SettingsTab() {
             {store.workoutLogs.filter(l => l.isCompleted).length}
           </Text>
         </View>
+      </View>
+
+      {/* Exercise Cache Management */}
+      <View 
+        className="bg-surface rounded-xl p-4"
+        style={{ borderWidth: 1, borderColor: colors.border }}
+      >
+        <Text className="text-lg font-semibold text-foreground mb-2">Exercise Cache</Text>
+        <Text className="text-sm text-muted mb-4">
+          Cached exercise GIFs and instructions are available offline.
+        </Text>
+        
+        <View className="flex-row justify-between py-2 border-b" style={{ borderBottomColor: colors.border }}>
+          <Text className="text-muted">Cached Exercises</Text>
+          <Text className="font-semibold text-foreground">
+            {cacheMetadata?.itemCount ?? 0}
+          </Text>
+        </View>
+        
+        <View className="flex-row justify-between py-2 border-b" style={{ borderBottomColor: colors.border }}>
+          <Text className="text-muted">Cache Size</Text>
+          <Text className="font-semibold text-foreground">
+            {cacheMetadata ? formatCacheSize(cacheMetadata.totalSize) : '0 B'}
+          </Text>
+        </View>
+        
+        <View className="flex-row justify-between py-2 mb-3" style={{ borderBottomColor: colors.border }}>
+          <Text className="text-muted">Last Updated</Text>
+          <Text className="font-semibold text-foreground">
+            {cacheMetadata?.lastUpdated 
+              ? new Date(cacheMetadata.lastUpdated).toLocaleDateString()
+              : 'Never'}
+          </Text>
+        </View>
+        
+        <TouchableOpacity
+          onPress={handleClearCache}
+          disabled={isClearingCache || (cacheMetadata?.itemCount ?? 0) === 0}
+          className="py-3 rounded-xl"
+          style={{ 
+            backgroundColor: colors.error + '20',
+            opacity: isClearingCache || (cacheMetadata?.itemCount ?? 0) === 0 ? 0.5 : 1,
+          }}
+        >
+          {isClearingCache ? (
+            <ActivityIndicator color={colors.error} size="small" />
+          ) : (
+            <Text className="text-center font-semibold" style={{ color: colors.error }}>
+              Clear Cache
+            </Text>
+          )}
+        </TouchableOpacity>
       </View>
 
       {/* Whoop Integration */}

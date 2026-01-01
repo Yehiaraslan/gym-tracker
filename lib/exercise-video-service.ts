@@ -3,7 +3,15 @@
  * 
  * Automatically fetches high-quality form demonstration GIFs for exercises
  * using the ExerciseDB API (via RapidAPI).
+ * Includes local caching for offline access.
  */
+
+import {
+  getCachedExercise,
+  cacheExercise,
+  getCachedExercises,
+  CachedExercise,
+} from './exercise-cache';
 
 export interface ExerciseDBResult {
   id: string;
@@ -134,10 +142,12 @@ export function getExerciseGifUrl(
 
 /**
  * Search for exercise and get video/GIF result
+ * Automatically caches results for offline access
  */
 export async function findExerciseVideo(
   exerciseName: string,
-  apiKey: string
+  apiKey: string,
+  useCache: boolean = true
 ): Promise<VideoSearchResult | null> {
   try {
     const results = await searchExercises(exerciseName, apiKey, 1);
@@ -154,7 +164,7 @@ export async function findExerciseVideo(
     const exercise = results[0];
     const gifUrl = getExerciseGifUrl(exercise.id, apiKey);
     
-    return {
+    const result: VideoSearchResult = {
       exerciseId: exercise.id,
       exerciseName: exercise.name,
       gifUrl,
@@ -163,6 +173,17 @@ export async function findExerciseVideo(
       equipment: exercise.equipment,
       instructions: exercise.instructions,
     };
+    
+    // Cache the result for offline access
+    if (useCache) {
+      try {
+        await cacheExercise(result);
+      } catch (cacheError) {
+        console.warn('Failed to cache exercise:', cacheError);
+      }
+    }
+    
+    return result;
   } catch (error) {
     console.error('Error finding exercise video:', error);
     return null;
@@ -171,16 +192,18 @@ export async function findExerciseVideo(
 
 /**
  * Get multiple exercise suggestions for a search term
+ * Automatically caches results for offline access
  */
 export async function getExerciseSuggestions(
   exerciseName: string,
   apiKey: string,
-  limit: number = 5
+  limit: number = 5,
+  useCache: boolean = true
 ): Promise<VideoSearchResult[]> {
   try {
     const results = await searchExercises(exerciseName, apiKey, limit);
     
-    return results.map(exercise => ({
+    const suggestions = results.map(exercise => ({
       exerciseId: exercise.id,
       exerciseName: exercise.name,
       gifUrl: getExerciseGifUrl(exercise.id, apiKey),
@@ -189,8 +212,47 @@ export async function getExerciseSuggestions(
       equipment: exercise.equipment,
       instructions: exercise.instructions,
     }));
+    
+    // Cache all results for offline access
+    if (useCache) {
+      for (const suggestion of suggestions) {
+        try {
+          await cacheExercise(suggestion);
+        } catch (cacheError) {
+          console.warn('Failed to cache exercise:', cacheError);
+        }
+      }
+    }
+    
+    return suggestions;
   } catch (error) {
     console.error('Error getting exercise suggestions:', error);
+    
+    // Try to return cached results if API fails
+    try {
+      const cached = await getCachedExercises();
+      const searchTerm = exerciseName.toLowerCase();
+      const cachedResults = Object.values(cached)
+        .filter(ex => ex.exerciseName.toLowerCase().includes(searchTerm))
+        .slice(0, limit)
+        .map(ex => ({
+          exerciseId: ex.exerciseId,
+          exerciseName: ex.exerciseName,
+          gifUrl: ex.localGifPath || ex.gifUrl,
+          bodyPart: ex.bodyPart,
+          target: ex.target,
+          equipment: ex.equipment,
+          instructions: ex.instructions,
+        }));
+      
+      if (cachedResults.length > 0) {
+        console.log('Returning cached results due to API error');
+        return cachedResults;
+      }
+    } catch (cacheError) {
+      console.error('Error reading cache:', cacheError);
+    }
+    
     return [];
   }
 }

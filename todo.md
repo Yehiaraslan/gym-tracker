@@ -233,3 +233,11 @@
 - [x] Handle API errors gracefully with user-friendly messages
 - [x] Validate API key before saving
 - [x] Link to RapidAPI signup page
+
+## Exercise Cache for Offline Access
+- [x] Create exercise cache service using AsyncStorage and FileSystem
+- [x] Cache exercise GIF URLs and metadata after fetch
+- [x] Cache exercise instructions for offline viewing
+- [x] Load from cache when offline or API unavailable
+- [x] Add cache size indicator in settings
+- [x] Add "Clear Cache" button in settings
