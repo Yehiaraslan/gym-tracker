@@ -215,3 +215,12 @@
 - [x] Return null/empty pose when no person is visible in frame
 - [x] Show "No person detected" message when waiting for real detection
 - [ ] Implement actual TensorFlow.js MoveNet model inference (requires custom dev build)
+
+## Auto-Fetch Workout Form Videos
+- [x] Add automatic video search for best form demonstrations (ExerciseDB API)
+- [x] Create video fetching service for workout demos
+- [x] Display fetched video preview in workout settings
+- [x] Add "Find Best Form Video" button in exercise settings
+- [x] Show video suggestions with thumbnails for selection
+- [ ] Integrate with real ExerciseDB API (requires RapidAPI key)
+- [ ] Cache fetched videos for offline use

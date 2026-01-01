@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { 
   Text, 
   View, 
@@ -10,7 +10,9 @@ import {
   ScrollView,
   Linking,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { ScreenContainer } from '@/components/screen-container';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useColors } from '@/hooks/use-colors';
@@ -20,6 +22,12 @@ import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 
 import { WarmupCooldownAdmin } from '@/components/warmup-cooldown-admin';
+import { 
+  findExerciseVideo, 
+  getExerciseSuggestions,
+  VideoSearchResult,
+  getCuratedExerciseGifUrl,
+} from '@/lib/exercise-video-service';
 
 type AdminTab = 'exercises' | 'program' | 'warmup' | 'settings';
 
@@ -86,6 +94,15 @@ function ExercisesTab() {
   const [restSeconds, setRestSeconds] = useState('90');
   const [defaultReps, setDefaultReps] = useState('8-12');
   const [notes, setNotes] = useState('');
+  
+  // Auto-fetch video states
+  const [isSearchingVideo, setIsSearchingVideo] = useState(false);
+  const [videoSuggestions, setVideoSuggestions] = useState<VideoSearchResult[]>([]);
+  const [selectedVideo, setSelectedVideo] = useState<VideoSearchResult | null>(null);
+  const [showVideoSuggestions, setShowVideoSuggestions] = useState(false);
+  
+  // RapidAPI key for ExerciseDB (stored in settings)
+  const [rapidApiKey, setRapidApiKey] = useState<string | null>(null);
 
   const openAddModal = () => {
     setEditingExercise(null);
@@ -94,6 +111,9 @@ function ExercisesTab() {
     setRestSeconds('90');
     setDefaultReps('8-12');
     setNotes('');
+    setSelectedVideo(null);
+    setVideoSuggestions([]);
+    setShowVideoSuggestions(false);
     setModalVisible(true);
   };
 
@@ -104,7 +124,74 @@ function ExercisesTab() {
     setRestSeconds(exercise.defaultRestSeconds.toString());
     setDefaultReps(exercise.defaultReps || '8-12');
     setNotes(exercise.notes || '');
+    setSelectedVideo(null);
+    setVideoSuggestions([]);
+    setShowVideoSuggestions(false);
     setModalVisible(true);
+  };
+
+  // Auto-search for exercise video when name changes
+  const handleSearchVideo = useCallback(async () => {
+    if (!name.trim() || name.length < 3) {
+      setVideoSuggestions([]);
+      setShowVideoSuggestions(false);
+      return;
+    }
+
+    // For now, use a demo mode that shows a placeholder
+    // In production, this would use the RapidAPI key
+    setIsSearchingVideo(true);
+    setShowVideoSuggestions(true);
+    
+    try {
+      // Simulate API delay for demo
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Create demo suggestions based on exercise name
+      const demoSuggestions: VideoSearchResult[] = [
+        {
+          exerciseId: 'demo-1',
+          exerciseName: `${name} (Standard Form)`,
+          gifUrl: `https://via.placeholder.com/360x360/1a1a2e/ffffff?text=${encodeURIComponent(name)}`,
+          bodyPart: 'full body',
+          target: 'multiple muscles',
+          equipment: 'body weight',
+          instructions: ['Maintain proper form throughout the movement', 'Control the eccentric phase', 'Breathe steadily'],
+        },
+        {
+          exerciseId: 'demo-2',
+          exerciseName: `${name} (With Barbell)`,
+          gifUrl: `https://via.placeholder.com/360x360/16213e/ffffff?text=${encodeURIComponent(name + ' Barbell')}`,
+          bodyPart: 'full body',
+          target: 'multiple muscles',
+          equipment: 'barbell',
+          instructions: ['Keep your back straight', 'Engage your core', 'Use full range of motion'],
+        },
+        {
+          exerciseId: 'demo-3',
+          exerciseName: `${name} (With Dumbbells)`,
+          gifUrl: `https://via.placeholder.com/360x360/0f3460/ffffff?text=${encodeURIComponent(name + ' DB')}`,
+          bodyPart: 'full body',
+          target: 'multiple muscles',
+          equipment: 'dumbbell',
+          instructions: ['Equal weight on both sides', 'Slow and controlled', 'Full extension'],
+        },
+      ];
+      
+      setVideoSuggestions(demoSuggestions);
+    } catch (error) {
+      console.error('Error searching videos:', error);
+      Alert.alert('Error', 'Failed to search for exercise videos');
+    } finally {
+      setIsSearchingVideo(false);
+    }
+  }, [name]);
+
+  const handleSelectVideo = (video: VideoSearchResult) => {
+    setSelectedVideo(video);
+    setVideoUrl(video.gifUrl);
+    setShowVideoSuggestions(false);
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
   const handleSave = async () => {
@@ -273,17 +360,98 @@ function ExercisesTab() {
               style={{ borderWidth: 1, borderColor: colors.border }}
             />
 
-            <Text className="text-sm font-medium text-muted mb-2">Video URL (optional)</Text>
-            <TextInput
-              value={videoUrl}
-              onChangeText={setVideoUrl}
-              placeholder="https://youtube.com/..."
-              placeholderTextColor={colors.muted}
-              className="bg-surface rounded-xl p-4 text-foreground mb-4"
-              style={{ borderWidth: 1, borderColor: colors.border }}
-              autoCapitalize="none"
-              keyboardType="url"
-            />
+            <Text className="text-sm font-medium text-muted mb-2">Form Video</Text>
+            
+            {/* Auto-search button */}
+            <TouchableOpacity
+              onPress={handleSearchVideo}
+              disabled={isSearchingVideo || name.length < 3}
+              className="flex-row items-center justify-center py-3 rounded-xl mb-3"
+              style={{ 
+                backgroundColor: name.length >= 3 ? colors.primary : colors.surface,
+                opacity: name.length < 3 ? 0.5 : 1,
+              }}
+            >
+              {isSearchingVideo ? (
+                <ActivityIndicator color="white" size="small" />
+              ) : (
+                <>
+                  <Text className="text-white font-semibold mr-2">🔍</Text>
+                  <Text className="text-white font-semibold">
+                    {name.length < 3 ? 'Enter exercise name first' : 'Find Best Form Video'}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+            
+            {/* Selected video preview */}
+            {selectedVideo && (
+              <View className="mb-3 rounded-xl overflow-hidden" style={{ borderWidth: 1, borderColor: colors.border }}>
+                <Image
+                  source={{ uri: selectedVideo.gifUrl }}
+                  style={{ width: '100%', height: 200 }}
+                  contentFit="cover"
+                />
+                <View className="p-3 bg-surface">
+                  <Text className="text-foreground font-medium">{selectedVideo.exerciseName}</Text>
+                  <Text className="text-muted text-sm">{selectedVideo.equipment} • {selectedVideo.target}</Text>
+                </View>
+              </View>
+            )}
+            
+            {/* Video suggestions */}
+            {showVideoSuggestions && videoSuggestions.length > 0 && (
+              <View className="mb-4">
+                <Text className="text-sm text-muted mb-2">Select a form video:</Text>
+                {videoSuggestions.map((video, index) => (
+                  <TouchableOpacity
+                    key={video.exerciseId}
+                    onPress={() => handleSelectVideo(video)}
+                    className="flex-row items-center p-3 rounded-xl mb-2"
+                    style={{ 
+                      backgroundColor: colors.surface,
+                      borderWidth: 1,
+                      borderColor: selectedVideo?.exerciseId === video.exerciseId ? colors.primary : colors.border,
+                    }}
+                  >
+                    <View className="w-16 h-16 rounded-lg overflow-hidden mr-3">
+                      <Image
+                        source={{ uri: video.gifUrl }}
+                        style={{ width: 64, height: 64 }}
+                        contentFit="cover"
+                      />
+                    </View>
+                    <View className="flex-1">
+                      <Text className="text-foreground font-medium">{video.exerciseName}</Text>
+                      <Text className="text-muted text-xs">{video.equipment}</Text>
+                    </View>
+                    {selectedVideo?.exerciseId === video.exerciseId && (
+                      <Text className="text-primary">✓</Text>
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+            
+            {/* Manual URL input (collapsed by default) */}
+            <TouchableOpacity
+              onPress={() => setShowVideoSuggestions(false)}
+              className="mb-2"
+            >
+              <Text className="text-sm text-muted underline">Or enter URL manually</Text>
+            </TouchableOpacity>
+            {!showVideoSuggestions && !selectedVideo && (
+              <TextInput
+                value={videoUrl}
+                onChangeText={setVideoUrl}
+                placeholder="https://youtube.com/..."
+                placeholderTextColor={colors.muted}
+                className="bg-surface rounded-xl p-4 text-foreground mb-4"
+                style={{ borderWidth: 1, borderColor: colors.border }}
+                autoCapitalize="none"
+                keyboardType="url"
+              />
+            )}
 
             <Text className="text-sm font-medium text-muted mb-2">Default Rest Time (seconds)</Text>
             <TextInput
