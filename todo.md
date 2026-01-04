@@ -281,3 +281,19 @@
 - [x] Create workout summary export function
 - [x] Add share button to workout complete screen
 - [x] Format summary as shareable text with stats and tips
+
+## Workout Streak Tracking
+- [x] Create streak tracking service to calculate consecutive workout days
+- [x] Store streak data in AsyncStorage
+- [x] Add streak display card to home screen
+- [x] Show current streak, best streak, and motivational message
+- [x] Add flame/fire icon for active streaks
+
+## WHOOP Heart Rate Integration
+- [x] Research WHOOP API for heart rate data access
+- [x] Create WHOOP API service to fetch heart rate during workout
+- [x] Add heart rate chart component with SVG visualization
+- [x] Display heart rate chart in workout summary
+- [x] Show average, max, and min heart rate stats
+- [x] Show heart rate zone distribution
+- [ ] Integrate with real WHOOP API (requires OAuth token)

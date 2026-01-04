@@ -8,6 +8,7 @@ import { useGym } from '@/lib/gym-context';
 import { getDayName, generateId, WorkoutLog, ExerciseLog } from '@/lib/types';
 import * as Haptics from 'expo-haptics';
 import { predownloadWorkoutGifs, checkWorkoutCacheStatus, DownloadProgress } from '@/lib/workout-predownload';
+import { getStreakData, checkStreakStatus, getStreakMessage, StreakData } from '@/lib/streak-tracker';
 
 export default function HomeScreen() {
   const colors = useColors();
@@ -31,6 +32,14 @@ export default function HomeScreen() {
   const [downloadProgress, setDownloadProgress] = useState<DownloadProgress | null>(null);
   const [cacheStatus, setCacheStatus] = useState<{ cached: number; total: number } | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
+
+  // Streak state
+  const [streakData, setStreakData] = useState<StreakData | null>(null);
+
+  // Load streak data on mount
+  useEffect(() => {
+    checkStreakStatus().then(data => setStreakData(data));
+  }, []);
 
   // Check cache status on mount
   useEffect(() => {
@@ -117,6 +126,47 @@ export default function HomeScreen() {
             </View>
           </View>
         </View>
+
+        {/* Streak Card */}
+        {streakData && (
+          <View 
+            className="mx-6 mb-6 bg-surface rounded-2xl p-5"
+            style={{ borderWidth: 1, borderColor: colors.border }}
+          >
+            <View className="flex-row items-center justify-between">
+              <View className="flex-row items-center">
+                <View 
+                  className="w-12 h-12 rounded-full items-center justify-center mr-3"
+                  style={{ backgroundColor: streakData.currentStreak > 0 ? '#FF6B35' : colors.border }}
+                >
+                  <IconSymbol 
+                    name="flame.fill" 
+                    size={24} 
+                    color={streakData.currentStreak > 0 ? '#FFFFFF' : colors.muted} 
+                  />
+                </View>
+                <View>
+                  <Text className="text-sm text-muted">Current Streak</Text>
+                  <Text className="text-2xl font-bold text-foreground">
+                    {streakData.currentStreak} {streakData.currentStreak === 1 ? 'day' : 'days'}
+                  </Text>
+                </View>
+              </View>
+              <View className="items-end">
+                <Text className="text-sm text-muted">Best</Text>
+                <Text className="text-lg font-semibold text-foreground">
+                  {streakData.bestStreak} {streakData.bestStreak === 1 ? 'day' : 'days'}
+                </Text>
+              </View>
+            </View>
+            <Text 
+              className="text-sm mt-3 text-center"
+              style={{ color: streakData.currentStreak > 0 ? '#FF6B35' : colors.muted }}
+            >
+              {getStreakMessage(streakData.currentStreak)}
+            </Text>
+          </View>
+        )}
 
         {/* Today's Exercises */}
         {todayProgram && todayProgram.exercises.length > 0 ? (

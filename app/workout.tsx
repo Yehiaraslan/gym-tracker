@@ -30,8 +30,13 @@ import * as Haptics from 'expo-haptics';
 import { useKeepAwake } from 'expo-keep-awake';
 import { getRandomTip, FormTip, getCategoryEmoji, getCategoryLabel } from '@/lib/form-tips';
 import { toggleFavoriteTip, getFavoriteTips } from '@/lib/favorite-tips';
+import { recordWorkout } from '@/lib/streak-tracker';
+import { HeartRateChart } from '@/components/heart-rate-chart';
+import { getDemoHeartRateData } from '@/lib/whoop-service';
 
 type WorkoutPhase = 'warmup' | 'main' | 'cooldown' | 'complete';
+
+import { WhoopHeartRateData } from '@/lib/whoop-service';
 
 export default function WorkoutScreen() {
   useKeepAwake();
@@ -70,6 +75,8 @@ export default function WorkoutScreen() {
   const [currentFormTip, setCurrentFormTip] = useState<FormTip | null>(null);
   const [displayedTips, setDisplayedTips] = useState<Array<{ tip: FormTip; exerciseName: string; timestamp: number }>>([]); 
   const [favoritedTipIds, setFavoritedTipIds] = useState<Set<string>>(new Set());
+  const [heartRateData, setHeartRateData] = useState<WhoopHeartRateData | null>(null);
+  const workoutStartTimeRef = useRef<Date>(new Date());
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const warmupTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const tipRotationRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -242,6 +249,7 @@ export default function WorkoutScreen() {
         setWarmupTimer(cooldownExercises[cooldownIndex + 1]?.duration || 30);
       } else {
         setPhase('complete');
+        recordWorkout(); // Update streak
         Alert.alert(
           'Workout Complete! 💪',
           'Great job! Your workout has been saved.',
@@ -272,6 +280,7 @@ export default function WorkoutScreen() {
         setWarmupTimer(cooldownExercises[cooldownIndex + 1]?.duration || 30);
       } else {
         setPhase('complete');
+        recordWorkout(); // Update streak
         Alert.alert(
           'Workout Complete! 💪',
           'Great job! Your workout has been saved.',
@@ -289,6 +298,7 @@ export default function WorkoutScreen() {
 
   const skipCooldownPhase = () => {
     setPhase('complete');
+    recordWorkout(); // Update streak
     Alert.alert(
       'Workout Complete! 💪',
       'Great job! Your workout has been saved.',
@@ -380,6 +390,7 @@ export default function WorkoutScreen() {
       setWarmupTimer(cooldownExercises[0]?.duration || 30);
     } else {
       setPhase('complete');
+      recordWorkout(); // Update streak
       Alert.alert(
         'Workout Complete! 💪',
         'Great job! Your workout has been saved.',
@@ -713,11 +724,18 @@ export default function WorkoutScreen() {
       return acc;
     }, {} as Record<string, typeof displayedTips>);
 
-    // Load favorite tips on complete phase
+    // Load favorite tips and heart rate data on complete phase
     useEffect(() => {
       getFavoriteTips().then(favorites => {
         setFavoritedTipIds(new Set(favorites.map(f => f.tip.id)));
       });
+      
+      // Load demo heart rate data (in production, fetch from WHOOP API)
+      const duration = workoutLog?.startedAt && workoutLog?.completedAt 
+        ? Math.round((workoutLog.completedAt - workoutLog.startedAt) / 60000)
+        : 45;
+      const demoData = getDemoHeartRateData(duration);
+      setHeartRateData(demoData);
     }, []);
 
     // Handle favorite toggle
@@ -820,6 +838,11 @@ export default function WorkoutScreen() {
               </View>
             )}
           </View>
+
+          {/* Heart Rate Chart */}
+          {heartRateData && (
+            <HeartRateChart data={heartRateData} />
+          )}
 
           {/* Form Tips History */}
           {displayedTips.length > 0 && (

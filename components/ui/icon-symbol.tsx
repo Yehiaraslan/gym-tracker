@@ -47,6 +47,8 @@ const MAPPING = {
   "star": "star-outline",
   "star.fill": "star",
   "square.and.arrow.up": "share",
+  "flame.fill": "local-fire-department",
+  "heart.fill": "favorite",
 } as IconMapping;
 
 /**
