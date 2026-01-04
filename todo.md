@@ -272,3 +272,12 @@
 - [x] Add tips history section to workout complete screen
 - [x] Show tips grouped by exercise
 - [ ] Allow users to save favorite tips for future reference
+
+## Favorite Tips & Workout Export
+- [x] Create favorite tips storage service with AsyncStorage
+- [x] Add star icon next to tips in workout summary
+- [x] Toggle favorite status on tap
+- [ ] Create favorites view in settings or separate screen
+- [x] Create workout summary export function
+- [x] Add share button to workout complete screen
+- [x] Format summary as shareable text with stats and tips

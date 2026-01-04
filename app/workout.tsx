@@ -9,6 +9,7 @@ import {
   Modal,
   Platform,
   Linking,
+  Share,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
@@ -28,6 +29,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import { useKeepAwake } from 'expo-keep-awake';
 import { getRandomTip, FormTip, getCategoryEmoji, getCategoryLabel } from '@/lib/form-tips';
+import { toggleFavoriteTip, getFavoriteTips } from '@/lib/favorite-tips';
 
 type WorkoutPhase = 'warmup' | 'main' | 'cooldown' | 'complete';
 
@@ -67,6 +69,7 @@ export default function WorkoutScreen() {
   const [workoutLog, setWorkoutLog] = useState<WorkoutLog | null>(null);
   const [currentFormTip, setCurrentFormTip] = useState<FormTip | null>(null);
   const [displayedTips, setDisplayedTips] = useState<Array<{ tip: FormTip; exerciseName: string; timestamp: number }>>([]); 
+  const [favoritedTipIds, setFavoritedTipIds] = useState<Set<string>>(new Set());
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const warmupTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const tipRotationRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -710,6 +713,68 @@ export default function WorkoutScreen() {
       return acc;
     }, {} as Record<string, typeof displayedTips>);
 
+    // Load favorite tips on complete phase
+    useEffect(() => {
+      getFavoriteTips().then(favorites => {
+        setFavoritedTipIds(new Set(favorites.map(f => f.tip.id)));
+      });
+    }, []);
+
+    // Handle favorite toggle
+    const handleToggleFavorite = async (tip: FormTip, exerciseName: string) => {
+      try {
+        const isFavorited = await toggleFavoriteTip(tip, exerciseName);
+        setFavoritedTipIds(prev => {
+          const newSet = new Set(prev);
+          if (isFavorited) {
+            newSet.add(tip.id);
+          } else {
+            newSet.delete(tip.id);
+          }
+          return newSet;
+        });
+        if (Platform.OS !== 'web') {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }
+      } catch (error) {
+        console.error('Error toggling favorite:', error);
+      }
+    };
+
+    // Handle share workout summary
+    const handleShareSummary = async () => {
+      const totalSets = workoutLog?.exercises.reduce((acc, ex) => acc + ex.sets.length, 0) || 0;
+      const duration = workoutLog?.startedAt && workoutLog?.completedAt 
+        ? Math.round((workoutLog.completedAt - workoutLog.startedAt) / 60000)
+        : 0;
+      
+      let message = `🏋️ Workout Complete!\n\n`;
+      message += `📊 Summary:\n`;
+      message += `• Exercises: ${todayProgram.exercises.length}\n`;
+      message += `• Total Sets: ${totalSets}\n`;
+      if (duration > 0) {
+        message += `• Duration: ${duration} min\n`;
+      }
+      
+      if (displayedTips.length > 0) {
+        message += `\n💡 Form Tips Reviewed (${displayedTips.length}):\n`;
+        Object.entries(tipsByExercise).forEach(([exerciseName, tips]) => {
+          message += `\n${exerciseName}:\n`;
+          tips.forEach(item => {
+            message += `  ${getCategoryEmoji(item.tip.category)} ${item.tip.tip}\n`;
+          });
+        });
+      }
+      
+      message += `\n💪 Keep pushing!`;
+      
+      try {
+        await Share.share({ message });
+      } catch (error) {
+        console.error('Error sharing:', error);
+      }
+    };
+
     return (
       <ScreenContainer className="flex-1">
         {/* Header */}
@@ -725,7 +790,17 @@ export default function WorkoutScreen() {
             className="bg-surface rounded-2xl p-5 mb-4"
             style={{ borderWidth: 1, borderColor: colors.border }}
           >
-            <Text className="text-lg font-semibold text-foreground mb-3">Summary</Text>
+            <View className="flex-row justify-between items-center mb-3">
+              <Text className="text-lg font-semibold text-foreground">Summary</Text>
+              <TouchableOpacity 
+                onPress={handleShareSummary}
+                className="flex-row items-center px-3 py-1.5 rounded-full"
+                style={{ backgroundColor: colors.primary + '20' }}
+              >
+                <IconSymbol name="square.and.arrow.up" size={16} color={colors.primary} />
+                <Text className="ml-1.5 text-sm font-medium" style={{ color: colors.primary }}>Share</Text>
+              </TouchableOpacity>
+            </View>
             <View className="flex-row justify-between mb-2">
               <Text className="text-muted">Exercises</Text>
               <Text className="text-foreground font-medium">{todayProgram.exercises.length}</Text>
@@ -772,13 +847,23 @@ export default function WorkoutScreen() {
                     >
                       <Text style={{ fontSize: 14 }}>{getCategoryEmoji(item.tip.category)}</Text>
                       <Text className="text-sm text-muted ml-2 flex-1">{item.tip.tip}</Text>
+                      <TouchableOpacity 
+                        onPress={() => handleToggleFavorite(item.tip, exerciseName)}
+                        className="ml-2 p-1"
+                      >
+                        <IconSymbol 
+                          name={favoritedTipIds.has(item.tip.id) ? "star.fill" : "star"} 
+                          size={18} 
+                          color={favoritedTipIds.has(item.tip.id) ? colors.warning : colors.muted} 
+                        />
+                      </TouchableOpacity>
                     </View>
                   ))}
                 </View>
               ))}
               
               <Text className="text-xs text-muted text-center mt-2">
-                Review these tips before your next workout
+                Tap ⭐ to save tips for future reference
               </Text>
             </View>
           )}

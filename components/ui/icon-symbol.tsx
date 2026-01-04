@@ -44,6 +44,9 @@ const MAPPING = {
   "figure.stand": "accessibility",
   "speaker.wave.2.fill": "volume-up",
   "speaker.slash.fill": "volume-off",
+  "star": "star-outline",
+  "star.fill": "star",
+  "square.and.arrow.up": "share",
 } as IconMapping;
 
 /**
