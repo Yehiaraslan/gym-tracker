@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Text, View, TouchableOpacity, ScrollView, Platform, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -12,6 +13,11 @@ import { getStreakData, checkStreakStatus, getStreakMessage, StreakData } from '
 import { getMilestoneProgress, checkNewMilestoneUnlocked } from '@/lib/streak-milestones';
 import { MilestoneCelebration } from '@/components/milestone-celebration';
 import { getTodayRecommendation } from '@/lib/rest-recommendation';
+import { getWeeklyRecoveryData, getWeeklyAverageRecovery } from '@/lib/whoop-recovery-service';
+import { getUnlockedRewards, getRewardProgress } from '@/lib/milestone-rewards';
+import { WeeklyRecoveryChart } from '@/components/weekly-recovery-chart';
+import { RewardsShowcase } from '@/components/rewards-showcase';
+import type { WeeklyRecoveryData } from '@/lib/whoop-recovery-service';
 
 export default function HomeScreen() {
   const colors = useColors();
@@ -43,6 +49,11 @@ export default function HomeScreen() {
   const [newMilestone, setNewMilestone] = useState<any>(null);
   const [restRecommendation, setRestRecommendation] = useState<any>(null);
 
+  // Recovery and rewards state
+  const [weeklyRecoveryData, setWeeklyRecoveryData] = useState<WeeklyRecoveryData[]>([]);
+  const [unlockedRewards, setUnlockedRewards] = useState<any[]>([]);
+  const [rewardProgress, setRewardProgress] = useState<any>(null);
+
   // Load streak data on mount
   useEffect(() => {
     const loadStreakData = async () => {
@@ -60,6 +71,14 @@ export default function HomeScreen() {
         // Load milestone progress
         const progress = getMilestoneProgress(data.currentStreak);
         setMilestoneProgress(progress);
+        
+        // Load unlocked rewards
+        const rewards = getUnlockedRewards(data.currentStreak);
+        setUnlockedRewards(rewards);
+        
+        // Load reward progress
+        const progress2 = getRewardProgress(data.currentStreak);
+        setRewardProgress(progress2);
       }
     };
     
@@ -73,6 +92,16 @@ export default function HomeScreen() {
         .then(status => setCacheStatus(status));
     }
   }, [todayProgram, store.exercises]);
+
+  // Load recovery data on mount
+  useEffect(() => {
+    const loadRecoveryData = async () => {
+      const data = await getWeeklyRecoveryData();
+      setWeeklyRecoveryData(data);
+    };
+    
+    loadRecoveryData();
+  }, []);
 
   // Load rest recommendation
   useEffect(() => {
@@ -282,6 +311,21 @@ export default function HomeScreen() {
                 </Text>
               </View>
             )}
+          </View>
+        )}
+
+        {/* Weekly Recovery Chart */}
+        {weeklyRecoveryData.length > 0 && (
+          <View className="mx-6 mb-6 bg-surface rounded-2xl p-5" style={{ borderWidth: 1, borderColor: colors.border }}>
+            <Text className="text-sm font-medium text-foreground mb-4">7-Day Recovery Trend</Text>
+            <WeeklyRecoveryChart data={weeklyRecoveryData} height={180} />
+          </View>
+        )}
+
+        {/* Unlocked Rewards */}
+        {unlockedRewards.length > 0 && (
+          <View className="mx-6 mb-6">
+            <RewardsShowcase unlockedRewards={unlockedRewards} />
           </View>
         )}
 

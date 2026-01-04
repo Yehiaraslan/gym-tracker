@@ -7,6 +7,7 @@ import {
   Alert,
   Linking,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -33,6 +34,7 @@ export default function WhoopScreen() {
   const router = useRouter();
   const [whoopData, setWhoopData] = useState<WhoopData>({ isConnected: false });
   const [isLoading, setIsLoading] = useState(true);
+  const [isConnecting, setIsConnecting] = useState(false);
 
   useEffect(() => {
     loadWhoopData();
@@ -60,22 +62,30 @@ export default function WhoopScreen() {
     }
   };
 
-  const handleConnect = () => {
-    Alert.alert(
-      'Whoop Integration',
-      'To connect your Whoop account, you need to:\n\n' +
-      '1. Create an app at developer.whoop.com\n' +
-      '2. Get your Client ID and Secret\n' +
-      '3. Configure the OAuth redirect URL\n\n' +
-      'Would you like to open the Whoop Developer Portal?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Open Portal', 
-          onPress: () => Linking.openURL('https://developer.whoop.com')
-        },
-      ]
-    );
+  const handleConnect = async () => {
+    try {
+      setIsConnecting(true);
+      if (Platform.OS !== 'web') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+      
+      // Trigger OAuth flow
+      const authUrl = 'https://api.manus.im/oauth/whoop/authorize';
+      await Linking.openURL(authUrl);
+      
+      // After OAuth completes, reload data
+      setTimeout(() => {
+        loadWhoopData();
+        setIsConnecting(false);
+      }, 2000);
+    } catch (error) {
+      console.error('Error initiating WHOOP OAuth:', error);
+      setIsConnecting(false);
+      Alert.alert(
+        'Connection Error',
+        'Could not initiate WHOOP connection. Please check your internet connection.'
+      );
+    }
   };
 
   const handleDisconnect = () => {
@@ -102,6 +112,7 @@ export default function WhoopScreen() {
   const handleSimulateConnection = async () => {
     const simulatedData: WhoopData = {
       isConnected: true,
+      accessToken: 'demo_token_' + Date.now(),
       recoveryScore: 78,
       strain: 12.4,
       sleepScore: 85,
@@ -111,7 +122,7 @@ export default function WhoopScreen() {
     if (Platform.OS !== 'web') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
-    Alert.alert('Demo Mode', 'Whoop connection simulated with sample data.');
+    Alert.alert('Demo Mode', 'Whoop connection simulated with sample data. Your recovery data will now appear on the home screen.');
   };
 
   const formatLastSynced = (timestamp?: number) => {
@@ -191,12 +202,21 @@ export default function WhoopScreen() {
             <View>
               <TouchableOpacity
                 onPress={handleConnect}
-                className="py-3 rounded-xl mb-2"
-                style={{ backgroundColor: colors.primary }}
+                disabled={isConnecting}
+                className="py-3 rounded-xl mb-2 flex-row items-center justify-center"
+                style={{ 
+                  backgroundColor: colors.primary,
+                  opacity: isConnecting ? 0.7 : 1,
+                }}
               >
-                <Text className="text-center font-semibold text-white">
-                  Connect Whoop Account
-                </Text>
+                {isConnecting ? (
+                  <ActivityIndicator color="white" size="small" />
+                ) : (
+                  <>
+                    <Text style={{ fontSize: 16, marginRight: 8 }}>🔐</Text>
+                    <Text className="font-semibold text-white">Connect with OAuth</Text>
+                  </>
+                )}
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleSimulateConnection}

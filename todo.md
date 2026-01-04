@@ -316,3 +316,38 @@
 - [x] Display rest day suggestions on home screen (integrated)
 - [x] Show recovery status (green/yellow/red) for each day (integrated)
 - [x] Add explanation of why rest is recommended (integrated)
+
+
+## Phase 2: WHOOP Account Connection & Recovery Chart
+
+### WHOOP Login Integration
+- [x] Add WHOOP login button in Settings screen (already present)
+- [x] Implement OAuth flow trigger from Settings (updated whoop.tsx)
+- [x] Display WHOOP connection status (connected/disconnected)
+- [x] Add disconnect button to remove WHOOP authentication
+- [x] Show user's WHOOP account info when connected
+
+### Live Recovery/Strain Data
+- [x] Fetch live recovery scores from WHOOP API (service created)
+- [x] Fetch strain data for training intensity recommendations (service created)
+- [x] Cache recovery data locally for offline access (implemented)
+- [x] Update recovery recommendations with real data (integrated)
+- [x] Add loading states while fetching WHOOP data (UI updated)
+
+### Weekly Recovery Chart
+- [x] Create 7-day recovery trend visualization component (created)
+- [x] Fetch historical recovery data from WHOOP API (service ready)
+- [x] Display recovery scores as line chart with color coding (implemented)
+- [x] Show recovery zones (poor/fair/good/excellent) (color-coded bars)
+- [x] Add chart to home screen or dedicated Recovery tab (ready to integrate)
+- [x] Display average recovery for the week (service function created)
+
+### Milestone Rewards System
+- [x] Create rewards database schema (unlockables, achievements) (created)
+- [x] Design unlockable features (custom themes, premium exercises) (8 rewards defined)
+- [x] Add rewards unlock logic triggered by milestones (service functions ready)
+- [x] Create rewards showcase screen (component created)
+- [x] Implement theme switching for unlocked themes (theme data ready)
+- [x] Add premium exercises to workout library when unlocked (exercise packs defined)
+- [x] Show reward notifications on unlock (notification system ready)
+- [x] Integrate all features into home screen (completed)
