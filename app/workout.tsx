@@ -66,6 +66,7 @@ export default function WorkoutScreen() {
   const [congratsMessage, setCongratsMessage] = useState('');
   const [workoutLog, setWorkoutLog] = useState<WorkoutLog | null>(null);
   const [currentFormTip, setCurrentFormTip] = useState<FormTip | null>(null);
+  const [displayedTips, setDisplayedTips] = useState<Array<{ tip: FormTip; exerciseName: string; timestamp: number }>>([]); 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const warmupTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const tipRotationRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -178,12 +179,28 @@ export default function WorkoutScreen() {
   // Form tip rotation during rest
   useEffect(() => {
     if (isResting && currentExercise) {
-      // Set initial tip
-      setCurrentFormTip(getRandomTip(currentExercise.name));
+      // Set initial tip and track it
+      const initialTip = getRandomTip(currentExercise.name);
+      setCurrentFormTip(initialTip);
+      setDisplayedTips(prev => {
+        // Avoid duplicates
+        if (!prev.some(t => t.tip.id === initialTip.id)) {
+          return [...prev, { tip: initialTip, exerciseName: currentExercise.name, timestamp: Date.now() }];
+        }
+        return prev;
+      });
       
       // Rotate tips every 8 seconds if rest is long enough
       tipRotationRef.current = setInterval(() => {
-        setCurrentFormTip(getRandomTip(currentExercise?.name || ''));
+        const newTip = getRandomTip(currentExercise?.name || '');
+        setCurrentFormTip(newTip);
+        setDisplayedTips(prev => {
+          // Avoid duplicates
+          if (!prev.some(t => t.tip.id === newTip.id)) {
+            return [...prev, { tip: newTip, exerciseName: currentExercise?.name || '', timestamp: Date.now() }];
+          }
+          return prev;
+        });
       }, 8000);
     } else {
       setCurrentFormTip(null);
@@ -674,6 +691,106 @@ export default function WorkoutScreen() {
               <Text className="text-center text-muted">Skip this exercise</Text>
             </TouchableOpacity>
           </View>
+        </ScrollView>
+      </ScreenContainer>
+    );
+  }
+
+  // Render Complete Phase with Summary
+  if (phase === 'complete') {
+    // Group tips by exercise
+    const tipsByExercise = displayedTips.reduce((acc, item) => {
+      if (!acc[item.exerciseName]) {
+        acc[item.exerciseName] = [];
+      }
+      // Avoid duplicates in the same exercise group
+      if (!acc[item.exerciseName].some(t => t.tip.id === item.tip.id)) {
+        acc[item.exerciseName].push(item);
+      }
+      return acc;
+    }, {} as Record<string, typeof displayedTips>);
+
+    return (
+      <ScreenContainer className="flex-1">
+        {/* Header */}
+        <View className="px-4 py-6 items-center">
+          <IconSymbol name="trophy.fill" size={64} color={colors.warning} />
+          <Text className="text-3xl font-bold text-foreground mt-4">Workout Complete!</Text>
+          <Text className="text-lg text-muted mt-2">Great job! 💪</Text>
+        </View>
+
+        <ScrollView className="flex-1 px-4" showsVerticalScrollIndicator={false}>
+          {/* Workout Summary */}
+          <View 
+            className="bg-surface rounded-2xl p-5 mb-4"
+            style={{ borderWidth: 1, borderColor: colors.border }}
+          >
+            <Text className="text-lg font-semibold text-foreground mb-3">Summary</Text>
+            <View className="flex-row justify-between mb-2">
+              <Text className="text-muted">Exercises</Text>
+              <Text className="text-foreground font-medium">{todayProgram.exercises.length}</Text>
+            </View>
+            <View className="flex-row justify-between mb-2">
+              <Text className="text-muted">Total Sets</Text>
+              <Text className="text-foreground font-medium">
+                {workoutLog?.exercises.reduce((acc, ex) => acc + ex.sets.length, 0) || 0}
+              </Text>
+            </View>
+            {workoutLog?.startedAt && workoutLog?.completedAt && (
+              <View className="flex-row justify-between">
+                <Text className="text-muted">Duration</Text>
+                <Text className="text-foreground font-medium">
+                  {Math.round((workoutLog.completedAt - workoutLog.startedAt) / 60000)} min
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* Form Tips History */}
+          {displayedTips.length > 0 && (
+            <View 
+              className="bg-surface rounded-2xl p-5 mb-4"
+              style={{ borderWidth: 1, borderColor: colors.primary + '40' }}
+            >
+              <View className="flex-row items-center mb-4">
+                <Text style={{ fontSize: 20 }}>💡</Text>
+                <Text className="text-lg font-semibold text-foreground ml-2">
+                  Form Tips Reviewed ({displayedTips.length})
+                </Text>
+              </View>
+              
+              {Object.entries(tipsByExercise).map(([exerciseName, tips]) => (
+                <View key={exerciseName} className="mb-4">
+                  <Text className="text-sm font-semibold mb-2" style={{ color: colors.primary }}>
+                    {exerciseName}
+                  </Text>
+                  {tips.map((item, index) => (
+                    <View 
+                      key={`${item.tip.id}-${index}`}
+                      className="flex-row items-start mb-2 pl-2"
+                      style={{ borderLeftWidth: 2, borderLeftColor: colors.border }}
+                    >
+                      <Text style={{ fontSize: 14 }}>{getCategoryEmoji(item.tip.category)}</Text>
+                      <Text className="text-sm text-muted ml-2 flex-1">{item.tip.tip}</Text>
+                    </View>
+                  ))}
+                </View>
+              ))}
+              
+              <Text className="text-xs text-muted text-center mt-2">
+                Review these tips before your next workout
+              </Text>
+            </View>
+          )}
+
+          {/* Done Button */}
+          <TouchableOpacity
+            onPress={() => router.back()}
+            className="py-4 rounded-xl mb-8"
+            style={{ backgroundColor: colors.primary }}
+          >
+            <Text className="text-white font-bold text-center text-lg">Done</Text>
+          </TouchableOpacity>
         </ScrollView>
       </ScreenContainer>
     );

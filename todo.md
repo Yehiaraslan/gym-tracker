@@ -266,3 +266,9 @@
 - [x] Create service to get random tips for an exercise
 - [x] Update rest timer component to display form tips
 - [x] Rotate tips every 8 seconds during rest period
+
+## Form Tips History in Post-Workout Summary
+- [x] Track all form tips displayed during workout session
+- [x] Add tips history section to workout complete screen
+- [x] Show tips grouped by exercise
+- [ ] Allow users to save favorite tips for future reference
