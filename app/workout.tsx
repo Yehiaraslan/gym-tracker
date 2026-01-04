@@ -27,6 +27,7 @@ import {
 } from '@/lib/types';
 import * as Haptics from 'expo-haptics';
 import { useKeepAwake } from 'expo-keep-awake';
+import { getRandomTip, FormTip, getCategoryEmoji, getCategoryLabel } from '@/lib/form-tips';
 
 type WorkoutPhase = 'warmup' | 'main' | 'cooldown' | 'complete';
 
@@ -64,8 +65,10 @@ export default function WorkoutScreen() {
   const [showCongrats, setShowCongrats] = useState(false);
   const [congratsMessage, setCongratsMessage] = useState('');
   const [workoutLog, setWorkoutLog] = useState<WorkoutLog | null>(null);
+  const [currentFormTip, setCurrentFormTip] = useState<FormTip | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const warmupTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const tipRotationRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Initialize workout log
   useEffect(() => {
@@ -171,6 +174,27 @@ export default function WorkoutScreen() {
 
   const currentDayExercise = todayProgram?.exercises[currentExerciseIndex];
   const currentExercise = currentDayExercise ? getExerciseById(currentDayExercise.exerciseId) : null;
+
+  // Form tip rotation during rest
+  useEffect(() => {
+    if (isResting && currentExercise) {
+      // Set initial tip
+      setCurrentFormTip(getRandomTip(currentExercise.name));
+      
+      // Rotate tips every 8 seconds if rest is long enough
+      tipRotationRef.current = setInterval(() => {
+        setCurrentFormTip(getRandomTip(currentExercise?.name || ''));
+      }, 8000);
+    } else {
+      setCurrentFormTip(null);
+    }
+
+    return () => {
+      if (tipRotationRef.current) {
+        clearInterval(tipRotationRef.current);
+      }
+    };
+  }, [isResting, currentExercise?.name]);
   const lastWeightValue = currentDayExercise ? getLastWeight(currentDayExercise.exerciseId) : null;
   const bestWeight = currentDayExercise ? getBestWeight(currentDayExercise.exerciseId) : null;
 
@@ -694,22 +718,55 @@ export default function WorkoutScreen() {
       <ScrollView className="flex-1 px-4" showsVerticalScrollIndicator={false}>
         {/* Rest Timer Overlay */}
         {isResting ? (
-          <View 
-            className="bg-surface rounded-3xl p-8 items-center mb-6"
-            style={{ borderWidth: 2, borderColor: colors.warning }}
-          >
-            <IconSymbol name="timer" size={48} color={colors.warning} />
-            <Text className="text-5xl font-bold text-foreground mt-4">
-              {formatTime(restTime)}
-            </Text>
-            <Text className="text-lg text-muted mt-2">Rest Time</Text>
-            <TouchableOpacity
-              onPress={skipRest}
-              className="mt-6 px-8 py-3 rounded-xl"
-              style={{ backgroundColor: colors.primary }}
+          <View className="mb-6">
+            {/* Timer Card */}
+            <View 
+              className="bg-surface rounded-3xl p-8 items-center"
+              style={{ borderWidth: 2, borderColor: colors.warning }}
             >
-              <Text className="font-semibold text-white">Skip Rest</Text>
-            </TouchableOpacity>
+              <IconSymbol name="timer" size={48} color={colors.warning} />
+              <Text className="text-5xl font-bold text-foreground mt-4">
+                {formatTime(restTime)}
+              </Text>
+              <Text className="text-lg text-muted mt-2">Rest Time</Text>
+              <TouchableOpacity
+                onPress={skipRest}
+                className="mt-6 px-8 py-3 rounded-xl"
+                style={{ backgroundColor: colors.primary }}
+              >
+                <Text className="font-semibold text-white">Skip Rest</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Form Tip Card */}
+            {currentFormTip && (
+              <View 
+                className="bg-surface rounded-2xl p-5 mt-4"
+                style={{ borderWidth: 1, borderColor: colors.primary + '40' }}
+              >
+                <View className="flex-row items-center mb-3">
+                  <Text style={{ fontSize: 20 }}>{getCategoryEmoji(currentFormTip.category)}</Text>
+                  <Text className="text-sm font-semibold ml-2" style={{ color: colors.primary }}>
+                    {getCategoryLabel(currentFormTip.category)} Tip
+                  </Text>
+                </View>
+                <Text className="text-base text-foreground leading-relaxed">
+                  {currentFormTip.tip}
+                </Text>
+                <Text className="text-xs text-muted mt-3 text-center">
+                  Tips rotate every 8 seconds
+                </Text>
+              </View>
+            )}
+
+            {/* Next Up Preview */}
+            {currentExercise && (
+              <View className="mt-4 px-2">
+                <Text className="text-sm text-muted text-center">
+                  Next: Set {currentSetIndex + 2} of {currentDayExercise?.sets} • {currentExercise.name}
+                </Text>
+              </View>
+            )}
           </View>
         ) : (
           <>

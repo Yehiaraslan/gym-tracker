@@ -260,3 +260,9 @@
 - [x] Show download progress indicator during download
 - [x] Display download status (completed/failed) for each exercise
 - [x] Cache downloaded GIFs for offline access
+
+## Form Tips During Rest Timer
+- [x] Create form tips data for common exercises
+- [x] Create service to get random tips for an exercise
+- [x] Update rest timer component to display form tips
+- [x] Rotate tips every 8 seconds during rest period
