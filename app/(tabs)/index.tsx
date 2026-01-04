@@ -9,6 +9,9 @@ import { getDayName, generateId, WorkoutLog, ExerciseLog } from '@/lib/types';
 import * as Haptics from 'expo-haptics';
 import { predownloadWorkoutGifs, checkWorkoutCacheStatus, DownloadProgress } from '@/lib/workout-predownload';
 import { getStreakData, checkStreakStatus, getStreakMessage, StreakData } from '@/lib/streak-tracker';
+import { getMilestoneProgress, checkNewMilestoneUnlocked } from '@/lib/streak-milestones';
+import { MilestoneCelebration } from '@/components/milestone-celebration';
+import { getTodayRecommendation } from '@/lib/rest-recommendation';
 
 export default function HomeScreen() {
   const colors = useColors();
@@ -35,10 +38,32 @@ export default function HomeScreen() {
 
   // Streak state
   const [streakData, setStreakData] = useState<StreakData | null>(null);
+  const [milestoneProgress, setMilestoneProgress] = useState<any>(null);
+  const [showMilestoneCelebration, setShowMilestoneCelebration] = useState(false);
+  const [newMilestone, setNewMilestone] = useState<any>(null);
+  const [restRecommendation, setRestRecommendation] = useState<any>(null);
 
   // Load streak data on mount
   useEffect(() => {
-    checkStreakStatus().then(data => setStreakData(data));
+    const loadStreakData = async () => {
+      const data = await checkStreakStatus();
+      setStreakData(data);
+      
+      if (data) {
+        // Check for new milestone (compare with best streak to detect new unlocks)
+        const milestone = checkNewMilestoneUnlocked(data.bestStreak, data.currentStreak);
+        if (milestone) {
+          setNewMilestone(milestone);
+          setShowMilestoneCelebration(true);
+        }
+        
+        // Load milestone progress
+        const progress = getMilestoneProgress(data.currentStreak);
+        setMilestoneProgress(progress);
+      }
+    };
+    
+    loadStreakData();
   }, []);
 
   // Check cache status on mount
@@ -48,6 +73,32 @@ export default function HomeScreen() {
         .then(status => setCacheStatus(status));
     }
   }, [todayProgram, store.exercises]);
+
+  // Load rest recommendation
+  useEffect(() => {
+    const loadRecommendation = async () => {
+      try {
+        const rec = await getTodayRecommendation();
+        if (rec) {
+          // Transform to match our UI expectations
+          const transformed = {
+            shouldRest: rec.recommended,
+            reason: rec.reason,
+            recoveryScore: rec.recoveryScore,
+            message: rec.reason,
+            icon: rec.recommended ? '😴' : '💪',
+            color: rec.recommended ? '#EF4444' : '#22C55E',
+            confidence: 75,
+          };
+          setRestRecommendation(transformed);
+        }
+      } catch (error) {
+        console.error('Error loading rest recommendation:', error);
+      }
+    };
+    
+    loadRecommendation();
+  }, []);
 
   const handlePredownload = async () => {
     if (!todayProgram || !store.settings.rapidApiKey) return;
@@ -82,8 +133,14 @@ export default function HomeScreen() {
   };
 
   return (
-    <ScreenContainer className="flex-1">
-      <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 100 }}>
+    <>
+      <MilestoneCelebration
+        badge={newMilestone}
+        visible={showMilestoneCelebration}
+        onDismiss={() => setShowMilestoneCelebration(false)}
+      />
+      <ScreenContainer className="flex-1">
+        <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 100 }}>
         {/* Header */}
         <View className="px-6 pt-4 pb-6">
           <Text className="text-muted text-sm">{today}</Text>
@@ -159,12 +216,72 @@ export default function HomeScreen() {
                 </Text>
               </View>
             </View>
-            <Text 
-              className="text-sm mt-3 text-center"
-              style={{ color: streakData.currentStreak > 0 ? '#FF6B35' : colors.muted }}
-            >
-              {getStreakMessage(streakData.currentStreak)}
+            {streakData && (
+              <Text 
+                className="text-sm mt-3 text-center"
+                style={{ color: streakData.currentStreak > 0 ? '#FF6B35' : colors.muted }}
+              >
+                {getStreakMessage(streakData.currentStreak)}
+              </Text>
+            )}
+            
+            {/* Milestone Progress */}
+            {milestoneProgress && milestoneProgress.nextMilestone && streakData && (
+              <View className="mt-4 pt-4" style={{ borderTopWidth: 1, borderTopColor: colors.border }}>
+                <Text className="text-xs text-muted mb-2">Next Milestone</Text>
+                <View className="flex-row items-center justify-between">
+                  <Text className="font-semibold text-foreground">
+                    {milestoneProgress.nextMilestone.name}
+                  </Text>
+                  <Text className="text-xs text-muted">
+                    {Math.max(0, milestoneProgress.nextMilestone.streakDays - streakData.currentStreak)} days away
+                  </Text>
+                </View>
+              </View>
+            )}
+            
+            {/* Unlocked Badges */}
+            {milestoneProgress && milestoneProgress.achievements && milestoneProgress.achievements.filter((a: any) => a.isUnlocked).length > 0 && (
+              <View className="mt-4 pt-4" style={{ borderTopWidth: 1, borderTopColor: colors.border }}>
+                <Text className="text-xs text-muted mb-2">Unlocked Badges</Text>
+                <View className="flex-row gap-2">
+                  {milestoneProgress.achievements.filter((a: any) => a.isUnlocked).map((badge: any, idx: number) => (
+                    <View key={idx} className="flex-1 items-center py-2 px-2 rounded-lg" style={{ backgroundColor: colors.primary + '15' }}>
+                      <Text className="text-2xl">{badge.icon}</Text>
+                      <Text className="text-xs text-foreground font-semibold mt-1 text-center">{badge.streakDays}d</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* Rest Recommendation Card */}
+        {restRecommendation && (
+          <View 
+            className="mx-6 mb-6 bg-surface rounded-2xl p-5"
+            style={{ borderWidth: 1, borderColor: colors.border }}
+          >
+            <View className="flex-row items-center">
+              <Text className="text-3xl mr-3">{restRecommendation.icon}</Text>
+              <View className="flex-1">
+                <Text className="text-sm text-muted">Recovery Status</Text>
+                <Text className="text-lg font-semibold text-foreground mt-0.5">
+                  {restRecommendation.reason}
+                </Text>
+              </View>
+            </View>
+            <Text className="text-sm text-muted mt-3">
+              {restRecommendation.message}
             </Text>
+            {restRecommendation.shouldRest && (
+              <View className="mt-3 px-3 py-2 rounded-lg" style={{ backgroundColor: colors.error + '15' }}>
+                <Text className="text-xs font-semibold" style={{ color: colors.error }}>
+                  💤 Consider a rest day today
+                </Text>
+              </View>
+            )}
           </View>
         )}
 
@@ -301,12 +418,12 @@ export default function HomeScreen() {
               </TouchableOpacity>
             </View>
           </>
-        ) : (
+         ) : (
           <View className="mx-6 items-center py-12">
             <IconSymbol name="calendar" size={64} color={colors.muted} />
             <Text className="text-xl font-semibold text-foreground mt-4">Rest Day</Text>
             <Text className="text-muted text-center mt-2">
-              No workout scheduled for today.{'\n'}
+              No workout scheduled for today.{`\n`}
               Go to Admin to configure your program.
             </Text>
             <TouchableOpacity
@@ -380,6 +497,7 @@ export default function HomeScreen() {
           </View>
         )}
       </ScrollView>
-    </ScreenContainer>
+      </ScreenContainer>
+    </>
   );
 }
