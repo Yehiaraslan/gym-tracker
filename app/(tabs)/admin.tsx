@@ -854,6 +854,11 @@ function SettingsTab() {
   const [cacheMetadata, setCacheMetadata] = useState<CacheMetadata | null>(null);
   const [isClearingCache, setIsClearingCache] = useState(false);
   
+  // Notification settings state
+  const [notificationSettings, setNotificationSettings] = useState({
+    recoveryAlertsEnabled: true,
+    milestoneNotificationsEnabled: true,
+  });
   // Load cache metadata on mount
   useEffect(() => {
     loadCacheMetadata();
@@ -947,6 +952,19 @@ function SettingsTab() {
       Alert.alert('Error', 'Failed to validate API key. Please check your internet connection.');
     } finally {
       setIsValidatingKey(false);
+    }
+  };
+  
+  const handleToggleNotification = async (key: 'recoveryAlertsEnabled' | 'milestoneNotificationsEnabled') => {
+    try {
+      const { notificationService } = await import('@/lib/notification-service');
+      const updated = { ...notificationSettings, [key]: !notificationSettings[key] };
+      await notificationService.updateNotificationSettings(updated);
+      setNotificationSettings(updated);
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      console.error('Error updating notification settings:', error);
+      Alert.alert('Error', 'Failed to update notification settings');
     }
   };
 
@@ -1136,6 +1154,46 @@ function SettingsTab() {
         </TouchableOpacity>
       </View>
 
+
+      {/* Notification Settings */}
+      <View 
+        className="bg-surface rounded-xl p-4 mb-4"
+        style={{ borderWidth: 1, borderColor: colors.border }}
+      >
+        <Text className="text-lg font-semibold text-foreground mb-4">Notifications</Text>
+        
+        <View className="flex-row items-center justify-between py-3 border-b" style={{ borderBottomColor: colors.border }}>
+          <View className="flex-1">
+            <Text className="text-foreground font-medium">Recovery Alerts</Text>
+            <Text className="text-sm text-muted">Get notified when recovery drops below 50%</Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => handleToggleNotification('recoveryAlertsEnabled')}
+            className="ml-4 p-2 rounded-lg"
+            style={{ backgroundColor: notificationSettings.recoveryAlertsEnabled ? colors.primary + '20' : colors.surface }}
+          >
+            <Text style={{ fontSize: 20 }}>
+              {notificationSettings.recoveryAlertsEnabled ? '✓' : '○'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+        
+        <View className="flex-row items-center justify-between py-3">
+          <View className="flex-1">
+            <Text className="text-foreground font-medium">Milestone Notifications</Text>
+            <Text className="text-sm text-muted">Celebrate when you unlock new badges</Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => handleToggleNotification('milestoneNotificationsEnabled')}
+            className="ml-4 p-2 rounded-lg"
+            style={{ backgroundColor: notificationSettings.milestoneNotificationsEnabled ? colors.primary + '20' : colors.surface }}
+          >
+            <Text style={{ fontSize: 20 }}>
+              {notificationSettings.milestoneNotificationsEnabled ? '✓' : '○'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
       {/* Whoop Integration */}
       <TouchableOpacity
         onPress={() => router.push('/whoop' as any)}

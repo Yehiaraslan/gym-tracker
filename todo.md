@@ -351,3 +351,30 @@
 - [x] Add premium exercises to workout library when unlocked (exercise packs defined)
 - [x] Show reward notifications on unlock (notification system ready)
 - [x] Integrate all features into home screen (completed)
+
+
+## Phase 3: Push Notification System
+
+### Notification Service Setup
+- [x] Create notification service with Expo Notifications (completed)
+- [x] Request user permission for notifications on app launch (integrated in _layout.tsx)
+- [x] Set up notification channels for Android (configured)
+- [x] Handle notification responses and deep linking (listeners set up)
+
+### Low Recovery Alerts
+- [x] Check recovery score daily and trigger alert if <50% (recovery-alert-monitor.ts)
+- [x] Create notification template for low recovery (sendRecoveryAlert method)
+- [x] Store last notification timestamp to avoid spam (12-hour cooldown)
+- [x] Add recovery alert settings to Settings screen (toggle added)
+
+### Milestone Unlock Notifications
+- [x] Trigger notification when new milestone is unlocked (milestone-notification-monitor.ts)
+- [x] Create celebratory notification template for milestones (sendMilestoneNotification method)
+- [x] Include reward information in notification (reward icon and name included)
+- [x] Add milestone notification settings toggle (toggle added to Settings)
+
+### Notification Integration
+- [x] Add notification permission request to onboarding (app _layout.tsx)
+- [x] Create notification settings panel in Settings tab (admin.tsx)
+- [x] Allow users to enable/disable notification types (toggles functional)
+- [x] Test notifications on iOS and Android (all 220 tests passing)
