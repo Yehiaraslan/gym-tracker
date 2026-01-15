@@ -442,3 +442,25 @@
 - [x] Add suggested questions for quick access
 - [x] Handle API errors gracefully
 - [x] Show loading states during API calls
+
+
+## Phase 6: Difficulty Ratings & Progress Photos
+
+### Workout Difficulty Ratings
+- [x] Add difficulty field to ExerciseLog type (easy/medium/hard)
+- [x] Create difficulty rating UI component
+- [x] Show difficulty selector after each exercise in workout
+- [x] Store difficulty ratings in workout logs
+- [x] Display difficulty history for each exercise
+- [x] Build difficulty analytics dashboard
+- [x] Generate personalized recommendations based on difficulty patterns
+
+### Progress Photos Gallery
+- [x] Add photo capture permission handling
+- [x] Create photo capture component using expo-image-picker
+- [x] Build progress photos storage service
+- [x] Create progress photos gallery screen
+- [x] Add date and notes to each photo
+- [x] Implement before/after photo comparison view
+- [x] Add photo deletion functionality
+- [x] Create progress timeline visualization

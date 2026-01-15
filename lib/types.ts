@@ -1,6 +1,7 @@
 // Exercise definition
 export type BodyPart = 'Legs' | 'Arms' | 'Chest' | 'Back' | 'Shoulders' | 'Core' | 'Cardio' | 'Other';
 export type ExerciseType = 'reps' | 'duration';
+export type DifficultyRating = 'easy' | 'medium' | 'hard';
 
 export interface Exercise {
   id: string;
@@ -48,6 +49,8 @@ export interface ExerciseLog {
   targetSets: number;
   targetReps: string;
   sets: SetLog[];
+  difficulty?: DifficultyRating; // easy/medium/hard rating
+  notes?: string; // User notes about the exercise
 }
 
 // Complete workout log
