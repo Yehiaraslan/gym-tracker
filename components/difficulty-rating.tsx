@@ -10,16 +10,13 @@ interface DifficultyRatingProps {
   onChange: (rating: DifficultyRating) => void;
   disabled?: boolean;
 }
-
 const DIFFICULTY_OPTIONS: Array<{ value: DifficultyRating; label: string; emoji: string; color: string }> = [
   { value: 'easy', label: 'Easy', emoji: '😌', color: '#22C55E' },
   { value: 'medium', label: 'Medium', emoji: '💪', color: '#F59E0B' },
   { value: 'hard', label: 'Hard', emoji: '🔥', color: '#EF4444' },
 ];
-
 export function DifficultyRating({ value, onChange, disabled = false }: DifficultyRatingProps) {
   const colors = useColors();
-
   const handleSelect = (rating: DifficultyRating) => {
     if (!disabled) {
       if (Platform.OS !== 'web') {
@@ -28,7 +25,6 @@ export function DifficultyRating({ value, onChange, disabled = false }: Difficul
       onChange(rating);
     }
   };
-
   return (
     <View className="gap-2">
       <Text className="text-sm font-semibold text-foreground mb-2">How was this exercise?</Text>

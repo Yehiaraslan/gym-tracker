@@ -721,6 +721,22 @@ export default function WorkoutScreen() {
     );
   }
 
+  // Load favorite tips and heart rate data on complete phase
+  useEffect(() => {
+    if (phase === 'complete') {
+      getFavoriteTips().then(favorites => {
+        setFavoritedTipIds(new Set(favorites.map(f => f.tip.id)));
+      });
+      
+      // Load demo heart rate data (in production, fetch from WHOOP API)
+      const duration = workoutLog?.startedAt && workoutLog?.completedAt 
+        ? Math.round((workoutLog.completedAt - workoutLog.startedAt) / 60000)
+        : 45;
+      const demoData = getDemoHeartRateData(duration);
+      setHeartRateData(demoData);
+    }
+  }, [phase, workoutLog]);
+
   // Render Complete Phase with Summary
   if (phase === 'complete') {
     // Group tips by exercise
@@ -734,20 +750,6 @@ export default function WorkoutScreen() {
       }
       return acc;
     }, {} as Record<string, typeof displayedTips>);
-
-    // Load favorite tips and heart rate data on complete phase
-    useEffect(() => {
-      getFavoriteTips().then(favorites => {
-        setFavoritedTipIds(new Set(favorites.map(f => f.tip.id)));
-      });
-      
-      // Load demo heart rate data (in production, fetch from WHOOP API)
-      const duration = workoutLog?.startedAt && workoutLog?.completedAt 
-        ? Math.round((workoutLog.completedAt - workoutLog.startedAt) / 60000)
-        : 45;
-      const demoData = getDemoHeartRateData(duration);
-      setHeartRateData(demoData);
-    }, []);
 
     // Handle favorite toggle
     const handleToggleFavorite = async (tip: FormTip, exerciseName: string) => {
