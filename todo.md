@@ -413,3 +413,32 @@
 - [x] Display key status (configured/not configured)
 - [x] Add clear key option
 - [x] Prepare for future ChatGPT integration
+
+
+## Phase 5: Advanced Features Integration
+
+### 1. Exercise Form Integration in Admin Panel
+- [x] Add "Add Exercise" button to admin exercises tab
+- [x] Open ExerciseForm modal when button is clicked
+- [x] Handle form submission and save exercise to store
+- [x] Display success message after exercise creation
+- [x] Add edit exercise functionality
+- [x] Add delete exercise functionality
+
+### 2. Missed Workouts Display on Home Screen
+- [x] Fetch missed workouts from day-postponement service
+- [x] Create missed workouts card component
+- [x] Display missed exercise badges with body part and date
+- [x] Add reschedule button for each missed workout
+- [x] Add permanently skip option with confirmation
+- [x] Show count of missed workouts in streak section
+
+### 3. ChatGPT Insights Dashboard
+- [x] Create new insights screen/tab
+- [x] Build chat interface for user queries
+- [x] Integrate OpenAI API for workout analysis
+- [x] Create system prompt for fitness insights
+- [x] Display chat history
+- [x] Add suggested questions for quick access
+- [x] Handle API errors gracefully
+- [x] Show loading states during API calls

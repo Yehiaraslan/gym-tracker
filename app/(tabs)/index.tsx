@@ -17,6 +17,7 @@ import { getWeeklyRecoveryData, getWeeklyAverageRecovery } from '@/lib/whoop-rec
 import { getUnlockedRewards, getRewardProgress } from '@/lib/milestone-rewards';
 import { WeeklyRecoveryChart } from '@/components/weekly-recovery-chart';
 import { RewardsShowcase } from '@/components/rewards-showcase';
+import { MissedWorkoutsCard } from '@/components/missed-workouts-card';
 import type { WeeklyRecoveryData } from '@/lib/whoop-recovery-service';
 
 export default function HomeScreen() {
@@ -313,6 +314,9 @@ export default function HomeScreen() {
             )}
           </View>
         )}
+
+        {/* Missed Workouts */}
+        <MissedWorkoutsCard />
 
         {/* Weekly Recovery Chart */}
         {weeklyRecoveryData.length > 0 && (

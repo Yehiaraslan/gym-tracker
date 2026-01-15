@@ -99,6 +99,9 @@ function ExercisesTab() {
   const [videoUrl, setVideoUrl] = useState('');
   const [restSeconds, setRestSeconds] = useState('90');
   const [defaultReps, setDefaultReps] = useState('8-12');
+  const [defaultDuration, setDefaultDuration] = useState('60');
+  const [exerciseType, setExerciseType] = useState('reps');
+  const [bodyPart, setBodyPart] = useState('Other');
   const [notes, setNotes] = useState('');
   
   // Auto-fetch video states
@@ -116,6 +119,9 @@ function ExercisesTab() {
     setVideoUrl('');
     setRestSeconds('90');
     setDefaultReps('8-12');
+    setDefaultDuration('60');
+    setExerciseType('reps');
+    setBodyPart('Other');
     setNotes('');
     setSelectedVideo(null);
     setVideoSuggestions([]);
