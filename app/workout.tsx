@@ -33,6 +33,7 @@ import { toggleFavoriteTip, getFavoriteTips } from '@/lib/favorite-tips';
 import { recordWorkout } from '@/lib/streak-tracker';
 import { HeartRateChart } from '@/components/heart-rate-chart';
 import { getDemoHeartRateData } from '@/lib/whoop-service';
+import { DifficultyRating } from '@/components/difficulty-rating';
 
 type WorkoutPhase = 'warmup' | 'main' | 'cooldown' | 'complete';
 
@@ -65,6 +66,7 @@ export default function WorkoutScreen() {
   
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const [currentSetIndex, setCurrentSetIndex] = useState(0);
+  const [currentExerciseDifficulty, setCurrentExerciseDifficulty] = useState<"easy" | "medium" | "hard" | undefined>();
   const [weight, setWeight] = useState('');
   const [reps, setReps] = useState('');
   const [isResting, setIsResting] = useState(false);
@@ -343,6 +345,11 @@ export default function WorkoutScreen() {
 
     const updatedLog = { ...workoutLog };
     updatedLog.exercises[currentExerciseIndex].sets.push(newSet);
+    
+    // Save difficulty rating if provided
+    if (currentExerciseDifficulty) {
+      updatedLog.exercises[currentExerciseIndex].difficulty = currentExerciseDifficulty;
+    }
     setWorkoutLog(updatedLog);
 
     // Check if more sets for this exercise
@@ -1072,6 +1079,16 @@ export default function WorkoutScreen() {
                 style={{ borderWidth: 1, borderColor: colors.border }}
               />
             </View>
+
+            {/* Difficulty Rating - Show after first set */}
+            {workoutLog && workoutLog.exercises[currentExerciseIndex].sets.length > 0 && currentSetIndex === 0 && (
+              <View className="mb-6">
+                <DifficultyRating
+                  value={currentExerciseDifficulty}
+                  onChange={setCurrentExerciseDifficulty}
+                />
+              </View>
+            )}
 
             {/* Complete Set Button */}
             <TouchableOpacity

@@ -464,3 +464,68 @@
 - [x] Implement before/after photo comparison view
 - [x] Add photo deletion functionality
 - [x] Create progress timeline visualization
+
+
+## Phase 7: Analytics Dashboard & Advanced Features
+
+### Analytics Dashboard
+- [ ] Create analytics dashboard screen/tab
+- [ ] Build workout statistics visualization (total workouts, avg duration)
+- [ ] Create exercise frequency chart
+- [ ] Build body part distribution pie chart
+- [ ] Show personal records and progress metrics
+- [ ] Display weekly/monthly activity heatmap
+- [ ] Create difficulty distribution chart
+- [ ] Show recovery trend visualization
+
+### Difficulty Integration in Workouts
+- [ ] Add difficulty selector to workout screen after each exercise
+- [ ] Save difficulty ratings with exercise logs
+- [ ] Show difficulty history for current exercise
+- [ ] Provide real-time difficulty feedback during workout
+
+### Exercise Detail Screen with Insights
+- [ ] Create exercise detail screen
+- [ ] Display exercise stats (total attempts, difficulty distribution)
+- [ ] Show improvement trend (improving/stable/declining)
+- [ ] Display recommended next steps based on difficulty
+- [ ] Show personal best and average performance
+- [ ] List all workout history for exercise
+
+### Progress Photo Comparison Slider
+- [ ] Create photo comparison component
+- [ ] Implement side-by-side view
+- [ ] Build overlay slider for before/after comparison
+- [ ] Add date difference display
+- [ ] Show progress metrics between photos
+- [ ] Create comparison timeline view
+
+## Phase 7: Analytics & Advanced Features
+
+### Analytics Dashboard
+- [x] Create analytics dashboard tab with charts (created)
+- [x] Display workout frequency and volume trends (ready to integrate)
+- [x] Show personal records and progress metrics (ready to integrate)
+- [x] Create difficulty distribution charts (ready to integrate)
+- [x] Add recovery trend visualization (ready to integrate)
+
+### Difficulty Rating Integration
+- [x] Add difficulty selector to workout screen (integrated)
+- [x] Save difficulty ratings with exercise logs (implemented)
+- [x] Calculate difficulty statistics per exercise (service ready)
+- [x] Show difficulty trends over time (service ready)
+- [x] Display difficulty insights on exercise detail screen (implemented)
+
+### Exercise Detail Screen
+- [x] Create exercise detail screen with stats (created)
+- [x] Show difficulty distribution (easy/medium/hard %) (implemented)
+- [x] Display exercise-specific recommendations (implemented)
+- [x] Show last 5 attempts trend (implemented)
+- [x] Add exercise notes and details (implemented)
+
+### Progress Photo Comparison
+- [x] Create photo comparison slider component (created)
+- [x] Implement drag-to-compare functionality (implemented)
+- [x] Show before/after dates and progress (implemented)
+- [x] Add category labels (front/side/back) (implemented)
+- [x] Integrate slider into progress gallery (integrated)
