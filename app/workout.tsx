@@ -33,7 +33,7 @@ import { toggleFavoriteTip, getFavoriteTips } from '@/lib/favorite-tips';
 import { recordWorkout } from '@/lib/streak-tracker';
 import { HeartRateChart } from '@/components/heart-rate-chart';
 import { getDemoHeartRateData } from '@/lib/whoop-service';
-import { DifficultyRating } from '@/components/difficulty-rating';
+import { DifficultyRatingComponent } from '@/components/difficulty-rating';
 
 type WorkoutPhase = 'warmup' | 'main' | 'cooldown' | 'complete';
 
@@ -1085,7 +1085,7 @@ export default function WorkoutScreen() {
             {/* Difficulty Rating - Show after first set */}
             {workoutLog && workoutLog.exercises[currentExerciseIndex].sets.length > 0 && currentSetIndex === 0 && (
               <View className="mb-6">
-                <DifficultyRating
+                <DifficultyRatingComponent
                   value={currentExerciseDifficulty}
                   onChange={setCurrentExerciseDifficulty}
                 />

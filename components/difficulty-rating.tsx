@@ -15,7 +15,7 @@ const DIFFICULTY_OPTIONS: Array<{ value: DifficultyRating; label: string; emoji:
   { value: 'medium', label: 'Medium', emoji: '💪', color: '#F59E0B' },
   { value: 'hard', label: 'Hard', emoji: '🔥', color: '#EF4444' },
 ];
-export function DifficultyRating({ value, onChange, disabled = false }: DifficultyRatingProps) {
+export function DifficultyRatingComponent({ value, onChange, disabled = false }: DifficultyRatingProps) {
   const colors = useColors();
   const handleSelect = (rating: DifficultyRating) => {
     if (!disabled) {
