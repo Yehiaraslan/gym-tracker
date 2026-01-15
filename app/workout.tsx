@@ -90,7 +90,7 @@ export default function WorkoutScreen() {
           exerciseId: dayEx.exerciseId,
           exerciseName: exercise?.name || 'Unknown',
           targetSets: dayEx.sets,
-          targetReps: dayEx.reps,
+          targetReps: dayEx.reps || '8-12',
           sets: [],
         };
       });
@@ -117,7 +117,9 @@ export default function WorkoutScreen() {
       }
       
       // Pre-fill reps from target
-      setReps(firstExercise.reps.split('-')[0]);
+      if (firstExercise.reps) {
+        setReps(firstExercise.reps.split('-')[0]);
+      }
     }
   }, []);
 
@@ -364,7 +366,9 @@ export default function WorkoutScreen() {
         } else {
           setWeight('');
         }
-        setReps(nextExercise.reps.split('-')[0]);
+        if (nextExercise.reps) {
+          setReps(nextExercise.reps.split('-')[0]);
+        }
       } else {
         // Main workout complete - move to cooldown or finish
         completeMainWorkout(updatedLog);

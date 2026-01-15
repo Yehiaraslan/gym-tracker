@@ -1074,6 +1074,68 @@ function SettingsTab() {
             Get your free API key from RapidAPI →
           </Text>
         </TouchableOpacity>
+
+      {/* OpenAI API Key Settings */}
+      <View 
+        className="bg-surface rounded-xl p-4 mb-4"
+        style={{ borderWidth: 1, borderColor: colors.border }}
+      >
+        <View className="flex-row items-center justify-between mb-4">
+          <Text className="text-lg font-semibold text-foreground">OpenAI API</Text>
+          <View 
+            className="px-2 py-1 rounded-full"
+            style={{ 
+              backgroundColor: store.settings.openAiKey ? colors.success + '20' : colors.surface 
+            }}
+          >
+            <Text style={{ 
+              color: store.settings.openAiKey ? colors.success : colors.muted,
+              fontSize: 12,
+              fontWeight: '600',
+            }}>
+              {store.settings.openAiKey ? 'Configured' : 'Not configured'}
+            </Text>
+          </View>
+        </View>
+        
+        <Text className="text-sm text-muted mb-3">
+          Enter your OpenAI API key to enable ChatGPT integration for personalized fitness insights.
+        </Text>
+        
+        <Text className="text-sm font-medium text-muted mb-2">OpenAI API Key</Text>
+        <View className="flex-row items-center mb-4">
+          <TextInput
+            value={store.settings.openAiKey || ''}
+            onChangeText={(value) => updateSettings({ openAiKey: value })}
+            placeholder="sk-..."
+            placeholderTextColor={colors.muted}
+            secureTextEntry={true}
+            className="flex-1 bg-background rounded-xl p-4 text-foreground"
+            style={{ borderWidth: 1, borderColor: colors.border }}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+        </View>
+        
+        <TouchableOpacity
+          onPress={() => {
+            if (store.settings.openAiKey) {
+              updateSettings({ openAiKey: '' });
+              Alert.alert('Cleared', 'OpenAI API key has been removed');
+            }
+          }}
+          disabled={!store.settings.openAiKey}
+          className="py-3 rounded-xl"
+          style={{ 
+            backgroundColor: colors.error + '20',
+            opacity: store.settings.openAiKey ? 1 : 0.5,
+          }}
+        >
+          <Text className="text-center font-semibold" style={{ color: colors.error }}>
+            Clear Key
+          </Text>
+        </TouchableOpacity>
+      </View>
       </View>
 
       <View 

@@ -378,3 +378,38 @@
 - [x] Create notification settings panel in Settings tab (admin.tsx)
 - [x] Allow users to enable/disable notification types (toggles functional)
 - [x] Test notifications on iOS and Android (all 220 tests passing)
+
+
+## Phase 4: User Requested Features
+
+### 1. OAuth Login Fix
+- [x] Fix OAuth routing and page not found error
+- [x] Verify WHOOP OAuth callback is working
+- [x] Test login flow end-to-end
+
+### 2. Exercise Body Part Categorization
+- [x] Add body part categories (Legs, Arms, Chest, Back, Shoulders, Core, etc.)
+- [x] Update exercise form to include body part selector
+- [x] Filter exercises by body part in admin panel
+- [x] Display body part in exercise list
+
+### 3. Duration-Based Exercises with Timer
+- [x] Add exercise type field (reps vs duration)
+- [x] Update exercise form to accept seconds for duration exercises
+- [x] Create timer component for duration-based workouts
+- [x] Implement start/stop timer in workout screen
+- [x] Save duration-based exercise results
+
+### 4. Day Postponement and Missed Workout Tracking
+- [x] Add postponement UI when user misses a training day
+- [x] Implement logic to move missed day to next available day
+- [x] Track missed workouts in dashboard
+- [x] Show missed exercise badges on home screen
+- [x] Allow user to skip day permanently (with warning)
+
+### 5. OpenAI Key Storage
+- [x] Add OpenAI API key field to settings
+- [x] Securely store key in AsyncStorage
+- [x] Display key status (configured/not configured)
+- [x] Add clear key option
+- [x] Prepare for future ChatGPT integration

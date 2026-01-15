@@ -64,12 +64,15 @@ export async function saveStore(store: GymStore): Promise<void> {
 
 // Exercise CRUD operations
 export function addExercise(
-  store: GymStore, 
-  name: string, 
-  videoUrl: string, 
-  defaultRestSeconds: number,
+  store: GymStore,
+  name: string,
+  videoUrl: string,
+  defaultRestSeconds: number = 90,
   defaultReps: string = '8-12',
-  notes: string = ''
+  notes: string = '',
+  exerciseType: 'reps' | 'duration' = 'reps',
+  bodyPart: 'Legs' | 'Arms' | 'Chest' | 'Back' | 'Shoulders' | 'Core' | 'Cardio' | 'Other' = 'Other',
+  defaultDuration?: number
 ): GymStore {
   const exercise: Exercise = {
     id: generateId(),
@@ -77,6 +80,9 @@ export function addExercise(
     videoUrl,
     defaultRestSeconds,
     defaultReps,
+    defaultDuration,
+    exerciseType,
+    bodyPart,
     notes,
     createdAt: Date.now(),
   };

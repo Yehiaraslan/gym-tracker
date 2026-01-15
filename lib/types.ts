@@ -1,10 +1,16 @@
 // Exercise definition
+export type BodyPart = 'Legs' | 'Arms' | 'Chest' | 'Back' | 'Shoulders' | 'Core' | 'Cardio' | 'Other';
+export type ExerciseType = 'reps' | 'duration';
+
 export interface Exercise {
   id: string;
   name: string;
   videoUrl: string;
   defaultRestSeconds: number;
-  defaultReps: string; // e.g., "8-10" or "12"
+  defaultReps: string; // e.g., "8-10" or "12" (for reps-based exercises)
+  defaultDuration?: number; // seconds (for duration-based exercises)
+  exerciseType: ExerciseType; // 'reps' or 'duration'
+  bodyPart: BodyPart; // Categorization by body part
   notes: string; // Personal notes like "pause 2 sec", "lift heavy"
   createdAt: number;
 }
@@ -13,7 +19,8 @@ export interface Exercise {
 export interface DayExercise {
   exerciseId: string;
   sets: number;
-  reps: string; // e.g., "8-10" or "12"
+  reps?: string; // e.g., "8-10" or "12" (for reps-based exercises)
+  duration?: number; // seconds (for duration-based exercises)
   restSeconds: number;
   order: number;
 }
@@ -93,6 +100,8 @@ export interface AppSettings {
   cycleStartDate: string; // ISO date string
   currentCycle: number;
   rapidApiKey?: string; // RapidAPI key for ExerciseDB API
+  openAiKey?: string; // OpenAI API key for ChatGPT integration
+  notificationsEnabled?: boolean; // Push notifications enabled
 }
 
 // Store state
