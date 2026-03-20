@@ -69,6 +69,12 @@ export function FoodSearch({ onAdd, onClose, mealNumber }: FoodSearchProps) {
   const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null);
   const [selectedServing, setSelectedServing] = useState(0);
   const [customGrams, setCustomGrams] = useState('');
+  const [showManualEntry, setShowManualEntry] = useState(false);
+  const [manualName, setManualName] = useState('');
+  const [manualProtein, setManualProtein] = useState('');
+  const [manualCarbs, setManualCarbs] = useState('');
+  const [manualFat, setManualFat] = useState('');
+  const [manualGrams, setManualGrams] = useState('100');
 
   useEffect(() => {
     setTimeout(() => inputRef.current?.focus(), 300);
@@ -107,6 +113,7 @@ export function FoodSearch({ onAdd, onClose, mealNumber }: FoodSearchProps) {
   }
 
   function handleQuickAdd(food: FoodItem) {
+
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const macros = calcMacros(food, food.servingSizes[0].grams);
     onAdd({
@@ -115,6 +122,16 @@ export function FoodSearch({ onAdd, onClose, mealNumber }: FoodSearchProps) {
       servingLabel: food.servingSizes[0].label,
       grams: food.servingSizes[0].grams,
     });
+  }
+  function handleManualAdd() {
+    if (!manualName.trim()) return;
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const p = parseFloat(manualProtein) || 0;
+    const c = parseFloat(manualCarbs) || 0;
+    const f = parseFloat(manualFat) || 0;
+    const cal = Math.round(p * 4 + c * 4 + f * 9);
+    const g = parseFloat(manualGrams) || 100;
+    onAdd({ name: manualName.trim(), protein: p, carbs: c, fat: f, calories: cal, servingLabel: g + 'g', grams: g });
   }
 
   return (
@@ -308,6 +325,42 @@ export function FoodSearch({ onAdd, onClose, mealNumber }: FoodSearchProps) {
                   </TouchableOpacity>
                 );
               })
+            )}
+          </View>
+        )}
+        {/* Manual Entry */}
+        {!selectedFood && (
+          <View className="px-4 pb-6">
+            <TouchableOpacity
+              onPress={() => setShowManualEntry(!showManualEntry)}
+              className="flex-row items-center justify-center py-3 rounded-xl mb-3"
+              style={{ borderWidth: 1, borderColor: colors.border, borderStyle: "dashed" }}
+            >
+              <IconSymbol name="plus.circle" size={16} color={colors.primary} />
+              <Text className="text-sm font-medium ml-2" style={{ color: colors.primary }}>
+                {showManualEntry ? "Hide Manual Entry" : "Can't find it? Add manually"}
+              </Text>
+            </TouchableOpacity>
+            {showManualEntry && (
+              <View className="rounded-2xl p-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+                <TextInput value={manualName} onChangeText={setManualName} placeholder="Food name" placeholderTextColor={colors.muted} className="h-12 px-4 rounded-xl text-foreground mb-3" style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border }} />
+                <View className="flex-row mb-3" style={{ gap: 8 }}>
+                  <View className="flex-1"><Text className="text-xs text-muted mb-1">Protein (g)</Text><TextInput value={manualProtein} onChangeText={setManualProtein} placeholder="0" placeholderTextColor={colors.muted} keyboardType="decimal-pad" className="h-10 px-3 rounded-xl text-center text-foreground" style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: "#3B82F640" }} /></View>
+                  <View className="flex-1"><Text className="text-xs text-muted mb-1">Carbs (g)</Text><TextInput value={manualCarbs} onChangeText={setManualCarbs} placeholder="0" placeholderTextColor={colors.muted} keyboardType="decimal-pad" className="h-10 px-3 rounded-xl text-center text-foreground" style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: "#F59E0B40" }} /></View>
+                  <View className="flex-1"><Text className="text-xs text-muted mb-1">Fat (g)</Text><TextInput value={manualFat} onChangeText={setManualFat} placeholder="0" placeholderTextColor={colors.muted} keyboardType="decimal-pad" className="h-10 px-3 rounded-xl text-center text-foreground" style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: "#EF444440" }} /></View>
+                </View>
+                <View className="flex-row items-center mb-3" style={{ gap: 8 }}>
+                  <View className="flex-1"><Text className="text-xs text-muted mb-1">Serving (g)</Text><TextInput value={manualGrams} onChangeText={setManualGrams} placeholder="100" placeholderTextColor={colors.muted} keyboardType="decimal-pad" className="h-10 px-3 rounded-xl text-center text-foreground" style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border }} /></View>
+                  <View className="flex-1 rounded-xl p-2 items-center" style={{ backgroundColor: colors.background }}>
+                    <Text className="text-lg font-bold text-foreground">{Math.round((parseFloat(manualProtein)||0)*4 + (parseFloat(manualCarbs)||0)*4 + (parseFloat(manualFat)||0)*9)}</Text>
+                    <Text className="text-xs text-muted">kcal</Text>
+                  </View>
+                </View>
+                <TouchableOpacity onPress={handleManualAdd} disabled={!manualName.trim()} className="py-3 rounded-xl flex-row items-center justify-center" style={{ backgroundColor: manualName.trim() ? colors.primary : colors.border }}>
+                  <IconSymbol name="plus.circle.fill" size={18} color="#FFFFFF" />
+                  <Text className="text-white font-semibold ml-2">Add to Log</Text>
+                </TouchableOpacity>
+              </View>
             )}
           </View>
         )}
