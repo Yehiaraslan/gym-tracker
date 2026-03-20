@@ -85,9 +85,7 @@ export default function RootLayout() {
       new QueryClient({
         defaultOptions: {
           queries: {
-            // Disable automatic refetching on window focus for mobile
             refetchOnWindowFocus: false,
-            // Retry failed requests once
             retry: 1,
           },
         },
@@ -113,11 +111,13 @@ export default function RootLayout() {
       <GymProvider>
       <trpc.Provider client={trpcClient} queryClient={queryClient}>
         <QueryClientProvider client={queryClient}>
-          {/* Default to hiding native headers so raw route segments don't appear (e.g. "(tabs)", "products/[id]"). */}
-          {/* If a screen needs the native header, explicitly enable it and set a human title via Stack.Screen options. */}
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="workout" options={{ presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="split-workout" options={{ presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="next-week" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="pr-board" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="weekly-report" options={{ presentation: 'modal' }} />
             <Stack.Screen name="whoop" options={{ presentation: 'modal' }} />
             <Stack.Screen name="form-coach" options={{ presentation: 'modal' }} />
             <Stack.Screen name="form-coach-tracking" options={{ presentation: 'fullScreenModal' }} />
