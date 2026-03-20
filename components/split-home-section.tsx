@@ -166,6 +166,15 @@ export function SplitHomeSection() {
           <Text style={{ fontSize: 18 }}>📅</Text>
           <Text className="text-sm font-medium text-foreground ml-2">Schedule</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => { if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/nutrition'); }}
+          className="flex-1 flex-row items-center rounded-xl p-3"
+          style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+        >
+          <Text style={{ fontSize: 18 }}>🍗</Text>
+          <Text className="text-sm font-medium text-foreground ml-2">Nutrition</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Coach recommendations */}

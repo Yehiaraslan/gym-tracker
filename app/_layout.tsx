@@ -118,6 +118,7 @@ export default function RootLayout() {
             <Stack.Screen name="next-week" options={{ presentation: 'modal' }} />
             <Stack.Screen name="pr-board" options={{ presentation: 'modal' }} />
             <Stack.Screen name="weekly-report" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="nutrition" options={{ presentation: 'modal' }} />
             <Stack.Screen name="whoop" options={{ presentation: 'modal' }} />
             <Stack.Screen name="form-coach" options={{ presentation: 'modal' }} />
             <Stack.Screen name="form-coach-tracking" options={{ presentation: 'fullScreenModal' }} />
