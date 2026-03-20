@@ -10,6 +10,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useColors } from '@/hooks/use-colors';
 import { getRecentSplitWorkouts, getAllPRs, type SplitWorkoutSession } from '@/lib/split-workout-store';
 import { getRecentSleep, getWeightEntries, type SleepEntry, type WeightEntry } from '@/lib/coach-engine';
+import { getWeeklyRecoveryData, getWeeklyAverageRecovery } from '@/lib/whoop-recovery-service';
 import { calculateVolumeLoad, epley1RM } from '@/lib/fitness-utils';
 import { SESSION_NAMES, SESSION_COLORS, type SessionType } from '@/lib/training-program';
 
@@ -23,6 +24,7 @@ interface WeeklyStats {
   sleepTarget: boolean;
   weightDelta: number | null;
   avgRPE: number | null;
+  avgRecovery: number | null;
   grade: string;
   gradeColor: string;
   sessions: { type: SessionType; date: string; volume: number; duration: number }[];
@@ -33,17 +35,17 @@ function calculateGrade(stats: WeeklyStats): { grade: string; color: string } {
 
   // Workout completion (40% weight)
   const completionRate = stats.workoutsPlanned > 0 ? stats.workoutsCompleted / stats.workoutsPlanned : 0;
-  score += completionRate * 40;
+  score += completionRate * 35;
 
   // PRs (20% weight)
-  score += Math.min(stats.prsHit * 10, 20);
+  score += Math.min(stats.prsHit * 7.5, 15);
 
-  // Sleep (20% weight)
+  // Sleep (15% weight)
   if (stats.avgSleep !== null) {
-    if (stats.avgSleep >= 7.5) score += 20;
-    else if (stats.avgSleep >= 7) score += 15;
-    else if (stats.avgSleep >= 6.5) score += 10;
-    else score += 5;
+    if (stats.avgSleep >= 7.5) score += 12;
+    else if (stats.avgSleep >= 7) score += 12;
+    else if (stats.avgSleep >= 6.5) score += 8;
+    else score += 4;
   }
 
   // RPE management (10% weight) - ideal is 7-8.5 average
@@ -60,6 +62,13 @@ function calculateGrade(stats: WeeklyStats): { grade: string; color: string } {
     else score += 4;
   }
 
+  // WHOOP Recovery (15% weight)
+  if (stats.avgRecovery !== null) {
+    if (stats.avgRecovery >= 67) score += 15;
+    else if (stats.avgRecovery >= 50) score += 10;
+    else if (stats.avgRecovery >= 34) score += 5;
+    else score += 2;
+  }
   if (score >= 90) return { grade: 'A+', color: '#10B981' };
   if (score >= 80) return { grade: 'A', color: '#10B981' };
   if (score >= 70) return { grade: 'B+', color: '#3B82F6' };
@@ -124,6 +133,12 @@ export default function WeeklyReportScreen() {
         if (s.rpe && !s.isWarmup) allRPEs.push(s.rpe);
       })));
       const avgRPE = allRPEs.length > 0 ? allRPEs.reduce((a, b) => a + b, 0) / allRPEs.length : null;
+      // WHOOP recovery
+      let avgRecovery: number | null = null;
+      try {
+        const recoveryData = await getWeeklyRecoveryData();
+        if (recoveryData.length > 0) avgRecovery = getWeeklyAverageRecovery(recoveryData);
+      } catch (_e) { /* WHOOP not connected */ }
 
       const baseStats: WeeklyStats = {
         workoutsCompleted: weekWorkouts.length,
@@ -135,6 +150,7 @@ export default function WeeklyReportScreen() {
         sleepTarget: avgSleep !== null && avgSleep >= 7.5,
         weightDelta,
         avgRPE,
+        avgRecovery,
         grade: '',
         gradeColor: '',
         sessions,
@@ -191,6 +207,7 @@ export default function WeeklyReportScreen() {
               { label: 'Avg Sleep', value: stats.avgSleep ? `${stats.avgSleep.toFixed(1)}h` : '—', color: stats.sleepTarget ? '#10B981' : '#EF4444', icon: '😴' },
               { label: 'Avg RPE', value: stats.avgRPE ? stats.avgRPE.toFixed(1) : '—', color: stats.avgRPE && stats.avgRPE <= 8.5 ? '#3B82F6' : '#F59E0B', icon: '💪' },
               { label: 'Weight Δ', value: stats.weightDelta !== null ? `${stats.weightDelta > 0 ? '+' : ''}${stats.weightDelta.toFixed(1)}kg` : '—', color: stats.weightDelta !== null && stats.weightDelta > 0 ? '#10B981' : '#6B7280', icon: '⚖️' },
+              { label: 'Recovery', value: stats.avgRecovery !== null ? `${stats.avgRecovery}%` : '—', color: stats.avgRecovery !== null ? (stats.avgRecovery >= 67 ? '#10B981' : stats.avgRecovery >= 34 ? '#F59E0B' : '#EF4444') : '#6B7280', icon: '💚' },
             ].map(stat => (
               <View
                 key={stat.label}

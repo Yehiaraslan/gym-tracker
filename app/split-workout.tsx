@@ -10,6 +10,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { SplitSetLogger } from '@/components/split-set-logger';
 import { VolumeTracker } from '@/components/volume-tracker';
 import { useColors } from '@/hooks/use-colors';
+import { RecoveryBanner } from '@/components/recovery-banner';
 import { useKeepAwake } from 'expo-keep-awake';
 import * as Haptics from 'expo-haptics';
 import {
@@ -42,7 +43,7 @@ export default function SplitWorkoutScreen() {
   const params = useLocalSearchParams<{ session?: string; deload?: string }>();
 
   const sessionType = (params.session as SessionType) || getTodaySession();
-  const isDeload = params.deload === 'true';
+  const [isDeload, setIsDeload] = useState(params.deload === 'true');
   const exercises = sessionType !== 'rest' ? PROGRAM_SESSIONS[sessionType] : [];
 
   const [started, setStarted] = useState(false);
@@ -266,6 +267,10 @@ export default function SplitWorkoutScreen() {
             </View>
           </View>
 
+          {/* WHOOP Recovery Banner */}
+          <View className="px-6 mb-4">
+            <RecoveryBanner onSuggestDeload={() => setIsDeload(true)} />
+          </View>
           {/* Exercise preview */}
           <View className="px-6 mb-4">
             <View className="rounded-2xl p-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>

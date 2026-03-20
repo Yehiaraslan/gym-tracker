@@ -5,6 +5,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { epley1RM } from './fitness-utils';
 import type { WorkoutLog, BodyMeasurement } from './types';
+import { getWeeklyRecoveryData, getRecoveryTrend, getWeeklyAverageRecovery, type WeeklyRecoveryData } from './whoop-recovery-service';
 
 // ---- Types ----
 
@@ -269,11 +270,102 @@ export function checkProgressiveOverload(
 }
 
 /**
+ * Analyze WHOOP recovery trends and flag overreaching.
+ */
+export async function analyzeRecoveryTrend(): Promise<CoachRecommendation[]> {
+  const recs: CoachRecommendation[] = [];
+  try {
+    const weeklyData = await getWeeklyRecoveryData();
+    if (weeklyData.length < 3) return recs;
+
+    const avgRecovery = getWeeklyAverageRecovery(weeklyData);
+    const trend = getRecoveryTrend(weeklyData);
+
+    if (avgRecovery < 34) {
+      recs.push(makeRec(
+        'recovery',
+        `WHOOP recovery averaging ${avgRecovery}% (red zone)`,
+        'Consider a deload or rest day. Recovery must improve before pushing volume.',
+        'high',
+      ));
+    } else if (trend === 'declining' && avgRecovery < 50) {
+      recs.push(makeRec(
+        'recovery',
+        `Recovery declining — now at ${avgRecovery}%`,
+        'Reduce training intensity this week. Check sleep and nutrition.',
+        'high',
+      ));
+    } else if (trend === 'declining') {
+      recs.push(makeRec(
+        'recovery',
+        `Recovery trend declining (avg ${avgRecovery}%)`,
+        'Monitor closely. If it continues, reduce volume next week.',
+        'medium',
+      ));
+    }
+  } catch (_e) {
+    // WHOOP not connected — skip silently
+  }
+  return recs;
+}
+
+/**
+ * Analyze RPE vs WHOOP recovery correlation.
+ * Flags when RPE is climbing but recovery is dropping (overreaching signal).
+ */
+export async function analyzeRPEvsRecovery(
+  splitWorkouts: { exercises: { sets: { rpe?: number; isWarmup?: boolean }[] }[] }[],
+): Promise<CoachRecommendation[]> {
+  const recs: CoachRecommendation[] = [];
+  try {
+    const weeklyData = await getWeeklyRecoveryData();
+    if (weeklyData.length < 3) return recs;
+
+    const avgRecovery = getWeeklyAverageRecovery(weeklyData);
+    const trend = getRecoveryTrend(weeklyData);
+
+    // Calculate average RPE across recent split workouts
+    const allRPEs: number[] = [];
+    for (const w of splitWorkouts.slice(0, 5)) {
+      for (const ex of w.exercises) {
+        for (const s of ex.sets) {
+          if (s.rpe && !s.isWarmup) allRPEs.push(s.rpe);
+        }
+      }
+    }
+
+    if (allRPEs.length < 5) return recs;
+    const avgRPE = allRPEs.reduce((a, b) => a + b, 0) / allRPEs.length;
+
+    // Overreaching signal: high RPE + declining recovery
+    if (avgRPE >= 9 && trend === 'declining') {
+      recs.push(makeRec(
+        'recovery',
+        `Overreaching detected: RPE ${avgRPE.toFixed(1)} + recovery declining`,
+        'Take a deload week or 2 rest days. Your body is accumulating fatigue faster than it recovers.',
+        'high',
+      ));
+    } else if (avgRPE >= 9 && avgRecovery < 50) {
+      recs.push(makeRec(
+        'training',
+        `High effort (RPE ${avgRPE.toFixed(1)}) with moderate recovery (${avgRecovery}%)`,
+        'Consider backing off RPE to 7-8 range until recovery improves.',
+        'medium',
+      ));
+    }
+  } catch (_e) {
+    // WHOOP not connected
+  }
+  return recs;
+}
+
+/**
  * Run full weekly analysis. Call periodically (e.g., on app open).
  */
 export async function runWeeklyAnalysis(
   workouts: WorkoutLog[],
   currentWeek: number,
+  splitWorkouts?: { exercises: { sets: { rpe?: number; isWarmup?: boolean }[] }[] }[],
 ): Promise<CoachRecommendation[]> {
   const [weightEntries, sleepEntries] = await Promise.all([
     getWeightEntries(),
@@ -285,6 +377,8 @@ export async function runWeeklyAnalysis(
     ...analyzeSleepTrend(sleepEntries),
     ...analyzeStrengthStall(workouts),
     ...checkDeloadApproaching(currentWeek),
+    ...(await analyzeRecoveryTrend()),
+    ...(splitWorkouts ? await analyzeRPEvsRecovery(splitWorkouts) : []),
   ];
 
   // Only save new recs (check by message to avoid duplicates)
