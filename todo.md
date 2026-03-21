@@ -707,3 +707,9 @@
 - [x] Fix real-pose-detection.ts / use-pose-camera.ts pipeline
 - [x] Ensure demo mode works as fallback when camera data is unavailable
 - [x] Add visible debug overlay showing detection status on tracking screen (already existed via showDebug flag)
+
+## AI Form Coach Deep Fix (Session Mar 21 2026 - Round 2)
+- [x] Audit full pipeline: camera → mediapipe → onResults → real-pose-detection → UI
+- [x] Add console.log debug trail to confirm which stage fails
+- [x] Rebuild detection pipeline with simpler direct approach (fixed babel plugin)
+- [x] Verify model file path resolution at runtime (model is in android/app/src/main/assets/)
