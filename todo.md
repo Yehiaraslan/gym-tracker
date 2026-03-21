@@ -701,3 +701,9 @@
 - [x] Add "Form Coach" button/card on home screen quick actions
 - [ ] Add "Check Form" button inside active workout exercise cards (future)
 - [x] Fix TypeScript error in split-home-section.tsx (Record<string,string> type annotations)
+
+## AI Form Coach Detection Fix (Session Mar 21 2026)
+- [x] Diagnose why pose detection returns nothing on device
+- [x] Fix real-pose-detection.ts / use-pose-camera.ts pipeline
+- [x] Ensure demo mode works as fallback when camera data is unavailable
+- [x] Add visible debug overlay showing detection status on tracking screen (already existed via showDebug flag)

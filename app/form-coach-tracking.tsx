@@ -120,7 +120,15 @@ export default function FormCoachTrackingScreen() {
   // VisionCamera + MediaPipe pose detection
   const isActive = trackingState === 'calibrating' || trackingState === 'positioning' || 
                    trackingState === 'ready' || trackingState === 'tracking';
-  const { cameraRef: visionCameraRef, device, hasPermission, frameProcessor, fps: detectionFps } = usePoseCamera({
+  const {
+    cameraRef: visionCameraRef,
+    device,
+    hasPermission,
+    frameProcessor,
+    cameraViewLayoutChangeHandler,
+    cameraOrientationChangedHandler,
+    fps: detectionFps,
+  } = usePoseCamera({
     position: cameraFacing,
     active: isActive,
   });
@@ -573,7 +581,10 @@ export default function FormCoachTrackingScreen() {
               device={device}
               isActive={isActive}
               frameProcessor={frameProcessor}
-              pixelFormat="yuv"
+              pixelFormat="rgb"
+              outputOrientation="preview"
+              onLayout={cameraViewLayoutChangeHandler}
+              onOutputOrientationChanged={cameraOrientationChangedHandler}
               onStarted={() => setCameraReady(true)}
             />
           ) : (

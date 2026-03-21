@@ -1,16 +1,13 @@
 /**
  * usePoseCamera — VisionCamera + MediaPipe Pose Landmarker hook
  *
- * Provides a Camera ref and a frame processor that feeds MediaPipe landmarks
- * into the RealPoseDetector singleton. The rest of the tracking pipeline
- * (progressive calibration, exercise trackers, overlays) reads from the
- * detector as before — zero API changes.
- *
- * Requirements (install once):
- *   npx expo install react-native-vision-camera
- *   npm install react-native-mediapipe
- *
- * You also need an Expo development build (not Expo Go).
+ * Wiring based on the official MediapipeCamera reference component:
+ * - cameraDeviceChangeHandler called via useEffect on device change
+ * - cameraViewLayoutChangeHandler passed as onLayout to Camera
+ * - cameraOrientationChangedHandler passed as onOutputOrientationChanged
+ * - outputOrientation="preview" required for correct landmark mapping
+ * - pixelFormat="rgb" required by MediaPipe (not "yuv")
+ * - onResults accepts (result, viewCoordinator) — both args required
  */
 
 import { useRef, useEffect, useState, useCallback } from 'react';
@@ -26,6 +23,8 @@ import {
   RunningMode,
   Delegate,
 } from 'react-native-mediapipe';
+import type { ViewCoordinator } from 'react-native-mediapipe';
+// ViewCoordinator is exported from react-native-mediapipe shared/types via index
 import { getRealPoseDetector, type MediaPipeLandmark } from '@/lib/real-pose-detection';
 
 export interface UsePoseCameraOptions {
@@ -64,9 +63,9 @@ export function usePoseCamera(opts: UsePoseCameraOptions = {}) {
     return () => clearInterval(interval);
   }, []);
 
-  // Callback-based pose detection results handler
+  // onResults — accepts (result, viewCoordinator) per DetectionCallbacks interface
   const onResults = useCallback(
-    (result: PoseDetectionResultBundle) => {
+    (result: PoseDetectionResultBundle, _vc: ViewCoordinator) => {
       if (!active) return;
       frameCountRef.current++;
 
@@ -91,8 +90,7 @@ export function usePoseCamera(opts: UsePoseCameraOptions = {}) {
     console.warn('[MediaPipe Pose] Error:', error.message);
   }, []);
 
-  // MediaPipe Pose hook — callback-based API
-  // usePoseDetection(callbacks, runningMode, model, options?)
+  // MediaPipe Pose hook
   const poseDetection = usePoseDetection(
     { onResults, onError },
     RunningMode.LIVE_STREAM,
@@ -109,6 +107,14 @@ export function usePoseCamera(opts: UsePoseCameraOptions = {}) {
     },
   );
 
+  // CRITICAL: notify MediaPipe when the camera device changes so it can
+  // update the BaseViewCoordinator with the correct sensor orientation.
+  useEffect(() => {
+    if (device) {
+      poseDetection.cameraDeviceChangeHandler(device);
+    }
+  }, [device, poseDetection.cameraDeviceChangeHandler]);
+
   return {
     cameraRef,
     device,
@@ -116,8 +122,10 @@ export function usePoseCamera(opts: UsePoseCameraOptions = {}) {
     cameraReady,
     setCameraReady,
     frameProcessor: poseDetection.frameProcessor,
+    // Pass these to the Camera component:
+    // onLayout={cameraViewLayoutChangeHandler}
+    // onOutputOrientationChanged={cameraOrientationChangedHandler}
     cameraViewLayoutChangeHandler: poseDetection.cameraViewLayoutChangeHandler,
-    cameraDeviceChangeHandler: poseDetection.cameraDeviceChangeHandler,
     cameraOrientationChangedHandler: poseDetection.cameraOrientationChangedHandler,
     fps,
   };

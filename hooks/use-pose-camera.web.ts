@@ -1,13 +1,15 @@
-// Web stub — VisionCamera is native-only
+// Web stub — VisionCamera + MediaPipe are native-only
 // Metro uses this file on web instead of use-pose-camera.ts
 export function usePoseCamera() {
   return {
+    cameraRef: { current: null },
     device: null,
     hasPermission: false,
-    requestPermission: async () => false,
-    isActive: false,
+    cameraReady: false,
+    setCameraReady: (_: boolean) => {},
     frameProcessor: undefined,
-    toggleCamera: () => {},
-    cameraPosition: 'front' as const,
+    cameraViewLayoutChangeHandler: () => {},
+    cameraOrientationChangedHandler: () => {},
+    fps: 0,
   };
 }
