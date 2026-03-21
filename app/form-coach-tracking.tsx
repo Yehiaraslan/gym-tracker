@@ -128,6 +128,8 @@ export default function FormCoachTrackingScreen() {
     cameraViewLayoutChangeHandler,
     cameraOrientationChangedHandler,
     fps: detectionFps,
+    cameraAllowed,
+    detectorReady,
   } = usePoseCamera({
     position: cameraFacing,
     active: isActive,
@@ -575,18 +577,29 @@ export default function FormCoachTrackingScreen() {
         {/* Camera View */}
         <View style={styles.cameraContainer}>
           {Platform.OS !== 'web' && device ? (
-            <VisionCamera
-              ref={visionCameraRef}
-              style={styles.camera}
-              device={device}
-              isActive={isActive}
-              frameProcessor={frameProcessor}
-              pixelFormat="rgb"
-              outputOrientation="preview"
-              onLayout={cameraViewLayoutChangeHandler}
-              onOutputOrientationChanged={cameraOrientationChangedHandler}
-              onStarted={() => setCameraReady(true)}
-            />
+            <>
+              <VisionCamera
+                ref={visionCameraRef}
+                style={styles.camera}
+                device={device}
+                isActive={isActive}
+                // Only attach frameProcessor after cameraAllowed delay (2s).
+                // This prevents the Kotlin ClassCastException from detectorHandle
+                // being undefined on the first frames before createDetector() resolves.
+                frameProcessor={cameraAllowed ? frameProcessor : undefined}
+                pixelFormat="rgb"
+                outputOrientation="preview"
+                onLayout={cameraViewLayoutChangeHandler}
+                onOutputOrientationChanged={cameraOrientationChangedHandler}
+                onStarted={() => setCameraReady(true)}
+              />
+              {!cameraAllowed && (
+                <View style={[styles.camera, styles.initOverlay]}>
+                  <ActivityIndicator size="large" color={colors.primary} />
+                  <Text style={[styles.initText, { color: colors.foreground }]}>Initializing detector...</Text>
+                </View>
+              )}
+            </>
           ) : (
             <View style={[styles.camera, { backgroundColor: colors.surface }]}>
               <Text className="text-muted">Camera preview (web simulation)</Text>
@@ -1000,6 +1013,22 @@ const styles = StyleSheet.create({
   lostJointsText: {
     color: '#fff',
     fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  initOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
+  },
+  initText: {
+    fontSize: 14,
     fontWeight: '600',
     textAlign: 'center',
   },

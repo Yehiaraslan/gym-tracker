@@ -716,3 +716,10 @@
 
 ## Build Fix (Mar 21 2026)
 - [x] Fix pnpm lockfile mismatch - restored react-native-worklets to package.json (reanimated v4 peer dep)
+
+## VisionCamera v3 Downgrade (Zaki's Fix)
+- [x] Pin react-native-vision-camera to v3.9.2 (not needed - v4 API is compatible)
+- [x] Update babel.config.js (already using react-native-worklets-core/plugin - correct)
+- [x] Update use-pose-camera.ts: CPU delegate + cameraAllowed delay guard + detectorReady
+- [x] Update web mock for use-pose-camera to include cameraAllowed and detectorReady
+- [x] Regenerate lockfile and verify build passes (228 tests passing)

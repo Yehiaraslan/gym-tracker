@@ -7,6 +7,8 @@ export function usePoseCamera() {
     hasPermission: false,
     cameraReady: false,
     setCameraReady: (_: boolean) => {},
+    detectorReady: false,
+    cameraAllowed: false,
     frameProcessor: undefined,
     cameraViewLayoutChangeHandler: () => {},
     cameraOrientationChangedHandler: () => {},

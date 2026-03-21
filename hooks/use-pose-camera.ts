@@ -1,13 +1,16 @@
 /**
  * usePoseCamera — VisionCamera + MediaPipe Pose Landmarker hook
  *
- * Wiring based on the official MediapipeCamera reference component:
- * - cameraDeviceChangeHandler called via useEffect on device change
- * - cameraViewLayoutChangeHandler passed as onLayout to Camera
- * - cameraOrientationChangedHandler passed as onOutputOrientationChanged
- * - outputOrientation="preview" required for correct landmark mapping
- * - pixelFormat="rgb" required by MediaPipe (not "yuv")
- * - onResults accepts (result, viewCoordinator) — both args required
+ * Root cause of "no detection": the mediapipe Kotlin plugin does
+ *   val detectorHandle: Double = params!!["detectorHandle"] as Double
+ * When detectorHandle is undefined (before createDetector() resolves),
+ * this throws a ClassCastException → frame processor silently stops.
+ *
+ * Fix: expose `detectorReady` flag. Caller should only mount <Camera> with
+ * frameProcessor once detectorReady === true.
+ *
+ * Also: Delegate.CPU instead of GPU — GPU delegate fails silently on many
+ * Android devices (driver issues, init timeout).
  */
 
 import { useRef, useEffect, useState, useCallback } from 'react';
@@ -24,7 +27,6 @@ import {
   Delegate,
 } from 'react-native-mediapipe';
 import type { ViewCoordinator } from 'react-native-mediapipe';
-// ViewCoordinator is exported from react-native-mediapipe shared/types via index
 import { getRealPoseDetector, type MediaPipeLandmark } from '@/lib/real-pose-detection';
 
 export interface UsePoseCameraOptions {
@@ -39,6 +41,12 @@ export function usePoseCamera(opts: UsePoseCameraOptions = {}) {
   const cameraRef = useRef<Camera>(null);
   const [cameraReady, setCameraReady] = useState(false);
   const [fps, setFps] = useState(0);
+
+  // detectorReady: true once createDetector() has resolved AND at least one
+  // frame has been processed successfully. Until then, the Camera should not
+  // pass frames to the mediapipe frame processor (avoids Kotlin ClassCastException).
+  const [detectorReady, setDetectorReady] = useState(false);
+  const detectorReadyRef = useRef(false);
 
   // VisionCamera device + permission
   const device = useCameraDevice(position);
@@ -63,11 +71,18 @@ export function usePoseCamera(opts: UsePoseCameraOptions = {}) {
     return () => clearInterval(interval);
   }, []);
 
-  // onResults — accepts (result, viewCoordinator) per DetectionCallbacks interface
+  // onResults — called by MediaPipe when a pose is detected.
+  // First call confirms the detector is fully initialized.
   const onResults = useCallback(
     (result: PoseDetectionResultBundle, _vc: ViewCoordinator) => {
       if (!active) return;
       frameCountRef.current++;
+
+      // Mark detector as ready on first successful result
+      if (!detectorReadyRef.current) {
+        detectorReadyRef.current = true;
+        setDetectorReady(true);
+      }
 
       const poseResults = result.results;
       if (poseResults && poseResults.length > 0) {
@@ -87,16 +102,17 @@ export function usePoseCamera(opts: UsePoseCameraOptions = {}) {
   );
 
   const onError = useCallback((error: { code: number; message: string }) => {
-    console.warn('[MediaPipe Pose] Error:', error.message);
+    console.warn('[MediaPipe Pose] Error:', error.code, error.message);
   }, []);
 
-  // MediaPipe Pose hook
+  // MediaPipe Pose hook — CPU delegate is more reliable than GPU across Android devices.
+  // GPU can fail silently on many devices (init timeout, driver issues).
   const poseDetection = usePoseDetection(
     { onResults, onError },
     RunningMode.LIVE_STREAM,
     'pose_landmarker_lite.task',
     {
-      delegate: Delegate.GPU,
+      delegate: Delegate.CPU,
       numPoses: 1,
       minPoseDetectionConfidence: 0.5,
       minPosePresenceConfidence: 0.5,
@@ -115,12 +131,26 @@ export function usePoseCamera(opts: UsePoseCameraOptions = {}) {
     }
   }, [device, poseDetection.cameraDeviceChangeHandler]);
 
+  // Delay: give createDetector() time to resolve before mounting the camera
+  // with a frame processor. This prevents the Kotlin ClassCastException from
+  // detectorHandle being undefined on the first frames.
+  // The mediapipe library logs "usePoseDetection.createDetector <handle>" when ready.
+  const [cameraAllowed, setCameraAllowed] = useState(false);
+  useEffect(() => {
+    // 2 second delay — createDetector() typically resolves in 500ms-1500ms
+    const timer = setTimeout(() => setCameraAllowed(true), 2000);
+    return () => clearTimeout(timer);
+  }, []);
+
   return {
     cameraRef,
     device,
     hasPermission,
     cameraReady,
     setCameraReady,
+    detectorReady,
+    // cameraAllowed: only mount Camera with frameProcessor after this is true
+    cameraAllowed,
     frameProcessor: poseDetection.frameProcessor,
     // Pass these to the Camera component:
     // onLayout={cameraViewLayoutChangeHandler}
