@@ -534,44 +534,55 @@
 ## Phase 8: Hypertrophy Tracker Feature Port
 
 ### WHOOP Server-Side OAuth (Fix)
-- [ ] Port WHOOP router, service, DB, crypto, and state DB to server
-- [ ] Add WHOOP database tables to drizzle schema
-- [ ] Run database migrations for WHOOP tables
-- [ ] Set WHOOP_CLIENT_ID and WHOOP_CLIENT_SECRET env vars
-- [ ] Create WHOOP callback page for OAuth redirect
-- [ ] Provide redirect URI to user for WHOOP developer portal
+- [x] Port WHOOP router, service, DB, crypto, and state DB to server
+- [x] Add WHOOP database tables to drizzle schema
+- [x] Run database migrations for WHOOP tables
+- [x] Set WHOOP_CLIENT_ID and WHOOP_CLIENT_SECRET env vars
+- [x] Create WHOOP callback page for OAuth redirect
+- [x] Provide redirect URI to user for WHOOP developer portal
 
 ### Exercise Library
-- [ ] Port 30-exercise library with YouTube videos and instructions
-- [ ] Add exercise detail with setup/execution/common mistakes/pro tips
+- [x] Port 30-exercise library with YouTube videos and instructions
+- [x] Add exercise detail with setup/execution/common mistakes/pro tips
 
 ### Training Program
-- [ ] Port Upper/Lower 4-day split with mesocycle tracking
-- [ ] Add program progression logic
+- [x] Port Upper/Lower 4-day split with mesocycle tracking
+- [x] Add program progression logic
 
 ### Coach Engine
-- [ ] Port rule-based coach engine (weight trends, sleep, stalls, deload)
+- [x] Port rule-based coach engine (weight trends, sleep, stalls, deload)
 
 ### Nutrition Tracking
-- [ ] Copy UAE food database JSON
-- [ ] Port meal logging with macro tracking
-- [ ] Add supplement checklist
-- [ ] Create food search component
+- [x] Copy UAE food database JSON
+- [x] Port meal logging with macro tracking
+- [x] Add supplement checklist
+- [x] Create food search component
 
 ### Sleep Tracking
-- [ ] Port bedtime/wake time logging
-- [ ] Add sleep quality rating
+- [x] Port bedtime/wake time logging
+- [x] Add sleep quality rating
 
 ### Body Measurements
-- [ ] Port daily weight tracking enhancements
+- [x] Port daily weight tracking enhancements
 
 ### PR Board
-- [ ] Port personal records with Epley 1RM formula
+- [x] Port personal records with Epley 1RM formula
 
 ### XP/Level System
-- [ ] Port gamification (Beginner to Legend progression)
+- [x] Port gamification (Beginner to Legend progression)
 
 ### Professional README & Icon
-- [ ] Generate custom app icon (banana pro style)
-- [ ] Create professional README
-- [ ] Push updated code to GitHub
+- [x] Generate custom app icon (banana pro style)
+- [x] Create professional README
+- [x] Push updated code to GitHub
+
+## Phase 9: MediaPipe Pose Detection Integration
+- [ ] Fetch and merge feat/mediapipe-pose branch into main
+- [ ] Resolve merge conflicts (VisionCamera code wins for camera-related code)
+- [ ] Install new dependencies
+- [ ] Download MediaPipe pose model (pose_landmarker_lite.task)
+- [ ] Place model in Android assets directory
+- [ ] Run expo prebuild --clean
+- [ ] Read docs/mediapipe-migration.md
+- [ ] Verify compilation with 0 errors
+- [ ] Push to GitHub
