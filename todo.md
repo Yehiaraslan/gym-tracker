@@ -728,3 +728,4 @@
 - [x] Report full status to Zaki (server returned EOF, used his earlier diagnosis)
 - [x] Add visible debug panel to tracking screen (7-stage pipeline debug with green/red indicators)
 - [x] Add adb logcat capture instructions to debug overlay (stage labels guide user)
+- [x] Make debug panel visible by default (showDebug starts as true, DBG button always visible in top-right)

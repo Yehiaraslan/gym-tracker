@@ -94,7 +94,7 @@ export default function FormCoachTrackingScreen() {
   const [coachSubMessage, setCoachSubMessage] = useState('');
   const [currentPose, setCurrentPose] = useState<Pose | null>(null);
   const [formIssues, setFormIssues] = useState<string[]>([]);
-  const [showDebug, setShowDebug] = useState(false);
+  const [showDebug, setShowDebug] = useState(true); // ON by default for diagnosis
   const [calibratedPose, setCalibratedPose] = useState<Pose | null>(null);
 
   // Progressive calibration state
@@ -646,6 +646,14 @@ export default function FormCoachTrackingScreen() {
                   <IconSymbol name="figure.stand" size={20} color={showSkeleton ? colors.background : colors.foreground} />
                 </TouchableOpacity>
               )}
+
+              {/* Debug Toggle — always visible */}
+              <TouchableOpacity
+                style={[styles.controlButton, { backgroundColor: showDebug ? '#f59e0b' : colors.surface }]}
+                onPress={() => setShowDebug(!showDebug)}
+              >
+                <Text style={{ fontSize: 14, color: showDebug ? '#000' : colors.foreground, fontWeight: '700' }}>DBG</Text>
+              </TouchableOpacity>
             </View>
           </View>
 
