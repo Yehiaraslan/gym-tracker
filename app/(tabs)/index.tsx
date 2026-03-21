@@ -1,592 +1,542 @@
+// ============================================================
+// HOME SCREEN — Calendar Dashboard with Today's Workout
+// ============================================================
 
-import { useState, useEffect } from 'react';
-import { Text, View, TouchableOpacity, ScrollView, Platform, ActivityIndicator } from 'react-native';
+import { useState, useEffect, useMemo } from 'react';
+import { Text, View, TouchableOpacity, ScrollView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useColors } from '@/hooks/use-colors';
-import { useGym } from '@/lib/gym-context';
-import { getDayName, generateId, WorkoutLog, ExerciseLog } from '@/lib/types';
 import * as Haptics from 'expo-haptics';
-import { predownloadWorkoutGifs, checkWorkoutCacheStatus, DownloadProgress } from '@/lib/workout-predownload';
-import { getStreakData, checkStreakStatus, getStreakMessage, StreakData } from '@/lib/streak-tracker';
-import { getMilestoneProgress, checkNewMilestoneUnlocked } from '@/lib/streak-milestones';
-import { MilestoneCelebration } from '@/components/milestone-celebration';
-import { getTodayRecommendation } from '@/lib/rest-recommendation';
-import { getWeeklyRecoveryData, getWeeklyAverageRecovery } from '@/lib/whoop-recovery-service';
-import { getUnlockedRewards, getRewardProgress } from '@/lib/milestone-rewards';
-import { WeeklyRecoveryChart } from '@/components/weekly-recovery-chart';
-import { RewardsShowcase } from '@/components/rewards-showcase';
-import { MissedWorkoutsCard } from '@/components/missed-workouts-card';
-import { SplitHomeSection } from '@/components/split-home-section';
-import type { WeeklyRecoveryData } from '@/lib/whoop-recovery-service';
+import {
+  getTodaySession,
+  getSessionForDate,
+  SESSION_NAMES,
+  SESSION_COLORS,
+  PROGRAM_SESSIONS,
+  WEEKLY_SCHEDULE,
+  getMesocycleInfo,
+  NUTRITION_TARGETS,
+  type SessionType,
+} from '@/lib/training-program';
+import {
+  getRecentSplitWorkouts,
+  getLastSessionOfType,
+  getAllPRs,
+  type SplitWorkoutSession,
+} from '@/lib/split-workout-store';
+import { getMesocycleStartDate, getActiveRecommendations, type CoachRecommendation } from '@/lib/coach-engine';
+import { getStreakData, StreakData } from '@/lib/streak-tracker';
+import { getTodayRecoveryData, type RecoveryData } from '@/lib/whoop-recovery-service';
+
+const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export default function HomeScreen() {
   const colors = useColors();
   const router = useRouter();
-  const { 
-    store, 
-    currentCycleInfo, 
-    getTodayProgram, 
-    getExerciseById,
-    getLastWeight,
-  } = useGym();
-  
-  const todayProgram = getTodayProgram();
-  const today = new Date().toLocaleDateString('en-US', { 
-    weekday: 'long', 
-    month: 'long', 
-    day: 'numeric' 
-  });
 
-  // Pre-download state
-  const [downloadProgress, setDownloadProgress] = useState<DownloadProgress | null>(null);
-  const [cacheStatus, setCacheStatus] = useState<{ cached: number; total: number } | null>(null);
-  const [isDownloading, setIsDownloading] = useState(false);
+  const todaySession = getTodaySession();
+  const isRest = todaySession === 'rest';
+  const sessionColor = isRest ? colors.muted : SESSION_COLORS[todaySession];
+  const exercises = !isRest ? PROGRAM_SESSIONS[todaySession] : [];
 
-  // Streak state
+  const [mesoInfo, setMesoInfo] = useState<{ currentWeek: number; isDeload: boolean; daysUntilDeload: number } | null>(null);
+  const [lastSession, setLastSession] = useState<SplitWorkoutSession | null>(null);
+  const [recentWorkouts, setRecentWorkouts] = useState<SplitWorkoutSession[]>([]);
   const [streakData, setStreakData] = useState<StreakData | null>(null);
-  const [milestoneProgress, setMilestoneProgress] = useState<any>(null);
-  const [showMilestoneCelebration, setShowMilestoneCelebration] = useState(false);
-  const [newMilestone, setNewMilestone] = useState<any>(null);
-  const [restRecommendation, setRestRecommendation] = useState<any>(null);
+  const [recovery, setRecovery] = useState<RecoveryData | null>(null);
+  const [recommendations, setRecommendations] = useState<CoachRecommendation[]>([]);
+  const [prCount, setPrCount] = useState(0);
 
-  // Recovery and rewards state
-  const [weeklyRecoveryData, setWeeklyRecoveryData] = useState<WeeklyRecoveryData[]>([]);
-  const [unlockedRewards, setUnlockedRewards] = useState<any[]>([]);
-  const [rewardProgress, setRewardProgress] = useState<any>(null);
+  // Build this week's calendar
+  const weekDays = useMemo(() => {
+    const today = new Date();
+    const dayOfWeek = today.getDay(); // 0=Sun
+    const result: { date: Date; label: string; session: SessionType; isToday: boolean; dateNum: number }[] = [];
 
-  // Load streak data on mount
-  useEffect(() => {
-    const loadStreakData = async () => {
-      const data = await checkStreakStatus();
-      setStreakData(data);
-      
-      if (data) {
-        // Check for new milestone (compare with best streak to detect new unlocks)
-        const milestone = checkNewMilestoneUnlocked(data.bestStreak, data.currentStreak);
-        if (milestone) {
-          setNewMilestone(milestone);
-          setShowMilestoneCelebration(true);
-        }
-        
-        // Load milestone progress
-        const progress = getMilestoneProgress(data.currentStreak);
-        setMilestoneProgress(progress);
-        
-        // Load unlocked rewards
-        const rewards = getUnlockedRewards(data.currentStreak);
-        setUnlockedRewards(rewards);
-        
-        // Load reward progress
-        const progress2 = getRewardProgress(data.currentStreak);
-        setRewardProgress(progress2);
-      }
-    };
-    
-    loadStreakData();
-  }, []);
-
-  // Check cache status on mount
-  useEffect(() => {
-    if (todayProgram && todayProgram.exercises.length > 0) {
-      checkWorkoutCacheStatus(store.exercises, todayProgram.exercises)
-        .then(status => setCacheStatus(status));
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - dayOfWeek + i);
+      result.push({
+        date: d,
+        label: DAY_LABELS[i],
+        session: getSessionForDate(d),
+        isToday: d.toDateString() === today.toDateString(),
+        dateNum: d.getDate(),
+      });
     }
-  }, [todayProgram, store.exercises]);
-
-  // Load recovery data on mount
-  useEffect(() => {
-    const loadRecoveryData = async () => {
-      const data = await getWeeklyRecoveryData();
-      setWeeklyRecoveryData(data);
-    };
-    
-    loadRecoveryData();
+    return result;
   }, []);
 
-  // Load rest recommendation
   useEffect(() => {
-    const loadRecommendation = async () => {
-      try {
-        const rec = await getTodayRecommendation();
-        if (rec) {
-          // Transform to match our UI expectations
-          const transformed = {
-            shouldRest: rec.recommended,
-            reason: rec.reason,
-            recoveryScore: rec.recoveryScore,
-            message: rec.reason,
-            icon: rec.recommended ? '😴' : '💪',
-            color: rec.recommended ? '#EF4444' : '#22C55E',
-            confidence: 75,
-          };
-          setRestRecommendation(transformed);
-        }
-      } catch (error) {
-        console.error('Error loading rest recommendation:', error);
+    (async () => {
+      const mesoStart = await getMesocycleStartDate();
+      setMesoInfo(getMesocycleInfo(mesoStart));
+
+      if (!isRest) {
+        const prev = await getLastSessionOfType(todaySession);
+        setLastSession(prev || null);
       }
-    };
-    
-    loadRecommendation();
+
+      const recent = await getRecentSplitWorkouts(5);
+      setRecentWorkouts(recent);
+
+      const streak = await getStreakData();
+      setStreakData(streak);
+
+      const rec = await getTodayRecoveryData();
+      setRecovery(rec);
+
+      const recs = await getActiveRecommendations();
+      setRecommendations(recs.slice(0, 3));
+
+      const prs = await getAllPRs();
+      setPrCount(Object.keys(prs).length);
+    })();
   }, []);
 
-  const handlePredownload = async () => {
-    if (!todayProgram || !store.settings.rapidApiKey) return;
-    
-    setIsDownloading(true);
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    
-    try {
-      await predownloadWorkoutGifs(
-        store.exercises,
-        todayProgram.exercises,
-        store.settings.rapidApiKey,
-        (progress) => setDownloadProgress(progress)
-      );
-      
-      // Refresh cache status
-      const status = await checkWorkoutCacheStatus(store.exercises, todayProgram.exercises);
-      setCacheStatus(status);
-      
-      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (error) {
-      console.error('Pre-download failed:', error);
-      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    } finally {
-      setIsDownloading(false);
-    }
-  };
+  const today = new Date().toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  });
 
   const startWorkout = () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.push('/workout');
+    router.push(`/split-workout?session=${todaySession}&deload=${mesoInfo?.isDeload || false}`);
   };
 
+  // Recovery zone
+  const recoveryZone = recovery
+    ? recovery.recoveryScore >= 67
+      ? { color: '#10B981', label: 'High', icon: '🟢' }
+      : recovery.recoveryScore >= 34
+        ? { color: '#F59E0B', label: 'Moderate', icon: '🟡' }
+        : { color: '#EF4444', label: 'Low', icon: '🔴' }
+    : null;
+
   return (
-    <>
-      <MilestoneCelebration
-        badge={newMilestone}
-        visible={showMilestoneCelebration}
-        onDismiss={() => setShowMilestoneCelebration(false)}
-      />
-      <ScreenContainer className="flex-1">
-        <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 100 }}>
+    <ScreenContainer className="flex-1">
+      <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
         {/* Header */}
-        <View className="px-6 pt-4 pb-6">
-          <Text className="text-muted text-sm">{today}</Text>
-          <Text className="text-3xl font-bold text-foreground mt-1">Today's Workout</Text>
+        <View className="px-6 pt-4 pb-2">
+          <Text className="text-sm text-muted">{today}</Text>
+          <Text className="text-3xl font-bold text-foreground mt-1">Dashboard</Text>
         </View>
 
-        {/* Cycle Info Card */}
-        <View 
-          className="mx-6 mb-6 bg-surface rounded-2xl p-5"
-          style={{ borderWidth: 1, borderColor: colors.border }}
-        >
-          <View className="flex-row justify-between items-center">
-            <View>
-              <Text className="text-sm text-muted">Current Cycle</Text>
-              <Text className="text-2xl font-bold text-foreground">
-                Cycle {currentCycleInfo.cycle}
-              </Text>
-            </View>
-            <View className="items-end">
-              <Text className="text-sm text-muted">Week {currentCycleInfo.week} of 8</Text>
-              <Text className="text-lg font-semibold text-foreground">
-                {getDayName(currentCycleInfo.day)}
-              </Text>
-            </View>
-          </View>
-          
-          {/* Week Progress Bar */}
-          <View className="mt-4">
-            <View 
-              className="h-2 rounded-full overflow-hidden"
-              style={{ backgroundColor: colors.border }}
-            >
-              <View 
-                className="h-full rounded-full"
-                style={{ 
-                  width: `${(currentCycleInfo.week / 8) * 100}%`,
-                  backgroundColor: colors.primary,
-                }}
-              />
-            </View>
-          </View>
-        </View>
+        {/* Weekly Calendar Strip */}
+        <View className="px-4 py-4">
+          <View className="flex-row justify-between">
+            {weekDays.map((day, i) => {
+              const daySession = day.session;
+              const dayColor = daySession !== 'rest' ? SESSION_COLORS[daySession] : colors.border;
+              const hasWorkout = daySession !== 'rest';
+              // Check if this day has a completed workout
+              const isCompleted = recentWorkouts.some(
+                w => w.date === day.date.toISOString().split('T')[0] && w.completed
+              );
 
-        {/* Streak Card */}
-        {streakData && (
-          <View 
-            className="mx-6 mb-6 bg-surface rounded-2xl p-5"
-            style={{ borderWidth: 1, borderColor: colors.border }}
-          >
-            <View className="flex-row items-center justify-between">
-              <View className="flex-row items-center">
-                <View 
-                  className="w-12 h-12 rounded-full items-center justify-center mr-3"
-                  style={{ backgroundColor: streakData.currentStreak > 0 ? '#FF6B35' : colors.border }}
-                >
-                  <IconSymbol 
-                    name="flame.fill" 
-                    size={24} 
-                    color={streakData.currentStreak > 0 ? '#FFFFFF' : colors.muted} 
-                  />
-                </View>
-                <View>
-                  <Text className="text-sm text-muted">Current Streak</Text>
-                  <Text className="text-2xl font-bold text-foreground">
-                    {streakData.currentStreak} {streakData.currentStreak === 1 ? 'day' : 'days'}
-                  </Text>
-                </View>
-              </View>
-              <View className="items-end">
-                <Text className="text-sm text-muted">Best</Text>
-                <Text className="text-lg font-semibold text-foreground">
-                  {streakData.bestStreak} {streakData.bestStreak === 1 ? 'day' : 'days'}
-                </Text>
-              </View>
-            </View>
-            {streakData && (
-              <Text 
-                className="text-sm mt-3 text-center"
-                style={{ color: streakData.currentStreak > 0 ? '#FF6B35' : colors.muted }}
-              >
-                {getStreakMessage(streakData.currentStreak)}
-              </Text>
-            )}
-            
-            {/* Milestone Progress */}
-            {milestoneProgress && milestoneProgress.nextMilestone && streakData && (
-              <View className="mt-4 pt-4" style={{ borderTopWidth: 1, borderTopColor: colors.border }}>
-                <Text className="text-xs text-muted mb-2">Next Milestone</Text>
-                <View className="flex-row items-center justify-between">
-                  <Text className="font-semibold text-foreground">
-                    {milestoneProgress.nextMilestone.name}
-                  </Text>
-                  <Text className="text-xs text-muted">
-                    {Math.max(0, milestoneProgress.nextMilestone.streakDays - streakData.currentStreak)} days away
-                  </Text>
-                </View>
-              </View>
-            )}
-            
-            {/* Unlocked Badges */}
-            {milestoneProgress && milestoneProgress.achievements && milestoneProgress.achievements.filter((a: any) => a.isUnlocked).length > 0 && (
-              <View className="mt-4 pt-4" style={{ borderTopWidth: 1, borderTopColor: colors.border }}>
-                <Text className="text-xs text-muted mb-2">Unlocked Badges</Text>
-                <View className="flex-row gap-2">
-                  {milestoneProgress.achievements.filter((a: any) => a.isUnlocked).map((badge: any, idx: number) => (
-                    <View key={idx} className="flex-1 items-center py-2 px-2 rounded-lg" style={{ backgroundColor: colors.primary + '15' }}>
-                      <Text className="text-2xl">{badge.icon}</Text>
-                      <Text className="text-xs text-foreground font-semibold mt-1 text-center">{badge.streakDays}d</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* Rest Recommendation Card */}
-        {restRecommendation && (
-          <View 
-            className="mx-6 mb-6 bg-surface rounded-2xl p-5"
-            style={{ borderWidth: 1, borderColor: colors.border }}
-          >
-            <View className="flex-row items-center">
-              <Text className="text-3xl mr-3">{restRecommendation.icon}</Text>
-              <View className="flex-1">
-                <Text className="text-sm text-muted">Recovery Status</Text>
-                <Text className="text-lg font-semibold text-foreground mt-0.5">
-                  {restRecommendation.reason}
-                </Text>
-              </View>
-            </View>
-            <Text className="text-sm text-muted mt-3">
-              {restRecommendation.message}
-            </Text>
-            {restRecommendation.shouldRest && (
-              <View className="mt-3 px-3 py-2 rounded-lg" style={{ backgroundColor: colors.error + '15' }}>
-                <Text className="text-xs font-semibold" style={{ color: colors.error }}>
-                  💤 Consider a rest day today
-                </Text>
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* Missed Workouts */}
-        <MissedWorkoutsCard />
-
-        {/* Weekly Recovery Chart */}
-        {weeklyRecoveryData.length > 0 && (
-          <View className="mx-6 mb-6 bg-surface rounded-2xl p-5" style={{ borderWidth: 1, borderColor: colors.border }}>
-            <Text className="text-sm font-medium text-foreground mb-4">7-Day Recovery Trend</Text>
-            <WeeklyRecoveryChart data={weeklyRecoveryData} height={180} />
-          </View>
-        )}
-
-        {/* Unlocked Rewards */}
-        {unlockedRewards.length > 0 && (
-          <View className="mx-6 mb-6">
-            <RewardsShowcase unlockedRewards={unlockedRewards} />
-          </View>
-        )}
-
-        {/* Today's Exercises */}
-        {todayProgram && todayProgram.exercises.length > 0 ? (
-          <>
-            <View className="px-6 mb-4">
-              <Text className="text-lg font-semibold text-foreground">
-                {todayProgram.exercises.length} Exercises Today
-              </Text>
-            </View>
-
-            {todayProgram.exercises.map((dayEx, index) => {
-              const exercise = getExerciseById(dayEx.exerciseId);
-              const lastWeight = getLastWeight(dayEx.exerciseId);
-              
               return (
-                <View 
-                  key={index}
-                  className="mx-6 mb-3 bg-surface rounded-xl p-4"
-                  style={{ borderWidth: 1, borderColor: colors.border }}
+                <TouchableOpacity
+                  key={i}
+                  onPress={() => {
+                    if (day.isToday && !isRest) startWorkout();
+                  }}
+                  style={{
+                    alignItems: 'center',
+                    width: 44,
+                    paddingVertical: 8,
+                    borderRadius: 16,
+                    backgroundColor: day.isToday ? sessionColor + '15' : 'transparent',
+                    borderWidth: day.isToday ? 2 : 0,
+                    borderColor: day.isToday ? sessionColor : 'transparent',
+                  }}
                 >
-                  <View className="flex-row items-center">
-                    <View 
-                      className="w-8 h-8 rounded-full items-center justify-center mr-3"
-                      style={{ backgroundColor: colors.primary + '20' }}
+                  <Text
+                    className="text-xs font-medium"
+                    style={{ color: day.isToday ? sessionColor : colors.muted }}
+                  >
+                    {day.label}
+                  </Text>
+                  <Text
+                    className="text-lg font-bold mt-1"
+                    style={{ color: day.isToday ? colors.foreground : colors.muted }}
+                  >
+                    {day.dateNum}
+                  </Text>
+                  {/* Dot indicator */}
+                  <View
+                    style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: 3,
+                      marginTop: 4,
+                      backgroundColor: isCompleted ? '#10B981' : hasWorkout ? dayColor : 'transparent',
+                      opacity: isCompleted ? 1 : 0.5,
+                    }}
+                  />
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* Today's Workout Card — Primary CTA */}
+        {!isRest ? (
+          <View className="px-6 mb-4">
+            <TouchableOpacity
+              onPress={startWorkout}
+              activeOpacity={0.8}
+              style={{
+                borderRadius: 20,
+                padding: 20,
+                backgroundColor: sessionColor + '12',
+                borderWidth: 1.5,
+                borderColor: sessionColor + '35',
+              }}
+            >
+              <View className="flex-row items-center justify-between">
+                <View className="flex-1">
+                  <Text
+                    className="text-xs font-semibold"
+                    style={{ color: sessionColor, textTransform: 'uppercase', letterSpacing: 1.5 }}
+                  >
+                    Today's Workout
+                  </Text>
+                  <Text className="text-2xl font-bold text-foreground mt-1">
+                    {SESSION_NAMES[todaySession]}
+                  </Text>
+                  <Text className="text-sm text-muted mt-1">
+                    {exercises.length} exercises
+                    {mesoInfo?.isDeload ? ' · Deload Week' : ''}
+                  </Text>
+                </View>
+                <View
+                  style={{
+                    width: 56,
+                    height: 56,
+                    borderRadius: 16,
+                    backgroundColor: sessionColor,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <IconSymbol name="play.fill" size={24} color="#FFFFFF" />
+                </View>
+              </View>
+
+              {/* Exercise preview list */}
+              <View
+                className="mt-4 pt-4"
+                style={{ borderTopWidth: 1, borderTopColor: sessionColor + '20' }}
+              >
+                {exercises.slice(0, 4).map((ex, i) => (
+                  <View key={i} className="flex-row items-center py-1.5">
+                    <View
+                      style={{
+                        width: 22,
+                        height: 22,
+                        borderRadius: 11,
+                        backgroundColor: sessionColor + '20',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginRight: 10,
+                      }}
                     >
-                      <Text style={{ color: colors.primary, fontWeight: '700' }}>
-                        {index + 1}
+                      <Text className="text-xs font-bold" style={{ color: sessionColor }}>
+                        {i + 1}
                       </Text>
                     </View>
-                    <View className="flex-1">
-                      <Text className="font-semibold text-foreground">
-                        {exercise?.name || 'Unknown Exercise'}
-                      </Text>
-                      <Text className="text-sm text-muted mt-1">
-                        {dayEx.sets} sets × {dayEx.reps} reps
-                      </Text>
+                    <Text className="text-sm text-foreground flex-1" numberOfLines={1}>
+                      {ex.name}
+                    </Text>
+                    <Text className="text-xs text-muted">
+                      {ex.sets} × {ex.repsMin}-{ex.repsMax}
+                    </Text>
+                  </View>
+                ))}
+                {exercises.length > 4 && (
+                  <Text className="text-xs text-muted mt-1 ml-8">
+                    +{exercises.length - 4} more exercises
+                  </Text>
+                )}
+              </View>
+
+              {/* Last session reference */}
+              {lastSession && (
+                <View
+                  className="mt-3 pt-3"
+                  style={{ borderTopWidth: 1, borderTopColor: sessionColor + '15' }}
+                >
+                  <Text className="text-xs text-muted">
+                    Last: {new Date(lastSession.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                    {lastSession.durationMinutes ? ` · ${lastSession.durationMinutes}m` : ''}
+                    {lastSession.totalVolume ? ` · ${(lastSession.totalVolume / 1000).toFixed(1)}t` : ''}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View className="px-6 mb-4">
+            <View
+              style={{
+                borderRadius: 20,
+                padding: 20,
+                backgroundColor: colors.surface,
+                borderWidth: 1,
+                borderColor: colors.border,
+              }}
+            >
+              <View className="flex-row items-center">
+                <Text style={{ fontSize: 40 }}>😴</Text>
+                <View className="ml-4 flex-1">
+                  <Text className="text-xl font-bold text-foreground">Rest Day</Text>
+                  <Text className="text-sm text-muted mt-1">
+                    Recovery is where the gains happen. Stay hydrated and get quality sleep.
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* Quick Stats Row */}
+        <View className="px-6 mb-4">
+          <View className="flex-row" style={{ gap: 10 }}>
+            {/* Streak */}
+            <View
+              className="flex-1 rounded-2xl p-4"
+              style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+            >
+              <View className="flex-row items-center mb-1">
+                <IconSymbol name="flame.fill" size={16} color="#FF6B35" />
+                <Text className="text-xs text-muted ml-1">Streak</Text>
+              </View>
+              <Text className="text-2xl font-bold text-foreground">
+                {streakData?.currentStreak ?? 0}
+              </Text>
+              <Text className="text-xs text-muted">days</Text>
+            </View>
+
+            {/* Recovery */}
+            <View
+              className="flex-1 rounded-2xl p-4"
+              style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+            >
+              <View className="flex-row items-center mb-1">
+                <Text style={{ fontSize: 12 }}>{recoveryZone?.icon ?? '⚪'}</Text>
+                <Text className="text-xs text-muted ml-1">Recovery</Text>
+              </View>
+              <Text className="text-2xl font-bold text-foreground">
+                {recovery ? `${Math.round(recovery.recoveryScore)}%` : '--'}
+              </Text>
+              <Text className="text-xs text-muted">{recoveryZone?.label ?? 'No data'}</Text>
+            </View>
+
+            {/* Mesocycle */}
+            <View
+              className="flex-1 rounded-2xl p-4"
+              style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+            >
+              <View className="flex-row items-center mb-1">
+                <IconSymbol name="chart.line.uptrend.xyaxis" size={14} color={colors.primary} />
+                <Text className="text-xs text-muted ml-1">Meso</Text>
+              </View>
+              <Text className="text-2xl font-bold text-foreground">
+                {mesoInfo ? `W${mesoInfo.currentWeek}` : '--'}
+              </Text>
+              <Text className="text-xs text-muted">
+                {mesoInfo?.isDeload ? 'Deload' : `of 5`}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Recovery Insight (if connected) */}
+        {recovery && (
+          <View className="px-6 mb-4">
+            <View
+              className="rounded-2xl p-4"
+              style={{
+                backgroundColor: recoveryZone!.color + '10',
+                borderWidth: 1,
+                borderColor: recoveryZone!.color + '25',
+              }}
+            >
+              <View className="flex-row items-center justify-between">
+                <View className="flex-row items-center">
+                  <Text style={{ fontSize: 14 }}>{recoveryZone!.icon}</Text>
+                  <Text
+                    className="text-xs font-semibold ml-1.5"
+                    style={{ color: recoveryZone!.color, textTransform: 'uppercase', letterSpacing: 1 }}
+                  >
+                    WHOOP Recovery
+                  </Text>
+                </View>
+                <Text className="text-2xl font-black" style={{ color: recoveryZone!.color }}>
+                  {Math.round(recovery.recoveryScore)}%
+                </Text>
+              </View>
+              <Text className="text-sm text-foreground mt-2">
+                {recovery.recoveryScore >= 67
+                  ? 'Excellent recovery — train hard today!'
+                  : recovery.recoveryScore >= 34
+                    ? 'Moderate recovery — consider reducing intensity.'
+                    : 'Low recovery — rest or light session recommended.'}
+              </Text>
+              {(recovery.strain > 0 || recovery.sleepScore > 0) && (
+                <View className="flex-row mt-3 pt-3" style={{ borderTopWidth: 1, borderTopColor: recoveryZone!.color + '15', gap: 16 }}>
+                  {recovery.strain > 0 && (
+                    <View>
+                      <Text className="text-xs text-muted">Strain</Text>
+                      <Text className="text-sm font-semibold text-foreground">{recovery.strain.toFixed(1)}</Text>
                     </View>
-                    {lastWeight !== null && (
-                      <View className="items-end">
-                        <Text className="text-xs text-muted">Last</Text>
-                        <Text className="font-semibold" style={{ color: colors.primary }}>
-                          {lastWeight} kg
-                        </Text>
-                      </View>
-                    )}
+                  )}
+                  {recovery.sleepScore > 0 && (
+                    <View>
+                      <Text className="text-xs text-muted">Sleep</Text>
+                      <Text className="text-sm font-semibold text-foreground">{recovery.sleepScore}%</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+            </View>
+          </View>
+        )}
+
+        {/* Coach Recommendations */}
+        {recommendations.length > 0 && (
+          <View className="px-6 mb-4">
+            <Text className="text-sm font-semibold text-foreground mb-3">Smart Recommendations</Text>
+            {recommendations.map(rec => {
+              const typeColors: Record<string, string> = {
+                nutrition: '#F59E0B',
+                training: '#3B82F6',
+                recovery: '#8B5CF6',
+                overload: '#10B981',
+              };
+              const typeIcons: Record<string, string> = {
+                nutrition: '🍗',
+                training: '🏋️',
+                recovery: '😴',
+                overload: '📈',
+              };
+              const color = typeColors[rec.type] || colors.primary;
+              const icon = typeIcons[rec.type] || '💡';
+
+              return (
+                <View
+                  key={rec.id}
+                  className="rounded-xl p-3 mb-2"
+                  style={{ backgroundColor: color + '10', borderWidth: 1, borderColor: color + '20' }}
+                >
+                  <View className="flex-row items-start">
+                    <Text style={{ fontSize: 14 }}>{icon}</Text>
+                    <View className="ml-2 flex-1">
+                      <Text className="text-sm font-semibold" style={{ color }}>{rec.message}</Text>
+                      <Text className="text-xs text-muted mt-0.5">{rec.actionable}</Text>
+                    </View>
                   </View>
                 </View>
               );
             })}
-
-            {/* Pre-Download Button */}
-            {store.settings.rapidApiKey && (
-              <View className="px-6 mt-4">
-                <TouchableOpacity
-                  onPress={handlePredownload}
-                  disabled={isDownloading || !!(cacheStatus && cacheStatus.cached === cacheStatus.total && cacheStatus.total > 0)}
-                  style={{
-                    backgroundColor: cacheStatus && cacheStatus.cached === cacheStatus.total && cacheStatus.total > 0 
-                      ? colors.success + '20' 
-                      : colors.surface,
-                    borderWidth: 1,
-                    borderColor: cacheStatus && cacheStatus.cached === cacheStatus.total && cacheStatus.total > 0 
-                      ? colors.success 
-                      : colors.border,
-                    paddingVertical: 14,
-                    borderRadius: 12,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    opacity: isDownloading ? 0.7 : 1,
-                  }}
-                >
-                  {isDownloading ? (
-                    <>
-                      <ActivityIndicator size="small" color={colors.primary} />
-                      <Text className="font-semibold ml-2" style={{ color: colors.primary }}>
-                        Downloading {downloadProgress?.completed || 0}/{downloadProgress?.total || 0}...
-                      </Text>
-                    </>
-                  ) : cacheStatus && cacheStatus.cached === cacheStatus.total && cacheStatus.total > 0 ? (
-                    <>
-                      <IconSymbol name="checkmark.circle.fill" size={20} color={colors.success} />
-                      <Text className="font-semibold ml-2" style={{ color: colors.success }}>
-                        All GIFs Ready for Offline
-                      </Text>
-                    </>
-                  ) : (
-                    <>
-                      <IconSymbol name="arrow.down.circle.fill" size={20} color={colors.primary} />
-                      <Text className="font-semibold ml-2" style={{ color: colors.primary }}>
-                        Download GIFs for Offline ({cacheStatus?.cached || 0}/{cacheStatus?.total || todayProgram?.exercises.length || 0})
-                      </Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-                
-                {/* Download Progress Details */}
-                {downloadProgress && downloadProgress.status !== 'idle' && (
-                  <View className="mt-2 px-2">
-                    {downloadProgress.current && (
-                      <Text className="text-xs text-muted text-center">
-                        Downloading: {downloadProgress.current}
-                      </Text>
-                    )}
-                    {downloadProgress.failed > 0 && downloadProgress.status === 'complete' && (
-                      <Text className="text-xs text-center mt-1" style={{ color: colors.warning }}>
-                        {downloadProgress.failed} exercise(s) not found in database
-                      </Text>
-                    )}
-                  </View>
-                )}
-              </View>
-            )}
-
-            {/* Start Workout Button */}
-            <View className="px-6 mt-4">
-              <TouchableOpacity
-                onPress={startWorkout}
-                style={{
-                  backgroundColor: colors.primary,
-                  paddingVertical: 18,
-                  borderRadius: 16,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <IconSymbol name="play.fill" size={24} color="#FFFFFF" />
-                <Text className="text-white font-bold text-lg ml-2">
-                  Start Workout
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </>
-         ) : (
-          <View className="mx-6 items-center py-12">
-            <IconSymbol name="calendar" size={64} color={colors.muted} />
-            <Text className="text-xl font-semibold text-foreground mt-4">Rest Day</Text>
-            <Text className="text-muted text-center mt-2">
-              No workout scheduled for today.{`\n`}
-              Go to Admin to configure your program.
-            </Text>
-            <TouchableOpacity
-              onPress={() => router.push('/(tabs)/admin')}
-              className="mt-6 px-6 py-3 rounded-xl"
-              style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
-            >
-              <Text className="font-semibold text-foreground">Go to Admin</Text>
-            </TouchableOpacity>
           </View>
         )}
-        {/* Upper/Lower Split Program */}
-        <SplitHomeSection />
 
-
-        {/* AI Form Coach */}
-        <View className="px-6 mt-6">
-          <TouchableOpacity
-            onPress={() => {
-              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push('/form-coach');
-            }}
-            style={{
-              backgroundColor: colors.surface,
-              borderWidth: 1,
-              borderColor: colors.primary + '40',
-              paddingVertical: 16,
-              paddingHorizontal: 20,
-              borderRadius: 16,
-              flexDirection: 'row',
-              alignItems: 'center',
-            }}
-          >
-            <View 
-              className="w-12 h-12 rounded-xl items-center justify-center mr-4"
-              style={{ backgroundColor: colors.primary + '15' }}
+        {/* Quick Nav */}
+        <View className="px-6 mb-4">
+          <Text className="text-sm font-semibold text-foreground mb-3">Quick Access</Text>
+          <View className="flex-row flex-wrap" style={{ gap: 8 }}>
+            <TouchableOpacity
+              onPress={() => {
+                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push('/pr-board');
+              }}
+              className="flex-1 flex-row items-center rounded-xl p-3"
+              style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, minWidth: '45%' }}
             >
-              <Text style={{ fontSize: 24 }}>🤖</Text>
-            </View>
-            <View className="flex-1">
-              <Text className="font-semibold text-foreground">AI Form Coach</Text>
-              <Text className="text-sm text-muted mt-0.5">Track push-ups & pull-ups with AI</Text>
-            </View>
-            <IconSymbol name="chevron.right" size={20} color={colors.muted} />
-          </TouchableOpacity>
-        </View>
+              <Text style={{ fontSize: 18 }}>🏆</Text>
+              <Text className="text-sm font-medium text-foreground ml-2">PR Board</Text>
+            </TouchableOpacity>
 
-        {/* Quick Actions Grid */}
-        <View className="px-6 mt-6">
-          <Text className="text-lg font-semibold text-foreground mb-4">Quick Actions</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-            {[
-              { icon: '📚', label: 'Exercise Library', route: '/exercise-library' },
-              { icon: '🍎', label: 'Nutrition', route: '/nutrition' },
-              { icon: '😴', label: 'Sleep', route: '/sleep' },
-              { icon: '⚖️', label: 'Body Stats', route: '/body-measurements' },
-              { icon: '🏆', label: 'PR Board', route: '/pr-board' },
-              { icon: '📸', label: 'Progress Photos', route: '/progress-gallery' },
-            ].map((item) => (
-              <TouchableOpacity
-                key={item.route}
-                onPress={() => {
-                  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push(item.route as any);
-                }}
-                style={{
-                  width: '31%',
-                  backgroundColor: colors.surface,
-                  borderRadius: 14,
-                  padding: 14,
-                  alignItems: 'center',
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                }}
-              >
-                <Text style={{ fontSize: 24, marginBottom: 6 }}>{item.icon}</Text>
-                <Text style={{ color: colors.foreground, fontSize: 11, fontWeight: '600', textAlign: 'center' }}>
-                  {item.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            <TouchableOpacity
+              onPress={() => {
+                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push('/weekly-report');
+              }}
+              className="flex-1 flex-row items-center rounded-xl p-3"
+              style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, minWidth: '45%' }}
+            >
+              <Text style={{ fontSize: 18 }}>📋</Text>
+              <Text className="text-sm font-medium text-foreground ml-2">Report</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => {
+                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push('/next-week');
+              }}
+              className="flex-1 flex-row items-center rounded-xl p-3"
+              style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, minWidth: '45%' }}
+            >
+              <Text style={{ fontSize: 18 }}>📅</Text>
+              <Text className="text-sm font-medium text-foreground ml-2">Schedule</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => {
+                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push('/nutrition');
+              }}
+              className="flex-1 flex-row items-center rounded-xl p-3"
+              style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, minWidth: '45%' }}
+            >
+              <Text style={{ fontSize: 18 }}>🍗</Text>
+              <Text className="text-sm font-medium text-foreground ml-2">Nutrition</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
-        {/* Quick Stats */}
-        {store.workoutLogs.filter(l => l.isCompleted).length > 0 && (
-          <View className="px-6 mt-8">
-            <Text className="text-lg font-semibold text-foreground mb-4">Quick Stats</Text>
-            <View className="flex-row">
-              <View 
-                className="flex-1 bg-surface rounded-xl p-4 mr-2"
-                style={{ borderWidth: 1, borderColor: colors.border }}
+        {/* Recent Workouts */}
+        {recentWorkouts.length > 0 && (
+          <View className="px-6 mb-4">
+            <Text className="text-sm font-semibold text-foreground mb-3">Recent Workouts</Text>
+            {recentWorkouts.slice(0, 4).map(w => (
+              <View
+                key={w.id}
+                className="flex-row items-center rounded-xl p-3 mb-2"
+                style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
               >
-                <IconSymbol name="checkmark.circle.fill" size={24} color={colors.success} />
-                <Text className="text-2xl font-bold text-foreground mt-2">
-                  {store.workoutLogs.filter(l => l.isCompleted).length}
-                </Text>
-                <Text className="text-sm text-muted">Workouts</Text>
+                <View
+                  style={{
+                    width: 4,
+                    height: 32,
+                    borderRadius: 2,
+                    backgroundColor: SESSION_COLORS[w.sessionType],
+                    marginRight: 12,
+                  }}
+                />
+                <View className="flex-1">
+                  <Text className="text-sm font-medium text-foreground">
+                    {SESSION_NAMES[w.sessionType]}
+                  </Text>
+                  <Text className="text-xs text-muted">
+                    {new Date(w.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                    {w.durationMinutes ? ` · ${w.durationMinutes}m` : ''}
+                  </Text>
+                </View>
+                {w.totalVolume ? (
+                  <Text className="text-sm font-semibold" style={{ color: SESSION_COLORS[w.sessionType] }}>
+                    {(w.totalVolume / 1000).toFixed(1)}t
+                  </Text>
+                ) : null}
               </View>
-              <View 
-                className="flex-1 bg-surface rounded-xl p-4 ml-2"
-                style={{ borderWidth: 1, borderColor: colors.border }}
-              >
-                <IconSymbol name="trophy.fill" size={24} color={colors.warning} />
-                <Text className="text-2xl font-bold text-foreground mt-2">
-                  {currentCycleInfo.cycle}
-                </Text>
-                <Text className="text-sm text-muted">Cycles</Text>
-              </View>
-            </View>
+            ))}
           </View>
         )}
       </ScrollView>
-      </ScreenContainer>
-    </>
+    </ScreenContainer>
   );
 }

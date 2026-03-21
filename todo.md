@@ -588,4 +588,63 @@
 - [x] Remove old TF.js files (tensor-camera.tsx, tf-init.ts, tf-pose-detection.ts)
 - [x] Fix use-pose-camera.ts to match actual react-native-mediapipe API
 - [x] Add missing exports to coach-engine.ts for branch files
-- [ ] Push to GitHub
+- [x] Push to GitHub
+
+## Phase 10: Complete UX Overhaul — Guided Coaching Experience
+
+### Data & Program Initialization
+- [x] Preload Upper/Lower 4-day split program with all exercises on first launch
+- [x] Ensure exercises are visible without manual configuration
+- [x] Auto-assign workout plan so it's immediately accessible
+
+### Calendar Dashboard (Home Screen Redesign)
+- [x] Replace current home screen with calendar-based dashboard
+- [x] Highlight today's workout automatically
+- [x] Show workout type (Upper A, Lower A, Upper B, Lower B, Rest)
+- [x] Add prominent "Start Workout" button for today
+- [x] Display training readiness/recovery status
+
+### Workout Execution Flow
+- [x] Show exercises in ordered sequence
+- [x] For each exercise display: name, sets, target reps, weight input
+- [x] Embed YouTube video player in-app (not external links)
+- [x] Start global workout timer when workout begins
+- [x] Track total workout duration
+
+### Smart Training Logic
+- [x] After each set, analyze performance vs previous workout data
+- [x] Consider recovery metrics (WHOOP data) for suggestions
+- [x] Dynamically suggest: increase/decrease/maintain weight
+- [x] Implement progressive overload logic
+- [x] Factor in fatigue and historical performance trends
+
+### Set & Rest Flow
+- [x] "Finish Set" button after each set
+- [x] Display recommended rest timer after set completion
+- [x] Auto-start countdown timer
+- [x] Prompt user to begin next set after rest
+- [x] Repeat flow until all sets completed
+
+### Workout Completion
+- [x] "Finish Workout" button at end
+- [x] Save all workout data
+- [x] Show workout summary: duration, exercises completed, volume lifted
+- [x] Detect and display personal records achieved
+- [x] Compare workout duration with previous sessions
+
+### Performance Tracking
+- [x] Track personal bests per exercise
+- [x] Show progress over time
+- [x] Display PRs at end of workout and in dashboard analytics
+
+### Dashboard Recommendations
+- [x] Sleep optimization suggestions (based on recovery data)
+- [x] Protein intake tracking vs target
+- [x] Training readiness insights
+- [x] General fitness recommendations
+
+### UX Principles
+- [x] Minimize clicks: open app → start workout → execute sets
+- [x] Clear next action always visible
+- [x] Interactive visual feedback throughout
+- [x] Embedded YouTube player (no external redirects)

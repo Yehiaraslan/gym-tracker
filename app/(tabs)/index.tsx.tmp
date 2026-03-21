@@ -1,9 +1,0 @@
-  // Load recovery data on mount
-  useEffect(() => {
-    const loadRecoveryData = async () => {
-      const data = await getWeeklyRecoveryData();
-      setWeeklyRecoveryData(data);
-    };
-    
-    loadRecoveryData();
-  }, []);

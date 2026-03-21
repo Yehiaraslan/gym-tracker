@@ -49,6 +49,16 @@ const MAPPING = {
   "square.and.arrow.up": "share",
   "flame.fill": "local-fire-department",
   "heart.fill": "favorite",
+  "forward.fill": "skip-next",
+  "chevron.up": "expand-less",
+  "chevron.down": "expand-more",
+  "arrow.up.circle.fill": "arrow-circle-up",
+  "bolt.fill": "bolt",
+  "chart.bar.fill": "bar-chart",
+  "arrow.clockwise": "refresh",
+  "bed.double.fill": "hotel",
+  "fork.knife": "restaurant",
+  "figure.run": "directions-run",
 } as IconMapping;
 
 /**
