@@ -79,6 +79,9 @@ interface GymContextType {
   deleteWarmupExercise: (id: string) => Promise<void>;
   deleteCooldownExercise: (id: string) => Promise<void>;
   
+  // Generic store update (for nutrition, sleep, weight, XP, etc.)
+  updateStore: (newStore: GymStore) => Promise<void>;
+  
   // Refresh
   refresh: () => Promise<void>;
 }
@@ -99,6 +102,25 @@ export function GymProvider({ children }: { children: ReactNode }) {
       cycleStartDate: new Date().toISOString().split('T')[0],
       currentCycle: 1,
     },
+    nutritionLogs: [],
+    sleepEntries: [],
+    weightEntries: [],
+    mesocycle: {
+      id: 'meso-1',
+      startDate: new Date().toISOString().split('T')[0],
+      currentWeek: 1,
+      totalWeeks: 5,
+      isDeload: false,
+    },
+    coachRecommendations: [],
+    xpState: {
+      totalXP: 0,
+      level: 'Beginner' as const,
+      workoutsCompleted: 0,
+      perfectWeeks: 0,
+      prsHit: 0,
+    },
+    personalRecords: [],
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -239,6 +261,11 @@ export function GymProvider({ children }: { children: ReactNode }) {
     await updateAndSave(newStore);
   }, [store, updateAndSave]);
 
+  // Generic store update
+  const updateStoreGeneric = useCallback(async (newStore: GymStore) => {
+    await updateAndSave(newStore);
+  }, [updateAndSave]);
+
   // Refresh
   const refresh = useCallback(async () => {
     setIsLoading(true);
@@ -274,6 +301,7 @@ export function GymProvider({ children }: { children: ReactNode }) {
     updateCooldownExercise,
     deleteWarmupExercise,
     deleteCooldownExercise,
+    updateStore: updateStoreGeneric,
     refresh,
   };
 

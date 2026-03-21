@@ -28,6 +28,25 @@ const createEmptyStore = (): GymStore => ({
     cycleStartDate: '2024-01-01',
     currentCycle: 1,
   },
+  nutritionLogs: [],
+  sleepEntries: [],
+  weightEntries: [],
+  mesocycle: {
+    id: 'meso-1',
+    startDate: '2024-01-01',
+    currentWeek: 1,
+    totalWeeks: 5,
+    isDeload: false,
+  },
+  coachRecommendations: [],
+  xpState: {
+    totalXP: 0,
+    level: 'Beginner',
+    workoutsCompleted: 0,
+    perfectWeeks: 0,
+    prsHit: 0,
+  },
+  personalRecords: [],
 });
 
 describe('Exercise Operations', () => {

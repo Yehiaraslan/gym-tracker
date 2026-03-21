@@ -6,6 +6,8 @@ import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
+import * as whoopStateDb from "../whoopStateDb";
+import * as whoopService from "../whoopService";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise((resolve) => {
@@ -55,6 +57,40 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
   registerOAuthRoutes(app);
+
+  // WHOOP OAuth callback (browser redirect) - supports both paths
+  const whoopCallbackHandler = async (req: express.Request, res: express.Response) => {
+    try {
+      const { code, state } = req.query as { code?: string; state?: string };
+      if (!code || !state) {
+        res.status(400).send("Missing code or state parameter");
+        return;
+      }
+      const stateResult = await whoopStateDb.validateAndConsumeState(state);
+      if (!stateResult.valid || !stateResult.userOpenId) {
+        res.status(400).send("Invalid or expired OAuth state. Please try again.");
+        return;
+      }
+      await whoopService.exchangeCodeForTokens(code, stateResult.userOpenId);
+      res.send(`
+        <html>
+          <head><title>WHOOP Connected</title></head>
+          <body style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui;background:#0a0a0a;color:#00ff88;">
+            <div style="text-align:center;">
+              <h1>WHOOP Connected Successfully!</h1>
+              <p>You can close this window and return to the app.</p>
+              <script>setTimeout(()=>window.close(),3000)</script>
+            </div>
+          </body>
+        </html>
+      `);
+    } catch (error) {
+      console.error("[WHOOP Callback] Error:", error);
+      res.status(500).send("Failed to connect WHOOP. Please try again.");
+    }
+  };
+  app.get("/api/whoop/callback", whoopCallbackHandler);
+  app.get("/whoop-callback", whoopCallbackHandler);
 
   app.get("/api/health", (_req, res) => {
     res.json({ ok: true, timestamp: Date.now() });

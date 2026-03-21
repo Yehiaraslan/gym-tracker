@@ -516,6 +516,43 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Quick Actions Grid */}
+        <View className="px-6 mt-6">
+          <Text className="text-lg font-semibold text-foreground mb-4">Quick Actions</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            {[
+              { icon: '📚', label: 'Exercise Library', route: '/exercise-library' },
+              { icon: '🍎', label: 'Nutrition', route: '/nutrition' },
+              { icon: '😴', label: 'Sleep', route: '/sleep' },
+              { icon: '⚖️', label: 'Body Stats', route: '/body-measurements' },
+              { icon: '🏆', label: 'PR Board', route: '/pr-board' },
+              { icon: '📸', label: 'Progress Photos', route: '/progress-gallery' },
+            ].map((item) => (
+              <TouchableOpacity
+                key={item.route}
+                onPress={() => {
+                  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push(item.route as any);
+                }}
+                style={{
+                  width: '31%',
+                  backgroundColor: colors.surface,
+                  borderRadius: 14,
+                  padding: 14,
+                  alignItems: 'center',
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                }}
+              >
+                <Text style={{ fontSize: 24, marginBottom: 6 }}>{item.icon}</Text>
+                <Text style={{ color: colors.foreground, fontSize: 11, fontWeight: '600', textAlign: 'center' }}>
+                  {item.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
         {/* Quick Stats */}
         {store.workoutLogs.filter(l => l.isCompleted).length > 0 && (
           <View className="px-6 mt-8">

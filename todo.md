@@ -529,3 +529,49 @@
 - [x] Show before/after dates and progress (implemented)
 - [x] Add category labels (front/side/back) (implemented)
 - [x] Integrate slider into progress gallery (integrated)
+
+
+## Phase 8: Hypertrophy Tracker Feature Port
+
+### WHOOP Server-Side OAuth (Fix)
+- [ ] Port WHOOP router, service, DB, crypto, and state DB to server
+- [ ] Add WHOOP database tables to drizzle schema
+- [ ] Run database migrations for WHOOP tables
+- [ ] Set WHOOP_CLIENT_ID and WHOOP_CLIENT_SECRET env vars
+- [ ] Create WHOOP callback page for OAuth redirect
+- [ ] Provide redirect URI to user for WHOOP developer portal
+
+### Exercise Library
+- [ ] Port 30-exercise library with YouTube videos and instructions
+- [ ] Add exercise detail with setup/execution/common mistakes/pro tips
+
+### Training Program
+- [ ] Port Upper/Lower 4-day split with mesocycle tracking
+- [ ] Add program progression logic
+
+### Coach Engine
+- [ ] Port rule-based coach engine (weight trends, sleep, stalls, deload)
+
+### Nutrition Tracking
+- [ ] Copy UAE food database JSON
+- [ ] Port meal logging with macro tracking
+- [ ] Add supplement checklist
+- [ ] Create food search component
+
+### Sleep Tracking
+- [ ] Port bedtime/wake time logging
+- [ ] Add sleep quality rating
+
+### Body Measurements
+- [ ] Port daily weight tracking enhancements
+
+### PR Board
+- [ ] Port personal records with Epley 1RM formula
+
+### XP/Level System
+- [ ] Port gamification (Beginner to Legend progression)
+
+### Professional README & Icon
+- [ ] Generate custom app icon (banana pro style)
+- [ ] Create professional README
+- [ ] Push updated code to GitHub

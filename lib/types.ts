@@ -98,6 +98,134 @@ export interface WarmupCooldownConfig {
   cooldownExercises: WarmupCooldownExercise[];
 }
 
+// Session types for structured training
+export type SessionType = 'upper-a' | 'lower-a' | 'upper-b' | 'lower-b' | 'rest';
+
+// Exercise library entry (detailed exercise info with video)
+export interface ExerciseLibraryEntry {
+  name: string;
+  primaryMuscles: string[];
+  secondaryMuscles: string[];
+  equipment: string;
+  category: 'compound' | 'isolation' | 'cardio';
+  videoId: string; // YouTube video ID
+  videoTitle: string;
+  setup: string[];
+  execution: string[];
+  commonMistakes: { mistake: string; fix: string }[];
+  breathing: string;
+  proTip: string;
+  muscleGroup: 'chest' | 'back' | 'shoulders' | 'biceps' | 'triceps' | 'legs' | 'core' | 'full-body';
+}
+
+// Exercise target for training program
+export interface ExerciseTarget {
+  name: string;
+  sets: number;
+  repsMin: number;
+  repsMax: number;
+  restSeconds: number;
+  notes: string;
+  muscleGroup: 'upper' | 'lower';
+}
+
+// Nutrition types
+export interface FoodEntry {
+  id: string;
+  mealNumber: 1 | 2 | 3 | 4 | 5;
+  foodName: string;
+  protein: number;
+  carbs: number;
+  fat: number;
+  calories: number;
+  servingGrams: number;
+  timestamp: string;
+}
+
+export interface DailyNutrition {
+  date: string;
+  isTrainingDay: boolean;
+  meals: FoodEntry[];
+  targetCalories: number;
+  targetProtein: number;
+  targetCarbs: number;
+  targetFat: number;
+  supplementsChecked: SupplementCheck[];
+}
+
+export interface SupplementCheck {
+  name: string;
+  dose: string;
+  timing: string;
+  taken: boolean;
+}
+
+// Sleep tracking
+export interface SleepEntry {
+  id: string;
+  date: string;
+  bedtime: string; // HH:MM
+  wakeTime: string; // HH:MM
+  durationHours: number;
+  qualityRating: 1 | 2 | 3 | 4 | 5;
+  notes?: string;
+}
+
+// Weight tracking
+export interface WeightEntry {
+  id: string;
+  date: string;
+  weight: number; // kg
+  weightKg?: number; // legacy alias
+  bodyFatPercent?: number;
+  chest?: number; // cm
+  waist?: number; // cm
+  arms?: number; // cm
+  thighs?: number; // cm
+  notes?: string;
+}
+
+// Mesocycle tracking
+export interface Mesocycle {
+  id: string;
+  startDate: string;
+  currentWeek: number; // 1-5
+  totalWeeks: number; // 5
+  isDeload: boolean;
+}
+
+// Coach recommendation
+export interface CoachRecommendation {
+  id: string;
+  date: string;
+  type: 'nutrition' | 'training' | 'recovery' | 'overload';
+  message: string;
+  actionable: string;
+  priority: 'high' | 'medium' | 'low';
+  dismissed: boolean;
+}
+
+// XP and Level system
+export type PlayerLevel = 'Beginner' | 'Novice' | 'Intermediate' | 'Advanced' | 'Elite' | 'Legend';
+
+export interface XPState {
+  totalXP: number;
+  level: PlayerLevel;
+  workoutsCompleted: number;
+  perfectWeeks: number;
+  prsHit: number;
+}
+
+// Personal Record
+export interface PersonalRecord {
+  exerciseName: string;
+  weightKg: number;
+  reps: number;
+  estimated1RM: number;
+  date: string;
+  sessionType: SessionType;
+}
+
 // App settings
 export interface AppSettings {
   cycleStartDate: string; // ISO date string
@@ -115,6 +243,14 @@ export interface GymStore {
   bodyMeasurements: BodyMeasurement[];
   warmupCooldown: WarmupCooldownConfig;
   settings: AppSettings;
+  // New fields from hypertrophy-tracker
+  nutritionLogs: DailyNutrition[];
+  sleepEntries: SleepEntry[];
+  weightEntries: WeightEntry[];
+  mesocycle: Mesocycle;
+  coachRecommendations: CoachRecommendation[];
+  xpState: XPState;
+  personalRecords: PersonalRecord[];
 }
 
 // Current workout state (not persisted)

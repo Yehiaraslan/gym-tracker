@@ -28,6 +28,25 @@ const defaultState: GymStore = {
     cycleStartDate: new Date().toISOString().split('T')[0],
     currentCycle: 1,
   },
+  nutritionLogs: [],
+  sleepEntries: [],
+  weightEntries: [],
+  mesocycle: {
+    id: 'meso-1',
+    startDate: new Date().toISOString().split('T')[0],
+    currentWeek: 1,
+    totalWeeks: 5,
+    isDeload: false,
+  },
+  coachRecommendations: [],
+  xpState: {
+    totalXP: 0,
+    level: 'Beginner' as const,
+    workoutsCompleted: 0,
+    perfectWeeks: 0,
+    prsHit: 0,
+  },
+  personalRecords: [],
 };
 
 // Load data from AsyncStorage
@@ -44,6 +63,13 @@ export async function loadStore(): Promise<GymStore> {
         bodyMeasurements: parsed.bodyMeasurements || [],
         warmupCooldown: parsed.warmupCooldown || defaultState.warmupCooldown,
         settings: parsed.settings || defaultState.settings,
+        nutritionLogs: parsed.nutritionLogs || [],
+        sleepEntries: parsed.sleepEntries || [],
+        weightEntries: parsed.weightEntries || [],
+        mesocycle: parsed.mesocycle || defaultState.mesocycle,
+        coachRecommendations: parsed.coachRecommendations || [],
+        xpState: parsed.xpState || defaultState.xpState,
+        personalRecords: parsed.personalRecords || [],
       };
     }
     return defaultState;

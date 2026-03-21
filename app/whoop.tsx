@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   Text, 
   View, 
@@ -8,133 +8,110 @@ import {
   Linking,
   Platform,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ScreenContainer } from '@/components/screen-container';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useColors } from '@/hooks/use-colors';
+import { trpc } from '@/lib/trpc';
 import * as Haptics from 'expo-haptics';
-
-const WHOOP_STORAGE_KEY = '@gym_tracker_whoop';
-
-interface WhoopData {
-  isConnected: boolean;
-  accessToken?: string;
-  refreshToken?: string;
-  expiresAt?: number;
-  recoveryScore?: number;
-  strain?: number;
-  sleepScore?: number;
-  lastSynced?: number;
-}
 
 export default function WhoopScreen() {
   const colors = useColors();
   const router = useRouter();
-  const [whoopData, setWhoopData] = useState<WhoopData>({ isConnected: false });
-  const [isLoading, setIsLoading] = useState(true);
-  const [isConnecting, setIsConnecting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    loadWhoopData();
-  }, []);
+  // tRPC queries
+  const statusQuery = trpc.whoop.status.useQuery(undefined, {
+    retry: 1,
+    staleTime: 30_000,
+  });
+  const authUrlQuery = trpc.whoop.authUrl.useQuery(undefined, {
+    enabled: false, // Only fetch when user clicks connect
+  });
+  const recoveryQuery = trpc.whoop.recovery.useQuery(
+    { days: 7 },
+    { enabled: statusQuery.data?.connected === true, retry: 1 }
+  );
+  const sleepQuery = trpc.whoop.sleep.useQuery(
+    { days: 7 },
+    { enabled: statusQuery.data?.connected === true, retry: 1 }
+  );
+  const cyclesQuery = trpc.whoop.cycles.useQuery(
+    { days: 7 },
+    { enabled: statusQuery.data?.connected === true, retry: 1 }
+  );
 
-  const loadWhoopData = async () => {
-    try {
-      const stored = await AsyncStorage.getItem(WHOOP_STORAGE_KEY);
-      if (stored) {
-        setWhoopData(JSON.parse(stored));
+  const disconnectMutation = trpc.whoop.disconnect.useMutation({
+    onSuccess: () => {
+      statusQuery.refetch();
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
-    } catch (error) {
-      console.error('Error loading Whoop data:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    },
+  });
 
-  const saveWhoopData = async (data: WhoopData) => {
-    try {
-      await AsyncStorage.setItem(WHOOP_STORAGE_KEY, JSON.stringify(data));
-      setWhoopData(data);
-    } catch (error) {
-      console.error('Error saving Whoop data:', error);
-    }
-  };
+  const isConnected = statusQuery.data?.connected ?? false;
+  const profile = statusQuery.data?.profile;
+  const isLoading = statusQuery.isLoading;
+
+  // Extract latest recovery data
+  const latestRecovery = recoveryQuery.data?.records?.[0]?.score;
+  const latestCycle = cyclesQuery.data?.records?.[0]?.score;
+  const latestSleep = sleepQuery.data?.records?.[0]?.score;
 
   const handleConnect = async () => {
     try {
-      setIsConnecting(true);
       if (Platform.OS !== 'web') {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
-      
-      // Trigger OAuth flow
-      const authUrl = 'https://api.manus.im/oauth/whoop/authorize';
-      await Linking.openURL(authUrl);
-      
-      // After OAuth completes, reload data
-      setTimeout(() => {
-        loadWhoopData();
-        setIsConnecting(false);
-      }, 2000);
+      const result = await authUrlQuery.refetch();
+      if (result.data?.url) {
+        await Linking.openURL(result.data.url);
+      } else {
+        Alert.alert('Error', 'Could not generate WHOOP authorization URL. Please try again.');
+      }
     } catch (error) {
       console.error('Error initiating WHOOP OAuth:', error);
-      setIsConnecting(false);
       Alert.alert(
         'Connection Error',
-        'Could not initiate WHOOP connection. Please check your internet connection.'
+        'Could not initiate WHOOP connection. Please make sure you are logged in first.'
       );
     }
   };
 
   const handleDisconnect = () => {
     Alert.alert(
-      'Disconnect Whoop',
-      'Are you sure you want to disconnect your Whoop account?',
+      'Disconnect WHOOP',
+      'Are you sure you want to disconnect your WHOOP account? Your cached data will be removed.',
       [
         { text: 'Cancel', style: 'cancel' },
         { 
           text: 'Disconnect', 
           style: 'destructive',
-          onPress: async () => {
-            await saveWhoopData({ isConnected: false });
-            if (Platform.OS !== 'web') {
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            }
-          }
+          onPress: () => disconnectMutation.mutate(),
         },
       ]
     );
   };
 
-  // Simulated data for demonstration
-  const handleSimulateConnection = async () => {
-    const simulatedData: WhoopData = {
-      isConnected: true,
-      accessToken: 'demo_token_' + Date.now(),
-      recoveryScore: 78,
-      strain: 12.4,
-      sleepScore: 85,
-      lastSynced: Date.now(),
-    };
-    await saveWhoopData(simulatedData);
-    if (Platform.OS !== 'web') {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    }
-    Alert.alert('Demo Mode', 'Whoop connection simulated with sample data. Your recovery data will now appear on the home screen.');
-  };
-
-  const formatLastSynced = (timestamp?: number) => {
-    if (!timestamp) return 'Never';
-    const date = new Date(timestamp);
-    return date.toLocaleString();
-  };
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([
+      statusQuery.refetch(),
+      recoveryQuery.refetch(),
+      sleepQuery.refetch(),
+      cyclesQuery.refetch(),
+    ]);
+    setRefreshing(false);
+  }, []);
 
   if (isLoading) {
     return (
       <ScreenContainer className="flex-1 items-center justify-center">
-        <Text className="text-muted">Loading...</Text>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text className="text-muted mt-4">Checking WHOOP connection...</Text>
       </ScreenContainer>
     );
   }
@@ -146,10 +123,15 @@ export default function WhoopScreen() {
         <TouchableOpacity onPress={() => router.back()} className="p-2 mr-2">
           <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
         </TouchableOpacity>
-        <Text className="text-xl font-bold text-foreground">Whoop Integration</Text>
+        <Text className="text-xl font-bold text-foreground">WHOOP Integration</Text>
       </View>
 
-      <ScrollView className="flex-1 px-4">
+      <ScrollView 
+        className="flex-1 px-4"
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
         {/* Connection Status Card */}
         <View 
           className="bg-surface rounded-2xl p-6 mb-4"
@@ -161,7 +143,7 @@ export default function WhoopScreen() {
                 width: 56,
                 height: 56,
                 borderRadius: 28,
-                backgroundColor: whoopData.isConnected ? colors.success + '20' : colors.muted + '20',
+                backgroundColor: isConnected ? colors.success + '20' : colors.muted + '20',
                 justifyContent: 'center',
                 alignItems: 'center',
               }}
@@ -170,12 +152,14 @@ export default function WhoopScreen() {
             </View>
             <View className="ml-4 flex-1">
               <Text className="text-lg font-semibold text-foreground">
-                {whoopData.isConnected ? 'Connected' : 'Not Connected'}
+                {isConnected ? 'Connected' : 'Not Connected'}
               </Text>
               <Text className="text-sm text-muted">
-                {whoopData.isConnected 
-                  ? `Last synced: ${formatLastSynced(whoopData.lastSynced)}`
-                  : 'Connect your Whoop to sync recovery data'}
+                {isConnected 
+                  ? profile?.first_name 
+                    ? `Welcome, ${profile.first_name}!`
+                    : 'WHOOP account linked'
+                  : 'Connect your WHOOP to sync recovery data'}
               </Text>
             </View>
             <View 
@@ -183,56 +167,46 @@ export default function WhoopScreen() {
                 width: 12,
                 height: 12,
                 borderRadius: 6,
-                backgroundColor: whoopData.isConnected ? colors.success : colors.muted,
+                backgroundColor: isConnected ? colors.success : colors.muted,
               }}
             />
           </View>
 
-          {whoopData.isConnected ? (
+          {isConnected ? (
             <TouchableOpacity
               onPress={handleDisconnect}
+              disabled={disconnectMutation.isPending}
               className="py-3 rounded-xl"
               style={{ backgroundColor: colors.error + '20' }}
             >
               <Text className="text-center font-semibold" style={{ color: colors.error }}>
-                Disconnect
+                {disconnectMutation.isPending ? 'Disconnecting...' : 'Disconnect'}
               </Text>
             </TouchableOpacity>
           ) : (
-            <View>
-              <TouchableOpacity
-                onPress={handleConnect}
-                disabled={isConnecting}
-                className="py-3 rounded-xl mb-2 flex-row items-center justify-center"
-                style={{ 
-                  backgroundColor: colors.primary,
-                  opacity: isConnecting ? 0.7 : 1,
-                }}
-              >
-                {isConnecting ? (
-                  <ActivityIndicator color="white" size="small" />
-                ) : (
-                  <>
-                    <Text style={{ fontSize: 16, marginRight: 8 }}>🔐</Text>
-                    <Text className="font-semibold text-white">Connect with OAuth</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={handleSimulateConnection}
-                className="py-3 rounded-xl"
-                style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
-              >
-                <Text className="text-center font-semibold text-foreground">
-                  Try Demo Mode
-                </Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              onPress={handleConnect}
+              disabled={authUrlQuery.isFetching}
+              className="py-3 rounded-xl flex-row items-center justify-center"
+              style={{ 
+                backgroundColor: colors.primary,
+                opacity: authUrlQuery.isFetching ? 0.7 : 1,
+              }}
+            >
+              {authUrlQuery.isFetching ? (
+                <ActivityIndicator color="white" size="small" />
+              ) : (
+                <>
+                  <Text style={{ fontSize: 16, marginRight: 8 }}>🔐</Text>
+                  <Text className="font-semibold text-white">Connect with WHOOP</Text>
+                </>
+              )}
+            </TouchableOpacity>
           )}
         </View>
 
         {/* Recovery Data */}
-        {whoopData.isConnected && (
+        {isConnected && (
           <>
             <Text className="text-sm font-medium text-muted mb-3">Today's Metrics</Text>
             
@@ -244,26 +218,65 @@ export default function WhoopScreen() {
               <View className="flex-row items-center justify-between">
                 <View>
                   <Text className="text-sm text-muted">Recovery Score</Text>
-                  <Text className="text-3xl font-bold text-foreground">
-                    {whoopData.recoveryScore}%
-                  </Text>
+                  {recoveryQuery.isLoading ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : (
+                    <Text className="text-3xl font-bold text-foreground">
+                      {latestRecovery?.recovery_score != null 
+                        ? `${Math.round(latestRecovery.recovery_score)}%`
+                        : '--'}
+                    </Text>
+                  )}
                 </View>
                 <View 
                   style={{
                     width: 64,
                     height: 64,
                     borderRadius: 32,
-                    backgroundColor: getRecoveryColor(whoopData.recoveryScore || 0, colors),
+                    backgroundColor: getRecoveryColor(latestRecovery?.recovery_score || 0, colors),
                     justifyContent: 'center',
                     alignItems: 'center',
                   }}
                 >
-                  <Text style={{ fontSize: 24 }}>💚</Text>
+                  <Text style={{ fontSize: 24 }}>
+                    {(latestRecovery?.recovery_score ?? 0) >= 67 ? '💚' : 
+                     (latestRecovery?.recovery_score ?? 0) >= 34 ? '💛' : '❤️'}
+                  </Text>
                 </View>
               </View>
-              <Text className="text-sm text-muted mt-2">
-                {getRecoveryMessage(whoopData.recoveryScore || 0)}
-              </Text>
+              {latestRecovery && (
+                <>
+                  <Text className="text-sm text-muted mt-2">
+                    {getRecoveryMessage(latestRecovery.recovery_score ?? 0)}
+                  </Text>
+                  <View className="flex-row mt-3 gap-4">
+                    <View>
+                      <Text className="text-xs text-muted">HRV</Text>
+                      <Text className="text-sm font-semibold text-foreground">
+                        {latestRecovery.hrv_rmssd_milli != null 
+                          ? `${Math.round(latestRecovery.hrv_rmssd_milli)} ms` 
+                          : '--'}
+                      </Text>
+                    </View>
+                    <View>
+                      <Text className="text-xs text-muted">RHR</Text>
+                      <Text className="text-sm font-semibold text-foreground">
+                        {latestRecovery.resting_heart_rate != null 
+                          ? `${Math.round(latestRecovery.resting_heart_rate)} bpm` 
+                          : '--'}
+                      </Text>
+                    </View>
+                    <View>
+                      <Text className="text-xs text-muted">SpO2</Text>
+                      <Text className="text-sm font-semibold text-foreground">
+                        {latestRecovery.spo2_percentage != null 
+                          ? `${Math.round(latestRecovery.spo2_percentage)}%` 
+                          : '--'}
+                      </Text>
+                    </View>
+                  </View>
+                </>
+              )}
             </View>
 
             {/* Strain */}
@@ -274,9 +287,15 @@ export default function WhoopScreen() {
               <View className="flex-row items-center justify-between">
                 <View>
                   <Text className="text-sm text-muted">Day Strain</Text>
-                  <Text className="text-3xl font-bold text-foreground">
-                    {whoopData.strain?.toFixed(1)}
-                  </Text>
+                  {cyclesQuery.isLoading ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : (
+                    <Text className="text-3xl font-bold text-foreground">
+                      {latestCycle?.strain != null 
+                        ? latestCycle.strain.toFixed(1)
+                        : '--'}
+                    </Text>
+                  )}
                 </View>
                 <View 
                   style={{
@@ -291,24 +310,26 @@ export default function WhoopScreen() {
                   <Text style={{ fontSize: 24 }}>🔥</Text>
                 </View>
               </View>
-              <View className="mt-3">
-                <View 
-                  className="h-2 rounded-full overflow-hidden"
-                  style={{ backgroundColor: colors.border }}
-                >
+              {latestCycle?.strain != null && (
+                <View className="mt-3">
                   <View 
-                    className="h-full rounded-full"
-                    style={{ 
-                      width: `${Math.min((whoopData.strain || 0) / 21 * 100, 100)}%`,
-                      backgroundColor: colors.warning,
-                    }}
-                  />
+                    className="h-2 rounded-full overflow-hidden"
+                    style={{ backgroundColor: colors.border }}
+                  >
+                    <View 
+                      className="h-full rounded-full"
+                      style={{ 
+                        width: `${Math.min((latestCycle.strain / 21) * 100, 100)}%`,
+                        backgroundColor: colors.warning,
+                      }}
+                    />
+                  </View>
+                  <Text className="text-xs text-muted mt-1">Target: 10-14 for optimal training</Text>
                 </View>
-                <Text className="text-xs text-muted mt-1">Target: 10-14 for optimal training</Text>
-              </View>
+              )}
             </View>
 
-            {/* Sleep Score */}
+            {/* Sleep */}
             <View 
               className="bg-surface rounded-2xl p-5 mb-6"
               style={{ borderWidth: 1, borderColor: colors.border }}
@@ -316,9 +337,15 @@ export default function WhoopScreen() {
               <View className="flex-row items-center justify-between">
                 <View>
                   <Text className="text-sm text-muted">Sleep Performance</Text>
-                  <Text className="text-3xl font-bold text-foreground">
-                    {whoopData.sleepScore}%
-                  </Text>
+                  {sleepQuery.isLoading ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : (
+                    <Text className="text-3xl font-bold text-foreground">
+                      {latestSleep?.sleep_performance_percentage != null 
+                        ? `${Math.round(latestSleep.sleep_performance_percentage)}%`
+                        : '--'}
+                    </Text>
+                  )}
                 </View>
                 <View 
                   style={{
@@ -333,6 +360,26 @@ export default function WhoopScreen() {
                   <Text style={{ fontSize: 24 }}>😴</Text>
                 </View>
               </View>
+              {latestSleep && (
+                <View className="flex-row mt-3 gap-4">
+                  <View>
+                    <Text className="text-xs text-muted">Efficiency</Text>
+                    <Text className="text-sm font-semibold text-foreground">
+                      {latestSleep.sleep_efficiency_percentage != null 
+                        ? `${Math.round(latestSleep.sleep_efficiency_percentage)}%` 
+                        : '--'}
+                    </Text>
+                  </View>
+                  <View>
+                    <Text className="text-xs text-muted">Consistency</Text>
+                    <Text className="text-sm font-semibold text-foreground">
+                      {latestSleep.sleep_consistency_percentage != null 
+                        ? `${Math.round(latestSleep.sleep_consistency_percentage)}%` 
+                        : '--'}
+                    </Text>
+                  </View>
+                </View>
+              )}
             </View>
           </>
         )}
@@ -342,16 +389,17 @@ export default function WhoopScreen() {
           className="bg-surface rounded-2xl p-5 mb-8"
           style={{ borderWidth: 1, borderColor: colors.border }}
         >
-          <Text className="text-sm font-medium text-foreground mb-3">About Whoop Integration</Text>
+          <Text className="text-sm font-medium text-foreground mb-3">About WHOOP Integration</Text>
           <Text className="text-sm text-muted leading-5">
-            Connect your Whoop device to see your recovery score, strain, and sleep data 
+            Connect your WHOOP device to see your recovery score, strain, and sleep data 
             directly in the app. This helps you make informed decisions about your workout 
             intensity based on how recovered you are.
           </Text>
           <View className="mt-4 pt-4 border-t" style={{ borderTopColor: colors.border }}>
             <Text className="text-xs text-muted">
-              Note: Full Whoop API integration requires setting up OAuth credentials in the 
-              Whoop Developer Portal. The demo mode shows sample data for preview purposes.
+              {isConnected 
+                ? 'Pull down to refresh your WHOOP data. Data is cached for offline access.'
+                : 'You must be logged in to connect your WHOOP account. The OAuth flow will open in your browser.'}
             </Text>
           </View>
         </View>
