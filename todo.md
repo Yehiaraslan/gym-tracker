@@ -648,3 +648,50 @@
 - [x] Clear next action always visible
 - [x] Interactive visual feedback throughout
 - [x] Embedded YouTube player (no external redirects)
+
+## Phase 11: Calendar & Nutrition UX Improvements
+- [x] Calendar: Display full week/month with all future workouts (Upper A, Lower A, Upper B, Lower B, Rest days)
+- [x] Calendar: Show session type and color coding for each day
+- [x] Calendar: Make each day tappable to view/start that workout
+- [x] Nutrition: Create food database grouped by type (Proteins, Carbs, Fats, Vegetables, Fruits, Dairy, Grains, etc.)
+- [x] Nutrition: Show grouped food list when adding meals
+- [x] Nutrition: Add search/filter within each food group
+- [x] Nutrition: Display macro info (protein, carbs, fat, calories) for each food item
+
+## Phase 12: Library, Calendar & Nutrition Improvements
+- [x] Calendar: Full month view showing all future workouts with color-coded session types
+- [x] Calendar: Tap any past day to log a workout retroactively (date picker for past sessions)
+- [x] Calendar: Tap future day to preview that session's exercises
+- [x] Exercise Library: New screen showing all exercises grouped by muscle group
+- [x] Exercise Library: Show Upper A / Lower A / Upper B / Lower B sessions as browsable programs
+- [x] Exercise Library: Each exercise shows sets, reps, video link, and notes
+- [x] Nutrition: Food database grouped by type (Proteins, Carbs, Fats, Vegetables, Fruits, Dairy, Grains)
+- [x] Nutrition: Search within food groups
+- [x] Nutrition: Show macros per food item in the list
+
+## Phase 13: Exercise Customization
+- [x] Add Weighted Dips to exercise library with full guidance and YouTube video ID
+- [x] Add Dips to Upper A session (after Barbell Bench Press)
+- [x] Add Chest-Supported DB Row to exercise library with full guidance and YouTube video ID
+- [x] Replace Barbell Bent-Over Row with Chest-Supported DB Row in Upper A session
+
+## Phase 14: Fix Broken Exercise Videos
+- [x] Extract all YouTube video IDs from exercise library
+- [x] Verify each video ID is accessible and not deleted/private
+- [x] Replace broken IDs with working YouTube videos for each exercise (Cable Lateral Raise, Bulgarian Split Squat, Barbell Hip Thrust, Lying Leg Curl, Cable Crunch, Dead Hang)
+- [x] Add Dips and Chest-Supported DB Row with verified video IDs
+
+## Phase 15: Navigation & Settings Fixes
+- [x] Restore Form Coach / AI Form Scanner tab in the bottom tab bar
+- [x] Clean up settings screen — remove confusing/unused options
+- [x] Keep only: Profile (weight/height), WHOOP connection, Dark mode toggle, Reset data
+
+## Phase 16: Phy-Style UI Redesign
+- [x] Update theme colors to deep dark (#0D0F14 background, #161A22 surface cards)
+- [x] Redesign tab bar to 7 tabs: Home, Workout, Library, Nutrition, Progress, Sleep, WHOOP
+- [x] Rebuild Home: hero card (Rest Day/Workout), weekly dot strip, 2x2 metric grid, nutrition bar, WHOOP card
+- [x] Rebuild Nutrition: circular macro rings, numbered meal cards with calorie targets, supplements
+- [x] Rebuild food search: category chips, Quick Add horizontal scroll, flat food list
+- [x] Rebuild Exercise Library: search bar, muscle filter chips, colored icon exercise cards
+- [x] Add Sleep tab screen with sleep logging
+- [x] Add WHOOP tab screen (move from settings)

@@ -53,9 +53,15 @@ export const UPPER_A: ProgramExercise[] = [
     muscleGroup: 'upper', bodyPart: 'Chest', category: 'compound',
   },
   {
-    name: 'Barbell Bent-Over Row',
-    sets: 4, repsMin: 6, repsMax: 8, restSeconds: 180,
-    notes: 'Overhand grip',
+    name: 'Dips',
+    sets: 3, repsMin: 8, repsMax: 12, restSeconds: 120,
+    notes: 'Lean forward for chest emphasis. Add weight belt when 12+ reps easy.',
+    muscleGroup: 'upper', bodyPart: 'Chest', category: 'compound',
+  },
+  {
+    name: 'Chest-Supported DB Row',
+    sets: 4, repsMin: 8, repsMax: 10, restSeconds: 150,
+    notes: 'Chest on incline bench — zero lower back stress',
     muscleGroup: 'upper', bodyPart: 'Back', category: 'compound',
   },
   {

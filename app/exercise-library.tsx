@@ -1,3 +1,7 @@
+// ============================================================
+// EXERCISE LIBRARY — Phy-style with colored icon circles,
+// muscle group filter chips, and exercise detail cards
+// ============================================================
 import { useState, useMemo } from 'react';
 import {
   Text,
@@ -6,23 +10,54 @@ import {
   TextInput,
   FlatList,
   ScrollView,
+  StyleSheet,
   Linking,
   Platform,
 } from 'react-native';
-import { useRouter } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
 import { useColors } from '@/hooks/use-colors';
 import { EXERCISE_LIBRARY } from '@/lib/data/exercise-library';
-import type { ExerciseLibraryEntry } from '@/lib/types';
 import * as Haptics from 'expo-haptics';
 
-const MUSCLE_GROUPS = ['All', 'Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Quads', 'Hamstrings', 'Glutes', 'Calves', 'Core', 'Forearms'];
+// ── Muscle group config ──────────────────────────────────────
+const MUSCLE_CONFIG: Record<string, { color: string; icon: string }> = {
+  chest:       { color: '#FF6B6B', icon: '🏋️' },
+  back:        { color: '#4FC3F7', icon: '🔙' },
+  shoulders:   { color: '#A78BFA', icon: '💪' },
+  biceps:      { color: '#4ADE80', icon: '💪' },
+  triceps:     { color: '#FB923C', icon: '💪' },
+  legs:        { color: '#FBBF24', icon: '🦵' },
+  core:        { color: '#F472B6', icon: '⚡' },
+  'full-body': { color: '#34D399', icon: '🔥' },
+};
+
+const FILTER_GROUPS = ['All', 'Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Legs', 'Core'];
+
+function getMuscleColor(muscleGroup: string): string {
+  return MUSCLE_CONFIG[muscleGroup]?.color ?? '#888';
+}
+function getMuscleIcon(muscleGroup: string): string {
+  return MUSCLE_CONFIG[muscleGroup]?.icon ?? '💪';
+}
+
+function MuscleIconCircle({ muscleGroup, size = 44 }: { muscleGroup: string; size?: number }) {
+  const color = getMuscleColor(muscleGroup);
+  const icon = getMuscleIcon(muscleGroup);
+  return (
+    <View style={{
+      width: size, height: size, borderRadius: size / 2,
+      backgroundColor: color + '22', alignItems: 'center', justifyContent: 'center',
+      borderWidth: 1.5, borderColor: color + '55',
+    }}>
+      <Text style={{ fontSize: size * 0.42 }}>{icon}</Text>
+    </View>
+  );
+}
 
 export default function ExerciseLibraryScreen() {
-  const router = useRouter();
   const colors = useColors();
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedMuscle, setSelectedMuscle] = useState('All');
+  const [selectedFilter, setSelectedFilter] = useState('All');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const filteredExercises = useMemo(() => {
@@ -30,203 +65,156 @@ export default function ExerciseLibraryScreen() {
       const matchesSearch = searchQuery.length === 0 ||
         ex.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         ex.primaryMuscles.some(m => m.toLowerCase().includes(searchQuery.toLowerCase()));
-      const matchesMuscle = selectedMuscle === 'All' ||
-        ex.primaryMuscles.includes(selectedMuscle) ||
-        ex.secondaryMuscles.includes(selectedMuscle);
-      return matchesSearch && matchesMuscle;
+      const matchesFilter = selectedFilter === 'All' ||
+        (ex.muscleGroup ?? '').toLowerCase() === selectedFilter.toLowerCase() ||
+        ex.primaryMuscles.some(m => m.toLowerCase().includes(selectedFilter.toLowerCase()));
+      return matchesSearch && matchesFilter;
     });
-  }, [searchQuery, selectedMuscle]);
+  }, [searchQuery, selectedFilter]);
+
+  const { surface: surf, foreground: fg, muted: mut, primary: pri, border: bord, error, success } = colors;
 
   return (
-    <ScreenContainer edges={['top', 'left', 'right', 'bottom']}>
+    <ScreenContainer containerClassName="bg-background">
       {/* Header */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', padding: 16, paddingBottom: 8 }}>
-        <TouchableOpacity onPress={() => router.back()} style={{ padding: 8, marginRight: 8 }}>
-          <Text style={{ color: colors.primary, fontSize: 16 }}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={{ color: colors.foreground, fontSize: 24, fontWeight: '700', flex: 1 }}>
-          Exercise Library
-        </Text>
-        <Text style={{ color: colors.muted, fontSize: 13 }}>{filteredExercises.length} exercises</Text>
+      <View style={s.header}>
+        <Text style={[s.title, { color: fg }]}>Exercise Library</Text>
+        <Text style={[s.count, { color: mut }]}>{filteredExercises.length} exercises</Text>
       </View>
 
-      {/* Search */}
-      <View style={{ paddingHorizontal: 16, marginBottom: 8 }}>
+      {/* Search bar */}
+      <View style={[s.searchBar, { backgroundColor: surf }]}>
+        <Text style={{ color: mut, marginRight: 8, fontSize: 16 }}>🔍</Text>
         <TextInput
           value={searchQuery}
           onChangeText={setSearchQuery}
           placeholder="Search exercises..."
-          placeholderTextColor={colors.muted}
-          style={{
-            backgroundColor: colors.surface,
-            borderRadius: 12,
-            padding: 14,
-            color: colors.foreground,
-            fontSize: 16,
-          }}
+          placeholderTextColor={mut}
+          style={[s.searchInput, { color: fg }]}
         />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity onPress={() => setSearchQuery('')}>
+            <Text style={{ color: mut, fontSize: 16 }}>✕</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
-      {/* Muscle Group Filter */}
+      {/* Muscle group filter chips */}
       <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 16, gap: 6, marginBottom: 12 }}
+        horizontal showsHorizontalScrollIndicator={false}
+        contentContainerStyle={s.chips}
       >
-        {MUSCLE_GROUPS.map(muscle => (
-          <TouchableOpacity
-            key={muscle}
-            onPress={() => {
-              setSelectedMuscle(muscle);
-              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }}
-            style={{
-              paddingHorizontal: 14,
-              paddingVertical: 8,
-              borderRadius: 20,
-              backgroundColor: selectedMuscle === muscle ? colors.primary : colors.surface,
-            }}
-          >
-            <Text style={{
-              color: selectedMuscle === muscle ? '#fff' : colors.muted,
-              fontSize: 13,
-              fontWeight: selectedMuscle === muscle ? '600' : '400',
-            }}>
-              {muscle}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        {FILTER_GROUPS.map(group => {
+          const isActive = selectedFilter === group;
+          const chipColor = MUSCLE_CONFIG[group.toLowerCase()]?.color ?? pri;
+          return (
+            <TouchableOpacity
+              key={group}
+              style={[s.chip, {
+                backgroundColor: isActive ? chipColor : surf,
+                borderColor: isActive ? chipColor : bord,
+              }]}
+              onPress={() => {
+                setSelectedFilter(group);
+                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
+            >
+              <Text style={[s.chipText, { color: isActive ? '#fff' : mut }]}>{group}</Text>
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
 
-      {/* Exercise List */}
+      {/* Exercise list */}
       <FlatList
         data={filteredExercises}
         keyExtractor={item => item.name}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 100 }}
+        showsVerticalScrollIndicator={false}
         renderItem={({ item }) => {
           const isExpanded = expandedId === item.name;
+          const muscleGroup = item.muscleGroup ?? 'chest';
+          const color = getMuscleColor(muscleGroup);
           return (
             <TouchableOpacity
+              style={[s.card, {
+                backgroundColor: surf,
+                borderColor: isExpanded ? color + '55' : bord,
+                borderWidth: isExpanded ? 1 : 0.5,
+              }]}
               onPress={() => {
                 setExpandedId(isExpanded ? null : item.name);
                 if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               }}
-              style={{
-                backgroundColor: colors.surface,
-                borderRadius: 12,
-                padding: 14,
-                marginBottom: 8,
-              }}
+              activeOpacity={0.85}
             >
-              {/* Exercise Header */}
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '600' }}>
-                    {item.name}
+              {/* Card header */}
+              <View style={s.cardHeader}>
+                <MuscleIconCircle muscleGroup={muscleGroup} />
+                <View style={s.cardInfo}>
+                  <Text style={[s.cardName, { color: fg }]}>{item.name}</Text>
+                  <Text style={[s.cardMuscles, { color: mut }]}>
+                    {item.primaryMuscles[0]}
+                    {item.primaryMuscles.length > 1 ? `, ${item.primaryMuscles[1]}` : ''}
                   </Text>
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
-                    {item.primaryMuscles.map(m => (
-                      <View key={m} style={{
-                        backgroundColor: colors.primary + '20',
-                        paddingHorizontal: 8,
-                        paddingVertical: 2,
-                        borderRadius: 6,
-                      }}>
-                        <Text style={{ color: colors.primary, fontSize: 11, fontWeight: '600' }}>{m}</Text>
-                      </View>
-                    ))}
-                    {item.secondaryMuscles.map(m => (
-                      <View key={m} style={{
-                        backgroundColor: colors.border,
-                        paddingHorizontal: 8,
-                        paddingVertical: 2,
-                        borderRadius: 6,
-                      }}>
-                        <Text style={{ color: colors.muted, fontSize: 11 }}>{m}</Text>
-                      </View>
-                    ))}
+                  <View style={s.cardTags}>
+                    <View style={[s.tag, { backgroundColor: color + '22' }]}>
+                      <Text style={[s.tagText, { color }]}>{muscleGroup}</Text>
+                    </View>
+                    <View style={[s.tag, {
+                      backgroundColor: item.category === 'compound' ? '#4FC3F7' + '22' : '#A78BFA' + '22',
+                    }]}>
+                      <Text style={[s.tagText, {
+                        color: item.category === 'compound' ? '#4FC3F7' : '#A78BFA',
+                      }]}>{item.category}</Text>
+                    </View>
                   </View>
                 </View>
-                <Text style={{ color: colors.muted, fontSize: 18 }}>
-                  {isExpanded ? '▼' : '▶'}
-                </Text>
+                <Text style={[s.chevron, { color: mut }]}>{isExpanded ? '▼' : '›'}</Text>
               </View>
 
-              {/* Expanded Details */}
+              {/* Expanded details */}
               {isExpanded && (
-                <View style={{ marginTop: 14, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 14 }}>
-                  {/* Equipment */}
-                  <Text style={{ color: colors.muted, fontSize: 12, marginBottom: 4 }}>Equipment</Text>
-                  <Text style={{ color: colors.foreground, fontSize: 14, marginBottom: 12 }}>
-                    {item.equipment}
-                  </Text>
-
-                  {/* Setup */}
+                <View style={[s.expanded, { borderTopColor: bord }]}>
+                  <View style={s.detailRow}>
+                    <Text style={[s.detailLabel, { color: mut }]}>Equipment</Text>
+                    <Text style={[s.detailValue, { color: fg }]}>{item.equipment}</Text>
+                  </View>
                   {item.setup && item.setup.length > 0 && (
-                    <>
-                      <Text style={{ color: colors.muted, fontSize: 12, marginBottom: 4 }}>Setup</Text>
+                    <View style={s.section}>
+                      <Text style={[s.sectionTitle, { color: mut }]}>SETUP</Text>
                       {item.setup.map((step, i) => (
-                        <Text key={i} style={{ color: colors.foreground, fontSize: 13, marginBottom: 2, paddingLeft: 8 }}>
-                          {i + 1}. {step}
-                        </Text>
+                        <Text key={i} style={[s.stepText, { color: fg }]}>{i + 1}. {step}</Text>
                       ))}
-                      <View style={{ height: 12 }} />
-                    </>
+                    </View>
                   )}
-
-                  {/* Execution */}
                   {item.execution && item.execution.length > 0 && (
-                    <>
-                      <Text style={{ color: colors.muted, fontSize: 12, marginBottom: 4 }}>Execution</Text>
+                    <View style={s.section}>
+                      <Text style={[s.sectionTitle, { color: mut }]}>EXECUTION</Text>
                       {item.execution.map((step, i) => (
-                        <Text key={i} style={{ color: colors.foreground, fontSize: 13, marginBottom: 2, paddingLeft: 8 }}>
-                          {i + 1}. {step}
-                        </Text>
+                        <Text key={i} style={[s.stepText, { color: fg }]}>{i + 1}. {step}</Text>
                       ))}
-                      <View style={{ height: 12 }} />
-                    </>
+                    </View>
                   )}
-
-                  {/* Common Mistakes */}
                   {item.commonMistakes && item.commonMistakes.length > 0 && (
-                    <>
-                      <Text style={{ color: colors.error, fontSize: 12, marginBottom: 4 }}>Common Mistakes</Text>
+                    <View style={s.section}>
+                      <Text style={[s.sectionTitle, { color: error }]}>COMMON MISTAKES</Text>
                       {item.commonMistakes.map((m: { mistake: string; fix: string }, i: number) => (
-                        <Text key={i} style={{ color: colors.foreground, fontSize: 13, marginBottom: 2, paddingLeft: 8 }}>
-                          ⚠ {m.mistake} — {m.fix}
-                        </Text>
+                        <Text key={i} style={[s.stepText, { color: fg }]}>⚠ {m.mistake} — {m.fix}</Text>
                       ))}
-                      <View style={{ height: 12 }} />
-                    </>
+                    </View>
                   )}
-
-                  {/* Pro Tip */}
                   {item.proTip && (
-                    <>
-                      <Text style={{ color: colors.success, fontSize: 12, marginBottom: 4 }}>Pro Tip</Text>
-                      <Text style={{ color: colors.foreground, fontSize: 13, marginBottom: 12, paddingLeft: 8 }}>
-                        ✓ {item.proTip}
-                      </Text>
-                    </>
+                    <View style={[s.proTip, { backgroundColor: success + '11', borderColor: success + '33' }]}>
+                      <Text style={[s.proTipText, { color: success }]}>✓ {item.proTip}</Text>
+                    </View>
                   )}
-
-                  {/* YouTube Link */}
                   {item.videoId && (
                     <TouchableOpacity
+                      style={s.youtubeBtn}
                       onPress={() => Linking.openURL(`https://www.youtube.com/watch?v=${item.videoId}`)}
-                      style={{
-                        backgroundColor: '#FF0000',
-                        borderRadius: 10,
-                        padding: 12,
-                        alignItems: 'center',
-                        flexDirection: 'row',
-                        justifyContent: 'center',
-                        gap: 8,
-                      }}
                     >
-                      <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600' }}>
-                        ▶ Watch Tutorial on YouTube
-                      </Text>
+                      <Text style={s.youtubeBtnText}>▶  Watch Tutorial on YouTube</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -235,11 +223,41 @@ export default function ExerciseLibraryScreen() {
           );
         }}
         ListEmptyComponent={
-          <Text style={{ color: colors.muted, textAlign: 'center', marginTop: 40 }}>
-            No exercises found
-          </Text>
+          <Text style={[s.empty, { color: mut }]}>No exercises found</Text>
         }
       />
     </ScreenContainer>
   );
 }
+
+const s = StyleSheet.create({
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 },
+  title: { fontSize: 28, fontWeight: '700' },
+  count: { fontSize: 13 },
+  searchBar: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 12, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12 },
+  searchInput: { flex: 1, fontSize: 16 },
+  chips: { paddingHorizontal: 16, gap: 8, paddingBottom: 12 },
+  chip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1 },
+  chipText: { fontSize: 13, fontWeight: '500' },
+  card: { borderRadius: 14, marginBottom: 8, overflow: 'hidden' },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12 },
+  cardInfo: { flex: 1 },
+  cardName: { fontSize: 16, fontWeight: '700', marginBottom: 2 },
+  cardMuscles: { fontSize: 13, marginBottom: 6 },
+  cardTags: { flexDirection: 'row', gap: 6 },
+  tag: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+  tagText: { fontSize: 11, fontWeight: '600' },
+  chevron: { fontSize: 20 },
+  expanded: { borderTopWidth: 0.5, padding: 14 },
+  detailRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
+  detailLabel: { fontSize: 12, fontWeight: '600' },
+  detailValue: { fontSize: 13 },
+  section: { marginBottom: 14 },
+  sectionTitle: { fontSize: 11, fontWeight: '700', letterSpacing: 0.8, marginBottom: 6 },
+  stepText: { fontSize: 13, lineHeight: 20, marginBottom: 3 },
+  proTip: { borderWidth: 1, borderRadius: 10, padding: 12, marginBottom: 12 },
+  proTipText: { fontSize: 13, lineHeight: 18 },
+  youtubeBtn: { backgroundColor: '#FF0000', borderRadius: 10, padding: 12, alignItems: 'center' },
+  youtubeBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  empty: { textAlign: 'center', marginTop: 40, fontSize: 14 },
+});

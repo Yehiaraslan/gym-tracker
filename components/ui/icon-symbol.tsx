@@ -59,6 +59,21 @@ const MAPPING = {
   "bed.double.fill": "hotel",
   "fork.knife": "restaurant",
   "figure.run": "directions-run",
+  "eye.fill": "visibility",
+  "person.fill": "person",
+  "moon.fill": "dark-mode",
+  "sun.max.fill": "light-mode",
+  "arrow.triangle.2.circlepath": "sync",
+  "trash": "delete-outline",
+  "book.fill": "menu-book",
+  "apple.logo": "apple",
+  "waveform.path.ecg": "monitor-heart",
+  "list.bullet": "list",
+  "sparkles": "auto-awesome",
+  "scope": "my-location",
+  "figure.strengthtraining.traditional": "fitness-center",
+  "bed.double": "hotel",
+  "heart.text.square.fill": "favorite",
 } as IconMapping;
 
 /**

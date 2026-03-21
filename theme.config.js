@@ -1,14 +1,14 @@
 /** @type {const} */
 const themeColors = {
-  primary: { light: '#FF6B35', dark: '#FF8C5A' },
-  background: { light: '#FFFFFF', dark: '#121212' },
-  surface: { light: '#F8F9FA', dark: '#1E1E1E' },
-  foreground: { light: '#1A1A1A', dark: '#FFFFFF' },
-  muted: { light: '#6B7280', dark: '#9CA3AF' },
-  border: { light: '#E5E7EB', dark: '#2D2D2D' },
-  success: { light: '#10B981', dark: '#34D399' },
-  warning: { light: '#F59E0B', dark: '#FBBF24' },
-  error: { light: '#EF4444', dark: '#F87171' },
+  primary:    { light: '#3B82F6', dark: '#3B82F6' },   // Blue accent (matches Phy)
+  background: { light: '#F0F2F5', dark: '#0D0F14' },   // Deep near-black
+  surface:    { light: '#FFFFFF', dark: '#161A22' },    // Card background
+  foreground: { light: '#0F172A', dark: '#F1F5F9' },   // Primary text
+  muted:      { light: '#64748B', dark: '#64748B' },   // Secondary text
+  border:     { light: '#E2E8F0', dark: '#1E2433' },   // Subtle dividers
+  success:    { light: '#22C55E', dark: '#22C55E' },   // Green
+  warning:    { light: '#F59E0B', dark: '#F59E0B' },   // Amber
+  error:      { light: '#EF4444', dark: '#EF4444' },   // Red
 };
 
 module.exports = { themeColors };

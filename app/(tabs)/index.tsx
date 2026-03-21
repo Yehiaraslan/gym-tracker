@@ -1,12 +1,10 @@
 // ============================================================
-// HOME SCREEN — Calendar Dashboard with Today's Workout
+// HOME SCREEN — Phy-style dark card dashboard
 // ============================================================
-
-import { useState, useEffect, useMemo } from 'react';
-import { Text, View, TouchableOpacity, ScrollView, Platform } from 'react-native';
+import { useState, useEffect, useCallback } from 'react';
+import { Text, View, TouchableOpacity, ScrollView, Platform, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
-import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useColors } from '@/hooks/use-colors';
 import * as Haptics from 'expo-haptics';
 import {
@@ -14,529 +12,398 @@ import {
   getSessionForDate,
   SESSION_NAMES,
   SESSION_COLORS,
-  PROGRAM_SESSIONS,
-  WEEKLY_SCHEDULE,
   getMesocycleInfo,
-  NUTRITION_TARGETS,
   type SessionType,
 } from '@/lib/training-program';
 import {
   getRecentSplitWorkouts,
-  getLastSessionOfType,
-  getAllPRs,
   type SplitWorkoutSession,
 } from '@/lib/split-workout-store';
-import { getMesocycleStartDate, getActiveRecommendations, type CoachRecommendation } from '@/lib/coach-engine';
-import { getStreakData, StreakData } from '@/lib/streak-tracker';
-import { getTodayRecoveryData, type RecoveryData } from '@/lib/whoop-recovery-service';
+import { getMesocycleStartDate } from '@/lib/coach-engine';
+import { getStreakData, type StreakData } from '@/lib/streak-tracker';
+import { getTodayRecovery, type WhoopRecovery } from '@/lib/whoop-api';
+import { getDailyNutrition, type DailyNutrition } from '@/lib/nutrition-store';
+import { useGym } from '@/lib/gym-context';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+const DOT_COLORS: Record<SessionType, string> = {
+  'upper-a': '#3B82F6',
+  'lower-a': '#8B5CF6',
+  'upper-b': '#06B6D4',
+  'lower-b': '#10B981',
+  rest: '#374151',
+};
+
+const SESSION_EMOJI: Record<SessionType, string> = {
+  'upper-a': '💪',
+  'lower-a': '🦵',
+  'upper-b': '🏋️',
+  'lower-b': '🔥',
+  rest: '😴',
+};
+
+const SESSION_SUBTITLE: Record<SessionType, string> = {
+  'upper-a': 'Chest · Back · Shoulders · Arms',
+  'lower-a': 'Quads · Hamstrings · Glutes · Calves',
+  'upper-b': 'Volume push/pull — hypertrophy focus',
+  'lower-b': 'Volume legs — hypertrophy focus',
+  rest: 'Recovery is where gains are made',
+};
 
 export default function HomeScreen() {
   const colors = useColors();
   const router = useRouter();
+  const { store } = useGym();
 
   const todaySession = getTodaySession();
   const isRest = todaySession === 'rest';
-  const sessionColor = isRest ? colors.muted : SESSION_COLORS[todaySession];
-  const exercises = !isRest ? PROGRAM_SESSIONS[todaySession] : [];
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
 
-  const [mesoInfo, setMesoInfo] = useState<{ currentWeek: number; isDeload: boolean; daysUntilDeload: number } | null>(null);
-  const [lastSession, setLastSession] = useState<SplitWorkoutSession | null>(null);
+  const [streak, setStreak] = useState<StreakData | null>(null);
+  const [meso, setMeso] = useState<{ daysUntilDeload: number; currentWeek: number; totalWeeks: number } | null>(null);
+  const [recovery, setRecovery] = useState<WhoopRecovery | null>(null);
+  const [nutrition, setNutrition] = useState<DailyNutrition | null>(null);
   const [recentWorkouts, setRecentWorkouts] = useState<SplitWorkoutSession[]>([]);
-  const [streakData, setStreakData] = useState<StreakData | null>(null);
-  const [recovery, setRecovery] = useState<RecoveryData | null>(null);
-  const [recommendations, setRecommendations] = useState<CoachRecommendation[]>([]);
-  const [prCount, setPrCount] = useState(0);
 
-  // Build this week's calendar
-  const weekDays = useMemo(() => {
-    const today = new Date();
-    const dayOfWeek = today.getDay(); // 0=Sun
-    const result: { date: Date; label: string; session: SessionType; isToday: boolean; dateNum: number }[] = [];
-
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(today);
-      d.setDate(today.getDate() - dayOfWeek + i);
-      result.push({
-        date: d,
-        label: DAY_LABELS[i],
-        session: getSessionForDate(d),
-        isToday: d.toDateString() === today.toDateString(),
-        dateNum: d.getDate(),
-      });
-    }
-    return result;
-  }, []);
-
-  useEffect(() => {
-    (async () => {
-      const mesoStart = await getMesocycleStartDate();
-      setMesoInfo(getMesocycleInfo(mesoStart));
-
-      if (!isRest) {
-        const prev = await getLastSessionOfType(todaySession);
-        setLastSession(prev || null);
-      }
-
-      const recent = await getRecentSplitWorkouts(5);
-      setRecentWorkouts(recent);
-
-      const streak = await getStreakData();
-      setStreakData(streak);
-
-      const rec = await getTodayRecoveryData();
-      setRecovery(rec);
-
-      const recs = await getActiveRecommendations();
-      setRecommendations(recs.slice(0, 3));
-
-      const prs = await getAllPRs();
-      setPrCount(Object.keys(prs).length);
-    })();
-  }, []);
-
-  const today = new Date().toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
+  // Build this week's 7-day strip
+  const weekDays = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(today);
+    const dayOfWeek = today.getDay();
+    d.setDate(today.getDate() - dayOfWeek + i);
+    return {
+      date: d,
+      label: DAY_LABELS[i],
+      session: getSessionForDate(d),
+      isToday: d.toISOString().split('T')[0] === todayStr,
+    };
   });
 
-  const startWorkout = () => {
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.push(`/split-workout?session=${todaySession}&deload=${mesoInfo?.isDeload || false}`);
-  };
-
-  // Recovery zone
-  const recoveryZone = recovery
-    ? recovery.recoveryScore >= 67
-      ? { color: '#10B981', label: 'High', icon: '🟢' }
-      : recovery.recoveryScore >= 34
-        ? { color: '#F59E0B', label: 'Moderate', icon: '🟡' }
-        : { color: '#EF4444', label: 'Low', icon: '🔴' }
+  // Weekly weight average
+  const recentWeights = [...store.weightEntries]
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 7);
+  const avgWeight = recentWeights.length > 0
+    ? (recentWeights.reduce((s, e) => s + e.weight, 0) / recentWeights.length).toFixed(1)
     : null;
 
+  // Last night sleep
+  const lastSleep = [...store.sleepEntries]
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+
+  const loadData = useCallback(async () => {
+    try {
+      const [streakData, startDate, recoveryData, nutritionData, workouts] = await Promise.all([
+        getStreakData(),
+        getMesocycleStartDate(),
+        getTodayRecovery().catch(() => null),
+        getDailyNutrition().catch(() => null),
+        getRecentSplitWorkouts(7),
+      ]);
+      setStreak(streakData);
+      const mesoInfo = getMesocycleInfo(startDate);
+      setMeso({
+        daysUntilDeload: mesoInfo.daysUntilDeload,
+        currentWeek: mesoInfo.currentWeek,
+        totalWeeks: mesoInfo.totalWeeks,
+      });
+      setRecovery(recoveryData);
+      setNutrition(nutritionData);
+      setRecentWorkouts(workouts);
+    } catch (_) {}
+  }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  const handleStartWorkout = () => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    router.push({ pathname: '/split-workout', params: { sessionType: todaySession, date: todayStr } } as any);
+  };
+
+  const recoveryScore = recovery?.score?.recoveryScore ?? null;
+  const recoveryColor = recoveryScore == null ? colors.muted
+    : recoveryScore >= 67 ? '#22C55E'
+    : recoveryScore >= 34 ? '#F59E0B'
+    : '#EF4444';
+  const hrv = recovery?.score?.hrv?.lastNightAverage ?? null;
+  const rhr = recovery?.score?.rhrData?.lastNightAverage ?? null;
+
+  const calConsumed = nutrition ? nutrition.meals.reduce((s, m) => s + m.calories, 0) : 0;
+  const protConsumed = nutrition ? nutrition.meals.reduce((s, m) => s + m.protein, 0) : 0;
+  const calTarget = nutrition?.targetCalories ?? 2750;
+  const protTarget = nutrition?.targetProtein ?? 180;
+
+  const bg = colors.background;
+  const surf = colors.surface;
+  const bord = colors.border;
+  const fg = colors.foreground;
+  const mut = colors.muted;
+  const pri = colors.primary;
+
   return (
-    <ScreenContainer className="flex-1">
-      <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View className="px-6 pt-4 pb-2">
-          <Text className="text-sm text-muted">{today}</Text>
-          <Text className="text-3xl font-bold text-foreground mt-1">Dashboard</Text>
+    <ScreenContainer containerClassName="bg-background">
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 40 }}
+      >
+        {/* ── Header ── */}
+        <View style={[s.row, { marginBottom: 16 }]}>
+          <Text style={[s.headerName, { color: fg }]}>Yehia</Text>
+          <TouchableOpacity
+            style={[s.exportBtn, { backgroundColor: surf, borderColor: bord }]}
+            onPress={() => router.push('/weekly-report' as any)}
+          >
+            <Text style={[s.exportText, { color: mut }]}>↓ Export</Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Weekly Calendar Strip */}
-        <View className="px-4 py-4">
-          <View className="flex-row justify-between">
-            {weekDays.map((day, i) => {
-              const daySession = day.session;
-              const dayColor = daySession !== 'rest' ? SESSION_COLORS[daySession] : colors.border;
-              const hasWorkout = daySession !== 'rest';
-              // Check if this day has a completed workout
-              const isCompleted = recentWorkouts.some(
-                w => w.date === day.date.toISOString().split('T')[0] && w.completed
-              );
+        {/* ── Hero Card ── */}
+        <TouchableOpacity
+          activeOpacity={isRest ? 1 : 0.85}
+          onPress={isRest ? undefined : handleStartWorkout}
+          style={[s.heroCard, { backgroundColor: surf, borderColor: bord }]}
+        >
+          <View style={s.heroRow}>
+            <Text style={s.heroEmoji}>{SESSION_EMOJI[todaySession]}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[s.heroTitle, { color: fg }]}>{SESSION_NAMES[todaySession]}</Text>
+              <Text style={[s.heroSub, { color: mut }]}>{SESSION_SUBTITLE[todaySession]}</Text>
+            </View>
+          </View>
+          {!isRest && (
+            <View style={[s.startBtn, { backgroundColor: SESSION_COLORS[todaySession] }]}>
+              <Text style={s.startBtnText}>Start Workout →</Text>
+            </View>
+          )}
+        </TouchableOpacity>
 
+        {/* ── Weekly Dot Strip ── */}
+        <View style={[s.card, { backgroundColor: surf, borderColor: bord }]}>
+          <View style={s.weekRow}>
+            {weekDays.map((day, i) => {
+              const isCompleted = recentWorkouts.some(w => w.date === day.date.toISOString().split('T')[0] && w.completed);
+              const isTraining = day.session !== 'rest';
               return (
                 <TouchableOpacity
                   key={i}
+                  style={s.dayCol}
                   onPress={() => {
-                    if (day.isToday && !isRest) startWorkout();
-                  }}
-                  style={{
-                    alignItems: 'center',
-                    width: 44,
-                    paddingVertical: 8,
-                    borderRadius: 16,
-                    backgroundColor: day.isToday ? sessionColor + '15' : 'transparent',
-                    borderWidth: day.isToday ? 2 : 0,
-                    borderColor: day.isToday ? sessionColor : 'transparent',
+                    const d = day.date.toISOString().split('T')[0];
+                    if (isTraining) {
+                      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      router.push({ pathname: '/split-workout', params: { sessionType: day.session, date: d } } as any);
+                    }
                   }}
                 >
-                  <Text
-                    className="text-xs font-medium"
-                    style={{ color: day.isToday ? sessionColor : colors.muted }}
-                  >
+                  <Text style={[s.dayLabel, { color: day.isToday ? fg : mut, fontWeight: day.isToday ? '700' : '400' }]}>
                     {day.label}
                   </Text>
-                  <Text
-                    className="text-lg font-bold mt-1"
-                    style={{ color: day.isToday ? colors.foreground : colors.muted }}
-                  >
-                    {day.dateNum}
-                  </Text>
-                  {/* Dot indicator */}
-                  <View
-                    style={{
-                      width: 6,
-                      height: 6,
-                      borderRadius: 3,
-                      marginTop: 4,
-                      backgroundColor: isCompleted ? '#10B981' : hasWorkout ? dayColor : 'transparent',
-                      opacity: isCompleted ? 1 : 0.5,
-                    }}
-                  />
+                  <View style={[
+                    s.dayDot,
+                    {
+                      backgroundColor: isTraining ? DOT_COLORS[day.session] : 'transparent',
+                      borderWidth: day.isToday ? 2 : 0,
+                      borderColor: day.isToday ? fg : 'transparent',
+                      opacity: isTraining ? 1 : 0.3,
+                    },
+                  ]} />
+                  {isCompleted && (
+                    <View style={[s.checkDot, { backgroundColor: '#22C55E' }]} />
+                  )}
                 </TouchableOpacity>
               );
             })}
           </View>
         </View>
 
-        {/* Today's Workout Card — Primary CTA */}
-        {!isRest ? (
-          <View className="px-6 mb-4">
-            <TouchableOpacity
-              onPress={startWorkout}
-              activeOpacity={0.8}
-              style={{
-                borderRadius: 20,
-                padding: 20,
-                backgroundColor: sessionColor + '12',
-                borderWidth: 1.5,
-                borderColor: sessionColor + '35',
-              }}
-            >
-              <View className="flex-row items-center justify-between">
-                <View className="flex-1">
-                  <Text
-                    className="text-xs font-semibold"
-                    style={{ color: sessionColor, textTransform: 'uppercase', letterSpacing: 1.5 }}
-                  >
-                    Today's Workout
-                  </Text>
-                  <Text className="text-2xl font-bold text-foreground mt-1">
-                    {SESSION_NAMES[todaySession]}
-                  </Text>
-                  <Text className="text-sm text-muted mt-1">
-                    {exercises.length} exercises
-                    {mesoInfo?.isDeload ? ' · Deload Week' : ''}
-                  </Text>
-                </View>
-                <View
-                  style={{
-                    width: 56,
-                    height: 56,
-                    borderRadius: 16,
-                    backgroundColor: sessionColor,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <IconSymbol name="play.fill" size={24} color="#FFFFFF" />
-                </View>
-              </View>
-
-              {/* Exercise preview list */}
-              <View
-                className="mt-4 pt-4"
-                style={{ borderTopWidth: 1, borderTopColor: sessionColor + '20' }}
-              >
-                {exercises.slice(0, 4).map((ex, i) => (
-                  <View key={i} className="flex-row items-center py-1.5">
-                    <View
-                      style={{
-                        width: 22,
-                        height: 22,
-                        borderRadius: 11,
-                        backgroundColor: sessionColor + '20',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginRight: 10,
-                      }}
-                    >
-                      <Text className="text-xs font-bold" style={{ color: sessionColor }}>
-                        {i + 1}
-                      </Text>
-                    </View>
-                    <Text className="text-sm text-foreground flex-1" numberOfLines={1}>
-                      {ex.name}
-                    </Text>
-                    <Text className="text-xs text-muted">
-                      {ex.sets} × {ex.repsMin}-{ex.repsMax}
-                    </Text>
-                  </View>
-                ))}
-                {exercises.length > 4 && (
-                  <Text className="text-xs text-muted mt-1 ml-8">
-                    +{exercises.length - 4} more exercises
-                  </Text>
-                )}
-              </View>
-
-              {/* Last session reference */}
-              {lastSession && (
-                <View
-                  className="mt-3 pt-3"
-                  style={{ borderTopWidth: 1, borderTopColor: sessionColor + '15' }}
-                >
-                  <Text className="text-xs text-muted">
-                    Last: {new Date(lastSession.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                    {lastSession.durationMinutes ? ` · ${lastSession.durationMinutes}m` : ''}
-                    {lastSession.totalVolume ? ` · ${(lastSession.totalVolume / 1000).toFixed(1)}t` : ''}
-                  </Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <View className="px-6 mb-4">
-            <View
-              style={{
-                borderRadius: 20,
-                padding: 20,
-                backgroundColor: colors.surface,
-                borderWidth: 1,
-                borderColor: colors.border,
-              }}
-            >
-              <View className="flex-row items-center">
-                <Text style={{ fontSize: 40 }}>😴</Text>
-                <View className="ml-4 flex-1">
-                  <Text className="text-xl font-bold text-foreground">Rest Day</Text>
-                  <Text className="text-sm text-muted mt-1">
-                    Recovery is where the gains happen. Stay hydrated and get quality sleep.
-                  </Text>
-                </View>
-              </View>
+        {/* ── 2×2 Metric Grid ── */}
+        <View style={s.grid}>
+          {/* Weight Avg */}
+          <TouchableOpacity
+            style={[s.metricCard, { backgroundColor: surf, borderColor: bord }]}
+            onPress={() => router.push('/body-measurements' as any)}
+          >
+            <View style={[s.metricIcon, { backgroundColor: '#3B82F620' }]}>
+              <Text style={s.metricIconText}>⚖️</Text>
             </View>
-          </View>
-        )}
-
-        {/* Quick Stats Row */}
-        <View className="px-6 mb-4">
-          <View className="flex-row" style={{ gap: 10 }}>
-            {/* Streak */}
-            <View
-              className="flex-1 rounded-2xl p-4"
-              style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
-            >
-              <View className="flex-row items-center mb-1">
-                <IconSymbol name="flame.fill" size={16} color="#FF6B35" />
-                <Text className="text-xs text-muted ml-1">Streak</Text>
-              </View>
-              <Text className="text-2xl font-bold text-foreground">
-                {streakData?.currentStreak ?? 0}
-              </Text>
-              <Text className="text-xs text-muted">days</Text>
+            <Text style={[s.metricChevron, { color: mut }]}>›</Text>
+            <Text style={[s.metricLabel, { color: mut }]}>Weekly Weight Avg</Text>
+            <View style={s.metricValueRow}>
+              {avgWeight
+                ? <Text style={[s.metricValue, { color: fg }]}>{avgWeight}</Text>
+                : <View style={[s.metricDash, { backgroundColor: pri }]} />}
+              <Text style={[s.metricUnit, { color: mut }]}> kg</Text>
             </View>
+            <Text style={[s.metricSub, { color: mut }]}>7-day rolling average</Text>
+          </TouchableOpacity>
 
-            {/* Recovery */}
-            <View
-              className="flex-1 rounded-2xl p-4"
-              style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
-            >
-              <View className="flex-row items-center mb-1">
-                <Text style={{ fontSize: 12 }}>{recoveryZone?.icon ?? '⚪'}</Text>
-                <Text className="text-xs text-muted ml-1">Recovery</Text>
-              </View>
-              <Text className="text-2xl font-bold text-foreground">
-                {recovery ? `${Math.round(recovery.recoveryScore)}%` : '--'}
-              </Text>
-              <Text className="text-xs text-muted">{recoveryZone?.label ?? 'No data'}</Text>
+          {/* Sleep */}
+          <TouchableOpacity
+            style={[s.metricCard, { backgroundColor: surf, borderColor: bord }]}
+            onPress={() => router.push('/(tabs)/sleep' as any)}
+          >
+            <View style={[s.metricIcon, { backgroundColor: '#8B5CF620' }]}>
+              <Text style={s.metricIconText}>🌙</Text>
             </View>
+            <Text style={[s.metricChevron, { color: mut }]}>›</Text>
+            <Text style={[s.metricLabel, { color: mut }]}>Last Night's Sleep</Text>
+            <View style={s.metricValueRow}>
+              {lastSleep
+                ? <Text style={[s.metricValue, { color: fg }]}>{lastSleep.durationHours.toFixed(1)}</Text>
+                : <View style={[s.metricDash, { backgroundColor: pri }]} />}
+              <Text style={[s.metricUnit, { color: mut }]}> hrs</Text>
+            </View>
+            <Text style={[s.metricSub, { color: mut }]}>
+              {lastSleep ? `Quality: ${['', 'Terrible', 'Poor', 'Fair', 'Good', 'Excellent'][lastSleep.qualityRating]}` : 'Not logged'}
+            </Text>
+          </TouchableOpacity>
 
-            {/* Mesocycle */}
-            <View
-              className="flex-1 rounded-2xl p-4"
-              style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
-            >
-              <View className="flex-row items-center mb-1">
-                <IconSymbol name="chart.line.uptrend.xyaxis" size={14} color={colors.primary} />
-                <Text className="text-xs text-muted ml-1">Meso</Text>
-              </View>
-              <Text className="text-2xl font-bold text-foreground">
-                {mesoInfo ? `W${mesoInfo.currentWeek}` : '--'}
-              </Text>
-              <Text className="text-xs text-muted">
-                {mesoInfo?.isDeload ? 'Deload' : `of 5`}
-              </Text>
+          {/* Streak */}
+          <TouchableOpacity
+            style={[s.metricCard, { backgroundColor: surf, borderColor: bord }]}
+            onPress={() => router.push('/(tabs)/analytics' as any)}
+          >
+            <View style={[s.metricIcon, { backgroundColor: '#F59E0B20' }]}>
+              <Text style={s.metricIconText}>🔥</Text>
             </View>
+            <Text style={[s.metricChevron, { color: mut }]}>›</Text>
+            <Text style={[s.metricLabel, { color: mut }]}>Workout Streak</Text>
+            <View style={s.metricValueRow}>
+              <Text style={[s.metricValueLg, { color: pri }]}>{streak?.currentStreak ?? 0}</Text>
+              <Text style={[s.metricUnit, { color: mut }]}> days</Text>
+            </View>
+            <Text style={[s.metricSub, { color: mut }]}>
+              {streak?.currentStreak ? `Best: ${streak.bestStreak}d` : 'Start your streak'}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Days to Deload */}
+          <View style={[s.metricCard, { backgroundColor: surf, borderColor: bord }]}>
+            <View style={[s.metricIcon, { backgroundColor: '#06B6D420' }]}>
+              <Text style={s.metricIconText}>📅</Text>
+            </View>
+            <Text style={[s.metricLabel, { color: mut }]}>Days to Deload</Text>
+            <View style={s.metricValueRow}>
+              <Text style={[s.metricValueLg, { color: pri }]}>{meso?.daysUntilDeload ?? '—'}</Text>
+              <Text style={[s.metricUnit, { color: mut }]}> days</Text>
+            </View>
+            <Text style={[s.metricSub, { color: mut }]}>
+              {meso ? `Week ${meso.currentWeek}/${meso.totalWeeks}` : 'Loading...'}
+            </Text>
           </View>
         </View>
 
-        {/* Recovery Insight (if connected) */}
-        {recovery && (
-          <View className="px-6 mb-4">
-            <View
-              className="rounded-2xl p-4"
-              style={{
-                backgroundColor: recoveryZone!.color + '10',
-                borderWidth: 1,
-                borderColor: recoveryZone!.color + '25',
-              }}
-            >
-              <View className="flex-row items-center justify-between">
-                <View className="flex-row items-center">
-                  <Text style={{ fontSize: 14 }}>{recoveryZone!.icon}</Text>
-                  <Text
-                    className="text-xs font-semibold ml-1.5"
-                    style={{ color: recoveryZone!.color, textTransform: 'uppercase', letterSpacing: 1 }}
-                  >
-                    WHOOP Recovery
-                  </Text>
-                </View>
-                <Text className="text-2xl font-black" style={{ color: recoveryZone!.color }}>
-                  {Math.round(recovery.recoveryScore)}%
-                </Text>
-              </View>
-              <Text className="text-sm text-foreground mt-2">
-                {recovery.recoveryScore >= 67
-                  ? 'Excellent recovery — train hard today!'
-                  : recovery.recoveryScore >= 34
-                    ? 'Moderate recovery — consider reducing intensity.'
-                    : 'Low recovery — rest or light session recommended.'}
+        {/* ── Nutrition Summary ── */}
+        <TouchableOpacity
+          style={[s.card, { backgroundColor: surf, borderColor: bord }]}
+          onPress={() => router.push('/(tabs)/nutrition' as any)}
+        >
+          <View style={s.row}>
+            <Text style={[s.sectionLabel, { color: mut }]}>TODAY'S NUTRITION</Text>
+            <Text style={[s.link, { color: pri }]}>Today →</Text>
+          </View>
+          <View style={[s.row, { marginTop: 12, marginBottom: 4 }]}>
+            <Text style={[s.macroLabel, { color: fg }]}>Calories</Text>
+            <Text style={[s.macroValue, { color: '#F59E0B' }]}>{calConsumed}/{calTarget}kcal</Text>
+          </View>
+          <View style={[s.progressBar, { backgroundColor: bord }]}>
+            <View style={[s.progressFill, { backgroundColor: '#F59E0B', width: `${Math.min((calConsumed / calTarget) * 100, 100)}%` as any }]} />
+          </View>
+          <View style={[s.row, { marginTop: 8, marginBottom: 4 }]}>
+            <Text style={[s.macroLabel, { color: fg }]}>Protein</Text>
+            <Text style={[s.macroValue, { color: '#3B82F6' }]}>{protConsumed}/{protTarget}g</Text>
+          </View>
+          <View style={[s.progressBar, { backgroundColor: bord }]}>
+            <View style={[s.progressFill, { backgroundColor: '#3B82F6', width: `${Math.min((protConsumed / protTarget) * 100, 100)}%` as any }]} />
+          </View>
+        </TouchableOpacity>
+
+        {/* ── WHOOP Recovery ── */}
+        <TouchableOpacity
+          style={[s.card, { backgroundColor: surf, borderColor: recoveryScore != null ? recoveryColor + '50' : bord, borderWidth: 1 }]}
+          onPress={() => router.push('/(tabs)/whoop' as any)}
+        >
+          <View style={s.row}>
+            <View style={s.row}>
+              <Text style={[s.whoopIcon, { color: recoveryColor }]}>♥︎ </Text>
+              <Text style={[s.sectionLabel, { color: recoveryColor }]}>WHOOP RECOVERY</Text>
+            </View>
+            <Text style={[s.link, { color: mut }]}>›</Text>
+          </View>
+          <View style={[s.row, { marginTop: 12, alignItems: 'flex-end' }]}>
+            <View>
+              <Text style={[s.whoopScore, { color: recoveryColor }]}>
+                {recoveryScore != null ? `${recoveryScore}%` : '—'}
               </Text>
-              {(recovery.strain > 0 || recovery.sleepScore > 0) && (
-                <View className="flex-row mt-3 pt-3" style={{ borderTopWidth: 1, borderTopColor: recoveryZone!.color + '15', gap: 16 }}>
-                  {recovery.strain > 0 && (
-                    <View>
-                      <Text className="text-xs text-muted">Strain</Text>
-                      <Text className="text-sm font-semibold text-foreground">{recovery.strain.toFixed(1)}</Text>
-                    </View>
-                  )}
-                  {recovery.sleepScore > 0 && (
-                    <View>
-                      <Text className="text-xs text-muted">Sleep</Text>
-                      <Text className="text-sm font-semibold text-foreground">{recovery.sleepScore}%</Text>
-                    </View>
-                  )}
-                </View>
-              )}
+              <Text style={[s.whoopStatus, { color: mut }]}>
+                {recoveryScore == null ? 'Not connected'
+                  : recoveryScore >= 67 ? 'Green — Train hard'
+                  : recoveryScore >= 34 ? 'Yellow — Moderate'
+                  : 'Red — Rest'}
+              </Text>
+            </View>
+            <View style={{ gap: 8 }}>
+              <View style={{ alignItems: 'flex-end' }}>
+                <Text style={[s.metricSub, { color: mut }]}>⚡ HRV</Text>
+                <Text style={[s.whoopMetricVal, { color: fg }]}>{hrv != null ? `${Math.round(hrv)}ms` : '—'}</Text>
+              </View>
+              <View style={{ alignItems: 'flex-end' }}>
+                <Text style={[s.metricSub, { color: mut }]}>♥ RHR</Text>
+                <Text style={[s.whoopMetricVal, { color: fg }]}>{rhr != null ? `${Math.round(rhr)}bpm` : '—'}</Text>
+              </View>
             </View>
           </View>
-        )}
-
-        {/* Coach Recommendations */}
-        {recommendations.length > 0 && (
-          <View className="px-6 mb-4">
-            <Text className="text-sm font-semibold text-foreground mb-3">Smart Recommendations</Text>
-            {recommendations.map(rec => {
-              const typeColors: Record<string, string> = {
-                nutrition: '#F59E0B',
-                training: '#3B82F6',
-                recovery: '#8B5CF6',
-                overload: '#10B981',
-              };
-              const typeIcons: Record<string, string> = {
-                nutrition: '🍗',
-                training: '🏋️',
-                recovery: '😴',
-                overload: '📈',
-              };
-              const color = typeColors[rec.type] || colors.primary;
-              const icon = typeIcons[rec.type] || '💡';
-
-              return (
-                <View
-                  key={rec.id}
-                  className="rounded-xl p-3 mb-2"
-                  style={{ backgroundColor: color + '10', borderWidth: 1, borderColor: color + '20' }}
-                >
-                  <View className="flex-row items-start">
-                    <Text style={{ fontSize: 14 }}>{icon}</Text>
-                    <View className="ml-2 flex-1">
-                      <Text className="text-sm font-semibold" style={{ color }}>{rec.message}</Text>
-                      <Text className="text-xs text-muted mt-0.5">{rec.actionable}</Text>
-                    </View>
-                  </View>
-                </View>
-              );
-            })}
-          </View>
-        )}
-
-        {/* Quick Nav */}
-        <View className="px-6 mb-4">
-          <Text className="text-sm font-semibold text-foreground mb-3">Quick Access</Text>
-          <View className="flex-row flex-wrap" style={{ gap: 8 }}>
-            <TouchableOpacity
-              onPress={() => {
-                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push('/pr-board');
-              }}
-              className="flex-1 flex-row items-center rounded-xl p-3"
-              style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, minWidth: '45%' }}
-            >
-              <Text style={{ fontSize: 18 }}>🏆</Text>
-              <Text className="text-sm font-medium text-foreground ml-2">PR Board</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => {
-                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push('/weekly-report');
-              }}
-              className="flex-1 flex-row items-center rounded-xl p-3"
-              style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, minWidth: '45%' }}
-            >
-              <Text style={{ fontSize: 18 }}>📋</Text>
-              <Text className="text-sm font-medium text-foreground ml-2">Report</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => {
-                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push('/next-week');
-              }}
-              className="flex-1 flex-row items-center rounded-xl p-3"
-              style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, minWidth: '45%' }}
-            >
-              <Text style={{ fontSize: 18 }}>📅</Text>
-              <Text className="text-sm font-medium text-foreground ml-2">Schedule</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => {
-                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push('/nutrition');
-              }}
-              className="flex-1 flex-row items-center rounded-xl p-3"
-              style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, minWidth: '45%' }}
-            >
-              <Text style={{ fontSize: 18 }}>🍗</Text>
-              <Text className="text-sm font-medium text-foreground ml-2">Nutrition</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Recent Workouts */}
-        {recentWorkouts.length > 0 && (
-          <View className="px-6 mb-4">
-            <Text className="text-sm font-semibold text-foreground mb-3">Recent Workouts</Text>
-            {recentWorkouts.slice(0, 4).map(w => (
-              <View
-                key={w.id}
-                className="flex-row items-center rounded-xl p-3 mb-2"
-                style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
-              >
-                <View
-                  style={{
-                    width: 4,
-                    height: 32,
-                    borderRadius: 2,
-                    backgroundColor: SESSION_COLORS[w.sessionType],
-                    marginRight: 12,
-                  }}
-                />
-                <View className="flex-1">
-                  <Text className="text-sm font-medium text-foreground">
-                    {SESSION_NAMES[w.sessionType]}
-                  </Text>
-                  <Text className="text-xs text-muted">
-                    {new Date(w.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                    {w.durationMinutes ? ` · ${w.durationMinutes}m` : ''}
-                  </Text>
-                </View>
-                {w.totalVolume ? (
-                  <Text className="text-sm font-semibold" style={{ color: SESSION_COLORS[w.sessionType] }}>
-                    {(w.totalVolume / 1000).toFixed(1)}t
-                  </Text>
-                ) : null}
-              </View>
-            ))}
-          </View>
-        )}
+        </TouchableOpacity>
       </ScrollView>
     </ScreenContainer>
   );
 }
+
+const s = StyleSheet.create({
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  headerName: { fontSize: 28, fontWeight: '700', letterSpacing: -0.5 },
+  exportBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1 },
+  exportText: { fontSize: 13, fontWeight: '500' },
+
+  heroCard: { borderRadius: 16, borderWidth: 1, padding: 16, marginBottom: 12 },
+  heroRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  heroEmoji: { fontSize: 36, marginRight: 12 },
+  heroTitle: { fontSize: 18, fontWeight: '700', marginBottom: 2 },
+  heroSub: { fontSize: 13, lineHeight: 18 },
+  startBtn: { borderRadius: 12, paddingVertical: 12, alignItems: 'center' },
+  startBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 15 },
+
+  card: { borderRadius: 16, borderWidth: 1, padding: 16, marginBottom: 12 },
+
+  weekRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  dayCol: { alignItems: 'center', gap: 6 },
+  dayLabel: { fontSize: 12 },
+  dayDot: { width: 9, height: 9, borderRadius: 5 },
+  checkDot: { width: 4, height: 4, borderRadius: 2, marginTop: -2 },
+
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 12 },
+  metricCard: { width: '48%', borderRadius: 16, borderWidth: 1, padding: 14, position: 'relative' },
+  metricIcon: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
+  metricIconText: { fontSize: 18 },
+  metricChevron: { position: 'absolute', top: 14, right: 14, fontSize: 18 },
+  metricLabel: { fontSize: 12, marginBottom: 4 },
+  metricValueRow: { flexDirection: 'row', alignItems: 'baseline' },
+  metricValue: { fontSize: 20, fontWeight: '700' },
+  metricValueLg: { fontSize: 28, fontWeight: '700' },
+  metricUnit: { fontSize: 13 },
+  metricDash: { width: 20, height: 3, borderRadius: 2, marginBottom: 4 },
+  metricSub: { fontSize: 11, marginTop: 2 },
+
+  sectionLabel: { fontSize: 11, fontWeight: '600', letterSpacing: 1 },
+  link: { fontSize: 13, fontWeight: '600' },
+  macroLabel: { fontSize: 14 },
+  macroValue: { fontSize: 14, fontWeight: '600' },
+  progressBar: { height: 4, borderRadius: 2, overflow: 'hidden' },
+  progressFill: { height: 4, borderRadius: 2 },
+
+  whoopIcon: { fontSize: 14, fontWeight: '700' },
+  whoopScore: { fontSize: 40, fontWeight: '800', lineHeight: 44 },
+  whoopStatus: { fontSize: 13, marginTop: 2 },
+  whoopMetricVal: { fontSize: 16, fontWeight: '700' },
+});
