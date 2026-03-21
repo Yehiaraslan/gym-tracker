@@ -729,3 +729,7 @@
 - [x] Add visible debug panel to tracking screen (7-stage pipeline debug with green/red indicators)
 - [x] Add adb logcat capture instructions to debug overlay (stage labels guide user)
 - [x] Make debug panel visible by default (showDebug starts as true, DBG button always visible in top-right)
+
+## Zero Frames Fix (Mar 22 2026)
+- [x] Consulted Zaki (server down), diagnosed independently: VisionCamera disables frame processors when worklets-core not found as Gradle project
+- [x] Fix: custom withWorkletsCore plugin adds worklets-core to settings.gradle + enableFrameProcessors: true in VisionCamera plugin config

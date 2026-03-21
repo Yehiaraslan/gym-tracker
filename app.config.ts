@@ -110,8 +110,14 @@ const config: ExpoConfig = {
       "react-native-vision-camera",
       {
         cameraPermissionText: "$(PRODUCT_NAME) needs camera access for AI form coaching during exercises.",
+        enableFrameProcessors: true,
       },
     ],
+    // Custom plugin: ensures react-native-worklets-core is registered as a Gradle
+    // project so VisionCamera's build.gradle finds it and enables frame processors.
+    // Without this, findProject(":react-native-worklets-core") returns null and
+    // frame processors are disabled at compile time (Frames: 0 / FPS: 0 on device).
+    "./plugins/withWorkletsCore",
   ],
   experiments: {
     typedRoutes: true,
