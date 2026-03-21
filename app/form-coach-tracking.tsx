@@ -30,7 +30,8 @@ import {
   Pose,
   KEYPOINTS,
 } from '@/lib/pose-detection';
-import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
+import { Camera as VisionCamera, type CameraPosition } from 'react-native-vision-camera';
+import { usePoseCamera } from '@/hooks/use-pose-camera';
 import { FormGuideOverlay } from '@/components/form-guide-overlay';
 import { SkeletonOverlay } from '@/components/skeleton-overlay';
 import { CalibratedJointsOverlay } from '@/components/calibrated-joints-overlay';
@@ -79,12 +80,12 @@ export default function FormCoachTrackingScreen() {
   const exerciseType = (params.exercise as ExerciseType) || 'pushup';
 
   const [trackingState, setTrackingState] = useState<TrackingState>('setup');
-  const [permission, requestPermission] = useCameraPermissions();
+  // Camera permission now handled by usePoseCamera hook
   const [session, setSession] = useState<ExerciseSession | null>(null);
   const [currentRep, setCurrentRep] = useState(0);
   const [confidence, setConfidence] = useState(0);
   const [cameraReady, setCameraReady] = useState(false);
-  const [cameraFacing, setCameraFacing] = useState<CameraType>('back');
+  const [cameraFacing, setCameraFacing] = useState<CameraPosition>('back');
   const [showFormGuide, setShowFormGuide] = useState(true);
   const [showSkeleton, setShowSkeleton] = useState(false); // Off by default after calibration
   const [audioEnabled, setAudioEnabled] = useState(true);
@@ -116,6 +117,14 @@ export default function FormCoachTrackingScreen() {
   const rafIdRef = useRef<number | null>(null);
   const lastInferenceTimeRef = useRef<number>(0);
   const frameCountRef = useRef(0);
+  // VisionCamera + MediaPipe pose detection
+  const isActive = trackingState === 'calibrating' || trackingState === 'positioning' || 
+                   trackingState === 'ready' || trackingState === 'tracking';
+  const { cameraRef: visionCameraRef, device, hasPermission, frameProcessor, fps: detectionFps } = usePoseCamera({
+    position: cameraFacing,
+    active: isActive,
+  });
+
   const lastFpsUpdateRef = useRef(Date.now());
 
   // Cleanup on unmount
@@ -129,12 +138,7 @@ export default function FormCoachTrackingScreen() {
     };
   }, []);
 
-  // Request camera permission on native
-  useEffect(() => {
-    if (!permission?.granted && Platform.OS !== 'web') {
-      requestPermission();
-    }
-  }, [permission, requestPermission]);
+  // Camera permission handled by usePoseCamera hook
 
   // Initialize tracker, coach, and calibration manager
   useEffect(() => {
@@ -562,12 +566,15 @@ export default function FormCoachTrackingScreen() {
       <View style={styles.container}>
         {/* Camera View */}
         <View style={styles.cameraContainer}>
-          {Platform.OS !== 'web' ? (
-            <CameraView
-              ref={cameraRef}
+          {Platform.OS !== 'web' && device ? (
+            <VisionCamera
+              ref={visionCameraRef}
               style={styles.camera}
-              facing={cameraFacing}
-              onCameraReady={() => setCameraReady(true)}
+              device={device}
+              isActive={isActive}
+              frameProcessor={frameProcessor}
+              pixelFormat="yuv"
+              onStarted={() => setCameraReady(true)}
             />
           ) : (
             <View style={[styles.camera, { backgroundColor: colors.surface }]}>
@@ -687,7 +694,7 @@ export default function FormCoachTrackingScreen() {
               </Text>
               {showDebug && (
                 <Text style={[styles.fpsText, { color: colors.muted }]}>
-                  {fps} FPS | {Math.round(confidence * 100)}%
+                  {detectionFps} FPS | {Math.round(confidence * 100)}%
                 </Text>
               )}
             </View>
