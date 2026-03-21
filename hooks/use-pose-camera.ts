@@ -1,16 +1,18 @@
 /**
  * usePoseCamera — VisionCamera + MediaPipe Pose Landmarker hook
  *
- * Root cause of "no detection": the mediapipe Kotlin plugin does
- *   val detectorHandle: Double = params!!["detectorHandle"] as Double
- * When detectorHandle is undefined (before createDetector() resolves),
- * this throws a ClassCastException → frame processor silently stops.
+ * Debug state tracks every stage of the pipeline so failures can be pinpointed:
+ *   Stage 1: Camera device found
+ *   Stage 2: Camera permission granted
+ *   Stage 3: usePoseDetection hook initialized (module loaded)
+ *   Stage 4: createDetector() resolved (detectorHandle available)
+ *   Stage 5: frameProcessor attached to Camera
+ *   Stage 6: onResults fired at least once (full pipeline working)
+ *   Stage 7: Landmarks present in result (person detected)
  *
- * Fix: expose `detectorReady` flag. Caller should only mount <Camera> with
- * frameProcessor once detectorReady === true.
- *
- * Also: Delegate.CPU instead of GPU — GPU delegate fails silently on many
- * Android devices (driver issues, init timeout).
+ * Key fix: newArchEnabled: false in app.config.ts — react-native-mediapipe
+ * uses old NativeModules bridge for createDetector(), which breaks under
+ * the New Architecture's TurboModules.
  */
 
 import { useRef, useEffect, useState, useCallback } from 'react';
@@ -30,23 +32,51 @@ import type { ViewCoordinator } from 'react-native-mediapipe';
 import { getRealPoseDetector, type MediaPipeLandmark } from '@/lib/real-pose-detection';
 
 export interface UsePoseCameraOptions {
-  /** 'front' | 'back' */
   position?: CameraPosition;
-  /** Enable/disable processing (pause when not tracking) */
   active?: boolean;
+}
+
+export interface PoseCameraDebugState {
+  stage: number;           // Current pipeline stage (1-7)
+  stageLabel: string;      // Human-readable stage name
+  deviceFound: boolean;
+  permissionGranted: boolean;
+  hookInitialized: boolean;
+  cameraAllowed: boolean;  // 2s delay passed
+  onResultsFired: boolean; // onResults called at least once
+  landmarksReceived: boolean; // Actual landmarks in result
+  errorMessage: string | null;
+  totalFrames: number;
+  fps: number;
 }
 
 export function usePoseCamera(opts: UsePoseCameraOptions = {}) {
   const { position = 'back', active = true } = opts;
   const cameraRef = useRef<Camera>(null);
   const [cameraReady, setCameraReady] = useState(false);
-  const [fps, setFps] = useState(0);
 
-  // detectorReady: true once createDetector() has resolved AND at least one
-  // frame has been processed successfully. Until then, the Camera should not
-  // pass frames to the mediapipe frame processor (avoids Kotlin ClassCastException).
-  const [detectorReady, setDetectorReady] = useState(false);
+  // --- Debug state ---
+  const [debugState, setDebugState] = useState<PoseCameraDebugState>({
+    stage: 1,
+    stageLabel: 'Waiting for camera device...',
+    deviceFound: false,
+    permissionGranted: false,
+    hookInitialized: false,
+    cameraAllowed: false,
+    onResultsFired: false,
+    landmarksReceived: false,
+    errorMessage: null,
+    totalFrames: 0,
+    fps: 0,
+  });
+
+  const totalFramesRef = useRef(0);
+  const frameCountRef = useRef(0);
+  const lastFpsTickRef = useRef(Date.now());
   const detectorReadyRef = useRef(false);
+
+  // Derived: detectorReady = onResults fired at least once
+  const [detectorReady, setDetectorReady] = useState(false);
 
   // VisionCamera device + permission
   const device = useCameraDevice(position);
@@ -56,32 +86,66 @@ export function usePoseCamera(opts: UsePoseCameraOptions = {}) {
     if (!hasPermission) requestPermission();
   }, [hasPermission, requestPermission]);
 
-  // FPS counter
-  const frameCountRef = useRef(0);
-  const lastFpsTickRef = useRef(Date.now());
+  // Update debug state when device/permission change
+  useEffect(() => {
+    setDebugState(prev => {
+      const deviceFound = !!device;
+      const permissionGranted = hasPermission;
+      let stage = 1;
+      let stageLabel = 'Waiting for camera device...';
+      if (deviceFound) { stage = 2; stageLabel = 'Waiting for camera permission...'; }
+      if (deviceFound && permissionGranted) { stage = 3; stageLabel = 'Initializing MediaPipe detector...'; }
+      if (prev.hookInitialized) { stage = 4; stageLabel = 'Waiting for detector ready (2s delay)...'; }
+      if (prev.cameraAllowed) { stage = 5; stageLabel = 'Frame processor attached — waiting for onResults...'; }
+      if (prev.onResultsFired) { stage = 6; stageLabel = 'Pipeline active — detecting poses...'; }
+      if (prev.landmarksReceived) { stage = 7; stageLabel = 'Person detected! Tracking landmarks.'; }
+      return { ...prev, deviceFound, permissionGranted, stage, stageLabel };
+    });
+  }, [device, hasPermission]);
 
+  // FPS counter
   useEffect(() => {
     const interval = setInterval(() => {
       const now = Date.now();
       const elapsed = (now - lastFpsTickRef.current) / 1000;
-      if (elapsed > 0) setFps(Math.round(frameCountRef.current / elapsed));
+      const fps = elapsed > 0 ? Math.round(frameCountRef.current / elapsed) : 0;
       frameCountRef.current = 0;
       lastFpsTickRef.current = now;
+      setDebugState(prev => ({ ...prev, fps, totalFrames: totalFramesRef.current }));
     }, 1000);
     return () => clearInterval(interval);
   }, []);
 
-  // onResults — called by MediaPipe when a pose is detected.
-  // First call confirms the detector is fully initialized.
+  // onResults — called by MediaPipe when a frame is processed
   const onResults = useCallback(
     (result: PoseDetectionResultBundle, _vc: ViewCoordinator) => {
       if (!active) return;
       frameCountRef.current++;
+      totalFramesRef.current++;
 
-      // Mark detector as ready on first successful result
+      const hasLandmarks = !!(
+        result.results?.[0]?.landmarks?.[0]?.length
+      );
+
       if (!detectorReadyRef.current) {
         detectorReadyRef.current = true;
         setDetectorReady(true);
+        setDebugState(prev => ({
+          ...prev,
+          onResultsFired: true,
+          landmarksReceived: hasLandmarks,
+          stage: hasLandmarks ? 7 : 6,
+          stageLabel: hasLandmarks
+            ? 'Person detected! Tracking landmarks.'
+            : 'Pipeline active — detecting poses...',
+        }));
+      } else if (hasLandmarks) {
+        setDebugState(prev => ({
+          ...prev,
+          landmarksReceived: true,
+          stage: 7,
+          stageLabel: 'Person detected! Tracking landmarks.',
+        }));
       }
 
       const poseResults = result.results;
@@ -103,42 +167,90 @@ export function usePoseCamera(opts: UsePoseCameraOptions = {}) {
 
   const onError = useCallback((error: { code: number; message: string }) => {
     console.warn('[MediaPipe Pose] Error:', error.code, error.message);
+    setDebugState(prev => ({
+      ...prev,
+      errorMessage: `Error ${error.code}: ${error.message}`,
+    }));
   }, []);
 
-  // MediaPipe Pose hook — CPU delegate is more reliable than GPU across Android devices.
-  // GPU can fail silently on many devices (init timeout, driver issues).
-  const poseDetection = usePoseDetection(
-    { onResults, onError },
-    RunningMode.LIVE_STREAM,
-    'pose_landmarker_lite.task',
-    {
-      delegate: Delegate.CPU,
-      numPoses: 1,
-      minPoseDetectionConfidence: 0.5,
-      minPosePresenceConfidence: 0.5,
-      minTrackingConfidence: 0.5,
-      shouldOutputSegmentationMasks: false,
-      mirrorMode: 'no-mirror',
-      fpsMode: 'none',
-    },
-  );
+  // MediaPipe Pose hook — CPU delegate, more reliable than GPU
+  let poseDetection: ReturnType<typeof usePoseDetection>;
+  try {
+    poseDetection = usePoseDetection(
+      { onResults, onError },
+      RunningMode.LIVE_STREAM,
+      'pose_landmarker_lite.task',
+      {
+        delegate: Delegate.CPU,
+        numPoses: 1,
+        minPoseDetectionConfidence: 0.5,
+        minPosePresenceConfidence: 0.5,
+        minTrackingConfidence: 0.5,
+        shouldOutputSegmentationMasks: false,
+        mirrorMode: 'no-mirror',
+        fpsMode: 'none',
+      },
+    );
+    // Mark hook as initialized if we get here without throwing
+    // (usePoseDetection throws if VisionCameraProxy.initFrameProcessorPlugin returns null)
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error('[MediaPipe] usePoseDetection failed:', msg);
+    setDebugState(prev => ({
+      ...prev,
+      errorMessage: `usePoseDetection init failed: ${msg}`,
+      stage: 3,
+      stageLabel: `FAILED: ${msg}`,
+    }));
+    // Return a stub so the component doesn't crash
+    return {
+      cameraRef,
+      device,
+      hasPermission,
+      cameraReady,
+      setCameraReady,
+      detectorReady: false,
+      cameraAllowed: false,
+      frameProcessor: undefined,
+      cameraViewLayoutChangeHandler: () => {},
+      cameraOrientationChangedHandler: () => {},
+      fps: 0,
+      debugState: { ...debugState, errorMessage: `usePoseDetection init failed: ${msg}` },
+    };
+  }
 
-  // CRITICAL: notify MediaPipe when the camera device changes so it can
-  // update the BaseViewCoordinator with the correct sensor orientation.
+  // Mark hook as initialized
+  useEffect(() => {
+    setDebugState(prev => ({
+      ...prev,
+      hookInitialized: true,
+      stage: prev.stage < 4 ? 4 : prev.stage,
+      stageLabel: prev.stage < 4 ? 'Waiting for detector ready (2s delay)...' : prev.stageLabel,
+    }));
+  }, []);
+
+  // Notify MediaPipe when camera device changes (sensor orientation)
   useEffect(() => {
     if (device) {
       poseDetection.cameraDeviceChangeHandler(device);
     }
   }, [device, poseDetection.cameraDeviceChangeHandler]);
 
-  // Delay: give createDetector() time to resolve before mounting the camera
-  // with a frame processor. This prevents the Kotlin ClassCastException from
-  // detectorHandle being undefined on the first frames.
-  // The mediapipe library logs "usePoseDetection.createDetector <handle>" when ready.
+  // 2-second delay before attaching frameProcessor to avoid ClassCastException
+  // when detectorHandle is undefined on the first frames
   const [cameraAllowed, setCameraAllowed] = useState(false);
   useEffect(() => {
-    // 2 second delay — createDetector() typically resolves in 500ms-1500ms
-    const timer = setTimeout(() => setCameraAllowed(true), 2000);
+    const timer = setTimeout(() => {
+      setCameraAllowed(true);
+      setDebugState(prev => ({
+        ...prev,
+        cameraAllowed: true,
+        stage: prev.stage < 5 ? 5 : prev.stage,
+        stageLabel: prev.stage < 5
+          ? 'Frame processor attached — waiting for onResults...'
+          : prev.stageLabel,
+      }));
+    }, 2000);
     return () => clearTimeout(timer);
   }, []);
 
@@ -149,14 +261,11 @@ export function usePoseCamera(opts: UsePoseCameraOptions = {}) {
     cameraReady,
     setCameraReady,
     detectorReady,
-    // cameraAllowed: only mount Camera with frameProcessor after this is true
     cameraAllowed,
     frameProcessor: poseDetection.frameProcessor,
-    // Pass these to the Camera component:
-    // onLayout={cameraViewLayoutChangeHandler}
-    // onOutputOrientationChanged={cameraOrientationChangedHandler}
     cameraViewLayoutChangeHandler: poseDetection.cameraViewLayoutChangeHandler,
     cameraOrientationChangedHandler: poseDetection.cameraOrientationChangedHandler,
-    fps,
+    fps: debugState.fps,
+    debugState,
   };
 }

@@ -30,7 +30,10 @@ const config: ExpoConfig = {
   icon: "./assets/images/icon.png",
   scheme: env.scheme,
   userInterfaceStyle: "automatic",
-  newArchEnabled: true,
+  // Disabled: react-native-mediapipe uses old NativeModules bridge (not TurboModules).
+  // New Architecture breaks createDetector() and the frame processor plugin registry.
+  // Re-enable only after upgrading to a mediapipe version with TurboModule support.
+  newArchEnabled: false,
   ios: {
     supportsTablet: true,
     bundleIdentifier: env.iosBundleId,

@@ -13,5 +13,18 @@ export function usePoseCamera() {
     cameraViewLayoutChangeHandler: () => {},
     cameraOrientationChangedHandler: () => {},
     fps: 0,
+    debugState: {
+      stage: 0,
+      stageLabel: 'Web — native only',
+      deviceFound: false,
+      permissionGranted: false,
+      hookInitialized: false,
+      cameraAllowed: false,
+      onResultsFired: false,
+      landmarksReceived: false,
+      errorMessage: 'Web platform — VisionCamera not available',
+      totalFrames: 0,
+      fps: 0,
+    },
   };
 }

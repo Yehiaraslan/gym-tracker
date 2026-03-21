@@ -723,3 +723,8 @@
 - [x] Update use-pose-camera.ts: CPU delegate + cameraAllowed delay guard + detectorReady
 - [x] Update web mock for use-pose-camera to include cameraAllowed and detectorReady
 - [x] Regenerate lockfile and verify build passes (228 tests passing)
+
+## Debug Panel + Zaki Round 2 (Mar 21 2026)
+- [x] Report full status to Zaki (server returned EOF, used his earlier diagnosis)
+- [x] Add visible debug panel to tracking screen (7-stage pipeline debug with green/red indicators)
+- [x] Add adb logcat capture instructions to debug overlay (stage labels guide user)

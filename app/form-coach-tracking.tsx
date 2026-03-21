@@ -130,6 +130,7 @@ export default function FormCoachTrackingScreen() {
     fps: detectionFps,
     cameraAllowed,
     detectorReady,
+    debugState: pipelineDebug,
   } = usePoseCamera({
     position: cameraFacing,
     active: isActive,
@@ -724,14 +725,36 @@ export default function FormCoachTrackingScreen() {
             </View>
           )}
 
-          {/* Debug Overlay */}
-          {showDebug && currentPose && (
-            <View style={[styles.debugOverlay, { backgroundColor: 'rgba(0,0,0,0.7)' }]}>
-              <Text style={styles.debugText}>Keypoints: {currentPose.keypoints.length}</Text>
-              <Text style={styles.debugText}>Confidence: {Math.round(confidence * 100)}%</Text>
-              <Text style={styles.debugText}>State: {trackingState}</Text>
-              <Text style={styles.debugText}>Reps: {currentRep}</Text>
-              <Text style={styles.debugText}>Camera: {cameraFacing}</Text>
+          {/* Pipeline Debug Panel — always visible when showDebug is true */}
+          {showDebug && (
+            <View style={styles.pipelineDebug}>
+              <Text style={styles.debugTitle}>🔬 Pipeline Debug</Text>
+              {[
+                { label: '1. Camera device', ok: pipelineDebug?.deviceFound },
+                { label: '2. Permission', ok: pipelineDebug?.permissionGranted },
+                { label: '3. Hook init', ok: pipelineDebug?.hookInitialized },
+                { label: '4. Delay passed', ok: pipelineDebug?.cameraAllowed },
+                { label: '5. onResults fired', ok: pipelineDebug?.onResultsFired },
+                { label: '6. Landmarks received', ok: pipelineDebug?.landmarksReceived },
+              ].map((item, i) => (
+                <Text key={i} style={styles.debugRow}>
+                  {item.ok ? '✅' : '❌'} {item.label}
+                </Text>
+              ))}
+              <Text style={styles.debugStage}>
+                Stage {pipelineDebug?.stage ?? 0}/7: {pipelineDebug?.stageLabel}
+              </Text>
+              <Text style={styles.debugRow}>
+                Frames: {pipelineDebug?.totalFrames ?? 0} | FPS: {pipelineDebug?.fps ?? 0}
+              </Text>
+              {pipelineDebug?.errorMessage && (
+                <Text style={styles.debugError}>⚠️ {pipelineDebug.errorMessage}</Text>
+              )}
+              {currentPose && (
+                <Text style={styles.debugRow}>
+                  Pose: {currentPose.keypoints.length} kpts | Conf: {Math.round(confidence * 100)}%
+                </Text>
+              )}
             </View>
           )}
         </View>
@@ -1031,5 +1054,39 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     textAlign: 'center',
+  },
+  pipelineDebug: {
+    position: 'absolute',
+    top: 60,
+    left: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.88)',
+    borderRadius: 10,
+    padding: 10,
+    gap: 3,
+    zIndex: 100,
+  },
+  debugTitle: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  debugRow: {
+    color: '#e2e8f0',
+    fontSize: 11,
+    fontFamily: 'monospace',
+  },
+  debugStage: {
+    color: '#fbbf24',
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  debugError: {
+    color: '#f87171',
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 2,
   },
 });
