@@ -40,8 +40,9 @@ const QUICK_ADD_IDS = [
 
 const CATEGORIES = [
   'All', 'Protein Foods', 'UAE Street Food', 'UAE Traditional', 'Arabic Breakfast',
-  'Fast Food', 'Carbohydrates', 'Fruits', 'Vegetables', 'Dairy',
-  'Nuts & Seeds', 'Snacks', 'Beverages', 'Supplements',
+  'Fast Food', 'Restaurant', 'Carbohydrates', 'Fruits', 'Vegetables', 'Dairy',
+  'Nuts & Seeds', 'Fats & Oils', 'Sauces & Condiments', 'Snacks', 'Beverages',
+  'Supermarket', 'Supplements',
 ];
 
 function calcMacros(item: FoodItem, grams: number) {
@@ -144,7 +145,7 @@ export function FoodSearch({ onAdd, onClose, mealNumber }: FoodSearchProps) {
             ref={inputRef}
             value={query}
             onChangeText={setQuery}
-            placeholder="Search 150+ UAE foods..."
+            placeholder="Search 280+ UAE foods..."
             placeholderTextColor={colors.muted}
             className="flex-1 ml-2 text-sm text-foreground"
             returnKeyType="search"
