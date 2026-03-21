@@ -713,3 +713,6 @@
 - [x] Add console.log debug trail to confirm which stage fails
 - [x] Rebuild detection pipeline with simpler direct approach (fixed babel plugin)
 - [x] Verify model file path resolution at runtime (model is in android/app/src/main/assets/)
+
+## Build Fix (Mar 21 2026)
+- [x] Fix pnpm lockfile mismatch - restored react-native-worklets to package.json (reanimated v4 peer dep)
