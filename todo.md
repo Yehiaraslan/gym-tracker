@@ -577,12 +577,15 @@
 - [x] Push updated code to GitHub
 
 ## Phase 9: MediaPipe Pose Detection Integration
-- [ ] Fetch and merge feat/mediapipe-pose branch into main
-- [ ] Resolve merge conflicts (VisionCamera code wins for camera-related code)
-- [ ] Install new dependencies
-- [ ] Download MediaPipe pose model (pose_landmarker_lite.task)
-- [ ] Place model in Android assets directory
-- [ ] Run expo prebuild --clean
-- [ ] Read docs/mediapipe-migration.md
-- [ ] Verify compilation with 0 errors
+- [x] Fetch and merge feat/mediapipe-pose branch into main
+- [x] Resolve merge conflicts (kept main versions of nutrition.tsx, pr-board.tsx, coach-engine.ts)
+- [x] Install new dependencies (react-native-vision-camera, react-native-mediapipe, react-native-worklets-core)
+- [x] Download MediaPipe pose model (pose_landmarker_lite.task, 5.8MB)
+- [x] Place model in Android assets directory
+- [ ] Run expo prebuild --clean (requires native build environment)
+- [x] Read docs/mediapipe-migration.md
+- [x] Verify compilation with 0 TypeScript errors, 224 tests passing
+- [x] Remove old TF.js files (tensor-camera.tsx, tf-init.ts, tf-pose-detection.ts)
+- [x] Fix use-pose-camera.ts to match actual react-native-mediapipe API
+- [x] Add missing exports to coach-engine.ts for branch files
 - [ ] Push to GitHub

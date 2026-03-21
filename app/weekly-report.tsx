@@ -123,8 +123,8 @@ export default function WeeklyReportScreen() {
         twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
         return e.date >= twoWeeksAgo.toISOString().split('T')[0] && e.date < weekAgoStr;
       });
-      const avgRecent = recentWeights.length > 0 ? recentWeights.reduce((s, e) => s + e.weightKg, 0) / recentWeights.length : null;
-      const avgPrev = prevWeights.length > 0 ? prevWeights.reduce((s, e) => s + e.weightKg, 0) / prevWeights.length : null;
+      const avgRecent = recentWeights.length > 0 ? recentWeights.reduce((s: number, e) => s + (e.weightKg ?? e.weight ?? 0), 0) / recentWeights.length : null;
+      const avgPrev = prevWeights.length > 0 ? prevWeights.reduce((s: number, e) => s + (e.weightKg ?? e.weight ?? 0), 0) / prevWeights.length : null;
       const weightDelta = avgRecent && avgPrev ? avgRecent - avgPrev : null;
 
       // RPE

@@ -13,19 +13,20 @@
  * You also need an Expo development build (not Expo Go).
  */
 
-import { useRef, useCallback, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import {
   Camera,
   useCameraDevice,
   useCameraPermission,
-  useFrameProcessor,
   type CameraPosition,
 } from 'react-native-vision-camera';
-import { usePoseDetection } from 'react-native-mediapipe';
+import {
+  usePoseDetection,
+  type PoseDetectionResultBundle,
+  RunningMode,
+  Delegate,
+} from 'react-native-mediapipe';
 import { getRealPoseDetector, type MediaPipeLandmark } from '@/lib/real-pose-detection';
-import { Dimensions } from 'react-native';
-
-const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
 export interface UsePoseCameraOptions {
   /** 'front' | 'back' */
@@ -48,13 +49,6 @@ export function usePoseCamera(opts: UsePoseCameraOptions = {}) {
     if (!hasPermission) requestPermission();
   }, [hasPermission, requestPermission]);
 
-  // MediaPipe Pose hook — runs on native thread via frame processor plugin
-  const poseDetection = usePoseDetection({
-    modelPath: 'pose_landmarker_lite.task', // bundled in android/ios assets
-    delegate: 'GPU',
-    numPoses: 1,
-  });
-
   // FPS counter
   const frameCountRef = useRef(0);
   const lastFpsTickRef = useRef(Date.now());
@@ -70,23 +64,49 @@ export function usePoseCamera(opts: UsePoseCameraOptions = {}) {
     return () => clearInterval(interval);
   }, []);
 
-  // Frame processor — runs on the native camera thread (worklet)
-  const frameProcessor = useFrameProcessor(
-    (frame) => {
-      'worklet';
+  // Callback-based pose detection results handler
+  const onResults = useCallback(
+    (result: PoseDetectionResultBundle) => {
       if (!active) return;
-
-      const results = poseDetection.detectOnFrame(frame);
-      if (results && results.landmarks && results.landmarks.length > 0) {
-        const landmarks = results.landmarks[0] as MediaPipeLandmark[];
-        // Bridge back to JS thread
-        const detector = getRealPoseDetector();
-        detector.onMediaPipePose(landmarks, frame.width, frame.height);
-      }
-
       frameCountRef.current++;
+
+      const poseResults = result.results;
+      if (poseResults && poseResults.length > 0) {
+        const firstResult = poseResults[0];
+        if (firstResult.landmarks && firstResult.landmarks.length > 0) {
+          const landmarks = firstResult.landmarks[0] as MediaPipeLandmark[];
+          const detector = getRealPoseDetector();
+          detector.onMediaPipePose(
+            landmarks,
+            result.inputImageWidth,
+            result.inputImageHeight,
+          );
+        }
+      }
     },
-    [active, poseDetection],
+    [active],
+  );
+
+  const onError = useCallback((error: { code: number; message: string }) => {
+    console.warn('[MediaPipe Pose] Error:', error.message);
+  }, []);
+
+  // MediaPipe Pose hook — callback-based API
+  // usePoseDetection(callbacks, runningMode, model, options?)
+  const poseDetection = usePoseDetection(
+    { onResults, onError },
+    RunningMode.LIVE_STREAM,
+    'pose_landmarker_lite.task',
+    {
+      delegate: Delegate.GPU,
+      numPoses: 1,
+      minPoseDetectionConfidence: 0.5,
+      minPosePresenceConfidence: 0.5,
+      minTrackingConfidence: 0.5,
+      shouldOutputSegmentationMasks: false,
+      mirrorMode: 'no-mirror',
+      fpsMode: 'none',
+    },
   );
 
   return {
@@ -95,7 +115,10 @@ export function usePoseCamera(opts: UsePoseCameraOptions = {}) {
     hasPermission,
     cameraReady,
     setCameraReady,
-    frameProcessor,
+    frameProcessor: poseDetection.frameProcessor,
+    cameraViewLayoutChangeHandler: poseDetection.cameraViewLayoutChangeHandler,
+    cameraDeviceChangeHandler: poseDetection.cameraDeviceChangeHandler,
+    cameraOrientationChangedHandler: poseDetection.cameraOrientationChangedHandler,
     fps,
   };
 }

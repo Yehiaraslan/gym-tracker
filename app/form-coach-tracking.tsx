@@ -110,7 +110,7 @@ export default function FormCoachTrackingScreen() {
 
   const trackerRef = useRef<PushupTracker | PullupTracker | SquatTracker | RDLTracker | null>(null);
   const sessionRef = useRef<ExerciseSession | null>(null);
-  const cameraRef = useRef<CameraView>(null);
+  const cameraRef = useRef<any>(null); // Legacy ref (VisionCamera ref handled by usePoseCamera)
   const aiCoachRef = useRef<AICoach | null>(null);
   const progressiveCalibrationRef = useRef<ProgressiveCalibrationManager | null>(null);
   const jointLossAlertRef = useRef<JointLossAlertManager | null>(null);

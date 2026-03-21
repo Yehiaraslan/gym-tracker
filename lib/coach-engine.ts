@@ -2,6 +2,7 @@
 // Coach Engine — Rule-based fitness coaching
 // Adapted from hypertrophy-tracker
 // ============================================================
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   GymStore,
   CoachRecommendation,
@@ -10,6 +11,9 @@ import {
   SleepEntry,
   PersonalRecord,
 } from './types';
+
+// Re-export types needed by branch files
+export type { CoachRecommendation, SleepEntry, WeightEntry };
 
 // Epley 1RM formula
 export function epley1RM(weight: number, reps: number): number {
@@ -185,6 +189,84 @@ function checkProteinIntake(store: GymStore): CoachRecommendation | null {
   }
   
   return null;
+}
+
+// ---- AsyncStorage-based helpers (used by split-workout, weekly-report, etc.) ----
+
+const RECS_KEY = '@gym_tracker_recommendations';
+const MESO_KEY = '@gym_tracker_mesocycle_start';
+const SLEEP_KEY_CE = '@gym_tracker_sleep';
+const WEIGHT_KEY_CE = '@gym_tracker_weight';
+
+export async function getMesocycleStartDate(): Promise<string> {
+  const data = await AsyncStorage.getItem(MESO_KEY);
+  if (data) return data;
+  const today = new Date().toISOString().split('T')[0];
+  await AsyncStorage.setItem(MESO_KEY, today);
+  return today;
+}
+
+export async function saveRecommendation(rec: CoachRecommendation): Promise<void> {
+  const recs = await getRecommendations();
+  recs.push(rec);
+  await AsyncStorage.setItem(RECS_KEY, JSON.stringify(recs));
+}
+
+export async function getRecommendations(): Promise<CoachRecommendation[]> {
+  const data = await AsyncStorage.getItem(RECS_KEY);
+  if (!data) return [];
+  return JSON.parse(data) as CoachRecommendation[];
+}
+
+export async function getActiveRecommendations(): Promise<CoachRecommendation[]> {
+  const all = await getRecommendations();
+  return all.filter(r => !r.dismissed).sort((a, b) => b.date.localeCompare(a.date));
+}
+
+export async function getRecentSleep(days = 7): Promise<SleepEntry[]> {
+  const data = await AsyncStorage.getItem(SLEEP_KEY_CE);
+  if (!data) return [];
+  const all = (JSON.parse(data) as SleepEntry[]).sort((a, b) => b.date.localeCompare(a.date));
+  return all.slice(0, days);
+}
+
+export async function getWeightEntries(): Promise<WeightEntry[]> {
+  const data = await AsyncStorage.getItem(WEIGHT_KEY_CE);
+  if (!data) return [];
+  return (JSON.parse(data) as WeightEntry[]).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+export function checkProgressiveOverload(
+  exerciseName: string,
+  sets: { weight: number; reps: number }[],
+  repsMax: number,
+  muscleGroup: 'upper' | 'lower',
+): CoachRecommendation | null {
+  if (sets.length === 0) return null;
+  const allHitTop = sets.every(s => s.reps >= repsMax);
+  if (!allHitTop) return null;
+
+  const increment = muscleGroup === 'upper' ? 2.5 : 5;
+  const currentWeight = sets[0].weight;
+
+  return {
+    id: generateId(),
+    date: new Date().toISOString().split('T')[0],
+    type: 'overload',
+    message: `${exerciseName}: Hit top of rep range on all sets!`,
+    actionable: `Increase weight to ${currentWeight + increment}kg next session (+${increment}kg)`,
+    priority: 'medium',
+    dismissed: false,
+  };
+}
+
+export function getSleepDuration(bedtime: string, wakeTime: string): number {
+  const [bedH, bedM] = bedtime.split(':').map(Number);
+  const [wakeH, wakeM] = wakeTime.split(':').map(Number);
+  let bedMinutes = bedH * 60 + bedM;
+  let wakeMinutes = wakeH * 60 + wakeM;
+  if (wakeMinutes < bedMinutes) wakeMinutes += 24 * 60;
+  return (wakeMinutes - bedMinutes) / 60;
 }
 
 // Main coach engine — runs all analyses
