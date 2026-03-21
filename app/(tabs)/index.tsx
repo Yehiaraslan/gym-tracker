@@ -18,6 +18,7 @@ import { getUnlockedRewards, getRewardProgress } from '@/lib/milestone-rewards';
 import { WeeklyRecoveryChart } from '@/components/weekly-recovery-chart';
 import { RewardsShowcase } from '@/components/rewards-showcase';
 import { MissedWorkoutsCard } from '@/components/missed-workouts-card';
+import { SplitHomeSection } from '@/components/split-home-section';
 import type { WeeklyRecoveryData } from '@/lib/whoop-recovery-service';
 
 export default function HomeScreen() {
@@ -483,6 +484,9 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
         )}
+        {/* Upper/Lower Split Program */}
+        <SplitHomeSection />
+
 
         {/* AI Form Coach */}
         <View className="px-6 mt-6">

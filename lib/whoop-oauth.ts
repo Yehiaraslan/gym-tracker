@@ -36,7 +36,7 @@ export async function startWhoopOAuthFlow(): Promise<WhoopOAuthToken | null> {
     authUrl.searchParams.append('client_id', WHOOP_CLIENT_ID);
     authUrl.searchParams.append('redirect_uri', WHOOP_REDIRECT_URI);
     authUrl.searchParams.append('response_type', 'code');
-    authUrl.searchParams.append('scope', 'read:recovery read:workout read:user_data');
+    authUrl.searchParams.append('scope', 'read:recovery read:cycles read:sleep read:workout read:profile read:body_measurement');
     authUrl.searchParams.append('state', state);
 
     const result = await WebBrowser.openAuthSessionAsync(
