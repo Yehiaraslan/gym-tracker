@@ -181,20 +181,20 @@ export function SplitHomeSection() {
       {recommendations.length > 0 && (
         <View className="mt-3">
           {recommendations.map(rec => {
-            const typeColors = {
+            const typeColors: Record<string, string> = {
               nutrition: '#F59E0B',
               training: '#3B82F6',
               recovery: '#8B5CF6',
               overload: '#10B981',
             };
-            const typeIcons = {
+            const typeIcons: Record<string, string> = {
               nutrition: '🍗',
               training: '🏋️',
               recovery: '😴',
               overload: '📈',
             };
-            const color = typeColors[rec.type];
-            const icon = typeIcons[rec.type];
+            const color = typeColors[rec.type] ?? '#6B7280';
+            const icon = typeIcons[rec.type] ?? '💡';
 
             return (
               <View

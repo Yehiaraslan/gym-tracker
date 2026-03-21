@@ -695,3 +695,9 @@
 - [x] Rebuild Exercise Library: search bar, muscle filter chips, colored icon exercise cards
 - [x] Add Sleep tab screen with sleep logging
 - [x] Add WHOOP tab screen (move from settings)
+
+## AI Form Coach Navigation (Session Mar 21 2026)
+- [x] Add AI Form Coach as a visible tab in the 7-tab navigation
+- [x] Add "Form Coach" button/card on home screen quick actions
+- [ ] Add "Check Form" button inside active workout exercise cards (future)
+- [x] Fix TypeScript error in split-home-section.tsx (Record<string,string> type annotations)

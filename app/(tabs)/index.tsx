@@ -294,6 +294,26 @@ export default function HomeScreen() {
           </View>
         </View>
 
+        {/* ── AI Form Coach Banner ── */}
+        <TouchableOpacity
+          style={[s.coachCard, { backgroundColor: '#1A1F2E', borderColor: '#3B82F640' }]}
+          onPress={() => router.push('/(tabs)/coach' as any)}
+          activeOpacity={0.8}
+        >
+          <View style={s.coachLeft}>
+            <View style={[s.coachIconWrap, { backgroundColor: '#3B82F620' }]}>
+              <Text style={s.coachIcon}>🤖</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[s.coachTitle, { color: fg }]}>AI Form Coach</Text>
+              <Text style={[s.coachSub, { color: mut }]}>Pose detection · Rep counting · Form score</Text>
+            </View>
+          </View>
+          <View style={[s.coachBadge, { backgroundColor: '#3B82F620' }]}>
+            <Text style={[s.coachBadgeText, { color: '#3B82F6' }]}>Open →</Text>
+          </View>
+        </TouchableOpacity>
+
         {/* ── Nutrition Summary ── */}
         <TouchableOpacity
           style={[s.card, { backgroundColor: surf, borderColor: bord }]}
@@ -406,4 +426,13 @@ const s = StyleSheet.create({
   whoopScore: { fontSize: 40, fontWeight: '800', lineHeight: 44 },
   whoopStatus: { fontSize: 13, marginTop: 2 },
   whoopMetricVal: { fontSize: 16, fontWeight: '700' },
+
+  coachCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: 16, borderWidth: 1, padding: 14, marginBottom: 12 },
+  coachLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
+  coachIconWrap: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
+  coachIcon: { fontSize: 22 },
+  coachTitle: { fontSize: 15, fontWeight: '700', marginBottom: 2 },
+  coachSub: { fontSize: 12, lineHeight: 16 },
+  coachBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
+  coachBadgeText: { fontSize: 12, fontWeight: '700' },
 });

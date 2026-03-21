@@ -60,17 +60,17 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="coach"
+        options={{
+          title: "AI Coach",
+          tabBarIcon: ({ color }) => <IconSymbol size={22} name="figure.stand" color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="analytics"
         options={{
           title: "Progress",
           tabBarIcon: ({ color }) => <IconSymbol size={22} name="chart.line.uptrend.xyaxis" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="sleep"
-        options={{
-          title: "Sleep",
-          tabBarIcon: ({ color }) => <IconSymbol size={22} name="moon.fill" color={color} />,
         }}
       />
       <Tabs.Screen
@@ -81,6 +81,7 @@ export default function TabLayout() {
         }}
       />
       {/* Hidden tabs — accessible via router.push */}
+      <Tabs.Screen name="sleep" options={{ href: null }} />
       <Tabs.Screen name="calendar" options={{ href: null }} />
       <Tabs.Screen name="admin" options={{ href: null }} />
     </Tabs>
