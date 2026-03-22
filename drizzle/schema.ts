@@ -1,4 +1,4 @@
-import { bigint, index, int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { bigint, boolean, decimal, index, int, json, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -109,3 +109,221 @@ export const aiMessages = mysqlTable("ai_messages", {
 
 export type AiMessage = typeof aiMessages.$inferSelect;
 export type InsertAiMessage = typeof aiMessages.$inferInsert;
+
+// ════════════════════════════════════════════════════════════
+// WORKOUT TRACKING TABLES
+// ════════════════════════════════════════════════════════════
+
+// ── Workout Sessions ────────────────────────────────────────
+// One row per completed (or in-progress) workout session
+export const workoutSessions = mysqlTable("workout_sessions", {
+  id: varchar("id", { length: 64 }).primaryKey(), // client-generated UUID
+  userOpenId: varchar("userOpenId", { length: 64 }).notNull(),
+  date: varchar("date", { length: 10 }).notNull(), // YYYY-MM-DD
+  sessionType: varchar("sessionType", { length: 32 }).notNull(), // upper-a, lower-a, etc.
+  startTime: varchar("startTime", { length: 30 }).notNull(),
+  endTime: varchar("endTime", { length: 30 }),
+  completed: boolean("completed").notNull().default(false),
+  durationMinutes: int("durationMinutes"),
+  totalVolumeKg: decimal("totalVolumeKg", { precision: 10, scale: 2 }),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  userDateIdx: index("ws_user_date_idx").on(table.userOpenId, table.date),
+  userTypeIdx: index("ws_user_type_idx").on(table.userOpenId, table.sessionType),
+}));
+
+export type WorkoutSession = typeof workoutSessions.$inferSelect;
+export type InsertWorkoutSession = typeof workoutSessions.$inferInsert;
+
+// ── Workout Exercise Logs ───────────────────────────────────
+// One row per exercise within a session
+export const workoutExerciseLogs = mysqlTable("workout_exercise_logs", {
+  id: int("id").autoincrement().primaryKey(),
+  sessionId: varchar("sessionId", { length: 64 }).notNull(),
+  userOpenId: varchar("userOpenId", { length: 64 }).notNull(),
+  exerciseName: varchar("exerciseName", { length: 128 }).notNull(),
+  exerciseOrder: int("exerciseOrder").notNull().default(0),
+  skipped: boolean("skipped").notNull().default(false),
+  skipReason: varchar("skipReason", { length: 255 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({
+  sessionIdx: index("wel_session_idx").on(table.sessionId),
+  userExIdx: index("wel_user_ex_idx").on(table.userOpenId, table.exerciseName),
+}));
+
+export type WorkoutExerciseLog = typeof workoutExerciseLogs.$inferSelect;
+export type InsertWorkoutExerciseLog = typeof workoutExerciseLogs.$inferInsert;
+
+// ── Workout Set Logs ────────────────────────────────────────
+// One row per set within an exercise log
+export const workoutSetLogs = mysqlTable("workout_set_logs", {
+  id: int("id").autoincrement().primaryKey(),
+  exerciseLogId: int("exerciseLogId").notNull(),
+  sessionId: varchar("sessionId", { length: 64 }).notNull(),
+  userOpenId: varchar("userOpenId", { length: 64 }).notNull(),
+  setNumber: int("setNumber").notNull(),
+  weightKg: decimal("weightKg", { precision: 6, scale: 2 }).notNull(),
+  reps: int("reps").notNull(),
+  rpe: int("rpe"), // 6-10
+  isWarmup: boolean("isWarmup").notNull().default(false),
+  e1rm: decimal("e1rm", { precision: 6, scale: 2 }), // Epley 1RM estimate
+  setTimestamp: varchar("setTimestamp", { length: 30 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({
+  exerciseLogIdx: index("wsl_exercise_log_idx").on(table.exerciseLogId),
+  sessionIdx: index("wsl_session_idx").on(table.sessionId),
+  userIdx: index("wsl_user_idx").on(table.userOpenId),
+}));
+
+export type WorkoutSetLog = typeof workoutSetLogs.$inferSelect;
+export type InsertWorkoutSetLog = typeof workoutSetLogs.$inferInsert;
+
+// ── Form Coach Sessions ─────────────────────────────────────
+// AI form analysis sessions (from pose detection)
+export const formCoachSessions = mysqlTable("form_coach_sessions", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  userOpenId: varchar("userOpenId", { length: 64 }).notNull(),
+  exerciseName: varchar("exerciseName", { length: 128 }).notNull(),
+  date: varchar("date", { length: 10 }).notNull(),
+  totalReps: int("totalReps").notNull().default(0),
+  avgFormScore: decimal("avgFormScore", { precision: 5, scale: 2 }),
+  peakFormScore: decimal("peakFormScore", { precision: 5, scale: 2 }),
+  issuesJson: text("issuesJson"), // JSON array of form issues
+  durationSeconds: int("durationSeconds"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({
+  userDateIdx: index("fcs_user_date_idx").on(table.userOpenId, table.date),
+  userExIdx: index("fcs_user_ex_idx").on(table.userOpenId, table.exerciseName),
+}));
+
+export type FormCoachSession = typeof formCoachSessions.$inferSelect;
+export type InsertFormCoachSession = typeof formCoachSessions.$inferInsert;
+
+// ════════════════════════════════════════════════════════════
+// NUTRITION TABLES
+// ════════════════════════════════════════════════════════════
+
+// ── Daily Nutrition Summary ─────────────────────────────────
+export const nutritionDays = mysqlTable("nutrition_days", {
+  id: int("id").autoincrement().primaryKey(),
+  userOpenId: varchar("userOpenId", { length: 64 }).notNull(),
+  date: varchar("date", { length: 10 }).notNull(), // YYYY-MM-DD
+  isTrainingDay: boolean("isTrainingDay").notNull().default(true),
+  targetCalories: int("targetCalories"),
+  targetProtein: int("targetProtein"),
+  targetCarbs: int("targetCarbs"),
+  targetFat: int("targetFat"),
+  supplementsJson: text("supplementsJson"), // JSON array of SupplementCheck
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  userDateIdx: index("nd_user_date_idx").on(table.userOpenId, table.date),
+}));
+
+export type NutritionDay = typeof nutritionDays.$inferSelect;
+export type InsertNutritionDay = typeof nutritionDays.$inferInsert;
+
+// ── Food Entries ────────────────────────────────────────────
+export const foodEntries = mysqlTable("food_entries", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  nutritionDayId: int("nutritionDayId").notNull(),
+  userOpenId: varchar("userOpenId", { length: 64 }).notNull(),
+  date: varchar("date", { length: 10 }).notNull(),
+  mealNumber: int("mealNumber").notNull(), // 1-5
+  foodName: varchar("foodName", { length: 255 }).notNull(),
+  protein: decimal("protein", { precision: 6, scale: 2 }).notNull(),
+  carbs: decimal("carbs", { precision: 6, scale: 2 }).notNull(),
+  fat: decimal("fat", { precision: 6, scale: 2 }).notNull(),
+  calories: int("calories").notNull(),
+  servingGrams: int("servingGrams"),
+  entryTimestamp: varchar("entryTimestamp", { length: 30 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({
+  dayIdx: index("fe_day_idx").on(table.nutritionDayId),
+  userDateIdx: index("fe_user_date_idx").on(table.userOpenId, table.date),
+}));
+
+export type FoodEntry = typeof foodEntries.$inferSelect;
+export type InsertFoodEntry = typeof foodEntries.$inferInsert;
+
+// ════════════════════════════════════════════════════════════
+// BODY METRICS TABLES
+// ════════════════════════════════════════════════════════════
+
+// ── Body Weight & Measurements ──────────────────────────────
+export const bodyWeightEntries = mysqlTable("body_weight_entries", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  userOpenId: varchar("userOpenId", { length: 64 }).notNull(),
+  date: varchar("date", { length: 10 }).notNull(),
+  weightKg: decimal("weightKg", { precision: 5, scale: 2 }),
+  bodyFatPercent: decimal("bodyFatPercent", { precision: 4, scale: 1 }),
+  chestCm: decimal("chestCm", { precision: 5, scale: 1 }),
+  waistCm: decimal("waistCm", { precision: 5, scale: 1 }),
+  hipsCm: decimal("hipsCm", { precision: 5, scale: 1 }),
+  armsCm: decimal("armsCm", { precision: 5, scale: 1 }),
+  thighsCm: decimal("thighsCm", { precision: 5, scale: 1 }),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({
+  userDateIdx: index("bwe_user_date_idx").on(table.userOpenId, table.date),
+}));
+
+export type BodyWeightEntry = typeof bodyWeightEntries.$inferSelect;
+export type InsertBodyWeightEntry = typeof bodyWeightEntries.$inferInsert;
+
+// ── Sleep Entries ───────────────────────────────────────────
+export const sleepEntries = mysqlTable("sleep_entries", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  userOpenId: varchar("userOpenId", { length: 64 }).notNull(),
+  date: varchar("date", { length: 10 }).notNull(),
+  bedtime: varchar("bedtime", { length: 10 }), // HH:MM
+  wakeTime: varchar("wakeTime", { length: 10 }), // HH:MM
+  durationHours: decimal("durationHours", { precision: 4, scale: 2 }),
+  qualityRating: int("qualityRating"), // 1-5
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({
+  userDateIdx: index("se_user_date_idx").on(table.userOpenId, table.date),
+}));
+
+export type SleepEntry = typeof sleepEntries.$inferSelect;
+export type InsertSleepEntry = typeof sleepEntries.$inferInsert;
+
+// ════════════════════════════════════════════════════════════
+// STREAK & PROGRESS TABLES
+// ════════════════════════════════════════════════════════════
+
+// ── Workout Streak ──────────────────────────────────────────
+export const workoutStreaks = mysqlTable("workout_streaks", {
+  id: int("id").autoincrement().primaryKey(),
+  userOpenId: varchar("userOpenId", { length: 64 }).notNull().unique(),
+  currentStreak: int("currentStreak").notNull().default(0),
+  bestStreak: int("bestStreak").notNull().default(0),
+  lastWorkoutDate: varchar("lastWorkoutDate", { length: 10 }),
+  workoutDatesJson: text("workoutDatesJson"), // JSON array of YYYY-MM-DD strings
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type WorkoutStreak = typeof workoutStreaks.$inferSelect;
+export type InsertWorkoutStreak = typeof workoutStreaks.$inferInsert;
+
+// ── Personal Records ────────────────────────────────────────
+export const personalRecords = mysqlTable("personal_records", {
+  id: int("id").autoincrement().primaryKey(),
+  userOpenId: varchar("userOpenId", { length: 64 }).notNull(),
+  exerciseName: varchar("exerciseName", { length: 128 }).notNull(),
+  weightKg: decimal("weightKg", { precision: 6, scale: 2 }).notNull(),
+  reps: int("reps").notNull(),
+  estimated1rm: decimal("estimated1rm", { precision: 6, scale: 2 }),
+  sessionType: varchar("sessionType", { length: 32 }),
+  date: varchar("date", { length: 10 }).notNull(),
+  sessionId: varchar("sessionId", { length: 64 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({
+  userExIdx: index("pr_user_ex_idx").on(table.userOpenId, table.exerciseName),
+}));
+
+export type PersonalRecord = typeof personalRecords.$inferSelect;
+export type InsertPersonalRecord = typeof personalRecords.$inferInsert;

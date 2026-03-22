@@ -15,6 +15,13 @@
       "when": 1774052353882,
       "tag": "0001_supreme_cargill",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1774172652016,
+      "tag": "0002_curly_sally_floyd",
+      "breakpoints": true
     }
   ]
 }

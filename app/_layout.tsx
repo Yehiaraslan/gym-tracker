@@ -23,6 +23,7 @@ import { notificationService } from "@/lib/notification-service";
 import { recoveryAlertMonitor } from "@/lib/recovery-alert-monitor";
 import { milestoneNotificationMonitor } from "@/lib/milestone-notification-monitor";
 import { runCoachingChecks } from "@/lib/ai-coaching-notifications";
+import { runMigrationIfNeeded } from "@/lib/migration-service";
 
 const DEFAULT_WEB_INSETS: EdgeInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 const DEFAULT_WEB_FRAME: Rect = { x: 0, y: 0, width: 0, height: 0 };
@@ -47,6 +48,9 @@ export default function RootLayout() {
   useEffect(() => {
     const initNotifications = async () => {
       try {
+        // Run one-time migration of AsyncStorage data to cloud DB
+        runMigrationIfNeeded().catch((e: unknown) => console.warn('[Layout] Migration error:', e));
+
         const hasPermission = await notificationService.requestPermissions();
         if (hasPermission) {
           notificationService.setupListeners();

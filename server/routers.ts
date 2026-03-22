@@ -7,6 +7,7 @@ import * as whoopService from "./whoopService";
 import * as whoopStateDb from "./whoopStateDb";
 import * as whoopDb from "./whoopDb";
 import * as aiCoach from "./ai-coaching-service";
+import * as dataSync from "./data-sync-service";
 
 export const appRouter = router({
   system: systemRouter,
@@ -180,6 +181,154 @@ export const appRouter = router({
         const days = input?.days ?? 7;
         return whoopDb.getRecoveryHistory(ctx.user.openId, days);
       }),
+  }),
+
+  // ── Data Sync (Cloud Persistence) ────────────────────────
+  sync: router({
+    // ── Workouts ──
+    upsertWorkout: protectedProcedure
+      .input(z.object({ session: z.any() }))
+      .mutation(async ({ ctx, input }) => {
+        await dataSync.upsertWorkoutSession(ctx.user.openId, input.session);
+        return { success: true };
+      }),
+
+    getWorkouts: protectedProcedure
+      .input(z.object({ limit: z.number().min(1).max(200).default(50) }).optional())
+      .query(async ({ ctx, input }) => {
+        return dataSync.getWorkoutSessions(ctx.user.openId, input?.limit ?? 50);
+      }),
+
+    bulkUpsertWorkouts: protectedProcedure
+      .input(z.object({ sessions: z.array(z.any()) }))
+      .mutation(async ({ ctx, input }) => {
+        const count = await dataSync.bulkUpsertWorkoutSessions(ctx.user.openId, input.sessions);
+        return { count };
+      }),
+
+    // ── Form Coach Sessions ──
+    upsertFormCoach: protectedProcedure
+      .input(z.object({ session: z.any() }))
+      .mutation(async ({ ctx, input }) => {
+        await dataSync.upsertFormCoachSession(ctx.user.openId, input.session);
+        return { success: true };
+      }),
+
+    getFormCoachSessions: protectedProcedure
+      .input(z.object({ limit: z.number().min(1).max(100).default(50) }).optional())
+      .query(async ({ ctx, input }) => {
+        return dataSync.getFormCoachSessions(ctx.user.openId, input?.limit ?? 50);
+      }),
+
+    bulkUpsertFormCoach: protectedProcedure
+      .input(z.object({ sessions: z.array(z.any()) }))
+      .mutation(async ({ ctx, input }) => {
+        let count = 0;
+        for (const s of input.sessions) {
+          await dataSync.upsertFormCoachSession(ctx.user.openId, s);
+          count++;
+        }
+        return { count };
+      }),
+
+    // ── Nutrition ──
+    upsertNutritionDay: protectedProcedure
+      .input(z.object({ day: z.any() }))
+      .mutation(async ({ ctx, input }) => {
+        await dataSync.upsertNutritionDay(ctx.user.openId, input.day);
+        return { success: true };
+      }),
+
+    getNutritionDays: protectedProcedure
+      .input(z.object({ days: z.number().min(1).max(365).default(30) }).optional())
+      .query(async ({ ctx, input }) => {
+        return dataSync.getNutritionDays(ctx.user.openId, input?.days ?? 30);
+      }),
+
+    bulkUpsertNutrition: protectedProcedure
+      .input(z.object({ days: z.array(z.any()) }))
+      .mutation(async ({ ctx, input }) => {
+        let count = 0;
+        for (const d of input.days) {
+          await dataSync.upsertNutritionDay(ctx.user.openId, d);
+          count++;
+        }
+        return { count };
+      }),
+
+    // ── Body Weight ──
+    upsertBodyWeight: protectedProcedure
+      .input(z.object({ entry: z.any() }))
+      .mutation(async ({ ctx, input }) => {
+        await dataSync.upsertBodyWeightEntry(ctx.user.openId, input.entry);
+        return { success: true };
+      }),
+
+    getBodyWeightEntries: protectedProcedure
+      .input(z.object({ limit: z.number().min(1).max(365).default(90) }).optional())
+      .query(async ({ ctx, input }) => {
+        return dataSync.getBodyWeightEntries(ctx.user.openId, input?.limit ?? 90);
+      }),
+
+    bulkUpsertBodyWeight: protectedProcedure
+      .input(z.object({ entries: z.array(z.any()) }))
+      .mutation(async ({ ctx, input }) => {
+        let count = 0;
+        for (const e of input.entries) {
+          await dataSync.upsertBodyWeightEntry(ctx.user.openId, e);
+          count++;
+        }
+        return { count };
+      }),
+
+    // ── Sleep ──
+    upsertSleep: protectedProcedure
+      .input(z.object({ entry: z.any() }))
+      .mutation(async ({ ctx, input }) => {
+        await dataSync.upsertSleepEntry(ctx.user.openId, input.entry);
+        return { success: true };
+      }),
+
+    getSleepEntries: protectedProcedure
+      .input(z.object({ limit: z.number().min(1).max(90).default(30) }).optional())
+      .query(async ({ ctx, input }) => {
+        return dataSync.getSleepEntries(ctx.user.openId, input?.limit ?? 30);
+      }),
+
+    bulkUpsertSleep: protectedProcedure
+      .input(z.object({ entries: z.array(z.any()) }))
+      .mutation(async ({ ctx, input }) => {
+        let count = 0;
+        for (const e of input.entries) {
+          await dataSync.upsertSleepEntry(ctx.user.openId, e);
+          count++;
+        }
+        return { count };
+      }),
+
+    // ── Streak ──
+    upsertStreak: protectedProcedure
+      .input(z.object({ streak: z.any() }))
+      .mutation(async ({ ctx, input }) => {
+        await dataSync.upsertStreak(ctx.user.openId, input.streak);
+        return { success: true };
+      }),
+
+    getStreak: protectedProcedure.query(async ({ ctx }) => {
+      return dataSync.getStreak(ctx.user.openId);
+    }),
+
+    // ── Personal Records ──
+    upsertPersonalRecord: protectedProcedure
+      .input(z.object({ pr: z.any() }))
+      .mutation(async ({ ctx, input }) => {
+        await dataSync.upsertPersonalRecord(ctx.user.openId, input.pr);
+        return { success: true };
+      }),
+
+    getPersonalRecords: protectedProcedure.query(async ({ ctx }) => {
+      return dataSync.getPersonalRecords(ctx.user.openId);
+    }),
   }),
 
   // ── AI Coaching ───────────────────────────────────────────

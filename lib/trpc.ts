@@ -1,5 +1,5 @@
 import { createTRPCReact } from "@trpc/react-query";
-import { httpBatchLink } from "@trpc/client";
+import { createTRPCClient as createVanillaTRPCClient, httpBatchLink } from "@trpc/client";
 import superjson from "superjson";
 import type { AppRouter } from "@/server/routers";
 import { getApiBaseUrl } from "@/constants/oauth";
@@ -13,6 +13,27 @@ import * as Auth from "@/lib/_core/auth";
  * use the same serialization format (superjson).
  */
 export const trpc = createTRPCReact<AppRouter>();
+
+/**
+ * Standalone vanilla tRPC client for use outside React components
+ * (e.g., in store functions, background sync, etc.).
+ * Uses the same auth headers as the React client.
+ */
+export const trpcClient = createVanillaTRPCClient<AppRouter>({
+  links: [
+    httpBatchLink({
+      url: `${getApiBaseUrl()}/api/trpc`,
+      transformer: superjson,
+      async headers() {
+        const token = await Auth.getSessionToken();
+        return token ? { Authorization: `Bearer ${token}` } : {};
+      },
+      fetch(url, options) {
+        return fetch(url, { ...options, credentials: "include" });
+      },
+    }),
+  ],
+});
 
 /**
  * Creates the tRPC client with proper configuration.

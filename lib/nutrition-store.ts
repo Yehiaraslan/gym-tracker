@@ -3,6 +3,7 @@
 // ============================================================
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { trpcClient } from './trpc';
 import { isTrainingDay, NUTRITION_TARGETS, SUPPLEMENTS } from './training-program';
 
 // ---- Types ----
@@ -83,6 +84,34 @@ export async function saveDailyNutrition(nutrition: DailyNutrition): Promise<voi
     parsed[nutrition.date] = nutrition;
     await AsyncStorage.setItem(NUTRITION_KEY, JSON.stringify(parsed));
   } catch (_e) { /* ignore */ }
+  // Mirror to cloud DB — fire-and-forget, never blocks UX
+  trpcClient.sync.upsertNutritionDay.mutate({
+    day: {
+      date: nutrition.date,
+      isTrainingDay: nutrition.isTrainingDay,
+      targetCalories: nutrition.targetCalories,
+      targetProtein: nutrition.targetProtein,
+      targetCarbs: nutrition.targetCarbs,
+      targetFat: nutrition.targetFat,
+      supplements: nutrition.supplementsChecked
+        ?.filter(s => s.taken)
+        .map(s => s.name)
+        .join(',') || null,
+      meals: nutrition.meals.map((food) => ({
+        id: food.id,
+        mealNumber: food.mealNumber,
+        foodName: food.foodName,
+        protein: food.protein,
+        carbs: food.carbs,
+        fat: food.fat,
+        calories: food.calories,
+        servingGrams: null,
+        timestamp: food.timestamp,
+      })),
+    },
+  }).catch((err: unknown) => {
+    console.warn('[DB Sync] Nutrition sync failed:', err);
+  });
 }
 
 export async function addFoodEntry(date: string, entry: Omit<FoodEntry, 'id' | 'timestamp'>): Promise<DailyNutrition> {
