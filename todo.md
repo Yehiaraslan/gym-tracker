@@ -811,3 +811,8 @@
 - [x] Zaki chat session continuity (pass session_id across messages)
 - [x] Zaki workout modification button in active workout screen (yellow recovery)
 - [x] Daily push notification digest via server scheduler (7am Zaki coaching)
+
+## Advanced Zaki Features (Session 9)
+- [x] Floating mid-workout Zaki check-in button (active workout screen)
+- [x] Personalised morning digest with yesterday's real workout data
+- [x] Server-side Zaki session ID persistence in database

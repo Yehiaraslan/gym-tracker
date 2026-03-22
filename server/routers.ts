@@ -10,6 +10,7 @@ import * as aiCoach from "./ai-coaching-service";
 import * as zaki from "./zakiService";
 import * as zakiDigest from "./zakiDailyDigest";
 import * as dataSync from "./data-sync-service";
+import * as db from "./db";
 
 // All WHOOP and sync procedures use a device-level identifier (deviceId) instead of
 // requiring user authentication. The app generates a persistent UUID on first launch
@@ -433,6 +434,88 @@ export const appRouter = router({
       .mutation(async () => {
         const result = await zakiDigest.triggerDailyDigestNow();
         return result;
+      }),
+
+    // Mid-workout check-in: Zaki evaluates current progress and advises on remaining sets
+    midWorkoutCheckIn: publicProcedure
+      .input(z.object({
+        sessionName: z.string(),
+        elapsedMinutes: z.number(),
+        recoveryScore: z.number().optional(),
+        completedExercises: z.array(z.object({
+          name: z.string(),
+          setsCompleted: z.number(),
+          setsTarget: z.number(),
+          avgWeight: z.number().optional(),
+          avgReps: z.number().optional(),
+          avgRpe: z.number().optional(),
+          skipped: z.boolean().optional(),
+        })),
+        remainingExercises: z.array(z.string()),
+        zakiSessionId: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const completedSummary = input.completedExercises.map(ex => {
+          const parts = [`${ex.name}: ${ex.setsCompleted}/${ex.setsTarget} sets`];
+          if (ex.avgWeight) parts.push(`avg ${ex.avgWeight.toFixed(1)}kg`);
+          if (ex.avgReps) parts.push(`avg ${ex.avgReps.toFixed(1)} reps`);
+          if (ex.avgRpe) parts.push(`avg RPE ${ex.avgRpe.toFixed(1)}`);
+          if (ex.skipped) parts.push('(SKIPPED)');
+          return parts.join(' · ');
+        }).join('\n');
+
+        const prompt = [
+          `**MID-WORKOUT CHECK-IN — ${input.sessionName.toUpperCase()}**`,
+          ``,
+          `Elapsed: ${input.elapsedMinutes} minutes`,
+          input.recoveryScore !== undefined ? `Recovery score: ${input.recoveryScore}%` : '',
+          ``,
+          `**Completed so far:**`,
+          completedSummary || '(none yet)',
+          ``,
+          `**Remaining exercises:**`,
+          input.remainingExercises.length > 0 ? input.remainingExercises.join(', ') : '(all done)',
+          ``,
+          `Based on what I\'ve done so far, should I push harder, maintain pace, or back off for the remaining exercises?`,
+          `Give me a direct, specific 3-4 sentence answer. No fluff.`,
+        ].filter(Boolean).join('\n');
+
+        const result = await zaki.askZaki(prompt, input.zakiSessionId);
+        return { response: result.response, zakiSessionId: result.zakiSessionId };
+      }),
+
+    // Personalised daily digest with real workout data from client
+    personalizedDigest: publicProcedure
+      .input(z.object({
+        yesterdayWorkout: z.object({
+          sessionName: z.string(),
+          durationMinutes: z.number().optional(),
+          totalVolume: z.number().optional(),
+          exerciseCount: z.number().optional(),
+          topExercise: z.string().optional(),
+          topWeight: z.number().optional(),
+        }).optional(),
+        recoveryScore: z.number().optional(),
+        sleepScore: z.number().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const result = await zakiDigest.triggerPersonalizedDigestNow(input);
+        return result;
+      }),
+
+    // Server-side Zaki session ID persistence (survives app restarts)
+    getSession: publicProcedure
+      .input(z.object({ deviceId: z.string() }))
+      .query(async ({ input }) => {
+        const sessionId = await db.getZakiSession(input.deviceId);
+        return { zakiSessionId: sessionId };
+      }),
+
+    saveSession: publicProcedure
+      .input(z.object({ deviceId: z.string(), zakiSessionId: z.string() }))
+      .mutation(async ({ input }) => {
+        await db.upsertZakiSession(input.deviceId, input.zakiSessionId);
+        return { success: true };
       }),
   }),
 

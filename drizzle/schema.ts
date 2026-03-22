@@ -327,3 +327,24 @@ export const personalRecords = mysqlTable("personal_records", {
 
 export type PersonalRecord = typeof personalRecords.$inferSelect;
 export type InsertPersonalRecord = typeof personalRecords.$inferInsert;
+
+// ════════════════════════════════════════════════════════════
+// ZAKI SESSION MEMORY
+// ════════════════════════════════════════════════════════════
+
+// ── Zaki Session IDs ────────────────────────────────────────
+// Persists the openclaw-bridge session_id against device ID
+// so Zaki remembers conversation context across app restarts
+export const zakiSessions = mysqlTable("zaki_sessions", {
+  id: int("id").autoincrement().primaryKey(),
+  deviceId: varchar("deviceId", { length: 128 }).notNull().unique(),
+  zakiSessionId: varchar("zakiSessionId", { length: 256 }).notNull(),
+  lastUsedAt: timestamp("lastUsedAt").defaultNow().notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  deviceIdx: index("zs_device_idx").on(table.deviceId),
+}));
+
+export type ZakiSession = typeof zakiSessions.$inferSelect;
+export type InsertZakiSession = typeof zakiSessions.$inferInsert;

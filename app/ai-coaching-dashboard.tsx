@@ -24,6 +24,7 @@ import { useColors } from '@/hooks/use-colors';
 import { trpc } from '@/lib/trpc';
 import { buildUserSnapshot, snapshotToPromptContext } from '@/lib/ai-data-aggregator';
 import { getSplitWorkouts } from '@/lib/split-workout-store';
+import { getDeviceId } from '@/lib/device-id';
 
 // ── Storage keys ──────────────────────────────────────────────
 const DAILY_CACHE_KEY = '@zaki_daily_cache';
@@ -86,12 +87,29 @@ export default function AICoachingDashboard() {
   const [weeklyLoading, setWeeklyLoading] = useState(false);
   const [weeklyError, setWeeklyError] = useState<string | null>(null);
 
+  // ── Device ID (for server-side session persistence) ─────────
+  const [deviceId, setDeviceId] = useState<string | null>(null);
+  useEffect(() => { getDeviceId().then(setDeviceId); }, []);
+
   // ── tRPC mutations ────────────────────────────────────────
   const zakiDailyMutation = trpc.zaki.dailyCoaching.useMutation();
   const zakiDebriefMutation = trpc.zaki.sessionDebrief.useMutation();
   const zakiAskMutation = trpc.zaki.ask.useMutation();
   const zakiWeeklyMutation = trpc.zaki.weeklyDigest.useMutation();
   const triggerDigestMutation = trpc.zaki.triggerDailyDigest.useMutation();
+  const personalizedDigestMutation = trpc.zaki.personalizedDigest.useMutation();
+  const saveSessionMutation = trpc.zaki.saveSession.useMutation();
+
+  // ── Load Zaki session ID from server DB on mount ──────────
+  const serverSessionQuery = trpc.zaki.getSession.useQuery(
+    { deviceId: deviceId! },
+    { enabled: !!deviceId, staleTime: Infinity, retry: 1 }
+  );
+  useEffect(() => {
+    if (serverSessionQuery.data?.zakiSessionId && !zakiSessionIdRef.current) {
+      zakiSessionIdRef.current = serverSessionQuery.data.zakiSessionId;
+    }
+  }, [serverSessionQuery.data]);
   const [digestTriggerLoading, setDigestTriggerLoading] = useState(false);
   const [digestTriggerResult, setDigestTriggerResult] = useState<string | null>(null);
 
@@ -99,16 +117,48 @@ export default function AICoachingDashboard() {
     setDigestTriggerLoading(true);
     setDigestTriggerResult(null);
     try {
-      const result = await triggerDigestMutation.mutateAsync();
+      // Pull yesterday's workout from AsyncStorage for personalised brief
+      const allWorkouts = await getSplitWorkouts();
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yDate = yesterday.toISOString().split('T')[0];
+      const yWorkout = allWorkouts
+        .filter(w => w.completed && w.date.startsWith(yDate))
+        .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())[0];
+
+      // Find top lift (highest single-set weight across all exercises)
+      let topExercise: string | undefined;
+      let topWeight: number | undefined;
+      if (yWorkout) {
+        for (const ex of yWorkout.exercises) {
+          for (const s of ex.sets) {
+            if (!topWeight || s.weightKg > topWeight) {
+              topWeight = s.weightKg;
+              topExercise = ex.exerciseName;
+            }
+          }
+        }
+      }
+
+      const result = await personalizedDigestMutation.mutateAsync({
+        yesterdayWorkout: yWorkout ? {
+          sessionName: yWorkout.sessionType,
+          durationMinutes: yWorkout.durationMinutes,
+          totalVolume: yWorkout.totalVolume,
+          exerciseCount: yWorkout.exercises.filter(e => !e.skipped).length,
+          topExercise,
+          topWeight,
+        } : undefined,
+      });
       setDigestTriggerResult(result.success
-        ? `✅ Sent! Preview: "${result.preview.substring(0, 100)}…"`
+        ? `✅ Sent! Preview: "${result.preview.substring(0, 120)}…"`
         : '⚠️ Zaki responded but notification delivery failed.');
     } catch {
       setDigestTriggerResult('❌ Failed to reach Zaki. Check server logs.');
     } finally {
       setDigestTriggerLoading(false);
     }
-  }, [triggerDigestMutation]);
+  }, [personalizedDigestMutation]);
 
   // ── Load persisted data ───────────────────────────────────
   const loadPersistedData = useCallback(async () => {
@@ -277,6 +327,10 @@ export default function AICoachingDashboard() {
       if (result.zakiSessionId) {
         zakiSessionIdRef.current = result.zakiSessionId;
         await AsyncStorage.setItem(ZAKI_SESSION_KEY, result.zakiSessionId);
+        // Also save to server DB so session survives reinstalls
+        if (deviceId) {
+          saveSessionMutation.mutate({ deviceId, zakiSessionId: result.zakiSessionId });
+        }
       }
       const zakiMsg: ChatMessage = {
         id: `z_${Date.now()}`,

@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import { InsertUser, users, zakiSessions } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -87,6 +87,43 @@ export async function getUserByOpenId(openId: string) {
   const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
 
   return result.length > 0 ? result[0] : undefined;
+}
+
+// ── Zaki Session Persistence ────────────────────────────────
+// Stores the openclaw-bridge session_id against a device ID so
+// Zaki remembers conversation context across app restarts.
+
+export async function getZakiSession(deviceId: string): Promise<string | null> {
+  const db = await getDb();
+  if (!db) return null;
+  try {
+    const rows = await db
+      .select({ zakiSessionId: zakiSessions.zakiSessionId })
+      .from(zakiSessions)
+      .where(eq(zakiSessions.deviceId, deviceId))
+      .limit(1);
+    return rows.length > 0 ? rows[0].zakiSessionId : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function upsertZakiSession(
+  deviceId: string,
+  zakiSessionId: string
+): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  try {
+    await db
+      .insert(zakiSessions)
+      .values({ deviceId, zakiSessionId, lastUsedAt: new Date() })
+      .onDuplicateKeyUpdate({
+        set: { zakiSessionId, lastUsedAt: new Date() },
+      });
+  } catch (err) {
+    console.error('[Database] Failed to upsert Zaki session:', err);
+  }
 }
 
 // TODO: add feature queries here as your schema grows.

@@ -111,6 +111,13 @@ export default function SplitWorkoutScreen() {
   const [showZakiModif, setShowZakiModif] = useState(false);
   const zakiWorkoutModifMutation = trpc.zaki.workoutModification.useMutation();
 
+  // Zaki mid-workout check-in
+  const [showZakiCheckIn, setShowZakiCheckIn] = useState(false);
+  const [zakiCheckInLoading, setZakiCheckInLoading] = useState(false);
+  const [zakiCheckInResult, setZakiCheckInResult] = useState<string | null>(null);
+  const [zakiCheckInSessionId, setZakiCheckInSessionId] = useState<string | undefined>(undefined);
+  const zakiMidWorkoutMutation = trpc.zaki.midWorkoutCheckIn.useMutation();
+
   const handleZakiModification = async () => {
     if (!recovery) return;
     setZakiModifLoading(true);
@@ -133,6 +140,51 @@ export default function SplitWorkoutScreen() {
       setZakiModifResult('Zaki is unavailable right now. Trust your body and reduce load by 10-15%.');
     } finally {
       setZakiModifLoading(false);
+    }
+  };
+
+  const handleZakiCheckIn = async () => {
+    setZakiCheckInLoading(true);
+    setShowZakiCheckIn(true);
+    try {
+      // Build completed exercises summary from current exerciseLogs
+      const completedExercises = exerciseLogs.map((log, idx) => {
+        const ex = exercises[idx];
+        const sets = log.sets;
+        const avgWeight = sets.length > 0 ? sets.reduce((s, x) => s + x.weightKg, 0) / sets.length : undefined;
+        const avgReps = sets.length > 0 ? sets.reduce((s, x) => s + x.reps, 0) / sets.length : undefined;
+        const avgRpe = sets.some(x => x.rpe) ? sets.filter(x => x.rpe).reduce((s, x) => s + (x.rpe ?? 0), 0) / sets.filter(x => x.rpe).length : undefined;
+        const setsTarget = isDeload ? Math.ceil(ex.sets / 2) : ex.sets;
+        return {
+          name: log.exerciseName,
+          setsCompleted: sets.length,
+          setsTarget,
+          avgWeight: avgWeight ? Math.round(avgWeight * 10) / 10 : undefined,
+          avgReps: avgReps ? Math.round(avgReps * 10) / 10 : undefined,
+          avgRpe: avgRpe ? Math.round(avgRpe * 10) / 10 : undefined,
+          skipped: log.skipped,
+        };
+      });
+
+      // Remaining = exercises not yet started (no sets logged, not skipped)
+      const remainingExercises = exerciseLogs
+        .filter(log => log.sets.length === 0 && !log.skipped)
+        .map(log => log.exerciseName);
+
+      const result = await zakiMidWorkoutMutation.mutateAsync({
+        sessionName: SESSION_NAMES[sessionType],
+        elapsedMinutes: Math.round(elapsed / 60),
+        recoveryScore: recovery?.recoveryScore,
+        completedExercises,
+        remainingExercises,
+        zakiSessionId: zakiCheckInSessionId,
+      });
+      setZakiCheckInResult(result.response);
+      if (result.zakiSessionId) setZakiCheckInSessionId(result.zakiSessionId);
+    } catch {
+      setZakiCheckInResult('Zaki is unavailable right now. Trust your instincts and listen to your body.');
+    } finally {
+      setZakiCheckInLoading(false);
     }
   };
 
@@ -1160,15 +1212,145 @@ export default function SplitWorkoutScreen() {
         </TouchableOpacity>
       </ScrollView>
 
+      {/* Floating Zaki Check-In Button */}
+      <View
+        style={{
+          position: 'absolute',
+          bottom: 100,
+          right: 20,
+          zIndex: 50,
+        }}
+        pointerEvents="box-none"
+      >
+        <TouchableOpacity
+          onPress={() => {
+            if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            handleZakiCheckIn();
+          }}
+          style={{
+            width: 56,
+            height: 56,
+            borderRadius: 28,
+            backgroundColor: '#6366F1',
+            alignItems: 'center',
+            justifyContent: 'center',
+            shadowColor: '#6366F1',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.4,
+            shadowRadius: 8,
+            elevation: 8,
+          }}
+        >
+          <Text style={{ fontSize: 24 }}>🤖</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Zaki Mid-Workout Check-In Modal */}
+      <Modal
+        visible={showZakiCheckIn}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowZakiCheckIn(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
+          <View style={{
+            backgroundColor: colors.background,
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            padding: 24,
+            maxHeight: '75%',
+          }}>
+            {/* Header */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text style={{ fontSize: 22 }}>🤖</Text>
+                <View>
+                  <Text style={{ fontSize: 17, fontWeight: '800', color: colors.foreground }}>Zaki Check-In</Text>
+                  <Text style={{ fontSize: 11, color: colors.muted }}>
+                    {Math.round(elapsed / 60)}m in · {totalSetsLogged}/{totalSetsTarget} sets
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity onPress={() => setShowZakiCheckIn(false)} style={{ padding: 4 }}>
+                <IconSymbol name="xmark" size={20} color={colors.muted} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Recovery badge */}
+            {recovery && (
+              <View style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                marginBottom: 12,
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+                borderRadius: 12,
+                backgroundColor: recovery.recoveryScore >= 67 ? '#22C55E20' : recovery.recoveryScore >= 34 ? '#F59E0B20' : '#EF444420',
+              }}>
+                <Text style={{
+                  fontSize: 13,
+                  fontWeight: '600',
+                  color: recovery.recoveryScore >= 67 ? '#22C55E' : recovery.recoveryScore >= 34 ? '#F59E0B' : '#EF4444',
+                }}>
+                  {recovery.recoveryScore >= 67 ? '⚡ Green' : recovery.recoveryScore >= 34 ? '⚡ Yellow' : '🔴 Red'} — Recovery {Math.round(recovery.recoveryScore)}%
+                </Text>
+              </View>
+            )}
+
+            {/* Content */}
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {zakiCheckInLoading ? (
+                <View style={{ alignItems: 'center', paddingVertical: 32 }}>
+                  <Text style={{ color: colors.muted, fontSize: 15 }}>Zaki is reading your session…</Text>
+                </View>
+              ) : (
+                <Text style={{ color: colors.foreground, fontSize: 14, lineHeight: 22 }}>
+                  {zakiCheckInResult}
+                </Text>
+              )}
+              <View style={{ height: 24 }} />
+            </ScrollView>
+
+            {/* Actions */}
+            {!zakiCheckInLoading && (
+              <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
+                <TouchableOpacity
+                  onPress={() => setShowZakiCheckIn(false)}
+                  style={{
+                    flex: 1, paddingVertical: 14, borderRadius: 14,
+                    alignItems: 'center', backgroundColor: colors.surface,
+                    borderWidth: 1, borderColor: colors.border,
+                  }}
+                >
+                  <Text style={{ color: colors.foreground, fontWeight: '600' }}>Got It</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    setZakiCheckInResult(null);
+                    handleZakiCheckIn();
+                  }}
+                  style={{
+                    flex: 1, paddingVertical: 14, borderRadius: 14,
+                    alignItems: 'center', backgroundColor: '#6366F1',
+                  }}
+                >
+                  <Text style={{ color: '#fff', fontWeight: '600' }}>Ask Again</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
+
       {/* Video Modal */}
-      <VideoModal
-        visible={showVideoModal}
-        exercise={videoExercise}
-        playing={videoPlaying}
-        onClose={() => { setShowVideoModal(false); setVideoPlaying(false); }}
-        onTogglePlay={() => setVideoPlaying(p => !p)}
-        colors={colors}
-      />
+        <VideoModal
+          visible={showVideoModal}
+          exercise={videoExercise}
+          playing={videoPlaying}
+          onClose={() => { setShowVideoModal(false); setVideoPlaying(false); }}
+          onTogglePlay={() => setVideoPlaying(p => !p)}
+          colors={colors}
+        />
     </ScreenContainer>
   );
 }
