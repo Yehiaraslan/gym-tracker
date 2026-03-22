@@ -39,6 +39,7 @@ export default function HistoryScreen() {
   const [expandedWorkout, setExpandedWorkout] = useState<string | null>(null);
   const [selectedExercise, setSelectedExercise] = useState<string | null>(null);
   const [splitWorkouts, setSplitWorkouts] = useState<SplitWorkoutSession[]>([]);
+  const [workoutSearchQuery, setWorkoutSearchQuery] = useState('');
 
   // Reload split workouts every time this tab is focused
   useFocusEffect(
@@ -51,6 +52,16 @@ export default function HistoryScreen() {
       });
     }, [])
   );
+
+  // Filter workouts by notes/session name keyword
+  const filteredWorkouts = splitWorkouts.filter(w => {
+    if (!workoutSearchQuery.trim()) return true;
+    const q = workoutSearchQuery.toLowerCase();
+    return (
+      (w.notes ?? '').toLowerCase().includes(q) ||
+      (SESSION_NAMES[w.sessionType] ?? w.sessionType).toLowerCase().includes(q)
+    );
+  });
 
   // Filter exercises by search
   const filteredExercises = store.exercises.filter(ex => {
@@ -253,6 +264,20 @@ export default function HistoryScreen() {
         ))}
       </View>
 
+      {/* Search (workouts view — by notes or session name) */}
+      {viewMode === 'workouts' && (
+        <View style={styles.searchRow}>
+          <TextInput
+            value={workoutSearchQuery}
+            onChangeText={setWorkoutSearchQuery}
+            placeholder="Search by session name or notes..."
+            placeholderTextColor={colors.muted}
+            style={[styles.searchInput, { color: colors.foreground, backgroundColor: colors.surface, borderColor: colors.border }]}
+            returnKeyType="search"
+          />
+        </View>
+      )}
+
       {/* Search (exercises view) */}
       {viewMode === 'exercises' && (
         <View style={styles.searchRow}>
@@ -269,7 +294,7 @@ export default function HistoryScreen() {
       {/* Content */}
       {viewMode === 'workouts' ? (
         <FlatList
-          data={splitWorkouts}
+          data={filteredWorkouts}
           keyExtractor={item => item.id}
           renderItem={renderWorkoutItem}
           ListEmptyComponent={

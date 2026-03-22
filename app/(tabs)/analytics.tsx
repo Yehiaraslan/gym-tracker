@@ -643,6 +643,8 @@ function WeeklyVolumeChart({
   weeklyVolumeData: Record<string, { date: string; volume: number }[]>;
   colors: ReturnType<typeof useColors>;
 }) {
+  const [tooltip, setTooltip] = useState<{ type: string; date: string; volume: number; x: number; y: number } | null>(null);
+
   const CHART_W = SCREEN_WIDTH - 48 - 32; // px-6 padding + card padding
   const CHART_H = 140;
   const PAD_LEFT = 44;
@@ -681,6 +683,16 @@ function WeeklyVolumeChart({
   // X axis labels (first, middle, last)
   const xLabelIndices = [0, Math.floor((allDates.length - 1) / 2), allDates.length - 1];
 
+  // Tooltip display values
+  const tooltipLabel = tooltip
+    ? `${SESSION_LINE_LABELS[tooltip.type] ?? tooltip.type}  ·  ${new Date(tooltip.date + 'T00:00:00').toLocaleDateString('en', { month: 'short', day: 'numeric' })}  ·  ${(tooltip.volume / 1000).toFixed(2)}t`
+    : '';
+
+  // Clamp tooltip box so it stays within chart width
+  const TOOLTIP_W = 200;
+  const tooltipLeft = tooltip ? Math.min(Math.max(0, tooltip.x - TOOLTIP_W / 2), CHART_W - TOOLTIP_W) : 0;
+  const tooltipTop = tooltip ? Math.max(0, tooltip.y - 36) : 0;
+
   return (
     <View className="px-6 mt-5">
       <Text className="text-sm font-semibold text-foreground mb-3">Weekly Volume by Session Type</Text>
@@ -694,73 +706,110 @@ function WeeklyVolumeChart({
             </View>
           ))}
         </View>
-        {/* SVG Chart */}
-        <Svg width={CHART_W} height={CHART_H}>
-          {/* Y grid lines + labels */}
-          {yLabels.map((v, i) => {
-            const y = volToY(v);
-            return (
-              <React.Fragment key={i}>
-                <Line
-                  x1={PAD_LEFT} y1={y} x2={CHART_W - PAD_RIGHT} y2={y}
-                  stroke={colors.border} strokeWidth={0.5} strokeDasharray="3,3"
-                />
+        {/* Chart container — relative for tooltip overlay */}
+        <View style={{ position: 'relative' }}>
+          <Svg width={CHART_W} height={CHART_H} onPress={() => setTooltip(null)}>
+            {/* Y grid lines + labels */}
+            {yLabels.map((v, i) => {
+              const y = volToY(v);
+              return (
+                <React.Fragment key={i}>
+                  <Line
+                    x1={PAD_LEFT} y1={y} x2={CHART_W - PAD_RIGHT} y2={y}
+                    stroke={colors.border} strokeWidth={0.5} strokeDasharray="3,3"
+                  />
+                  <SvgText
+                    x={PAD_LEFT - 4} y={y + 4}
+                    fontSize={9} fill={colors.muted} textAnchor="end"
+                  >
+                    {v >= 1000 ? `${(v / 1000).toFixed(0)}t` : `${v}`}
+                  </SvgText>
+                </React.Fragment>
+              );
+            })}
+            {/* X axis labels */}
+            {xLabelIndices.map(idx => {
+              const date = allDates[idx];
+              if (!date) return null;
+              const x = PAD_LEFT + (idx / (allDates.length - 1)) * plotW;
+              const label = new Date(date + 'T00:00:00').toLocaleDateString('en', { month: 'short', day: 'numeric' });
+              return (
                 <SvgText
-                  x={PAD_LEFT - 4} y={y + 4}
-                  fontSize={9} fill={colors.muted} textAnchor="end"
+                  key={idx} x={x} y={CHART_H - 6}
+                  fontSize={9} fill={colors.muted} textAnchor="middle"
                 >
-                  {v >= 1000 ? `${(v / 1000).toFixed(0)}t` : `${v}`}
+                  {label}
                 </SvgText>
-              </React.Fragment>
-            );
-          })}
-          {/* X axis labels */}
-          {xLabelIndices.map(idx => {
-            const date = allDates[idx];
-            if (!date) return null;
-            const x = PAD_LEFT + (idx / (allDates.length - 1)) * plotW;
-            const label = new Date(date + 'T00:00:00').toLocaleDateString('en', { month: 'short', day: 'numeric' });
-            return (
-              <SvgText
-                key={idx} x={x} y={CHART_H - 6}
-                fontSize={9} fill={colors.muted} textAnchor="middle"
-              >
-                {label}
-              </SvgText>
-            );
-          })}
-          {/* Lines per session type */}
-          {allSeries.map(([type, pts]) => {
-            const lineColor = SESSION_LINE_COLORS[type] || colors.primary;
-            const points = pts
-              .map(p => {
-                const x = dateToX(p.date);
-                const y = volToY(p.volume);
-                return x >= 0 ? `${x},${y}` : null;
-              })
-              .filter(Boolean)
-              .join(' ');
-            if (!points) return null;
-            return (
-              <React.Fragment key={type}>
-                <Polyline
-                  points={points}
-                  fill="none"
-                  stroke={lineColor}
-                  strokeWidth={2}
-                  strokeLinejoin="round"
-                  strokeLinecap="round"
-                />
-                {pts.map((p, i) => {
+              );
+            })}
+            {/* Lines per session type */}
+            {allSeries.map(([type, pts]) => {
+              const lineColor = SESSION_LINE_COLORS[type] || colors.primary;
+              const points = pts
+                .map(p => {
                   const x = dateToX(p.date);
                   const y = volToY(p.volume);
-                  if (x < 0) return null;
-                  return <Circle key={i} cx={x} cy={y} r={3} fill={lineColor} />;
-                })}
-              </React.Fragment>
-            );
-          })}
-        </Svg>
+                  return x >= 0 ? `${x},${y}` : null;
+                })
+                .filter(Boolean)
+                .join(' ');
+              if (!points) return null;
+              return (
+                <React.Fragment key={type}>
+                  <Polyline
+                    points={points}
+                    fill="none"
+                    stroke={lineColor}
+                    strokeWidth={2}
+                    strokeLinejoin="round"
+                    strokeLinecap="round"
+                  />
+                  {pts.map((p, i) => {
+                    const x = dateToX(p.date);
+                    const y = volToY(p.volume);
+                    if (x < 0) return null;
+                    const isActive = tooltip?.type === type && tooltip?.date === p.date;
+                    return (
+                      <React.Fragment key={i}>
+                        {/* Larger invisible hit target */}
+                        <Circle
+                          cx={x} cy={y} r={12}
+                          fill="transparent"
+                          onPress={() => {
+                            if (isActive) { setTooltip(null); }
+                            else { setTooltip({ type, date: p.date, volume: p.volume, x, y }); }
+                          }}
+                        />
+                        <Circle cx={x} cy={y} r={isActive ? 5 : 3} fill={lineColor} />
+                        {isActive && <Circle cx={x} cy={y} r={8} fill={lineColor + '30'} />}
+                      </React.Fragment>
+                    );
+                  })}
+                </React.Fragment>
+              );
+            })}
+          </Svg>
+          {/* Tooltip overlay */}
+          {tooltip && (
+            <View
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                left: tooltipLeft,
+                top: tooltipTop,
+                width: TOOLTIP_W,
+                backgroundColor: colors.foreground,
+                borderRadius: 8,
+                paddingHorizontal: 10,
+                paddingVertical: 6,
+              }}
+            >
+              <Text style={{ fontSize: 11, color: colors.background, fontWeight: '600', textAlign: 'center' }}>
+                {tooltipLabel}
+              </Text>
+            </View>
+          )}
+        </View>
       </View>
     </View>
   );

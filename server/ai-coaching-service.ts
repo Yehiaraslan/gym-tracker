@@ -296,6 +296,63 @@ Respond with JSON:
   }
 }
 
+// ── Session Debrief ────────────────────────────────────────
+
+export interface SessionDebriefResult {
+  patternSummary: string;
+  physicalPatterns: string[];
+  mentalPatterns: string[];
+  coachRecommendation: string;
+  watchOut: string;
+}
+
+export async function generateSessionDebrief(
+  sessionNotesContext: string,
+  userContext: string,
+): Promise<SessionDebriefResult> {
+  const prompt = `Analyze the session notes from the last 3 workouts and identify patterns in how the athlete feels physically and mentally.
+
+Session notes and workout data:
+${sessionNotesContext}
+
+Full training context:
+${userContext}
+
+Look for recurring themes: pain/tightness, energy levels, motivation, specific exercises that feel good or bad, sleep quality mentions, stress mentions, etc.
+
+Respond with JSON:
+{
+  "patternSummary": "string - 2-3 sentence synthesis of what you observe across the sessions",
+  "physicalPatterns": ["string - specific physical sensation pattern with frequency"],
+  "mentalPatterns": ["string - mental/energy pattern"],
+  "coachRecommendation": "string - one concrete, specific action to take based on these patterns",
+  "watchOut": "string - one thing to monitor or be cautious about going forward"
+}`;
+
+  try {
+    const response = await invokeLLM({
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: prompt },
+      ],
+      response_format: { type: 'json_object' },
+    });
+    const rawContent = response.choices?.[0]?.message?.content;
+    if (!rawContent) throw new Error('Empty response');
+    const content = typeof rawContent === 'string' ? rawContent : JSON.stringify(rawContent);
+    return JSON.parse(content) as SessionDebriefResult;
+  } catch (error) {
+    console.error('[AI Coach] Session debrief failed:', error);
+    return {
+      patternSummary: 'Not enough session notes to identify patterns yet. Add notes after each workout to unlock pattern analysis.',
+      physicalPatterns: [],
+      mentalPatterns: [],
+      coachRecommendation: 'Start adding notes after each workout — even a single sentence helps identify patterns over time.',
+      watchOut: 'Log at least 3 sessions with notes to get meaningful pattern analysis.',
+    };
+  }
+}
+
 // ── Validation & Fallback ────────────────────────────────────
 
 function validateAndSanitize(data: AICoachingResponse): AICoachingResponse {

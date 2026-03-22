@@ -364,6 +364,18 @@ export const appRouter = router({
           input.userContext,
         );
       }),
+
+    sessionDebrief: publicProcedure
+      .input(z.object({
+        sessionNotesContext: z.string(),
+        userContext: z.string(),
+      }))
+      .mutation(async ({ input }) => {
+        return aiCoach.generateSessionDebrief(
+          input.sessionNotesContext,
+          input.userContext,
+        );
+      }),
   }),
 });
 

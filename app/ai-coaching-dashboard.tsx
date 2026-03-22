@@ -25,7 +25,9 @@ import type {
   WorkoutAdjustment,
   NutritionInsight,
   WeeklyDigest,
+  SessionDebriefResult,
 } from '@/server/ai-coaching-service';
+import { getSplitWorkouts } from '@/lib/split-workout-store';
 
 const CACHE_KEY = '@ai_coaching_cache';
 const CACHE_TTL = 4 * 60 * 60 * 1000; // 4 hours
@@ -50,8 +52,12 @@ export default function AICoachingDashboard() {
   const [weeklyDigest, setWeeklyDigest] = useState<WeeklyDigest | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'daily' | 'workout' | 'nutrition' | 'weekly'>('daily');
+  const [debriefResult, setDebriefResult] = useState<SessionDebriefResult | null>(null);
+  const [debriefLoading, setDebriefLoading] = useState(false);
+  const [debriefError, setDebriefError] = useState<string | null>(null);
 
   const dailyCoachingMutation = trpc.aiCoaching.dailyCoaching.useMutation();
+  const sessionDebriefMutation = trpc.aiCoaching.sessionDebrief.useMutation();
 
   const loadCached = useCallback(async () => {
     try {
@@ -327,6 +333,98 @@ export default function AICoachingDashboard() {
               <Text style={[styles.motivationalText, { color: colors.primary }]}>
                 &ldquo;{dailyMessage.motivationalClose}&rdquo;
               </Text>
+            </View>
+
+            {/* Session Debrief */}
+            <View style={[styles.card, { backgroundColor: '#6366F110', borderColor: '#6366F130' }]}>
+              <Text style={[styles.cardLabel, { color: '#6366F1' }]}>📓 SESSION DEBRIEF</Text>
+              <Text style={[styles.cardBody, { color: colors.muted, marginBottom: 12 }]}>
+                Analyze patterns across your last 3 workout notes — physical sensations, energy levels, and recurring themes.
+              </Text>
+              {debriefResult ? (
+                <View style={{ gap: 10 }}>
+                  <Text style={[styles.cardBody, { color: colors.foreground, fontStyle: 'italic' }]}>
+                    {debriefResult.patternSummary}
+                  </Text>
+                  {debriefResult.physicalPatterns.length > 0 && (
+                    <View>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#EF4444', marginBottom: 4 }}>PHYSICAL PATTERNS</Text>
+                      {debriefResult.physicalPatterns.map((p, i) => (
+                        <Text key={i} style={{ fontSize: 13, color: colors.foreground, marginBottom: 2 }}>• {p}</Text>
+                      ))}
+                    </View>
+                  )}
+                  {debriefResult.mentalPatterns.length > 0 && (
+                    <View>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#3B82F6', marginBottom: 4 }}>MENTAL / ENERGY PATTERNS</Text>
+                      {debriefResult.mentalPatterns.map((p, i) => (
+                        <Text key={i} style={{ fontSize: 13, color: colors.foreground, marginBottom: 2 }}>• {p}</Text>
+                      ))}
+                    </View>
+                  )}
+                  <View style={{ backgroundColor: '#22C55E15', borderRadius: 8, padding: 10, borderWidth: 1, borderColor: '#22C55E30' }}>
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: '#22C55E', marginBottom: 3 }}>COACH RECOMMENDATION</Text>
+                    <Text style={{ fontSize: 13, color: colors.foreground }}>{debriefResult.coachRecommendation}</Text>
+                  </View>
+                  <View style={{ backgroundColor: '#F59E0B15', borderRadius: 8, padding: 10, borderWidth: 1, borderColor: '#F59E0B30' }}>
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: '#F59E0B', marginBottom: 3 }}>WATCH OUT</Text>
+                    <Text style={{ fontSize: 13, color: colors.foreground }}>{debriefResult.watchOut}</Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => setDebriefResult(null)}
+                    style={{ alignSelf: 'flex-end', marginTop: 4 }}
+                  >
+                    <Text style={{ fontSize: 12, color: colors.muted }}>Clear ×</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  onPress={async () => {
+                    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    setDebriefLoading(true);
+                    setDebriefError(null);
+                    try {
+                      const sessions = await getSplitWorkouts();
+                      const recent = sessions
+                        .filter(s => s.completed && s.notes)
+                        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                        .slice(0, 3);
+                      if (recent.length === 0) {
+                        setDebriefError('No session notes found yet. Add notes at the end of your next workout.');
+                        setDebriefLoading(false);
+                        return;
+                      }
+                      const notesContext = recent.map((s, i) =>
+                        `Session ${i + 1} (${new Date(s.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}):\nWorkout: ${s.sessionType}\nNotes: ${s.notes}\nExercises: ${s.exercises.filter(e => !e.skipped).map(e => e.exerciseName).join(', ')}`
+                      ).join('\n\n');
+                      const snapshot = await buildUserSnapshot();
+                      const context = snapshotToPromptContext(snapshot);
+                      const result = await sessionDebriefMutation.mutateAsync({
+                        sessionNotesContext: notesContext,
+                        userContext: context,
+                      });
+                      setDebriefResult(result);
+                    } catch (err) {
+                      setDebriefError('Could not generate debrief. Please try again.');
+                    } finally {
+                      setDebriefLoading(false);
+                    }
+                  }}
+                  style={[
+                    styles.refreshBtn,
+                    { backgroundColor: '#6366F1', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10, alignSelf: 'flex-start' },
+                  ]}
+                >
+                  {debriefLoading ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 14 }}>Run Session Debrief</Text>
+                  )}
+                </TouchableOpacity>
+              )}
+              {debriefError && (
+                <Text style={{ fontSize: 12, color: colors.error ?? '#EF4444', marginTop: 8 }}>{debriefError}</Text>
+              )}
             </View>
           </View>
         )}

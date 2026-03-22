@@ -777,3 +777,8 @@
 - [x] Feature: Weekly volume line chart in Progress tab (per session type)
 - [x] Feature: New PR badge on session cards using Epley 1RM comparison
 - [x] Feature: Post-workout notes field saved with session, shown in history, fed to AI Coach
+
+## Session 4 Follow-up Features
+- [x] Feature: Tap-to-inspect chart dots — tooltip with session name, date, and exact volume on volume chart
+- [x] Feature: Notes keyword search in Workout tab — filter sessions by notes content
+- [x] Feature: AI Coach Session Debrief — pattern analysis of last 3 sessions' notes
