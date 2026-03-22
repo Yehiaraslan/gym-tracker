@@ -14,6 +14,7 @@ import {
   Platform,
   Dimensions,
   Modal,
+  TextInput,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
@@ -93,6 +94,7 @@ export default function SplitWorkoutScreen() {
 
   // Completion state
   const [showSummary, setShowSummary] = useState(false);
+  const [workoutNotes, setWorkoutNotes] = useState('');
   const [summaryData, setSummaryData] = useState<{
     duration: number;
     totalVolume: number;
@@ -326,6 +328,7 @@ export default function SplitWorkoutScreen() {
       completed: true,
       durationMinutes: duration,
       totalVolume,
+      hasPRs: prs.length > 0,
     };
 
     await saveSplitWorkout(session);
@@ -483,6 +486,34 @@ export default function SplitWorkoutScreen() {
             })}
           </View>
 
+          {/* Post-workout Notes */}
+          <View className="px-6 mb-4">
+            <Text className="text-sm font-semibold text-foreground mb-2">Session Notes</Text>
+            <Text className="text-xs text-muted mb-3">How did you feel? Any physical sensations, energy levels, or observations?</Text>
+            <View
+              className="rounded-2xl p-4"
+              style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+            >
+              <TextInput
+                value={workoutNotes}
+                onChangeText={setWorkoutNotes}
+                placeholder="e.g. Felt strong on bench, left shoulder tight, great energy today..."
+                placeholderTextColor={colors.muted}
+                multiline
+                numberOfLines={4}
+                returnKeyType="done"
+                blurOnSubmit
+                style={{
+                  color: colors.foreground,
+                  fontSize: 14,
+                  lineHeight: 20,
+                  minHeight: 80,
+                  textAlignVertical: 'top',
+                }}
+              />
+            </View>
+          </View>
+
           {/* AI Coach Analysis */}
           <View className="px-6 mb-4">
             <TouchableOpacity
@@ -502,7 +533,18 @@ export default function SplitWorkoutScreen() {
           {/* Done button */}
           <View className="px-6">
             <TouchableOpacity
-              onPress={() => router.back()}
+              onPress={async () => {
+                // Save notes to the session if user typed anything
+                if (workoutNotes.trim()) {
+                  const all = await import('@/lib/split-workout-store').then(m => m.getSplitWorkouts());
+                  const latest = all[all.length - 1];
+                  if (latest) {
+                    latest.notes = workoutNotes.trim();
+                    await import('@/lib/split-workout-store').then(m => m.saveSplitWorkout(latest));
+                  }
+                }
+                router.back();
+              }}
               className="py-5 rounded-2xl items-center"
               style={{ backgroundColor: sessionColor }}
             >

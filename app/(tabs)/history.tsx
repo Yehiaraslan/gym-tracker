@@ -85,6 +85,12 @@ export default function HistoryScreen() {
               </Text>
             </View>
             <View style={{ alignItems: 'flex-end', gap: 4 }}>
+              {item.hasPRs && (
+                <View style={[styles.badge, { backgroundColor: '#F59E0B22', flexDirection: 'row', alignItems: 'center', gap: 3 }]}>
+                  <Text style={{ fontSize: 11 }}>🏆</Text>
+                  <Text style={[styles.badgeText, { color: '#F59E0B' }]}>New PR</Text>
+                </View>
+              )}
               <View style={[styles.badge, { backgroundColor: colors.success + '22' }]}>
                 <Text style={[styles.badgeText, { color: colors.success }]}>
                   {doneExercises.length} exercises
@@ -125,6 +131,15 @@ export default function HistoryScreen() {
             </View>
           )}
 
+          {/* Session notes (shown when expanded) */}
+          {isExpanded && item.notes ? (
+            <View style={[{ paddingHorizontal: 14, paddingBottom: 12, paddingTop: 4 }]}>
+              <View style={{ backgroundColor: '#6366F110', borderRadius: 10, padding: 10, borderWidth: 1, borderColor: '#6366F130' }}>
+                <Text style={{ fontSize: 11, fontWeight: '600', color: '#6366F1', marginBottom: 3 }}>SESSION NOTES</Text>
+                <Text style={{ fontSize: 13, color: colors.foreground, lineHeight: 18 }}>{item.notes}</Text>
+              </View>
+            </View>
+          ) : null}
           {/* Expand chevron */}
           <View style={[styles.chevronRow, { borderTopColor: colors.border }]}>
             <Text style={[styles.chevronText, { color: colors.muted }]}>

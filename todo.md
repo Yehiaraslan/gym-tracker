@@ -772,3 +772,8 @@
 
 ## Session 4 Bug Fixes
 - [x] Bug: Workout tab is empty — not showing exercises or completed workouts
+
+## Session 4 New Features
+- [x] Feature: Weekly volume line chart in Progress tab (per session type)
+- [x] Feature: New PR badge on session cards using Epley 1RM comparison
+- [x] Feature: Post-workout notes field saved with session, shown in history, fed to AI Coach

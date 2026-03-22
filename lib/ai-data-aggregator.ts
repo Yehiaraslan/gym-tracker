@@ -32,6 +32,7 @@ export interface WorkoutSummary {
   durationMinutes: number;
   totalSets: number;
   totalVolume: number;
+  notes?: string;
   exercises: {
     name: string;
     sets: { weight: number; reps: number; e1rm: number }[];
@@ -191,6 +192,7 @@ export async function buildUserSnapshot(): Promise<UserSnapshot> {
         totalSets,
         totalVolume,
         exercises,
+        notes: w.notes,
       };
     });
 
@@ -369,6 +371,9 @@ export function snapshotToPromptContext(snap: UserSnapshot): string {
         lines.push(
           `  ${ex.name}: ${setsStr} (best e1RM: ${Math.round(ex.bestE1RM)}kg, vol: ${Math.round(ex.totalVolume)}kg)`,
         );
+      }
+      if (w.notes) {
+        lines.push(`  [Session Notes] ${w.notes}`);
       }
     }
   }

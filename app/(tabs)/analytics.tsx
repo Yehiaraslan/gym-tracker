@@ -14,7 +14,9 @@ import {
   TextInput,
   FlatList,
   Platform,
+  Dimensions,
 } from 'react-native';
+import Svg, { Polyline, Line, Circle, Text as SvgText } from 'react-native-svg';
 import { useRouter } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -24,6 +26,7 @@ import {
   getAllPRs,
   getRecentSplitWorkouts,
   getTrackedExerciseNames,
+  getVolumeHistory,
   type SplitWorkoutSession,
 } from '@/lib/split-workout-store';
 import {
@@ -42,6 +45,8 @@ import {
 import { getRecentNutrition, getMacroTotals, type DailyNutrition } from '@/lib/nutrition-store';
 import { getActiveRecommendations, type CoachRecommendation } from '@/lib/coach-engine';
 import { NUTRITION_TARGETS, SLEEP_TARGETS, SESSION_NAMES, SESSION_COLORS, type SessionType } from '@/lib/training-program';
+
+const SCREEN_WIDTH = Dimensions.get('window').width;
 
 type ProgressTab = 'overview' | 'history';
 
@@ -63,10 +68,12 @@ export default function ProgressScreen() {
   const [workoutsThisWeek, setWorkoutsThisWeek] = useState(0);
   const [trackedExercises, setTrackedExercises] = useState<string[]>([]);
   const [exerciseSearch, setExerciseSearch] = useState('');
+  const [weeklyVolumeData, setWeeklyVolumeData] = useState<Record<string, { date: string; volume: number }[]>>({});
 
   const loadData = useCallback(async () => {
     try {
-      const [prData, streakData, recent, rec, weekRec, nutri, recs, weekCount, exerciseNames] = await Promise.all([
+      const [prData, streakData, recent, rec, weekRec, nutri, recs, weekCount, exerciseNames,
+        volUpperA, volLowerA, volUpperB, volLowerB] = await Promise.all([
         getAllPRs(),
         getStreakData(),
         getRecentSplitWorkouts(10),
@@ -76,6 +83,10 @@ export default function ProgressScreen() {
         getActiveRecommendations(),
         getWorkoutsInLastDays(7),
         getTrackedExerciseNames(),
+        getVolumeHistory('upper-a'),
+        getVolumeHistory('lower-a'),
+        getVolumeHistory('upper-b'),
+        getVolumeHistory('lower-b'),
       ]);
       setPrs(prData);
       setStreak(streakData);
@@ -86,6 +97,7 @@ export default function ProgressScreen() {
       setRecommendations(recs);
       setWorkoutsThisWeek(weekCount);
       setTrackedExercises(exerciseNames);
+      setWeeklyVolumeData({ 'upper-a': volUpperA, 'lower-a': volLowerA, 'upper-b': volUpperB, 'lower-b': volLowerB });
     } catch (e) {
       console.error('Failed to load progress data:', e);
     } finally {
@@ -396,46 +408,8 @@ export default function ProgressScreen() {
           </View>
         )}
 
-        {/* Volume Trend */}
-        {recentVolumes.length > 1 && (
-          <View className="px-6 mt-5">
-            <Text className="text-sm font-semibold text-foreground mb-3">Volume Trend</Text>
-            <View className="rounded-2xl p-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
-              <View className="flex-row items-end" style={{ height: 80, gap: 6 }}>
-                {recentVolumes.map((w, i) => {
-                  const maxVol = Math.max(...recentVolumes.map(v => v.totalVolume || 1));
-                  const height = ((w.totalVolume || 0) / maxVol) * 70;
-                  const sColor = SESSION_COLORS[w.sessionType as SessionType] || colors.primary;
-                  return (
-                    <View key={i} className="flex-1 items-center">
-                      <View
-                        style={{
-                          width: '100%',
-                          height: Math.max(4, height),
-                          borderRadius: 4,
-                          backgroundColor: sColor,
-                        }}
-                      />
-                      <Text className="text-xs text-muted mt-1" style={{ fontSize: 9 }}>
-                        {new Date(w.date + 'T00:00:00').toLocaleDateString('en', { month: 'short', day: 'numeric' })}
-                      </Text>
-                    </View>
-                  );
-                })}
-              </View>
-              {recentVolumes.length >= 2 && (() => {
-                const latest = recentVolumes[recentVolumes.length - 1].totalVolume || 0;
-                const prev = recentVolumes[recentVolumes.length - 2].totalVolume || 1;
-                const delta = ((latest - prev) / prev) * 100;
-                return (
-                  <Text className="text-xs text-muted mt-3">
-                    {delta >= 0 ? '+' : ''}{delta.toFixed(1)}% volume change from previous session
-                  </Text>
-                );
-              })()}
-            </View>
-          </View>
-        )}
+        {/* Weekly Volume Line Chart */}
+        <WeeklyVolumeChart weeklyVolumeData={weeklyVolumeData} colors={colors} />
 
         {/* Personal Records */}
         {prList.length > 0 && (
@@ -646,4 +620,148 @@ function getRecoveryColor(score: number): string {
   if (score >= 67) return '#10B981';
   if (score >= 34) return '#F59E0B';
   return '#EF4444';
+}
+
+// ---- Weekly Volume Line Chart ----
+const SESSION_LINE_COLORS: Record<string, string> = {
+  'upper-a': '#6366F1',
+  'lower-a': '#10B981',
+  'upper-b': '#F59E0B',
+  'lower-b': '#EF4444',
+};
+const SESSION_LINE_LABELS: Record<string, string> = {
+  'upper-a': 'Upper A',
+  'lower-a': 'Lower A',
+  'upper-b': 'Upper B',
+  'lower-b': 'Lower B',
+};
+
+function WeeklyVolumeChart({
+  weeklyVolumeData,
+  colors,
+}: {
+  weeklyVolumeData: Record<string, { date: string; volume: number }[]>;
+  colors: ReturnType<typeof useColors>;
+}) {
+  const CHART_W = SCREEN_WIDTH - 48 - 32; // px-6 padding + card padding
+  const CHART_H = 140;
+  const PAD_LEFT = 44;
+  const PAD_RIGHT = 8;
+  const PAD_TOP = 10;
+  const PAD_BOTTOM = 28;
+  const plotW = CHART_W - PAD_LEFT - PAD_RIGHT;
+  const plotH = CHART_H - PAD_TOP - PAD_BOTTOM;
+
+  // Collect all sessions across types, sorted by date
+  const allSeries = Object.entries(weeklyVolumeData).filter(([, pts]) => pts.length > 0);
+  if (allSeries.length === 0) return null;
+
+  // Build a unified date axis from all series
+  const allDates = Array.from(
+    new Set(allSeries.flatMap(([, pts]) => pts.map(p => p.date)))
+  ).sort();
+
+  if (allDates.length < 2) return null;
+
+  // Global max volume for Y axis
+  const allVolumes = allSeries.flatMap(([, pts]) => pts.map(p => p.volume));
+  const maxVol = Math.max(...allVolumes, 1);
+
+  // Map date → x position
+  const dateToX = (date: string) => {
+    const idx = allDates.indexOf(date);
+    if (idx < 0) return -1;
+    return PAD_LEFT + (idx / (allDates.length - 1)) * plotW;
+  };
+  const volToY = (vol: number) => PAD_TOP + plotH - (vol / maxVol) * plotH;
+
+  // Y axis labels
+  const yLabels = [0, Math.round(maxVol / 2), Math.round(maxVol)];
+
+  // X axis labels (first, middle, last)
+  const xLabelIndices = [0, Math.floor((allDates.length - 1) / 2), allDates.length - 1];
+
+  return (
+    <View className="px-6 mt-5">
+      <Text className="text-sm font-semibold text-foreground mb-3">Weekly Volume by Session Type</Text>
+      <View className="rounded-2xl p-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+        {/* Legend */}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 10 }}>
+          {allSeries.map(([type]) => (
+            <View key={type} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+              <View style={{ width: 12, height: 3, borderRadius: 2, backgroundColor: SESSION_LINE_COLORS[type] || colors.primary }} />
+              <Text style={{ fontSize: 11, color: colors.muted }}>{SESSION_LINE_LABELS[type] ?? type}</Text>
+            </View>
+          ))}
+        </View>
+        {/* SVG Chart */}
+        <Svg width={CHART_W} height={CHART_H}>
+          {/* Y grid lines + labels */}
+          {yLabels.map((v, i) => {
+            const y = volToY(v);
+            return (
+              <React.Fragment key={i}>
+                <Line
+                  x1={PAD_LEFT} y1={y} x2={CHART_W - PAD_RIGHT} y2={y}
+                  stroke={colors.border} strokeWidth={0.5} strokeDasharray="3,3"
+                />
+                <SvgText
+                  x={PAD_LEFT - 4} y={y + 4}
+                  fontSize={9} fill={colors.muted} textAnchor="end"
+                >
+                  {v >= 1000 ? `${(v / 1000).toFixed(0)}t` : `${v}`}
+                </SvgText>
+              </React.Fragment>
+            );
+          })}
+          {/* X axis labels */}
+          {xLabelIndices.map(idx => {
+            const date = allDates[idx];
+            if (!date) return null;
+            const x = PAD_LEFT + (idx / (allDates.length - 1)) * plotW;
+            const label = new Date(date + 'T00:00:00').toLocaleDateString('en', { month: 'short', day: 'numeric' });
+            return (
+              <SvgText
+                key={idx} x={x} y={CHART_H - 6}
+                fontSize={9} fill={colors.muted} textAnchor="middle"
+              >
+                {label}
+              </SvgText>
+            );
+          })}
+          {/* Lines per session type */}
+          {allSeries.map(([type, pts]) => {
+            const lineColor = SESSION_LINE_COLORS[type] || colors.primary;
+            const points = pts
+              .map(p => {
+                const x = dateToX(p.date);
+                const y = volToY(p.volume);
+                return x >= 0 ? `${x},${y}` : null;
+              })
+              .filter(Boolean)
+              .join(' ');
+            if (!points) return null;
+            return (
+              <React.Fragment key={type}>
+                <Polyline
+                  points={points}
+                  fill="none"
+                  stroke={lineColor}
+                  strokeWidth={2}
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                />
+                {pts.map((p, i) => {
+                  const x = dateToX(p.date);
+                  const y = volToY(p.volume);
+                  if (x < 0) return null;
+                  return <Circle key={i} cx={x} cy={y} r={3} fill={lineColor} />;
+                })}
+              </React.Fragment>
+            );
+          })}
+        </Svg>
+      </View>
+    </View>
+  );
 }

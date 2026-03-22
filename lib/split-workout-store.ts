@@ -37,6 +37,8 @@ export interface SplitWorkoutSession {
   completed: boolean;
   durationMinutes?: number;
   totalVolume?: number;
+  notes?: string; // Post-workout notes / physical sensations
+  hasPRs?: boolean; // True if this session contains at least one new PR
 }
 
 // ---- Storage ----
