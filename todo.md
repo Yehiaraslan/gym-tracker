@@ -753,3 +753,11 @@
 - [x] Add volume trend chart (3rd chart) to Rep History screen
 - [x] Add PR trophy badge to session cards when e1RM is all-time best
 - [x] Add History tab to Progress screen with searchable exercise list
+
+## AI Coaching Layer (Mar 22)
+- [x] Architecture design document for AI coaching pipeline
+- [x] Data aggregation layer — collect workout, nutrition, recovery, progress into structured payload
+- [x] Server-side AI inference pipeline — OpenRouter integration, prompt engineering, recommendation layer
+- [x] AI Coach dashboard screen — daily message, workout adjustments, nutrition insights
+- [x] Wire AI into workout flow — smart substitutions, weight recs, recovery warnings
+- [x] Notification triggers — post-workout, end-of-day, missed workout, recovery alerts

@@ -6,6 +6,7 @@ import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import * as whoopService from "./whoopService";
 import * as whoopStateDb from "./whoopStateDb";
 import * as whoopDb from "./whoopDb";
+import * as aiCoach from "./ai-coaching-service";
 
 export const appRouter = router({
   system: systemRouter,
@@ -178,6 +179,51 @@ export const appRouter = router({
       .query(async ({ ctx, input }) => {
         const days = input?.days ?? 7;
         return whoopDb.getRecoveryHistory(ctx.user.openId, days);
+      }),
+  }),
+
+  // ── AI Coaching ───────────────────────────────────────────
+  aiCoaching: router({
+    // Generate daily coaching message + workout adjustments + nutrition insights
+    dailyCoaching: publicProcedure
+      .input(z.object({ userContext: z.string() }))
+      .mutation(async ({ input }) => {
+        return aiCoach.generateDailyCoaching(input.userContext);
+      }),
+
+    // Generate weekly performance digest
+    weeklyDigest: publicProcedure
+      .input(z.object({ userContext: z.string() }))
+      .mutation(async ({ input }) => {
+        return aiCoach.generateWeeklyDigest(input.userContext);
+      }),
+
+    // Generate exercise substitution suggestions
+    substituteExercise: publicProcedure
+      .input(z.object({
+        exerciseName: z.string(),
+        reason: z.string(),
+        userContext: z.string(),
+      }))
+      .mutation(async ({ input }) => {
+        return aiCoach.generateExerciseSubstitution(
+          input.exerciseName,
+          input.reason,
+          input.userContext,
+        );
+      }),
+
+    // Generate post-workout analysis
+    postWorkoutAnalysis: publicProcedure
+      .input(z.object({
+        workoutSummary: z.string(),
+        userContext: z.string(),
+      }))
+      .mutation(async ({ input }) => {
+        return aiCoach.generatePostWorkoutAnalysis(
+          input.workoutSummary,
+          input.userContext,
+        );
       }),
   }),
 });

@@ -22,6 +22,7 @@ import { initManusRuntime, subscribeSafeAreaInsets } from "@/lib/_core/manus-run
 import { notificationService } from "@/lib/notification-service";
 import { recoveryAlertMonitor } from "@/lib/recovery-alert-monitor";
 import { milestoneNotificationMonitor } from "@/lib/milestone-notification-monitor";
+import { runCoachingChecks } from "@/lib/ai-coaching-notifications";
 
 const DEFAULT_WEB_INSETS: EdgeInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 const DEFAULT_WEB_FRAME: Rect = { x: 0, y: 0, width: 0, height: 0 };
@@ -51,6 +52,8 @@ export default function RootLayout() {
           notificationService.setupListeners();
           await recoveryAlertMonitor.initialize();
           await milestoneNotificationMonitor.initialize();
+          // Run AI coaching checks (daily message, missed workout, recovery)
+          await runCoachingChecks();
         }
       } catch (error) {
         console.error('Failed to initialize notifications:', error);

@@ -424,6 +424,22 @@ export default function SplitWorkoutScreen() {
             })}
           </View>
 
+          {/* AI Coach Analysis */}
+          <View className="px-6 mb-4">
+            <TouchableOpacity
+              onPress={() => router.push('/ai-coaching-dashboard' as any)}
+              className="rounded-2xl p-4 flex-row items-center"
+              style={{ backgroundColor: '#6366F115', borderWidth: 1, borderColor: '#6366F140', gap: 10 }}
+              activeOpacity={0.8}
+            >
+              <Text style={{ fontSize: 22 }}>🧠</Text>
+              <View style={{ flex: 1 }}>
+                <Text className="text-sm font-bold text-foreground">Get AI Analysis</Text>
+                <Text className="text-xs text-muted">Personalized insights on this workout</Text>
+              </View>
+              <Text style={{ color: '#6366F1', fontSize: 18 }}>→</Text>
+            </TouchableOpacity>
+          </View>
           {/* Done button */}
           <View className="px-6">
             <TouchableOpacity

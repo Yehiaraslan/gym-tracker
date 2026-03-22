@@ -112,6 +112,27 @@ export default function CoachTab() {
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 120 }}
         showsVerticalScrollIndicator={false}
       >
+        {/* AI Coaching Dashboard Entry */}
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => {
+            if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.push('/ai-coaching-dashboard' as any);
+          }}
+          style={[s.aiCoachCard, { backgroundColor: '#6366F115', borderColor: '#6366F140' }]}
+        >
+          <View style={s.aiCoachCardInner}>
+            <Text style={{ fontSize: 32 }}>🧠</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[s.aiCoachTitle, { color: colors.foreground }]}>AI Coaching Dashboard</Text>
+              <Text style={[s.aiCoachDesc, { color: colors.muted }]}>
+                Daily insights, workout adjustments, and nutrition analysis powered by your data
+              </Text>
+            </View>
+            <Text style={{ color: '#6366F1', fontSize: 20 }}>→</Text>
+          </View>
+        </TouchableOpacity>
+
         {/* How it works card */}
         <View style={[s.infoCard, { backgroundColor: colors.surface, borderColor: colors.primary + '30' }]}>
           <Text style={[s.infoTitle, { color: colors.foreground }]}>How it works</Text>
@@ -292,6 +313,20 @@ const s = StyleSheet.create({
   },
   tipNumText: { fontSize: 12, fontWeight: '700' },
   tipText: { flex: 1, fontSize: 13, lineHeight: 20 },
+
+  aiCoachCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 16,
+  },
+  aiCoachCardInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  aiCoachTitle: { fontSize: 17, fontWeight: '700', marginBottom: 2 },
+  aiCoachDesc: { fontSize: 13, lineHeight: 18 },
 
   disclaimer: {
     borderRadius: 12,
