@@ -127,10 +127,63 @@ export function GymProvider({ children }: { children: ReactNode }) {
   // Calculate current cycle info
   const currentCycleInfo = calculateCycleInfo(store.settings.cycleStartDate);
 
-  // Load data on mount
+  // Load data on mount — seed exercises from library if store is empty
   useEffect(() => {
     loadStore().then(data => {
-      setStore(data);
+      if (data.exercises.length === 0) {
+        // Seed with all 31 exercises from the training program
+        const MUSCLE_TO_BODYPART: Record<string, Exercise['bodyPart']> = {
+          chest: 'Chest', back: 'Back', shoulders: 'Shoulders',
+          biceps: 'Arms', triceps: 'Arms', legs: 'Legs', core: 'Core', 'full-body': 'Other',
+        };
+        const SEEDED_EXERCISES: Array<{ name: string; videoId: string; muscleGroup: string }> = [
+          { name: 'Dips', videoId: '2z8JmcrW-As', muscleGroup: 'chest' },
+          { name: 'Barbell Bench Press', videoId: 'rT7DgCr-3pg', muscleGroup: 'chest' },
+          { name: 'Chest-Supported DB Row', videoId: 'kBWAon7ItDw', muscleGroup: 'back' },
+          { name: 'DB Overhead Press', videoId: 'qEwKCR5JCog', muscleGroup: 'shoulders' },
+          { name: 'Close-Grip Cable Row', videoId: 'GZbfZ033f74', muscleGroup: 'back' },
+          { name: 'Incline DB Curl', videoId: 'soxrZlIl35U', muscleGroup: 'biceps' },
+          { name: 'Cable Overhead Tricep Extension', videoId: 'eGo4IYlbE5g', muscleGroup: 'triceps' },
+          { name: 'DB Lateral Raise', videoId: 'kDqklk1ZESo', muscleGroup: 'shoulders' },
+          { name: 'Barbell Back Squat', videoId: 'ultWZbUMPL8', muscleGroup: 'legs' },
+          { name: 'Romanian Deadlift', videoId: 'JCXUYuzwNrM', muscleGroup: 'legs' },
+          { name: 'Leg Press', videoId: 'IZxyjW7MPJQ', muscleGroup: 'legs' },
+          { name: 'Seated Leg Curl', videoId: 'ELOCsoDSmrg', muscleGroup: 'legs' },
+          { name: 'Standing Calf Raise', videoId: 'gwLzBJYoWlI', muscleGroup: 'legs' },
+          { name: 'Hanging Leg Raise', videoId: 'hdng3Nm1x_E', muscleGroup: 'core' },
+          { name: "Farmer's Walk", videoId: 'Fkzk_RqlYig', muscleGroup: 'full-body' },
+          { name: 'Incline DB Press', videoId: 'DbFgADa2PL8', muscleGroup: 'chest' },
+          { name: 'Wide-Grip Lat Pulldown', videoId: 'CAwf7n6Luuc', muscleGroup: 'back' },
+          { name: 'Cable Fly (Low-to-High)', videoId: 'Iwe6AmxVf7o', muscleGroup: 'chest' },
+          { name: 'Wide-Grip Seated Cable Row', videoId: 'xQNrFHEMhI4', muscleGroup: 'back' },
+          { name: 'Face Pulls', videoId: 'rep-qVOkqgk', muscleGroup: 'shoulders' },
+          { name: 'Hammer Curls', videoId: 'zC3nLlEvin4', muscleGroup: 'biceps' },
+          { name: 'Tricep Rope Pushdown', videoId: 'vB5OHsJ3EME', muscleGroup: 'triceps' },
+          { name: 'Cable Lateral Raise', videoId: '3VcKaXpzqRo', muscleGroup: 'shoulders' },
+          { name: 'Bulgarian Split Squat', videoId: '2C-uNgKwPLE', muscleGroup: 'legs' },
+          { name: 'Barbell Hip Thrust', videoId: 'xDmFkJxPzeM', muscleGroup: 'legs' },
+          { name: 'Leg Extension', videoId: 'YyvSfVjQeL0', muscleGroup: 'legs' },
+          { name: 'Lying Leg Curl', videoId: '1Tq3QdYUuHs', muscleGroup: 'legs' },
+          { name: 'Walking Lunges', videoId: 'L8fvypPrzzs', muscleGroup: 'legs' },
+          { name: 'Seated Calf Raise', videoId: 'JbyjNymZOt0', muscleGroup: 'legs' },
+          { name: 'Cable Crunch', videoId: '2fbujeH3F0E', muscleGroup: 'core' },
+          { name: 'Dead Hang', videoId: 'Jzl77Ibdypw', muscleGroup: 'back' },
+        ];
+        let seededStore = data;
+        for (const ex of SEEDED_EXERCISES) {
+          const bodyPart = MUSCLE_TO_BODYPART[ex.muscleGroup] ?? 'Other';
+          seededStore = addExerciseToStore(
+            seededStore,
+            ex.name,
+            `https://www.youtube.com/watch?v=${ex.videoId}`,
+            90, '8-12', '', 'reps', bodyPart
+          );
+        }
+        setStore(seededStore);
+        saveStore(seededStore);
+      } else {
+        setStore(data);
+      }
       setIsLoading(false);
     });
   }, []);

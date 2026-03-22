@@ -166,13 +166,13 @@ export function FoodSearch({ onAdd, onClose, mealNumber }: FoodSearchProps) {
         horizontal
         showsHorizontalScrollIndicator={false}
         className="py-2 px-4"
-        style={{ borderBottomWidth: 1, borderBottomColor: colors.border, maxHeight: 48 }}
+        style={{ borderBottomWidth: 1, borderBottomColor: colors.border, maxHeight: 68 }}
       >
         {CATEGORIES.map(cat => (
           <TouchableOpacity
             key={cat}
             onPress={() => setCategory(cat)}
-            className="mr-2 px-3 py-1.5 rounded-full"
+            className="mr-2 px-4 py-2.5 rounded-full"
             style={{
               backgroundColor: category === cat ? colors.primary : colors.surface,
             }}

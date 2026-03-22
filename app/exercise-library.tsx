@@ -18,6 +18,7 @@ import { ScreenContainer } from '@/components/screen-container';
 import { useColors } from '@/hooks/use-colors';
 import { EXERCISE_LIBRARY } from '@/lib/data/exercise-library';
 import * as Haptics from 'expo-haptics';
+import { MuscleDiagram } from '@/components/muscle-diagram';
 
 // ── Muscle group config ──────────────────────────────────────
 const MUSCLE_CONFIG: Record<string, { color: string; icon: string }> = {
@@ -176,6 +177,11 @@ export default function ExerciseLibraryScreen() {
               {/* Expanded details */}
               {isExpanded && (
                 <View style={[s.expanded, { borderTopColor: bord }]}>
+                  {/* Muscle anatomy diagram */}
+                  <View style={[s.section, { alignItems: 'center', paddingVertical: 8, borderBottomWidth: 0.5, borderBottomColor: bord, marginBottom: 14 }]}>
+                    <Text style={[s.sectionTitle, { color: mut, marginBottom: 8 }]}>MUSCLES TARGETED</Text>
+                    <MuscleDiagram muscleGroup={muscleGroup} size="md" />
+                  </View>
                   <View style={s.detailRow}>
                     <Text style={[s.detailLabel, { color: mut }]}>Equipment</Text>
                     <Text style={[s.detailValue, { color: fg }]}>{item.equipment}</Text>
@@ -237,8 +243,8 @@ const s = StyleSheet.create({
   searchBar: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 12, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12 },
   searchInput: { flex: 1, fontSize: 16 },
   chips: { paddingHorizontal: 16, gap: 8, paddingBottom: 12 },
-  chip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1 },
-  chipText: { fontSize: 13, fontWeight: '500' },
+  chip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, borderWidth: 1, minHeight: 38, justifyContent: 'center' },
+  chipText: { fontSize: 14, fontWeight: '600' },
   card: { borderRadius: 14, marginBottom: 8, overflow: 'hidden' },
   cardHeader: { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12 },
   cardInfo: { flex: 1 },

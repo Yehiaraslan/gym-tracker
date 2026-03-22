@@ -733,3 +733,10 @@
 ## Zero Frames Fix (Mar 22 2026)
 - [x] Consulted Zaki (server down), diagnosed independently: VisionCamera disables frame processors when worklets-core not found as Gradle project
 - [x] Fix: custom withWorkletsCore plugin adds worklets-core to settings.gradle + enableFrameProcessors: true in VisionCamera plugin config
+
+## Phase 17: UI Fixes (Mar 22 2026)
+- [x] Fix Workout tab Exercises option showing nothing (seeded 31 exercises from training program on first launch)
+- [x] Fix Library muscle filter tabs height too small to see (paddingVertical:10, minHeight:38, fontSize:14)
+- [x] Add muscle anatomy images to Library exercise cards (MuscleDiagram SVG component with front/back body silhouettes)
+- [x] Fix Nutrition food filter chips height too small (maxHeight:68, chip py-2.5)
+- [x] Retrieve WHOOP OAuth redirect URL: https://gymtrackr-czhk9nh6.manus.space/api/whoop/callback
