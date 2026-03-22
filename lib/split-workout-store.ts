@@ -227,3 +227,129 @@ export async function getVolumeHistory(sessionType: SessionType): Promise<{ date
         total + calculateVolumeLoad(ex.sets.filter(s => !s.isWarmup).map(s => ({ weight: s.weightKg, reps: s.reps }))), 0),
     }));
 }
+
+// ============================================================
+// FORM COACH SESSION HISTORY
+// Persists AI Form Coach results so users can track form scores
+// over time alongside their weight/rep history.
+// ============================================================
+
+export interface FormCoachSession {
+  id: string;
+  date: string;          // ISO date string (YYYY-MM-DD)
+  exerciseType: string;  // 'pushup' | 'pullup' | 'squat' | 'rdl'
+  exerciseName: string;  // Human-readable label
+  reps: number;
+  formScore: number;     // 0-100
+  grade: string;         // A / B / C / D / F
+  topIssues: string[];   // Up to 3 coaching notes
+  durationSeconds?: number;
+}
+
+const FORM_COACH_SESSIONS_KEY = '@gym_tracker_form_coach_sessions';
+
+export async function getFormCoachSessions(): Promise<FormCoachSession[]> {
+  const data = await AsyncStorage.getItem(FORM_COACH_SESSIONS_KEY);
+  if (!data) return [];
+  return JSON.parse(data) as FormCoachSession[];
+}
+
+export async function saveFormCoachSession(session: FormCoachSession): Promise<void> {
+  const sessions = await getFormCoachSessions();
+  sessions.push(session);
+  await AsyncStorage.setItem(FORM_COACH_SESSIONS_KEY, JSON.stringify(sessions));
+}
+
+/**
+ * Get all form coach sessions for a specific exercise type, newest first.
+ */
+export async function getFormCoachHistory(
+  exerciseType: string,
+  limit = 30,
+): Promise<FormCoachSession[]> {
+  const all = await getFormCoachSessions();
+  return all
+    .filter(s => s.exerciseType === exerciseType)
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, limit);
+}
+
+// ============================================================
+// EXERCISE REP HISTORY
+// Aggregates per-exercise weight/rep data from all split workout
+// sessions for the Rep History screen.
+// ============================================================
+
+export interface ExerciseSetEntry {
+  date: string;          // ISO date
+  sessionType: SessionType;
+  sets: SplitSetLog[];
+  bestWeightKg: number;
+  totalReps: number;
+  e1rm: number;          // Epley estimated 1RM
+  totalVolume: number;   // kg × reps summed across working sets
+}
+
+/**
+ * Get per-session history for a specific exercise, newest first.
+ * Returns up to `limit` sessions where the exercise was logged.
+ */
+export async function getExerciseHistory(
+  exerciseName: string,
+  limit = 30,
+): Promise<ExerciseSetEntry[]> {
+  const workouts = await getSplitWorkouts();
+  const result: ExerciseSetEntry[] = [];
+
+  const sorted = workouts
+    .filter(w => w.completed)
+    .sort((a, b) => b.date.localeCompare(a.date));
+
+  for (const w of sorted) {
+    const exLog = w.exercises.find(
+      e => e.exerciseName.toLowerCase() === exerciseName.toLowerCase(),
+    );
+    if (!exLog || exLog.skipped) continue;
+
+    const workingSets = exLog.sets.filter(s => !s.isWarmup && s.weightKg > 0 && s.reps > 0);
+    if (workingSets.length === 0) continue;
+
+    const bestWeight = Math.max(...workingSets.map(s => s.weightKg));
+    const totalReps = workingSets.reduce((sum, s) => sum + s.reps, 0);
+    const best1RM = workingSets.reduce(
+      (best, s) => Math.max(best, epley1RM(s.weightKg, s.reps)),
+      0,
+    );
+    const volume = calculateVolumeLoad(
+      workingSets.map(s => ({ weight: s.weightKg, reps: s.reps })),
+    );
+
+    result.push({
+      date: w.date,
+      sessionType: w.sessionType,
+      sets: exLog.sets,
+      bestWeightKg: bestWeight,
+      totalReps,
+      e1rm: Math.round(best1RM * 10) / 10,
+      totalVolume: Math.round(volume),
+    });
+
+    if (result.length >= limit) break;
+  }
+
+  return result;
+}
+
+/**
+ * Get all unique exercise names that appear in split workout history.
+ */
+export async function getTrackedExerciseNames(): Promise<string[]> {
+  const workouts = await getSplitWorkouts();
+  const names = new Set<string>();
+  for (const w of workouts) {
+    for (const ex of w.exercises) {
+      if (!ex.skipped) names.add(ex.exerciseName);
+    }
+  }
+  return Array.from(names).sort();
+}

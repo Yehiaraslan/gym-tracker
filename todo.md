@@ -740,3 +740,11 @@
 - [x] Add muscle anatomy images to Library exercise cards (MuscleDiagram SVG component with front/back body silhouettes)
 - [x] Fix Nutrition food filter chips height too small (maxHeight:68, chip py-2.5)
 - [x] Retrieve WHOOP OAuth redirect URL: https://gymtrackr-czhk9nh6.manus.space/api/whoop/callback
+
+## Rep History Feature (Mar 22 2026)
+- [x] Add FormCoachSession type and persistence to split-workout-store
+- [x] Save form coach session (exercise, reps, formScore, grade, issues) on completion
+- [x] Build app/rep-history.tsx screen with weight/e1RM trend, set breakdown, form score history
+- [x] Add "History" button to exercise cards in Library tab
+- [x] Add "History" button to exercise cards in active Workout tab
+- [x] Add icon mapping for history-related icons (using emoji icons directly)

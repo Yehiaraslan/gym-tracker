@@ -14,6 +14,7 @@ import {
   Linking,
   Platform,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
 import { useColors } from '@/hooks/use-colors';
 import { EXERCISE_LIBRARY } from '@/lib/data/exercise-library';
@@ -55,8 +56,19 @@ function MuscleIconCircle({ muscleGroup, size = 44 }: { muscleGroup: string; siz
   );
 }
 
+// Map exercise names to their coach exercise type (for form score history)
+const EXERCISE_COACH_TYPE: Record<string, string> = {
+  'Push-up': 'pushup',
+  'Pull-up': 'pullup',
+  'Squat': 'squat',
+  'Romanian Deadlift': 'rdl',
+  'Barbell Back Squat': 'squat',
+  'Goblet Squat': 'squat',
+};
+
 export default function ExerciseLibraryScreen() {
   const colors = useColors();
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('All');
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -215,6 +227,21 @@ export default function ExerciseLibraryScreen() {
                       <Text style={[s.proTipText, { color: success }]}>✓ {item.proTip}</Text>
                     </View>
                   )}
+                  {/* Rep History button */}
+                  <TouchableOpacity
+                    style={[s.historyBtn, { borderColor: colors.primary + '55', backgroundColor: colors.primary + '11' }]}
+                    onPress={() => {
+                      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      const coachType = EXERCISE_COACH_TYPE[item.name] ?? '';
+                      router.push({
+                        pathname: '/rep-history',
+                        params: { exercise: item.name, exerciseType: coachType },
+                      });
+                    }}
+                  >
+                    <Text style={[s.historyBtnText, { color: colors.primary }]}>📊  View Rep History</Text>
+                  </TouchableOpacity>
+
                   {item.videoId && (
                     <TouchableOpacity
                       style={s.youtubeBtn}
@@ -263,7 +290,9 @@ const s = StyleSheet.create({
   stepText: { fontSize: 13, lineHeight: 20, marginBottom: 3 },
   proTip: { borderWidth: 1, borderRadius: 10, padding: 12, marginBottom: 12 },
   proTipText: { fontSize: 13, lineHeight: 18 },
-  youtubeBtn: { backgroundColor: '#FF0000', borderRadius: 10, padding: 12, alignItems: 'center' },
+  youtubeBtn: { backgroundColor: '#FF0000', borderRadius: 10, padding: 12, alignItems: 'center', marginTop: 8 },
   youtubeBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  historyBtn: { borderWidth: 1, borderRadius: 10, padding: 12, alignItems: 'center', marginBottom: 8 },
+  historyBtnText: { fontSize: 14, fontWeight: '600' },
   empty: { textAlign: 'center', marginTop: 40, fontSize: 14 },
 });

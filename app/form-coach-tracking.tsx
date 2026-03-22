@@ -50,6 +50,8 @@ import {
 } from '@/lib/real-pose-detection';
 import { ConfidenceLegend } from '@/components/confidence-legend';
 import { JointLossAlertManager } from '@/lib/joint-loss-alert';
+import { saveFormCoachSession } from '@/lib/split-workout-store';
+import { generateId } from '@/lib/types';
 
 // Helper to get summary with additional fields
 interface FormSummary {
@@ -423,6 +425,28 @@ export default function FormCoachTrackingScreen() {
     
     setTrackingState('completed');
     
+    // Persist the form coach session for Rep History
+    if (sessionRef.current && currentRep > 0) {
+      const summary = getFormSummaryExtended(sessionRef.current);
+      const today = new Date().toISOString().split('T')[0];
+      const exerciseNames: Record<string, string> = {
+        pushup: 'Push-ups',
+        pullup: 'Pull-ups',
+        squat: 'Squats',
+        rdl: 'Romanian Deadlifts',
+      };
+      saveFormCoachSession({
+        id: generateId(),
+        date: today,
+        exerciseType,
+        exerciseName: exerciseNames[exerciseType] ?? exerciseType,
+        reps: currentRep,
+        formScore: summary.averageScore,
+        grade: summary.grade,
+        topIssues: summary.topIssues.slice(0, 3),
+      }).catch(() => { /* silent */ });
+    }
+    
     if (audioEnabled && sessionRef.current) {
       const summary = getFormSummaryExtended(sessionRef.current);
       audioFeedback.onSessionEnd(currentRep, summary.averageScore);
@@ -431,7 +455,7 @@ export default function FormCoachTrackingScreen() {
     if (Platform.OS !== 'web') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
-  }, [currentRep, audioEnabled]);
+  }, [currentRep, audioEnabled, exerciseType]);
 
   const handleRecalibrate = useCallback(() => {
     if (progressiveCalibrationRef.current) {
@@ -552,7 +576,7 @@ export default function FormCoachTrackingScreen() {
             )}
           </View>
 
-          <View className="flex-row gap-3">
+          <View className="flex-row gap-3 mb-3">
             <TouchableOpacity
               className="flex-1 bg-surface py-4 rounded-xl items-center"
               onPress={() => router.back()}
@@ -566,6 +590,23 @@ export default function FormCoachTrackingScreen() {
               <Text className="text-background font-semibold">New Set</Text>
             </TouchableOpacity>
           </View>
+          <TouchableOpacity
+            className="bg-surface py-3 rounded-xl items-center"
+            onPress={() => {
+              const exerciseNames: Record<string, string> = {
+                pushup: 'Push-ups',
+                pullup: 'Pull-ups',
+                squat: 'Squats',
+                rdl: 'Romanian Deadlifts',
+              };
+              router.push({
+                pathname: '/rep-history',
+                params: { exercise: exerciseNames[exerciseType] ?? exerciseType, exerciseType },
+              });
+            }}
+          >
+            <Text className="text-primary font-semibold">📊  View Form History</Text>
+          </TouchableOpacity>
         </ScrollView>
       </ScreenContainer>
     );

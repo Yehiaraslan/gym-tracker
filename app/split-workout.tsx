@@ -721,6 +721,21 @@ export default function SplitWorkoutScreen() {
                       </View>
                     </View>
 
+                    {/* History button */}
+                    <TouchableOpacity
+                      onPress={() => {
+                        if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        router.push({ pathname: '/rep-history', params: { exercise: ex.name, exerciseType: '' } });
+                      }}
+                      style={{
+                        width: 36, height: 36, borderRadius: 10,
+                        backgroundColor: colors.primary + '18', alignItems: 'center', justifyContent: 'center',
+                        marginRight: libEntry?.videoId ? 4 : 0,
+                      }}
+                    >
+                      <Text style={{ fontSize: 16 }}>📊</Text>
+                    </TouchableOpacity>
+
                     {/* Video button */}
                     {libEntry?.videoId && (
                       <TouchableOpacity
