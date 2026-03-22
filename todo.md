@@ -782,3 +782,8 @@
 - [x] Feature: Tap-to-inspect chart dots — tooltip with session name, date, and exact volume on volume chart
 - [x] Feature: Notes keyword search in Workout tab — filter sessions by notes content
 - [x] Feature: AI Coach Session Debrief — pattern analysis of last 3 sessions' notes
+
+## Session 5 Features
+- [x] Feature: Debrief history — cache last 3 debriefs with timestamps, scrollable in AI Coach dashboard
+- [x] Feature: Post-workout notes auto-prompt — nudge if no notes entered after finishing workout
+- [x] Feature: Volume chart date range selector — 4w / 8w / All time toggle above chart

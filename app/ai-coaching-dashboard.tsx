@@ -31,6 +31,13 @@ import { getSplitWorkouts } from '@/lib/split-workout-store';
 
 const CACHE_KEY = '@ai_coaching_cache';
 const CACHE_TTL = 4 * 60 * 60 * 1000; // 4 hours
+const DEBRIEF_HISTORY_KEY = '@ai_debrief_history';
+const MAX_DEBRIEF_HISTORY = 3;
+
+interface DebriefHistoryEntry {
+  timestamp: number;
+  result: SessionDebriefResult;
+}
 
 interface CachedCoaching {
   timestamp: number;
@@ -55,6 +62,25 @@ export default function AICoachingDashboard() {
   const [debriefResult, setDebriefResult] = useState<SessionDebriefResult | null>(null);
   const [debriefLoading, setDebriefLoading] = useState(false);
   const [debriefError, setDebriefError] = useState<string | null>(null);
+  const [debriefHistory, setDebriefHistory] = useState<DebriefHistoryEntry[]>([]);
+  const [showDebriefHistory, setShowDebriefHistory] = useState(false);
+
+  const loadDebriefHistory = useCallback(async () => {
+    try {
+      const raw = await AsyncStorage.getItem(DEBRIEF_HISTORY_KEY);
+      if (raw) setDebriefHistory(JSON.parse(raw));
+    } catch {}
+  }, []);
+
+  const saveDebriefToHistory = useCallback(async (result: SessionDebriefResult) => {
+    try {
+      const raw = await AsyncStorage.getItem(DEBRIEF_HISTORY_KEY);
+      const existing: DebriefHistoryEntry[] = raw ? JSON.parse(raw) : [];
+      const updated = [{ timestamp: Date.now(), result }, ...existing].slice(0, MAX_DEBRIEF_HISTORY);
+      await AsyncStorage.setItem(DEBRIEF_HISTORY_KEY, JSON.stringify(updated));
+      setDebriefHistory(updated);
+    } catch {}
+  }, []);
 
   const dailyCoachingMutation = trpc.aiCoaching.dailyCoaching.useMutation();
   const sessionDebriefMutation = trpc.aiCoaching.sessionDebrief.useMutation();
@@ -118,6 +144,7 @@ export default function AICoachingDashboard() {
 
   useEffect(() => {
     fetchCoaching();
+    loadDebriefHistory();
   }, []);
 
   const onRefresh = useCallback(() => {
@@ -403,6 +430,7 @@ export default function AICoachingDashboard() {
                         sessionNotesContext: notesContext,
                         userContext: context,
                       });
+                      await saveDebriefToHistory(result);
                       setDebriefResult(result);
                     } catch (err) {
                       setDebriefError('Could not generate debrief. Please try again.');
@@ -424,6 +452,36 @@ export default function AICoachingDashboard() {
               )}
               {debriefError && (
                 <Text style={{ fontSize: 12, color: colors.error ?? '#EF4444', marginTop: 8 }}>{debriefError}</Text>
+              )}
+              {/* Debrief History */}
+              {debriefHistory.length > 0 && (
+                <View style={{ marginTop: 14 }}>
+                  <TouchableOpacity
+                    onPress={() => setShowDebriefHistory(v => !v)}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                  >
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: '#6366F1' }}>
+                      {showDebriefHistory ? '▲' : '▼'} PAST DEBRIEFS ({debriefHistory.length})
+                    </Text>
+                  </TouchableOpacity>
+                  {showDebriefHistory && debriefHistory.map((entry, idx) => (
+                    <View
+                      key={idx}
+                      style={{ marginTop: 10, backgroundColor: '#6366F108', borderRadius: 8, padding: 10, borderWidth: 1, borderColor: '#6366F120' }}
+                    >
+                      <Text style={{ fontSize: 10, color: colors.muted, marginBottom: 4 }}>
+                        {new Date(entry.timestamp).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </Text>
+                      <Text style={{ fontSize: 12, color: colors.foreground, fontStyle: 'italic', marginBottom: 6 }}>
+                        {entry.result.patternSummary}
+                      </Text>
+                      <View style={{ backgroundColor: '#22C55E12', borderRadius: 6, padding: 8, borderWidth: 1, borderColor: '#22C55E25' }}>
+                        <Text style={{ fontSize: 10, fontWeight: '700', color: '#22C55E', marginBottom: 2 }}>RECOMMENDATION</Text>
+                        <Text style={{ fontSize: 12, color: colors.foreground }}>{entry.result.coachRecommendation}</Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
               )}
             </View>
           </View>

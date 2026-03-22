@@ -542,8 +542,18 @@ export default function SplitWorkoutScreen() {
                     latest.notes = workoutNotes.trim();
                     await import('@/lib/split-workout-store').then(m => m.saveSplitWorkout(latest));
                   }
+                  router.back();
+                } else {
+                  // Nudge user to add notes — they can skip
+                  Alert.alert(
+                    'Add a Quick Note?',
+                    'Your AI coach uses session notes to identify patterns in your training. Even one sentence helps — how did you feel?',
+                    [
+                      { text: 'Skip', style: 'cancel', onPress: () => router.back() },
+                      { text: 'Add Note', style: 'default' },
+                    ],
+                  );
                 }
-                router.back();
               }}
               className="py-5 rounded-2xl items-center"
               style={{ backgroundColor: sessionColor }}

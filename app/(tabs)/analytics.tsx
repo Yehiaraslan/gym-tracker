@@ -69,6 +69,7 @@ export default function ProgressScreen() {
   const [trackedExercises, setTrackedExercises] = useState<string[]>([]);
   const [exerciseSearch, setExerciseSearch] = useState('');
   const [weeklyVolumeData, setWeeklyVolumeData] = useState<Record<string, { date: string; volume: number }[]>>({});
+  const [volumeDateRange, setVolumeDateRange] = useState<28 | 56 | undefined>(28);
 
   const loadData = useCallback(async () => {
     try {
@@ -83,10 +84,10 @@ export default function ProgressScreen() {
         getActiveRecommendations(),
         getWorkoutsInLastDays(7),
         getTrackedExerciseNames(),
-        getVolumeHistory('upper-a'),
-        getVolumeHistory('lower-a'),
-        getVolumeHistory('upper-b'),
-        getVolumeHistory('lower-b'),
+        getVolumeHistory('upper-a', volumeDateRange),
+        getVolumeHistory('lower-a', volumeDateRange),
+        getVolumeHistory('upper-b', volumeDateRange),
+        getVolumeHistory('lower-b', volumeDateRange),
       ]);
       setPrs(prData);
       setStreak(streakData);
@@ -104,7 +105,7 @@ export default function ProgressScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [volumeDateRange]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -409,7 +410,12 @@ export default function ProgressScreen() {
         )}
 
         {/* Weekly Volume Line Chart */}
-        <WeeklyVolumeChart weeklyVolumeData={weeklyVolumeData} colors={colors} />
+        <WeeklyVolumeChart
+          weeklyVolumeData={weeklyVolumeData}
+          colors={colors}
+          dateRange={volumeDateRange}
+          onDateRangeChange={(range) => { setVolumeDateRange(range); }}
+        />
 
         {/* Personal Records */}
         {prList.length > 0 && (
@@ -639,9 +645,13 @@ const SESSION_LINE_LABELS: Record<string, string> = {
 function WeeklyVolumeChart({
   weeklyVolumeData,
   colors,
+  dateRange,
+  onDateRangeChange,
 }: {
   weeklyVolumeData: Record<string, { date: string; volume: number }[]>;
   colors: ReturnType<typeof useColors>;
+  dateRange?: 28 | 56 | undefined;
+  onDateRangeChange?: (range: 28 | 56 | undefined) => void;
 }) {
   const [tooltip, setTooltip] = useState<{ type: string; date: string; volume: number; x: number; y: number } | null>(null);
 
@@ -695,7 +705,32 @@ function WeeklyVolumeChart({
 
   return (
     <View className="px-6 mt-5">
-      <Text className="text-sm font-semibold text-foreground mb-3">Weekly Volume by Session Type</Text>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+        <Text className="text-sm font-semibold text-foreground">Weekly Volume by Session Type</Text>
+        {/* Date range selector */}
+        <View style={{ flexDirection: 'row', gap: 4 }}>
+          {([28, 56, undefined] as (28 | 56 | undefined)[]).map((r) => {
+            const label = r === 28 ? '4w' : r === 56 ? '8w' : 'All';
+            const active = dateRange === r;
+            return (
+              <TouchableOpacity
+                key={label}
+                onPress={() => onDateRangeChange?.(r)}
+                style={{
+                  paddingHorizontal: 8,
+                  paddingVertical: 3,
+                  borderRadius: 6,
+                  backgroundColor: active ? colors.primary : colors.surface,
+                  borderWidth: 1,
+                  borderColor: active ? colors.primary : colors.border,
+                }}
+              >
+                <Text style={{ fontSize: 11, fontWeight: active ? '700' : '400', color: active ? '#fff' : colors.muted }}>{label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
       <View className="rounded-2xl p-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
         {/* Legend */}
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 10 }}>
