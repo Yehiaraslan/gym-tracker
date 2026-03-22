@@ -453,6 +453,52 @@ export default function AICoachingDashboard() {
               {debriefError && (
                 <Text style={{ fontSize: 12, color: colors.error ?? '#EF4444', marginTop: 8 }}>{debriefError}</Text>
               )}
+              {/* Debrief Comparison Diff — shown when 2+ debriefs exist */}
+              {debriefHistory.length >= 2 && (
+                <View style={{ marginTop: 14 }}>
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#6366F1', marginBottom: 8, letterSpacing: 0.5 }}>📊 PATTERN COMPARISON</Text>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    {/* Latest */}
+                    <View style={{ flex: 1, backgroundColor: '#6366F110', borderRadius: 10, padding: 10, borderWidth: 1, borderColor: '#6366F130' }}>
+                      <Text style={{ fontSize: 10, fontWeight: '700', color: '#6366F1', marginBottom: 4 }}>LATEST</Text>
+                      <Text style={{ fontSize: 10, color: colors.muted, marginBottom: 6 }}>
+                        {new Date(debriefHistory[0].timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </Text>
+                      <Text style={{ fontSize: 11, color: colors.foreground, fontStyle: 'italic', marginBottom: 6 }} numberOfLines={3}>
+                        {debriefHistory[0].result.patternSummary}
+                      </Text>
+                      {debriefHistory[0].result.physicalPatterns.slice(0, 2).map((p, i) => (
+                        <Text key={i} style={{ fontSize: 11, color: '#EF4444', marginBottom: 2 }} numberOfLines={1}>• {p}</Text>
+                      ))}
+                      <View style={{ marginTop: 6, backgroundColor: '#22C55E12', borderRadius: 6, padding: 6 }}>
+                        <Text style={{ fontSize: 10, color: '#22C55E', fontWeight: '700', marginBottom: 2 }}>COACH SAYS</Text>
+                        <Text style={{ fontSize: 11, color: colors.foreground }} numberOfLines={3}>{debriefHistory[0].result.coachRecommendation}</Text>
+                      </View>
+                    </View>
+                    {/* Arrow */}
+                    <View style={{ justifyContent: 'center', alignItems: 'center', width: 20 }}>
+                      <Text style={{ fontSize: 16, color: colors.muted }}>→</Text>
+                    </View>
+                    {/* Previous */}
+                    <View style={{ flex: 1, backgroundColor: colors.surface, borderRadius: 10, padding: 10, borderWidth: 1, borderColor: colors.border }}>
+                      <Text style={{ fontSize: 10, fontWeight: '700', color: colors.muted, marginBottom: 4 }}>PREVIOUS</Text>
+                      <Text style={{ fontSize: 10, color: colors.muted, marginBottom: 6 }}>
+                        {new Date(debriefHistory[1].timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </Text>
+                      <Text style={{ fontSize: 11, color: colors.foreground, fontStyle: 'italic', marginBottom: 6 }} numberOfLines={3}>
+                        {debriefHistory[1].result.patternSummary}
+                      </Text>
+                      {debriefHistory[1].result.physicalPatterns.slice(0, 2).map((p, i) => (
+                        <Text key={i} style={{ fontSize: 11, color: '#EF4444', marginBottom: 2 }} numberOfLines={1}>• {p}</Text>
+                      ))}
+                      <View style={{ marginTop: 6, backgroundColor: '#22C55E12', borderRadius: 6, padding: 6 }}>
+                        <Text style={{ fontSize: 10, color: '#22C55E', fontWeight: '700', marginBottom: 2 }}>COACH SAID</Text>
+                        <Text style={{ fontSize: 11, color: colors.foreground }} numberOfLines={3}>{debriefHistory[1].result.coachRecommendation}</Text>
+                      </View>
+                    </View>
+                  </View>
+                </View>
+              )}
               {/* Debrief History */}
               {debriefHistory.length > 0 && (
                 <View style={{ marginTop: 14 }}>

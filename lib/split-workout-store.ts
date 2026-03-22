@@ -39,6 +39,7 @@ export interface SplitWorkoutSession {
   totalVolume?: number;
   notes?: string; // Post-workout notes / physical sensations
   hasPRs?: boolean; // True if this session contains at least one new PR
+  isDeload?: boolean; // True if this was a deload session
 }
 
 // ---- Storage ----
@@ -252,6 +253,18 @@ export async function getVolumeHistory(sessionType: SessionType, daysBack?: numb
       volume: w.totalVolume || w.exercises.reduce((total, ex) =>
         total + calculateVolumeLoad(ex.sets.filter(s => !s.isWarmup).map(s => ({ weight: s.weightKg, reps: s.reps }))), 0),
     }));
+}
+
+/**
+ * Get unique ISO dates (YYYY-MM-DD) of sessions that were deload sessions.
+ * Used to annotate the volume chart with vertical deload markers.
+ */
+export async function getDeloadWeekDates(): Promise<string[]> {
+  const workouts = await getSplitWorkouts();
+  const deloadDates = workouts
+    .filter(w => w.completed && w.isDeload)
+    .map(w => w.date);
+  return Array.from(new Set(deloadDates)).sort();
 }
 
 // ============================================================

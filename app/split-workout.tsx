@@ -329,6 +329,7 @@ export default function SplitWorkoutScreen() {
       durationMinutes: duration,
       totalVolume,
       hasPRs: prs.length > 0,
+      isDeload,
     };
 
     await saveSplitWorkout(session);
@@ -511,6 +512,29 @@ export default function SplitWorkoutScreen() {
                   textAlignVertical: 'top',
                 }}
               />
+              {/* Quick-tap note presets */}
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+                {[
+                  { label: '💪 Felt strong', text: 'Felt strong today, great energy and focus throughout.' },
+                  { label: '😴 Fatigued', text: 'Felt fatigued, energy was low. May need more rest.' },
+                  { label: '⚠️ Joint discomfort', text: 'Noticed some joint discomfort during the session. Will monitor.' },
+                ].map((preset) => (
+                  <TouchableOpacity
+                    key={preset.label}
+                    onPress={() => setWorkoutNotes(prev => prev ? `${prev} ${preset.text}` : preset.text)}
+                    style={{
+                      paddingHorizontal: 10,
+                      paddingVertical: 5,
+                      borderRadius: 20,
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                      backgroundColor: colors.background,
+                    }}
+                  >
+                    <Text style={{ fontSize: 12, color: colors.foreground }}>{preset.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
           </View>
 

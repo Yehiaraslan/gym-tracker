@@ -27,6 +27,7 @@ import {
   getRecentSplitWorkouts,
   getTrackedExerciseNames,
   getVolumeHistory,
+  getDeloadWeekDates,
   type SplitWorkoutSession,
 } from '@/lib/split-workout-store';
 import {
@@ -70,11 +71,12 @@ export default function ProgressScreen() {
   const [exerciseSearch, setExerciseSearch] = useState('');
   const [weeklyVolumeData, setWeeklyVolumeData] = useState<Record<string, { date: string; volume: number }[]>>({});
   const [volumeDateRange, setVolumeDateRange] = useState<28 | 56 | undefined>(28);
+  const [deloadDates, setDeloadDates] = useState<string[]>([]);
 
   const loadData = useCallback(async () => {
     try {
       const [prData, streakData, recent, rec, weekRec, nutri, recs, weekCount, exerciseNames,
-        volUpperA, volLowerA, volUpperB, volLowerB] = await Promise.all([
+        volUpperA, volLowerA, volUpperB, volLowerB, deloadDatesList] = await Promise.all([
         getAllPRs(),
         getStreakData(),
         getRecentSplitWorkouts(10),
@@ -88,6 +90,7 @@ export default function ProgressScreen() {
         getVolumeHistory('lower-a', volumeDateRange),
         getVolumeHistory('upper-b', volumeDateRange),
         getVolumeHistory('lower-b', volumeDateRange),
+        getDeloadWeekDates(),
       ]);
       setPrs(prData);
       setStreak(streakData);
@@ -99,6 +102,7 @@ export default function ProgressScreen() {
       setWorkoutsThisWeek(weekCount);
       setTrackedExercises(exerciseNames);
       setWeeklyVolumeData({ 'upper-a': volUpperA, 'lower-a': volLowerA, 'upper-b': volUpperB, 'lower-b': volLowerB });
+      setDeloadDates(deloadDatesList);
     } catch (e) {
       console.error('Failed to load progress data:', e);
     } finally {
@@ -415,6 +419,7 @@ export default function ProgressScreen() {
           colors={colors}
           dateRange={volumeDateRange}
           onDateRangeChange={(range) => { setVolumeDateRange(range); }}
+          deloadDates={deloadDates}
         />
 
         {/* Personal Records */}
@@ -647,11 +652,13 @@ function WeeklyVolumeChart({
   colors,
   dateRange,
   onDateRangeChange,
+  deloadDates = [],
 }: {
   weeklyVolumeData: Record<string, { date: string; volume: number }[]>;
   colors: ReturnType<typeof useColors>;
   dateRange?: 28 | 56 | undefined;
   onDateRangeChange?: (range: 28 | 56 | undefined) => void;
+  deloadDates?: string[];
 }) {
   const [tooltip, setTooltip] = useState<{ type: string; date: string; volume: number; x: number; y: number } | null>(null);
 
@@ -775,6 +782,25 @@ function WeeklyVolumeChart({
                 >
                   {label}
                 </SvgText>
+              );
+            })}
+            {/* Deload week vertical annotations */}
+            {deloadDates.map(date => {
+              const x = dateToX(date);
+              if (x < 0) return null;
+              return (
+                <React.Fragment key={`deload-${date}`}>
+                  <Line
+                    x1={x} y1={PAD_TOP} x2={x} y2={CHART_H - PAD_BOTTOM}
+                    stroke="#F59E0B" strokeWidth={1.5} strokeDasharray="4,3" opacity={0.7}
+                  />
+                  <SvgText
+                    x={x + 3} y={PAD_TOP + 10}
+                    fontSize={8} fill="#F59E0B" fontWeight="bold"
+                  >
+                    DELOAD
+                  </SvgText>
+                </React.Fragment>
               );
             })}
             {/* Lines per session type */}
