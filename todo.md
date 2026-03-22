@@ -769,3 +769,6 @@
 
 ## Session 3 Bug Fixes (continued)
 - [x] Bug: WHOOP "Failed to encrypt token" — access_token/refresh_token undefined due to redirect URI mismatch; added validation + better error message
+
+## Session 4 Bug Fixes
+- [x] Bug: Workout tab is empty — not showing exercises or completed workouts

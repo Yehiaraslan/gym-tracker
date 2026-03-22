@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useCallback } from 'react';
 import { 
   Text, 
   View, 
@@ -6,14 +6,28 @@ import {
   FlatList,
   TextInput,
   Platform,
+  StyleSheet,
 } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useColors } from '@/hooks/use-colors';
 import { useGym } from '@/lib/gym-context';
-import { WorkoutLog, formatDate, getDayName } from '@/lib/types';
+import { getSplitWorkouts, type SplitWorkoutSession } from '@/lib/split-workout-store';
+import { SESSION_NAMES } from '@/lib/training-program';
 import { BodyMeasurementsView } from '@/components/body-measurements';
 import * as Haptics from 'expo-haptics';
+
+function formatSessionDate(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+function formatDuration(mins?: number): string {
+  if (!mins) return '';
+  if (mins < 60) return `${mins}m`;
+  return `${Math.floor(mins / 60)}h ${mins % 60}m`;
+}
 
 type ViewMode = 'workouts' | 'exercises' | 'body';
 
@@ -24,108 +38,99 @@ export default function HistoryScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedWorkout, setExpandedWorkout] = useState<string | null>(null);
   const [selectedExercise, setSelectedExercise] = useState<string | null>(null);
+  const [splitWorkouts, setSplitWorkouts] = useState<SplitWorkoutSession[]>([]);
 
-  // Get completed workouts sorted by date
-  const completedWorkouts = useMemo(() => {
-    return [...store.workoutLogs]
-      .filter(log => log.isCompleted)
-      .sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
-  }, [store.workoutLogs]);
+  // Reload split workouts every time this tab is focused
+  useFocusEffect(
+    useCallback(() => {
+      getSplitWorkouts().then(sessions => {
+        const completed = sessions
+          .filter(s => s.completed)
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        setSplitWorkouts(completed);
+      });
+    }, [])
+  );
 
   // Filter exercises by search
-  const filteredExercises = useMemo(() => {
-    if (!searchQuery.trim()) return store.exercises;
-    return store.exercises.filter(ex => 
-      ex.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [store.exercises, searchQuery]);
+  const filteredExercises = store.exercises.filter(ex => {
+    if (!searchQuery.trim()) return true;
+    return ex.name.toLowerCase().includes(searchQuery.toLowerCase());
+  });
 
   const toggleWorkout = (id: string) => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setExpandedWorkout(expandedWorkout === id ? null : id);
   };
 
-  const renderWorkoutItem = ({ item }: { item: WorkoutLog }) => {
+  const renderWorkoutItem = ({ item }: { item: SplitWorkoutSession }) => {
     const isExpanded = expandedWorkout === item.id;
-    const totalSets = item.exercises.reduce((acc, ex) => acc + ex.sets.length, 0);
-    
+    const sessionName = SESSION_NAMES[item.sessionType] ?? item.sessionType;
+    const workingSets = item.exercises.reduce((acc, ex) => acc + ex.sets.filter(s => !s.isWarmup).length, 0);
+    const totalVolume = item.totalVolume ?? item.exercises.reduce((acc, ex) =>
+      acc + ex.sets.reduce((s, set) => s + (set.weightKg * set.reps), 0), 0
+    );
+    const doneExercises = item.exercises.filter(ex => !ex.skipped);
+
     return (
-      <TouchableOpacity
-        onPress={() => toggleWorkout(item.id)}
-        activeOpacity={0.7}
-      >
-        <View 
-          className="bg-surface rounded-xl mx-4 mb-3 overflow-hidden"
-          style={{ borderWidth: 1, borderColor: colors.border }}
-        >
+      <TouchableOpacity onPress={() => toggleWorkout(item.id)} activeOpacity={0.7}>
+        <View style={[styles.card, { borderColor: colors.border, backgroundColor: colors.surface }]}>
           {/* Header */}
-          <View className="p-4">
-            <View className="flex-row justify-between items-start">
-              <View>
-                <Text className="text-lg font-semibold text-foreground">
-                  {formatDate(item.date)}
-                </Text>
-                <Text className="text-sm text-muted mt-1">
-                  Cycle {item.cycleNumber} • Week {item.weekNumber} • {getDayName(item.dayNumber)}
-                </Text>
-              </View>
-              <View className="items-end">
-                <View 
-                  className="px-3 py-1 rounded-full"
-                  style={{ backgroundColor: colors.success + '20' }}
-                >
-                  <Text style={{ color: colors.success, fontSize: 12, fontWeight: '600' }}>
-                    {item.exercises.length} exercises
-                  </Text>
-                </View>
-                <Text className="text-xs text-muted mt-1">{totalSets} sets</Text>
-              </View>
-            </View>
-            
-            <View className="flex-row items-center mt-3">
-              <IconSymbol 
-                name={isExpanded ? "chevron.right" : "chevron.right"} 
-                size={16} 
-                color={colors.muted} 
-              />
-              <Text className="text-sm text-muted ml-1">
-                {isExpanded ? 'Tap to collapse' : 'Tap to expand'}
+          <View style={styles.cardHeader}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.sessionName, { color: colors.foreground }]}>{sessionName}</Text>
+              <Text style={[styles.sessionDate, { color: colors.muted }]}>
+                {formatSessionDate(item.date)}
+                {item.durationMinutes ? `  ·  ${formatDuration(item.durationMinutes)}` : ''}
               </Text>
+            </View>
+            <View style={{ alignItems: 'flex-end', gap: 4 }}>
+              <View style={[styles.badge, { backgroundColor: colors.success + '22' }]}>
+                <Text style={[styles.badgeText, { color: colors.success }]}>
+                  {doneExercises.length} exercises
+                </Text>
+              </View>
+              {workingSets > 0 && (
+                <Text style={[styles.setsText, { color: colors.muted }]}>
+                  {workingSets} sets · {Math.round(totalVolume).toLocaleString()} kg vol
+                </Text>
+              )}
             </View>
           </View>
 
-          {/* Expanded Content */}
+          {/* Expanded exercises */}
           {isExpanded && (
-            <View 
-              className="px-4 pb-4 pt-2 border-t"
-              style={{ borderTopColor: colors.border }}
-            >
-              {item.exercises.map((exerciseLog, index) => (
-                <View 
-                  key={index}
-                  className="py-3 border-b"
-                  style={{ borderBottomColor: colors.border }}
-                >
-                  <Text className="font-medium text-foreground mb-2">
-                    {exerciseLog.exerciseName}
-                  </Text>
-                  <View className="flex-row flex-wrap">
-                    {exerciseLog.sets.map((set, setIndex) => (
-                      <View 
-                        key={setIndex}
-                        className="mr-2 mb-2 px-3 py-1 rounded-lg"
-                        style={{ backgroundColor: colors.background }}
-                      >
-                        <Text className="text-sm text-foreground">
-                          {set.weight}kg × {set.reps}
-                        </Text>
-                      </View>
-                    ))}
+            <View style={[styles.expandedArea, { borderTopColor: colors.border }]}>
+              {item.exercises.map((ex, idx) => (
+                <View key={idx} style={[styles.exerciseRow, { borderBottomColor: colors.border }]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.exerciseName, { color: ex.skipped ? colors.muted : colors.foreground }]}>
+                      {ex.skipped ? '⊘ ' : ''}{ex.exerciseName}
+                    </Text>
+                    {ex.skipped && ex.skipReason ? (
+                      <Text style={[styles.skipReason, { color: colors.muted }]}>Skipped: {ex.skipReason}</Text>
+                    ) : null}
                   </View>
+                  {!ex.skipped && ex.sets.filter(s => !s.isWarmup).length > 0 && (
+                    <View style={{ alignItems: 'flex-end' }}>
+                      {ex.sets.filter(s => !s.isWarmup).map((set, si) => (
+                        <Text key={si} style={[styles.setDetail, { color: colors.muted }]}>
+                          {set.weightKg > 0 ? `${set.weightKg}kg × ${set.reps}` : `${set.reps} reps`}
+                        </Text>
+                      ))}
+                    </View>
+                  )}
                 </View>
               ))}
             </View>
           )}
+
+          {/* Expand chevron */}
+          <View style={[styles.chevronRow, { borderTopColor: colors.border }]}>
+            <Text style={[styles.chevronText, { color: colors.muted }]}>
+              {isExpanded ? '▲ Hide details' : '▼ Show exercises'}
+            </Text>
+          </View>
         </View>
       </TouchableOpacity>
     );
@@ -181,7 +186,7 @@ export default function HistoryScreen() {
                   className="flex-row justify-between items-center py-2 border-b"
                   style={{ borderBottomColor: colors.border }}
                 >
-                  <Text className="text-sm text-muted">{formatDate(entry.date)}</Text>
+                  <Text className="text-sm text-muted">{formatSessionDate(entry.date)}</Text>
                   <View className="flex-row items-center">
                     <Text className="font-semibold text-foreground">{entry.weight} kg</Text>
                     <Text className="text-sm text-muted ml-2">× {entry.reps} reps</Text>
@@ -206,96 +211,42 @@ export default function HistoryScreen() {
   return (
     <ScreenContainer className="flex-1">
       {/* Header */}
-      <View className="px-4 pt-2 pb-4">
-        <Text className="text-2xl font-bold text-foreground">History</Text>
+      <View style={styles.header}>
+        <Text style={[styles.headerTitle, { color: colors.foreground }]}>Workout History</Text>
+        {splitWorkouts.length > 0 && (
+          <Text style={[styles.headerSub, { color: colors.muted }]}>
+            {splitWorkouts.length} session{splitWorkouts.length !== 1 ? 's' : ''} completed
+          </Text>
+        )}
       </View>
 
-      {/* View Mode Toggle - 3 tabs */}
-      <View className="flex-row px-4 mb-4">
-        <TouchableOpacity
-          onPress={() => {
-            if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            setViewMode('workouts');
-          }}
-          style={{
-            flex: 1,
-            paddingVertical: 10,
-            borderRadius: 8,
-            marginRight: 4,
-            backgroundColor: viewMode === 'workouts' ? colors.primary : colors.surface,
-          }}
-        >
-          <Text 
-            style={{ 
-              textAlign: 'center', 
-              fontWeight: '600',
-              color: viewMode === 'workouts' ? '#FFFFFF' : colors.foreground,
-              fontSize: 13,
+      {/* View Mode Toggle */}
+      <View style={styles.toggleRow}>
+        {(['workouts', 'exercises', 'body'] as ViewMode[]).map(mode => (
+          <TouchableOpacity
+            key={mode}
+            onPress={() => {
+              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setViewMode(mode);
             }}
+            style={[styles.toggleBtn, { backgroundColor: viewMode === mode ? colors.primary : colors.surface }]}
           >
-            Workouts
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => {
-            if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            setViewMode('exercises');
-          }}
-          style={{
-            flex: 1,
-            paddingVertical: 10,
-            borderRadius: 8,
-            marginHorizontal: 2,
-            backgroundColor: viewMode === 'exercises' ? colors.primary : colors.surface,
-          }}
-        >
-          <Text 
-            style={{ 
-              textAlign: 'center', 
-              fontWeight: '600',
-              color: viewMode === 'exercises' ? '#FFFFFF' : colors.foreground,
-              fontSize: 13,
-            }}
-          >
-            Exercises
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => {
-            if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            setViewMode('body');
-          }}
-          style={{
-            flex: 1,
-            paddingVertical: 10,
-            borderRadius: 8,
-            marginLeft: 4,
-            backgroundColor: viewMode === 'body' ? colors.primary : colors.surface,
-          }}
-        >
-          <Text 
-            style={{ 
-              textAlign: 'center', 
-              fontWeight: '600',
-              color: viewMode === 'body' ? '#FFFFFF' : colors.foreground,
-              fontSize: 13,
-            }}
-          >
-            Body
-          </Text>
-        </TouchableOpacity>
+            <Text style={[styles.toggleLabel, { color: viewMode === mode ? '#FFFFFF' : colors.foreground }]}>
+              {mode === 'workouts' ? 'Workouts' : mode === 'exercises' ? 'Exercises' : 'Body'}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
-      {/* Search (for exercises view) */}
+      {/* Search (exercises view) */}
       {viewMode === 'exercises' && (
-        <View className="px-4 mb-4">
+        <View style={styles.searchRow}>
           <TextInput
             value={searchQuery}
             onChangeText={setSearchQuery}
             placeholder="Search exercises..."
             placeholderTextColor={colors.muted}
-            className="bg-surface rounded-xl p-4 text-foreground"
-            style={{ borderWidth: 1, borderColor: colors.border }}
+            style={[styles.searchInput, { color: colors.foreground, backgroundColor: colors.surface, borderColor: colors.border }]}
           />
         </View>
       )}
@@ -303,14 +254,14 @@ export default function HistoryScreen() {
       {/* Content */}
       {viewMode === 'workouts' ? (
         <FlatList
-          data={completedWorkouts}
-          keyExtractor={(item) => item.id}
+          data={splitWorkouts}
+          keyExtractor={item => item.id}
           renderItem={renderWorkoutItem}
           ListEmptyComponent={
-            <View className="items-center py-12 px-4">
-              <IconSymbol name="clock.fill" size={48} color={colors.muted} />
-              <Text className="text-lg font-semibold text-foreground mt-4">No Workouts Yet</Text>
-              <Text className="text-muted text-center mt-2">
+            <View style={styles.emptyState}>
+              <IconSymbol name="dumbbell.fill" size={48} color={colors.muted} />
+              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>No Workouts Yet</Text>
+              <Text style={[styles.emptyBody, { color: colors.muted }]}>
                 Complete your first workout to see it here
               </Text>
             </View>
@@ -320,18 +271,16 @@ export default function HistoryScreen() {
       ) : viewMode === 'exercises' ? (
         <FlatList
           data={filteredExercises}
-          keyExtractor={(item) => item.id}
+          keyExtractor={item => item.id}
           renderItem={renderExerciseItem}
           ListEmptyComponent={
-            <View className="items-center py-12 px-4">
+            <View style={styles.emptyState}>
               <IconSymbol name="dumbbell.fill" size={48} color={colors.muted} />
-              <Text className="text-lg font-semibold text-foreground mt-4">
+              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
                 {searchQuery ? 'No Matching Exercises' : 'No Exercises Yet'}
               </Text>
-              <Text className="text-muted text-center mt-2">
-                {searchQuery 
-                  ? 'Try a different search term' 
-                  : 'Add exercises in the Admin panel'}
+              <Text style={[styles.emptyBody, { color: colors.muted }]}>
+                {searchQuery ? 'Try a different search term' : 'Add exercises in the Admin panel'}
               </Text>
             </View>
           }
@@ -343,3 +292,31 @@ export default function HistoryScreen() {
     </ScreenContainer>
   );
 }
+
+const styles = StyleSheet.create({
+  header: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 },
+  headerTitle: { fontSize: 24, fontWeight: '700' },
+  headerSub: { fontSize: 13, marginTop: 2 },
+  toggleRow: { flexDirection: 'row', paddingHorizontal: 16, marginBottom: 12, gap: 6 },
+  toggleBtn: { flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center' },
+  toggleLabel: { fontSize: 13, fontWeight: '600' },
+  searchRow: { paddingHorizontal: 16, marginBottom: 12 },
+  searchInput: { borderRadius: 12, padding: 14, borderWidth: 1, fontSize: 15 },
+  card: { marginHorizontal: 16, marginBottom: 10, borderRadius: 14, borderWidth: 1, overflow: 'hidden' },
+  cardHeader: { flexDirection: 'row', alignItems: 'flex-start', padding: 14 },
+  sessionName: { fontSize: 16, fontWeight: '600' },
+  sessionDate: { fontSize: 13, marginTop: 2 },
+  badge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20 },
+  badgeText: { fontSize: 12, fontWeight: '600' },
+  setsText: { fontSize: 11, marginTop: 2 },
+  expandedArea: { borderTopWidth: 1, paddingHorizontal: 14, paddingTop: 8, paddingBottom: 4 },
+  exerciseRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth },
+  exerciseName: { fontSize: 14, fontWeight: '500', flex: 1, marginRight: 8 },
+  skipReason: { fontSize: 12, marginTop: 2 },
+  setDetail: { fontSize: 13, marginBottom: 2 },
+  chevronRow: { borderTopWidth: StyleSheet.hairlineWidth, paddingVertical: 8, alignItems: 'center' },
+  chevronText: { fontSize: 12 },
+  emptyState: { alignItems: 'center', paddingVertical: 60, paddingHorizontal: 32 },
+  emptyTitle: { fontSize: 18, fontWeight: '600', marginTop: 16 },
+  emptyBody: { fontSize: 14, textAlign: 'center', marginTop: 8, lineHeight: 20 },
+});
