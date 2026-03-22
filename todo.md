@@ -792,3 +792,6 @@
 - [x] Feature: Debrief comparison diff view — side-by-side latest vs previous debrief in AI Coach dashboard
 - [x] Feature: Notes quick-tap templates — 3 preset buttons ("Felt strong", "Fatigued", "Joint discomfort") below notes field
 - [x] Feature: Volume chart deload week annotations — vertical dashed lines marking deload weeks
+
+## Session 7 Bug Fixes
+- [x] Bug: WHOOP OAuth fails on native app — EXPO_PUBLIC_API_BASE_URL not set, native app called dev server instead of production, causing state mismatch between dev and prod databases

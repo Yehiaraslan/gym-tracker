@@ -137,6 +137,17 @@ async function startServer() {
     res.json({ ok: true, timestamp: Date.now() });
   });
 
+  // WHOOP debug endpoint (safe - no secrets exposed)
+  app.get("/api/whoop/debug", (_req, res) => {
+    res.json({
+      clientIdSet: !!process.env.WHOOP_CLIENT_ID,
+      clientSecretSet: !!process.env.WHOOP_CLIENT_SECRET,
+      redirectUri: process.env.WHOOP_REDIRECT_URI || '(not set)',
+      clientIdLength: (process.env.WHOOP_CLIENT_ID || '').length,
+      clientSecretLength: (process.env.WHOOP_CLIENT_SECRET || '').length,
+    });
+  });
+
   app.use(
     "/api/trpc",
     createExpressMiddleware({
