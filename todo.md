@@ -795,3 +795,8 @@
 
 ## Session 7 Bug Fixes
 - [x] Bug: WHOOP OAuth fails on native app — EXPO_PUBLIC_API_BASE_URL not set, native app called dev server instead of production, causing state mismatch between dev and prod databases
+
+## Session 7 WHOOP Features
+- [x] Feature: WHOOP live data on Home screen — sleep hours, recovery score, HRV in cards
+- [x] Feature: Recovery-gated workout warning — red banner when WHOOP recovery < 33%
+- [x] Feature: Re-authenticate WHOOP button — silent token refresh + manual re-auth for expired tokens

@@ -140,6 +140,12 @@ export default function HomeScreen() {
     : '#EF4444';
   const hrv = recovery?.score?.hrv?.lastNightAverage ?? null;
   const rhr = recovery?.score?.rhrData?.lastNightAverage ?? null;
+  // WHOOP sleep data embedded in recovery score
+  const whoopSleepMs = recovery?.score?.sleepData?.sleepDurationMs ?? null;
+  const whoopSleepHrs = whoopSleepMs != null ? whoopSleepMs / 3_600_000 : null;
+  const whoopSleepQuality = recovery?.score?.sleepData?.sleepQualityPercentage ?? null;
+  // Low recovery warning: show when WHOOP recovery < 33%, workout not done, not a rest day
+  const showLowRecoveryWarning = recoveryScore != null && recoveryScore < 33 && !todayDone && !isRest;
 
   const calConsumed = nutrition ? nutrition.meals.reduce((s, m) => s + m.calories, 0) : 0;
   const protConsumed = nutrition ? nutrition.meals.reduce((s, m) => s + m.protein, 0) : 0;
@@ -191,6 +197,21 @@ export default function HomeScreen() {
             <Text style={[s.exportText, { color: mut }]}>↓ Export</Text>
           </TouchableOpacity>
         </View>
+
+        {/* ── Low Recovery Warning Banner ── */}
+        {showLowRecoveryWarning && (
+          <TouchableOpacity
+            style={[s.warningBanner, { backgroundColor: '#EF444415', borderColor: '#EF4444' }]}
+            onPress={() => router.push('/(tabs)/whoop' as any)}
+            activeOpacity={0.8}
+          >
+            <Text style={s.warningIcon}>⚠️</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[s.warningTitle, { color: '#EF4444' }]}>Low Recovery Today ({recoveryScore}%)</Text>
+              <Text style={[s.warningSub, { color: mut }]}>Consider a deload session — tap to view WHOOP data</Text>
+            </View>
+          </TouchableOpacity>
+        )}
 
         {/* ── Hero Card ── */}
         <TouchableOpacity
@@ -278,9 +299,9 @@ export default function HomeScreen() {
             <Text style={[s.metricSub, { color: mut }]}>7-day rolling average</Text>
           </TouchableOpacity>
 
-          {/* Sleep */}
+          {/* Sleep — prefer WHOOP data when available */}
           <TouchableOpacity
-            style={[s.metricCard, { backgroundColor: surf, borderColor: bord }]}
+            style={[s.metricCard, { backgroundColor: surf, borderColor: whoopSleepHrs != null ? '#8B5CF650' : bord }]}
             onPress={() => router.push('/(tabs)/sleep' as any)}
           >
             <View style={[s.metricIcon, { backgroundColor: '#8B5CF620' }]}>
@@ -289,13 +310,17 @@ export default function HomeScreen() {
             <Text style={[s.metricChevron, { color: mut }]}>›</Text>
             <Text style={[s.metricLabel, { color: mut }]}>Last Night's Sleep</Text>
             <View style={s.metricValueRow}>
-              {lastSleep
-                ? <Text style={[s.metricValue, { color: fg }]}>{lastSleep.durationHours.toFixed(1)}</Text>
+              {(whoopSleepHrs != null || lastSleep)
+                ? <Text style={[s.metricValue, { color: fg }]}>{(whoopSleepHrs ?? lastSleep!.durationHours).toFixed(1)}</Text>
                 : <View style={[s.metricDash, { backgroundColor: pri }]} />}
               <Text style={[s.metricUnit, { color: mut }]}> hrs</Text>
             </View>
             <Text style={[s.metricSub, { color: mut }]}>
-              {lastSleep ? `Quality: ${['', 'Terrible', 'Poor', 'Fair', 'Good', 'Excellent'][lastSleep.qualityRating]}` : 'Not logged'}
+              {whoopSleepHrs != null
+                ? `WHOOP · ${whoopSleepQuality != null ? Math.round(whoopSleepQuality) + '% quality' : 'synced'}`
+                : lastSleep
+                  ? `Quality: ${['', 'Terrible', 'Poor', 'Fair', 'Good', 'Excellent'][lastSleep.qualityRating]}`
+                  : 'Not logged'}
             </Text>
           </TouchableOpacity>
 
@@ -480,4 +505,9 @@ const s = StyleSheet.create({
   coachSub: { fontSize: 12, lineHeight: 16 },
   coachBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
   coachBadgeText: { fontSize: 12, fontWeight: '700' },
+
+  warningBanner: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, borderWidth: 1.5, padding: 12, marginBottom: 12 },
+  warningIcon: { fontSize: 20 },
+  warningTitle: { fontSize: 13, fontWeight: '700', marginBottom: 2 },
+  warningSub: { fontSize: 12, lineHeight: 16 },
 });
