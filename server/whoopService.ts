@@ -52,7 +52,15 @@ export async function exchangeCodeForTokens(code: string, userOpenId: string) {
   if (!response.ok) {
     const errorText = await response.text();
     console.error("[WHOOP] Token exchange failed:", response.status, errorText);
-    throw new Error(`Token exchange failed: ${response.status}`);
+    // Parse WHOOP's JSON error for a human-readable message
+    try {
+      const errJson = JSON.parse(errorText);
+      const desc = errJson.error_description || errJson.error || `HTTP ${response.status}`;
+      throw new Error(`WHOOP: ${desc}`);
+    } catch (parseErr) {
+      if (parseErr instanceof Error && parseErr.message.startsWith('WHOOP:')) throw parseErr;
+      throw new Error(`Token exchange failed (${response.status}): ${errorText.slice(0, 200)}`);
+    }
   }
 
   const data = await response.json();

@@ -1,10 +1,10 @@
 // ============================================================
 // HOME SCREEN — Phy-style dark card dashboard
 // ============================================================
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Text, View, TouchableOpacity, ScrollView, Platform, StyleSheet, Image } from 'react-native';
 import { loadUserProfile, type UserProfile } from '@/lib/profile-store';
-import { useRouter } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
 import { useColors } from '@/hooks/use-colors';
 import * as Haptics from 'expo-haptics';
@@ -117,13 +117,21 @@ export default function HomeScreen() {
     } catch (_) {}
   }, []);
 
-  useEffect(() => { loadData(); }, [loadData]);
-  useEffect(() => { loadUserProfile().then(setUserProfile); }, []);
+  // Reload every time the tab comes into focus so nutrition/workout data is always fresh
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+      loadUserProfile().then(setUserProfile);
+    }, [loadData])
+  );
 
   const handleStartWorkout = () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push({ pathname: '/split-workout', params: { sessionType: todaySession, date: todayStr } } as any);
   };
+
+  // Check if today's workout is already completed
+  const todayDone = !isRest && recentWorkouts.some(w => w.date === todayStr && w.completed);
 
   const recoveryScore = recovery?.score?.recoveryScore ?? null;
   const recoveryColor = recoveryScore == null ? colors.muted
@@ -186,21 +194,27 @@ export default function HomeScreen() {
 
         {/* ── Hero Card ── */}
         <TouchableOpacity
-          activeOpacity={isRest ? 1 : 0.85}
-          onPress={isRest ? undefined : handleStartWorkout}
-          style={[s.heroCard, { backgroundColor: surf, borderColor: bord }]}
+          activeOpacity={isRest || todayDone ? 1 : 0.85}
+          onPress={isRest || todayDone ? undefined : handleStartWorkout}
+          style={[s.heroCard, { backgroundColor: surf, borderColor: todayDone ? '#22C55E44' : bord }]}
         >
           <View style={s.heroRow}>
-            <Text style={s.heroEmoji}>{SESSION_EMOJI[todaySession]}</Text>
+            <Text style={s.heroEmoji}>{todayDone ? '✅' : SESSION_EMOJI[todaySession]}</Text>
             <View style={{ flex: 1 }}>
               <Text style={[s.heroTitle, { color: fg }]}>{SESSION_NAMES[todaySession]}</Text>
               <Text style={[s.heroSub, { color: mut }]}>{SESSION_SUBTITLE[todaySession]}</Text>
             </View>
           </View>
           {!isRest && (
-            <View style={[s.startBtn, { backgroundColor: SESSION_COLORS[todaySession] }]}>
-              <Text style={s.startBtnText}>Start Workout →</Text>
-            </View>
+            todayDone ? (
+              <View style={[s.startBtn, { backgroundColor: '#22C55E' }]}>
+                <Text style={s.startBtnText}>✓ Workout Complete</Text>
+              </View>
+            ) : (
+              <View style={[s.startBtn, { backgroundColor: SESSION_COLORS[todaySession] }]}>
+                <Text style={s.startBtnText}>Start Workout →</Text>
+              </View>
+            )
           )}
         </TouchableOpacity>
 

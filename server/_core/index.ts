@@ -61,32 +61,73 @@ async function startServer() {
   // WHOOP OAuth callback (browser redirect) - supports both paths
   const whoopCallbackHandler = async (req: express.Request, res: express.Response) => {
     try {
-      const { code, state } = req.query as { code?: string; state?: string };
+      const { code, state, error: oauthError, error_description } = req.query as {
+        code?: string; state?: string; error?: string; error_description?: string;
+      };
+
+      // WHOOP may redirect back with an error (e.g., user denied access)
+      if (oauthError) {
+        console.error("[WHOOP Callback] OAuth error:", oauthError, error_description);
+        res.status(400).send(`
+          <html><body style="font-family:system-ui;background:#0a0a0a;color:#ff4444;display:flex;align-items:center;justify-content:center;height:100vh;">
+            <div style="text-align:center;">
+              <h2>WHOOP Authorization Failed</h2>
+              <p>${error_description || oauthError}</p>
+              <p>Please close this window and try again in the app.</p>
+            </div>
+          </body></html>
+        `);
+        return;
+      }
+
       if (!code || !state) {
         res.status(400).send("Missing code or state parameter");
         return;
       }
       const stateResult = await whoopStateDb.validateAndConsumeState(state);
-      if (!stateResult.valid || !stateResult.userOpenId) {
-        res.status(400).send("Invalid or expired OAuth state. Please try again.");
+      if (!stateResult.valid) {
+        res.status(400).send(`
+          <html><body style="font-family:system-ui;background:#0a0a0a;color:#ff4444;display:flex;align-items:center;justify-content:center;height:100vh;">
+            <div style="text-align:center;">
+              <h2>Session Expired</h2>
+              <p>Your authorization session expired. Please close this window and try connecting again in the app.</p>
+            </div>
+          </body></html>
+        `);
         return;
       }
-      await whoopService.exchangeCodeForTokens(code, stateResult.userOpenId);
+      // userOpenId stores the deviceId in our device-based auth system
+      const deviceId = stateResult.userOpenId;
+      if (!deviceId) {
+        res.status(400).send("Missing device ID in state. Please try again.");
+        return;
+      }
+      await whoopService.exchangeCodeForTokens(code, deviceId);
       res.send(`
         <html>
           <head><title>WHOOP Connected</title></head>
           <body style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui;background:#0a0a0a;color:#00ff88;">
             <div style="text-align:center;">
-              <h1>WHOOP Connected Successfully!</h1>
-              <p>You can close this window and return to the app.</p>
+              <h1 style="font-size:2rem;">&#x2705; WHOOP Connected!</h1>
+              <p style="color:#aaa;margin-top:12px;">You can close this window and return to the app.</p>
+              <p style="color:#555;font-size:12px;margin-top:8px;">This window will close automatically in 3 seconds.</p>
               <script>setTimeout(()=>window.close(),3000)</script>
             </div>
           </body>
         </html>
       `);
     } catch (error) {
-      console.error("[WHOOP Callback] Error:", error);
-      res.status(500).send("Failed to connect WHOOP. Please try again.");
+      const msg = error instanceof Error ? error.message : String(error);
+      console.error("[WHOOP Callback] Error:", msg);
+      res.status(500).send(`
+        <html><body style="font-family:system-ui;background:#0a0a0a;color:#ff4444;display:flex;align-items:center;justify-content:center;height:100vh;">
+          <div style="text-align:center;">
+            <h2>Connection Failed</h2>
+            <p>${msg}</p>
+            <p style="color:#666;font-size:12px;">Please close this window and try again in the app.</p>
+          </div>
+        </body></html>
+      `);
     }
   };
   app.get("/api/whoop/callback", whoopCallbackHandler);

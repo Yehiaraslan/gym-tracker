@@ -761,3 +761,8 @@
 - [x] AI Coach dashboard screen — daily message, workout adjustments, nutrition insights
 - [x] Wire AI into workout flow — smart substitutions, weight recs, recovery warnings
 - [x] Notification triggers — post-workout, end-of-day, missed workout, recovery alerts
+
+## Session 3 Bug Fixes
+- [x] Bug: Home screen shows "Start Workout" after completing a session (streak/completion not updating)
+- [x] Bug: WHOOP OAuth callback fails with "Failed to connect WHOOP. Please try again."
+- [x] Bug: Nutrition food added but Home screen shows 0 calories
