@@ -1,8 +1,9 @@
 // ============================================================
-// AI COACHING DASHBOARD — Personalized daily coaching, workout
-// adjustments, nutrition insights, and weekly digest
+// AGENT ZAKI COACHING DASHBOARD
+// Real AI coaching via openclaw-bridge MCP — Agent Zaki
+// Receives actual WHOOP, workout, nutrition data and responds
 // ============================================================
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Text,
   View,
@@ -12,6 +13,8 @@ import {
   RefreshControl,
   StyleSheet,
   Platform,
+  TextInput,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -20,259 +23,331 @@ import { ScreenContainer } from '@/components/screen-container';
 import { useColors } from '@/hooks/use-colors';
 import { trpc } from '@/lib/trpc';
 import { buildUserSnapshot, snapshotToPromptContext } from '@/lib/ai-data-aggregator';
-import type {
-  DailyCoachingMessage,
-  WorkoutAdjustment,
-  NutritionInsight,
-  WeeklyDigest,
-  SessionDebriefResult,
-} from '@/server/ai-coaching-service';
 import { getSplitWorkouts } from '@/lib/split-workout-store';
 
-const CACHE_KEY = '@ai_coaching_cache';
-const CACHE_TTL = 4 * 60 * 60 * 1000; // 4 hours
-const DEBRIEF_HISTORY_KEY = '@ai_debrief_history';
-const MAX_DEBRIEF_HISTORY = 3;
+// ── Storage keys ──────────────────────────────────────────────
+const DAILY_CACHE_KEY = '@zaki_daily_cache';
+const DAILY_CACHE_TTL = 4 * 60 * 60 * 1000; // 4 hours
+const DEBRIEF_HISTORY_KEY = '@zaki_debrief_history';
+const CHAT_HISTORY_KEY = '@zaki_chat_history';
+const MAX_DEBRIEF_HISTORY = 5;
+const MAX_CHAT_HISTORY = 20;
 
-interface DebriefHistoryEntry {
+interface DailyCacheEntry {
   timestamp: number;
-  result: SessionDebriefResult;
+  response: string;
+  contextSummary: string;
 }
 
-interface CachedCoaching {
+interface DebriefEntry {
   timestamp: number;
-  dailyMessage: DailyCoachingMessage;
-  workoutAdjustments: WorkoutAdjustment[];
-  nutritionInsights: NutritionInsight[];
-  weeklyDigest: WeeklyDigest | null;
+  response: string;
+  sessionCount: number;
+}
+
+interface ChatMessage {
+  id: string;
+  role: 'user' | 'zaki';
+  text: string;
+  timestamp: number;
 }
 
 export default function AICoachingDashboard() {
   const colors = useColors();
   const router = useRouter();
+  const scrollRef = useRef<ScrollView>(null);
 
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [dailyMessage, setDailyMessage] = useState<DailyCoachingMessage | null>(null);
-  const [workoutAdjustments, setWorkoutAdjustments] = useState<WorkoutAdjustment[]>([]);
-  const [nutritionInsights, setNutritionInsights] = useState<NutritionInsight[]>([]);
-  const [weeklyDigest, setWeeklyDigest] = useState<WeeklyDigest | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'daily' | 'workout' | 'nutrition' | 'weekly'>('daily');
-  const [debriefResult, setDebriefResult] = useState<SessionDebriefResult | null>(null);
+  // ── Tab state ─────────────────────────────────────────────
+  const [activeTab, setActiveTab] = useState<'daily' | 'debrief' | 'chat' | 'weekly'>('daily');
+
+  // ── Daily coaching state ──────────────────────────────────
+  const [dailyResponse, setDailyResponse] = useState<string | null>(null);
+  const [dailyLoading, setDailyLoading] = useState(false);
+  const [dailyError, setDailyError] = useState<string | null>(null);
+  const [dailyContextSummary, setDailyContextSummary] = useState('');
+
+  // ── Session debrief state ─────────────────────────────────
+  const [debriefResponse, setDebriefResponse] = useState<string | null>(null);
   const [debriefLoading, setDebriefLoading] = useState(false);
   const [debriefError, setDebriefError] = useState<string | null>(null);
-  const [debriefHistory, setDebriefHistory] = useState<DebriefHistoryEntry[]>([]);
+  const [debriefHistory, setDebriefHistory] = useState<DebriefEntry[]>([]);
   const [showDebriefHistory, setShowDebriefHistory] = useState(false);
 
-  const loadDebriefHistory = useCallback(async () => {
-    try {
-      const raw = await AsyncStorage.getItem(DEBRIEF_HISTORY_KEY);
-      if (raw) setDebriefHistory(JSON.parse(raw));
-    } catch {}
-  }, []);
+  // ── Chat state ────────────────────────────────────────────
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
 
-  const saveDebriefToHistory = useCallback(async (result: SessionDebriefResult) => {
-    try {
-      const raw = await AsyncStorage.getItem(DEBRIEF_HISTORY_KEY);
-      const existing: DebriefHistoryEntry[] = raw ? JSON.parse(raw) : [];
-      const updated = [{ timestamp: Date.now(), result }, ...existing].slice(0, MAX_DEBRIEF_HISTORY);
-      await AsyncStorage.setItem(DEBRIEF_HISTORY_KEY, JSON.stringify(updated));
-      setDebriefHistory(updated);
-    } catch {}
-  }, []);
+  // ── Weekly digest state ───────────────────────────────────
+  const [weeklyResponse, setWeeklyResponse] = useState<string | null>(null);
+  const [weeklyLoading, setWeeklyLoading] = useState(false);
+  const [weeklyError, setWeeklyError] = useState<string | null>(null);
 
-  const dailyCoachingMutation = trpc.aiCoaching.dailyCoaching.useMutation();
-  const sessionDebriefMutation = trpc.aiCoaching.sessionDebrief.useMutation();
+  // ── tRPC mutations ────────────────────────────────────────
+  const zakiDailyMutation = trpc.zaki.dailyCoaching.useMutation();
+  const zakiDebriefMutation = trpc.zaki.sessionDebrief.useMutation();
+  const zakiAskMutation = trpc.zaki.ask.useMutation();
+  const zakiWeeklyMutation = trpc.zaki.weeklyDigest.useMutation();
 
-  const loadCached = useCallback(async () => {
+  // ── Load persisted data ───────────────────────────────────
+  const loadPersistedData = useCallback(async () => {
     try {
-      const raw = await AsyncStorage.getItem(CACHE_KEY);
-      if (raw) {
-        const cached: CachedCoaching = JSON.parse(raw);
-        if (Date.now() - cached.timestamp < CACHE_TTL) {
-          setDailyMessage(cached.dailyMessage);
-          setWorkoutAdjustments(cached.workoutAdjustments);
-          setNutritionInsights(cached.nutritionInsights);
-          setWeeklyDigest(cached.weeklyDigest);
-          return true;
+      const dailyRaw = await AsyncStorage.getItem(DAILY_CACHE_KEY);
+      if (dailyRaw) {
+        const cached: DailyCacheEntry = JSON.parse(dailyRaw);
+        if (Date.now() - cached.timestamp < DAILY_CACHE_TTL) {
+          setDailyResponse(cached.response);
+          setDailyContextSummary(cached.contextSummary);
         }
       }
+      const debriefRaw = await AsyncStorage.getItem(DEBRIEF_HISTORY_KEY);
+      if (debriefRaw) setDebriefHistory(JSON.parse(debriefRaw));
+      const chatRaw = await AsyncStorage.getItem(CHAT_HISTORY_KEY);
+      if (chatRaw) setChatMessages(JSON.parse(chatRaw));
     } catch {}
-    return false;
   }, []);
-
-  const fetchCoaching = useCallback(async (force = false) => {
-    try {
-      setError(null);
-      if (!force) {
-        const hasCached = await loadCached();
-        if (hasCached) {
-          setLoading(false);
-          return;
-        }
-      }
-
-      setLoading(true);
-      const snapshot = await buildUserSnapshot();
-      const context = snapshotToPromptContext(snapshot);
-
-      const result = await dailyCoachingMutation.mutateAsync({ userContext: context });
-
-      setDailyMessage(result.dailyMessage);
-      setWorkoutAdjustments(result.workoutAdjustments);
-      setNutritionInsights(result.nutritionInsights);
-      setWeeklyDigest(result.weeklyDigest);
-
-      // Cache the result
-      const cacheData: CachedCoaching = {
-        timestamp: Date.now(),
-        dailyMessage: result.dailyMessage,
-        workoutAdjustments: result.workoutAdjustments,
-        nutritionInsights: result.nutritionInsights,
-        weeklyDigest: result.weeklyDigest,
-      };
-      await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
-    } catch (err) {
-      console.error('[AI Coach Dashboard] Error:', err);
-      setError('Could not generate coaching insights. Please try again.');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [dailyCoachingMutation, loadCached]);
 
   useEffect(() => {
-    fetchCoaching();
-    loadDebriefHistory();
+    loadPersistedData();
   }, []);
 
-  const onRefresh = useCallback(() => {
+  // ── Daily coaching ────────────────────────────────────────
+  const fetchDailyCoaching = useCallback(async (force = false) => {
+    if (!force && dailyResponse) return;
+    setDailyLoading(true);
+    setDailyError(null);
+    try {
+      const snapshot = await buildUserSnapshot();
+      const recoveryScore = snapshot.recovery.available ? snapshot.recovery.score : undefined;
+      const hrv = snapshot.recovery.available ? snapshot.recovery.hrv : undefined;
+      const lastWorkout = snapshot.recentWorkouts[0]
+        ? {
+            name: snapshot.recentWorkouts[0].sessionName,
+            volume: snapshot.recentWorkouts[0].totalVolume,
+            date: snapshot.recentWorkouts[0].date,
+          }
+        : undefined;
+      const recentWorkouts = snapshot.recentWorkouts.slice(0, 3).map(w => ({
+        name: w.sessionName,
+        volume: w.totalVolume,
+        date: w.date,
+        notes: w.notes,
+      }));
+      const todayNutrition = snapshot.recentNutrition[0];
+      const result = await zakiDailyMutation.mutateAsync({
+        recoveryScore: recoveryScore ?? undefined,
+        hrv: hrv ?? undefined,
+        todaySession: snapshot.todaySessionName,
+        lastWorkout,
+        recentWorkouts,
+        todayCalories: todayNutrition?.totalCalories,
+        todayProtein: todayNutrition?.totalProtein,
+        calorieTarget: todayNutrition?.targetCalories,
+        mesocycleWeek: snapshot.mesocycleWeek,
+        totalWeeks: snapshot.mesocycleTotalWeeks,
+        isDeloadWeek: snapshot.daysUntilDeload === 0,
+      });
+      setDailyResponse(result.response);
+      const parts: string[] = [];
+      if (recoveryScore != null) parts.push(`Recovery: ${recoveryScore}%`);
+      if (snapshot.workoutsThisWeek > 0) parts.push(`${snapshot.workoutsThisWeek} workouts this week`);
+      if (todayNutrition) parts.push(`${todayNutrition.totalCalories}kcal today`);
+      const summary = parts.join(' · ');
+      setDailyContextSummary(summary);
+      const cacheEntry: DailyCacheEntry = {
+        timestamp: Date.now(),
+        response: result.response,
+        contextSummary: summary,
+      };
+      await AsyncStorage.setItem(DAILY_CACHE_KEY, JSON.stringify(cacheEntry));
+    } catch (err) {
+      console.error('[Zaki Daily]', err);
+      setDailyError('Could not reach Agent Zaki. Check your connection and try again.');
+    } finally {
+      setDailyLoading(false);
+    }
+  }, [dailyResponse, zakiDailyMutation]);
+
+  useEffect(() => {
+    fetchDailyCoaching();
+  }, []);
+
+  // ── Session debrief ───────────────────────────────────────
+  const runDebrief = useCallback(async () => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setDebriefLoading(true);
+    setDebriefError(null);
+    try {
+      const sessions = await getSplitWorkouts();
+      const recent = sessions
+        .filter(s => s.completed)
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .slice(0, 3);
+      if (recent.length === 0) {
+        setDebriefError('No completed workouts found yet.');
+        setDebriefLoading(false);
+        return;
+      }
+      const notesContext = recent.map((s, i) => {
+        const exerciseLines = s.exercises
+          .filter(e => !e.skipped)
+          .map(e => {
+            const sets = e.sets;
+            if (sets.length === 0) return `  - ${e.exerciseName}`;
+            const bestSet = sets.reduce((best, st) => (st.weightKg > best.weightKg ? st : best), sets[0]);
+            return `  - ${e.exerciseName}: ${sets.length} sets, best ${bestSet.weightKg}kg x ${bestSet.reps}`;
+          });
+        return [
+          `Session ${i + 1} - ${new Date(s.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`,
+          `Type: ${s.sessionType}`,
+          exerciseLines.join('\n'),
+          s.notes ? `Notes: "${s.notes}"` : 'Notes: (none)',
+        ].join('\n');
+      }).join('\n\n');
+      const snapshot = await buildUserSnapshot();
+      const context = snapshotToPromptContext(snapshot);
+      const result = await zakiDebriefMutation.mutateAsync({
+        sessionNotesContext: notesContext,
+        userContext: context,
+      });
+      setDebriefResponse(result.response);
+      const newEntry: DebriefEntry = {
+        timestamp: Date.now(),
+        response: result.response,
+        sessionCount: recent.length,
+      };
+      const updated = [newEntry, ...debriefHistory].slice(0, MAX_DEBRIEF_HISTORY);
+      setDebriefHistory(updated);
+      await AsyncStorage.setItem(DEBRIEF_HISTORY_KEY, JSON.stringify(updated));
+    } catch (err) {
+      console.error('[Zaki Debrief]', err);
+      setDebriefError('Could not generate debrief. Please try again.');
+    } finally {
+      setDebriefLoading(false);
+    }
+  }, [zakiDebriefMutation, debriefHistory]);
+
+  // ── Chat with Zaki ────────────────────────────────────────
+  const sendChatMessage = useCallback(async () => {
+    const text = chatInput.trim();
+    if (!text || chatLoading) return;
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const userMsg: ChatMessage = {
+      id: `u_${Date.now()}`,
+      role: 'user',
+      text,
+      timestamp: Date.now(),
+    };
+    const updatedMessages = [...chatMessages, userMsg];
+    setChatMessages(updatedMessages);
+    setChatInput('');
+    setChatLoading(true);
+    try {
+      const snapshot = await buildUserSnapshot();
+      const contextLine = snapshotToPromptContext(snapshot).split('\n').slice(0, 6).join('\n');
+      const fullMessage = `[Context]\n${contextLine}\n\n[Question]\n${text}`;
+      const result = await zakiAskMutation.mutateAsync({ message: fullMessage });
+      const zakiMsg: ChatMessage = {
+        id: `z_${Date.now()}`,
+        role: 'zaki',
+        text: result.response,
+        timestamp: Date.now(),
+      };
+      const withZaki = [...updatedMessages, zakiMsg];
+      setChatMessages(withZaki);
+      const toSave = withZaki.slice(-MAX_CHAT_HISTORY);
+      await AsyncStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(toSave));
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+    } catch (err) {
+      console.error('[Zaki Chat]', err);
+      const errMsg: ChatMessage = {
+        id: `e_${Date.now()}`,
+        role: 'zaki',
+        text: 'I could not process that right now. Please try again.',
+        timestamp: Date.now(),
+      };
+      setChatMessages(prev => [...prev, errMsg]);
+    } finally {
+      setChatLoading(false);
+    }
+  }, [chatInput, chatLoading, chatMessages, zakiAskMutation]);
+
+  // ── Weekly digest ─────────────────────────────────────────
+  const fetchWeeklyDigest = useCallback(async () => {
+    setWeeklyLoading(true);
+    setWeeklyError(null);
+    try {
+      const snapshot = await buildUserSnapshot();
+      const context = snapshotToPromptContext(snapshot);
+      const result = await zakiWeeklyMutation.mutateAsync({ userContext: context });
+      setWeeklyResponse(result.response);
+    } catch (err) {
+      console.error('[Zaki Weekly]', err);
+      setWeeklyError('Could not generate weekly digest. Please try again.');
+    } finally {
+      setWeeklyLoading(false);
+    }
+  }, [zakiWeeklyMutation]);
+
+  // ── Refresh ───────────────────────────────────────────────
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (activeTab === 'daily') {
+      setDailyResponse(null);
+      await fetchDailyCoaching(true);
+    } else if (activeTab === 'weekly') {
+      await fetchWeeklyDigest();
     }
-    fetchCoaching(true);
-  }, [fetchCoaching]);
-
-  const intensityColor = (advice: string) => {
-    switch (advice) {
-      case 'push_hard': return '#22C55E';
-      case 'moderate': return '#3B82F6';
-      case 'go_light': return '#F59E0B';
-      case 'rest': return '#EF4444';
-      default: return colors.muted;
-    }
-  };
-
-  const intensityLabel = (advice: string) => {
-    switch (advice) {
-      case 'push_hard': return 'PUSH HARD';
-      case 'moderate': return 'MODERATE';
-      case 'go_light': return 'GO LIGHT';
-      case 'rest': return 'REST DAY';
-      default: return advice.toUpperCase();
-    }
-  };
-
-  const adjustmentIcon = (type: string) => {
-    switch (type) {
-      case 'weight_increase': return '⬆️';
-      case 'weight_decrease': return '⬇️';
-      case 'deload': return '🔄';
-      case 'substitute': return '🔀';
-      case 'add_set': return '➕';
-      case 'remove_set': return '➖';
-      default: return '💡';
-    }
-  };
-
-  const priorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high': return '#EF4444';
-      case 'medium': return '#F59E0B';
-      case 'low': return '#22C55E';
-      default: return colors.muted;
-    }
-  };
-
-  const gradeColor = (grade: string) => {
-    switch (grade) {
-      case 'A': return '#22C55E';
-      case 'B': return '#3B82F6';
-      case 'C': return '#F59E0B';
-      case 'D': return '#F97316';
-      case 'F': return '#EF4444';
-      default: return colors.muted;
-    }
-  };
+    setRefreshing(false);
+  }, [activeTab, fetchDailyCoaching, fetchWeeklyDigest]);
 
   const tabs = [
-    { key: 'daily' as const, label: 'Daily' },
-    { key: 'workout' as const, label: 'Workout' },
-    { key: 'nutrition' as const, label: 'Nutrition' },
-    { key: 'weekly' as const, label: 'Weekly' },
+    { key: 'daily' as const, label: 'Daily', icon: '⚡' },
+    { key: 'debrief' as const, label: 'Debrief', icon: '📓' },
+    { key: 'chat' as const, label: 'Ask Zaki', icon: '💬' },
+    { key: 'weekly' as const, label: 'Weekly', icon: '📊' },
   ];
-
-  if (loading && !dailyMessage) {
-    return (
-      <ScreenContainer className="p-6">
-        <View style={styles.loadingContainer}>
-          <Text style={[styles.loadingIcon]}>🧠</Text>
-          <Text style={[styles.loadingTitle, { color: colors.foreground }]}>
-            Analyzing your data...
-          </Text>
-          <Text style={[styles.loadingSubtitle, { color: colors.muted }]}>
-            Your AI coach is reviewing workouts, nutrition, and recovery
-          </Text>
-          <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 24 }} />
-        </View>
-      </ScreenContainer>
-    );
-  }
 
   return (
     <ScreenContainer>
-      <ScrollView
-        contentContainerStyle={{ paddingBottom: 100 }}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
-        }
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
       >
-        {/* Header */}
+        {/* ── Header ── */}
         <View style={styles.header}>
           <TouchableOpacity
             onPress={() => router.back()}
-            style={[styles.backBtn, { backgroundColor: colors.surface }]}
+            style={[styles.iconBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
           >
             <Text style={{ color: colors.foreground, fontSize: 18 }}>←</Text>
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.headerTitle, { color: colors.foreground }]}>AI Coach</Text>
-            <Text style={[styles.headerSubtitle, { color: colors.muted }]}>
-              Personalized insights powered by your data
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Text style={[styles.headerTitle, { color: colors.foreground }]}>Agent Zaki</Text>
+              <View style={styles.liveBadge}>
+                <View style={styles.liveDot} />
+                <Text style={styles.liveText}>LIVE</Text>
+              </View>
+            </View>
+            <Text style={[styles.headerSub, { color: colors.muted }]}>
+              Your AI coach — powered by real data
             </Text>
           </View>
           <TouchableOpacity
             onPress={onRefresh}
-            style={[styles.refreshBtn, { backgroundColor: colors.surface }]}
+            style={[styles.iconBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
           >
-            <Text style={{ fontSize: 18 }}>🔄</Text>
+            <Text style={{ fontSize: 16 }}>🔄</Text>
           </TouchableOpacity>
         </View>
 
-        {error && (
-          <View style={[styles.errorBanner, { backgroundColor: '#FEE2E2' }]}>
-            <Text style={{ color: '#991B1B', fontSize: 14 }}>{error}</Text>
-            <TouchableOpacity onPress={() => fetchCoaching(true)}>
-              <Text style={{ color: '#DC2626', fontWeight: '700', marginTop: 4 }}>Retry</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* Tab Bar */}
-        <View style={styles.tabBar}>
-          {tabs.map((tab) => (
+        {/* ── Tab Bar ── */}
+        <View style={[styles.tabBar, { borderBottomColor: colors.border }]}>
+          {tabs.map(tab => (
             <TouchableOpacity
               key={tab.key}
               onPress={() => {
@@ -281,13 +356,14 @@ export default function AICoachingDashboard() {
               }}
               style={[
                 styles.tabItem,
-                activeTab === tab.key && { borderBottomColor: colors.primary, borderBottomWidth: 2 },
+                activeTab === tab.key && { borderBottomColor: '#6366F1', borderBottomWidth: 2 },
               ]}
             >
+              <Text style={{ fontSize: 14 }}>{tab.icon}</Text>
               <Text
                 style={[
                   styles.tabLabel,
-                  { color: activeTab === tab.key ? colors.primary : colors.muted },
+                  { color: activeTab === tab.key ? '#6366F1' : colors.muted },
                 ]}
               >
                 {tab.label}
@@ -296,470 +372,336 @@ export default function AICoachingDashboard() {
           ))}
         </View>
 
-        {/* Daily Tab */}
-        {activeTab === 'daily' && dailyMessage && (
-          <View style={styles.tabContent}>
-            {/* Greeting & Intensity Badge */}
-            <View style={styles.greetingCard}>
-              <Text style={[styles.greeting, { color: colors.foreground }]}>
-                {dailyMessage.greeting}
-              </Text>
-              <View
+        {/* ── Tab Content ── */}
+        {activeTab === 'chat' ? (
+          <View style={{ flex: 1 }}>
+            <ScrollView
+              ref={scrollRef}
+              style={{ flex: 1 }}
+              contentContainerStyle={{ padding: 16, paddingBottom: 8, gap: 12 }}
+              onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: false })}
+            >
+              {chatMessages.length === 0 && (
+                <View style={[styles.zakiBubble, { backgroundColor: '#6366F115', borderColor: '#6366F130' }]}>
+                  <View style={styles.zakiAvatar}>
+                    <Text style={{ fontSize: 18 }}>🤖</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.zakiName, { color: '#6366F1' }]}>Agent Zaki</Text>
+                    <Text style={[styles.bubbleText, { color: colors.foreground }]}>
+                      Hey Yehia — I have full access to your WHOOP data, workout history, and nutrition logs. Ask me anything: training advice, exercise substitutions, recovery questions, or how to push through a plateau.
+                    </Text>
+                  </View>
+                </View>
+              )}
+              {chatMessages.map(msg => (
+                <View key={msg.id}>
+                  {msg.role === 'zaki' && (
+                    <View style={[styles.zakiBubble, { backgroundColor: '#6366F115', borderColor: '#6366F130' }]}>
+                      <View style={styles.zakiAvatar}>
+                        <Text style={{ fontSize: 18 }}>🤖</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.zakiName, { color: '#6366F1' }]}>Agent Zaki</Text>
+                        <Text style={[styles.bubbleText, { color: colors.foreground }]}>{msg.text}</Text>
+                      </View>
+                    </View>
+                  )}
+                  {msg.role === 'user' && (
+                    <View style={{ alignSelf: 'flex-end', maxWidth: '85%' }}>
+                      <View style={[styles.userBubbleInner, { backgroundColor: '#6366F1' }]}>
+                        <Text style={[styles.bubbleText, { color: '#FFFFFF' }]}>{msg.text}</Text>
+                      </View>
+                    </View>
+                  )}
+                </View>
+              ))}
+              {chatLoading && (
+                <View style={[styles.zakiBubble, { backgroundColor: '#6366F115', borderColor: '#6366F130' }]}>
+                  <View style={styles.zakiAvatar}>
+                    <Text style={{ fontSize: 18 }}>🤖</Text>
+                  </View>
+                  <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <ActivityIndicator size="small" color="#6366F1" />
+                    <Text style={{ color: colors.muted, fontSize: 13 }}>Zaki is thinking...</Text>
+                  </View>
+                </View>
+              )}
+            </ScrollView>
+            <View style={[styles.chatInputBar, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+              <TextInput
+                style={[styles.chatInput, { color: colors.foreground, backgroundColor: colors.background, borderColor: colors.border }]}
+                value={chatInput}
+                onChangeText={setChatInput}
+                placeholder="Ask Zaki anything..."
+                placeholderTextColor={colors.muted}
+                multiline
+                maxLength={500}
+                returnKeyType="send"
+                onSubmitEditing={sendChatMessage}
+              />
+              <TouchableOpacity
+                onPress={sendChatMessage}
+                disabled={!chatInput.trim() || chatLoading}
                 style={[
-                  styles.intensityBadge,
-                  { backgroundColor: intensityColor(dailyMessage.intensityAdvice) + '20' },
+                  styles.sendBtn,
+                  { backgroundColor: chatInput.trim() && !chatLoading ? '#6366F1' : colors.border },
                 ]}
               >
-                <Text
-                  style={[
-                    styles.intensityText,
-                    { color: intensityColor(dailyMessage.intensityAdvice) },
-                  ]}
-                >
-                  {intensityLabel(dailyMessage.intensityAdvice)}
-                </Text>
-              </View>
+                <Text style={{ color: '#FFFFFF', fontSize: 16 }}>↑</Text>
+              </TouchableOpacity>
             </View>
-
-            {/* Headline */}
-            <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <Text style={[styles.cardTitle, { color: colors.foreground }]}>
-                {dailyMessage.headline}
-              </Text>
-              <Text style={[styles.cardBody, { color: colors.muted }]}>
-                {dailyMessage.bodyText}
-              </Text>
-            </View>
-
-            {/* Today's Focus */}
-            <View style={[styles.card, { backgroundColor: colors.primary + '10', borderColor: colors.primary + '30' }]}>
-              <Text style={[styles.cardLabel, { color: colors.primary }]}>TODAY&apos;S FOCUS</Text>
-              <Text style={[styles.focusText, { color: colors.foreground }]}>
-                {dailyMessage.todayFocus}
-              </Text>
-            </View>
-
-            {/* Nutrition Tip */}
-            <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <Text style={[styles.cardLabel, { color: '#22C55E' }]}>🥗 NUTRITION TIP</Text>
-              <Text style={[styles.cardBody, { color: colors.foreground }]}>
-                {dailyMessage.nutritionTip}
-              </Text>
-            </View>
-
-            {/* Recovery Note */}
-            <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <Text style={[styles.cardLabel, { color: '#8B5CF6' }]}>💤 RECOVERY</Text>
-              <Text style={[styles.cardBody, { color: colors.foreground }]}>
-                {dailyMessage.recoveryNote}
-              </Text>
-            </View>
-
-            {/* Motivational Close */}
-            <View style={[styles.motivationalCard, { backgroundColor: colors.primary + '15' }]}>
-              <Text style={[styles.motivationalText, { color: colors.primary }]}>
-                &ldquo;{dailyMessage.motivationalClose}&rdquo;
-              </Text>
-            </View>
-
-            {/* Session Debrief */}
-            <View style={[styles.card, { backgroundColor: '#6366F110', borderColor: '#6366F130' }]}>
-              <Text style={[styles.cardLabel, { color: '#6366F1' }]}>📓 SESSION DEBRIEF</Text>
-              <Text style={[styles.cardBody, { color: colors.muted, marginBottom: 12 }]}>
-                Analyze patterns across your last 3 workout notes — physical sensations, energy levels, and recurring themes.
-              </Text>
-              {debriefResult ? (
-                <View style={{ gap: 10 }}>
-                  <Text style={[styles.cardBody, { color: colors.foreground, fontStyle: 'italic' }]}>
-                    {debriefResult.patternSummary}
-                  </Text>
-                  {debriefResult.physicalPatterns.length > 0 && (
-                    <View>
-                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#EF4444', marginBottom: 4 }}>PHYSICAL PATTERNS</Text>
-                      {debriefResult.physicalPatterns.map((p, i) => (
-                        <Text key={i} style={{ fontSize: 13, color: colors.foreground, marginBottom: 2 }}>• {p}</Text>
-                      ))}
-                    </View>
-                  )}
-                  {debriefResult.mentalPatterns.length > 0 && (
-                    <View>
-                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#3B82F6', marginBottom: 4 }}>MENTAL / ENERGY PATTERNS</Text>
-                      {debriefResult.mentalPatterns.map((p, i) => (
-                        <Text key={i} style={{ fontSize: 13, color: colors.foreground, marginBottom: 2 }}>• {p}</Text>
-                      ))}
-                    </View>
-                  )}
-                  <View style={{ backgroundColor: '#22C55E15', borderRadius: 8, padding: 10, borderWidth: 1, borderColor: '#22C55E30' }}>
-                    <Text style={{ fontSize: 11, fontWeight: '700', color: '#22C55E', marginBottom: 3 }}>COACH RECOMMENDATION</Text>
-                    <Text style={{ fontSize: 13, color: colors.foreground }}>{debriefResult.coachRecommendation}</Text>
+          </View>
+        ) : (
+          <ScrollView
+            contentContainerStyle={{ paddingBottom: 100 }}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6366F1" />
+            }
+          >
+            {/* ── DAILY TAB ── */}
+            {activeTab === 'daily' && (
+              <View style={styles.tabContent}>
+                {dailyContextSummary ? (
+                  <View style={[styles.contextPill, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                    <Text style={{ fontSize: 10, color: colors.muted }}>📡 DATA USED: {dailyContextSummary}</Text>
                   </View>
-                  <View style={{ backgroundColor: '#F59E0B15', borderRadius: 8, padding: 10, borderWidth: 1, borderColor: '#F59E0B30' }}>
-                    <Text style={{ fontSize: 11, fontWeight: '700', color: '#F59E0B', marginBottom: 3 }}>WATCH OUT</Text>
-                    <Text style={{ fontSize: 13, color: colors.foreground }}>{debriefResult.watchOut}</Text>
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => setDebriefResult(null)}
-                    style={{ alignSelf: 'flex-end', marginTop: 4 }}
-                  >
-                    <Text style={{ fontSize: 12, color: colors.muted }}>Clear ×</Text>
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <TouchableOpacity
-                  onPress={async () => {
-                    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                    setDebriefLoading(true);
-                    setDebriefError(null);
-                    try {
-                      const sessions = await getSplitWorkouts();
-                      const recent = sessions
-                        .filter(s => s.completed && s.notes)
-                        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                        .slice(0, 3);
-                      if (recent.length === 0) {
-                        setDebriefError('No session notes found yet. Add notes at the end of your next workout.');
-                        setDebriefLoading(false);
-                        return;
-                      }
-                      const notesContext = recent.map((s, i) =>
-                        `Session ${i + 1} (${new Date(s.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}):\nWorkout: ${s.sessionType}\nNotes: ${s.notes}\nExercises: ${s.exercises.filter(e => !e.skipped).map(e => e.exerciseName).join(', ')}`
-                      ).join('\n\n');
-                      const snapshot = await buildUserSnapshot();
-                      const context = snapshotToPromptContext(snapshot);
-                      const result = await sessionDebriefMutation.mutateAsync({
-                        sessionNotesContext: notesContext,
-                        userContext: context,
-                      });
-                      await saveDebriefToHistory(result);
-                      setDebriefResult(result);
-                    } catch (err) {
-                      setDebriefError('Could not generate debrief. Please try again.');
-                    } finally {
-                      setDebriefLoading(false);
-                    }
-                  }}
-                  style={[
-                    styles.refreshBtn,
-                    { backgroundColor: '#6366F1', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10, alignSelf: 'flex-start' },
-                  ]}
-                >
-                  {debriefLoading ? (
-                    <ActivityIndicator size="small" color="#FFFFFF" />
-                  ) : (
-                    <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 14 }}>Run Session Debrief</Text>
-                  )}
-                </TouchableOpacity>
-              )}
-              {debriefError && (
-                <Text style={{ fontSize: 12, color: colors.error ?? '#EF4444', marginTop: 8 }}>{debriefError}</Text>
-              )}
-              {/* Debrief Comparison Diff — shown when 2+ debriefs exist */}
-              {debriefHistory.length >= 2 && (
-                <View style={{ marginTop: 14 }}>
-                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#6366F1', marginBottom: 8, letterSpacing: 0.5 }}>📊 PATTERN COMPARISON</Text>
-                  <View style={{ flexDirection: 'row', gap: 8 }}>
-                    {/* Latest */}
-                    <View style={{ flex: 1, backgroundColor: '#6366F110', borderRadius: 10, padding: 10, borderWidth: 1, borderColor: '#6366F130' }}>
-                      <Text style={{ fontSize: 10, fontWeight: '700', color: '#6366F1', marginBottom: 4 }}>LATEST</Text>
-                      <Text style={{ fontSize: 10, color: colors.muted, marginBottom: 6 }}>
-                        {new Date(debriefHistory[0].timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                      </Text>
-                      <Text style={{ fontSize: 11, color: colors.foreground, fontStyle: 'italic', marginBottom: 6 }} numberOfLines={3}>
-                        {debriefHistory[0].result.patternSummary}
-                      </Text>
-                      {debriefHistory[0].result.physicalPatterns.slice(0, 2).map((p, i) => (
-                        <Text key={i} style={{ fontSize: 11, color: '#EF4444', marginBottom: 2 }} numberOfLines={1}>• {p}</Text>
-                      ))}
-                      <View style={{ marginTop: 6, backgroundColor: '#22C55E12', borderRadius: 6, padding: 6 }}>
-                        <Text style={{ fontSize: 10, color: '#22C55E', fontWeight: '700', marginBottom: 2 }}>COACH SAYS</Text>
-                        <Text style={{ fontSize: 11, color: colors.foreground }} numberOfLines={3}>{debriefHistory[0].result.coachRecommendation}</Text>
-                      </View>
-                    </View>
-                    {/* Arrow */}
-                    <View style={{ justifyContent: 'center', alignItems: 'center', width: 20 }}>
-                      <Text style={{ fontSize: 16, color: colors.muted }}>→</Text>
-                    </View>
-                    {/* Previous */}
-                    <View style={{ flex: 1, backgroundColor: colors.surface, borderRadius: 10, padding: 10, borderWidth: 1, borderColor: colors.border }}>
-                      <Text style={{ fontSize: 10, fontWeight: '700', color: colors.muted, marginBottom: 4 }}>PREVIOUS</Text>
-                      <Text style={{ fontSize: 10, color: colors.muted, marginBottom: 6 }}>
-                        {new Date(debriefHistory[1].timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                      </Text>
-                      <Text style={{ fontSize: 11, color: colors.foreground, fontStyle: 'italic', marginBottom: 6 }} numberOfLines={3}>
-                        {debriefHistory[1].result.patternSummary}
-                      </Text>
-                      {debriefHistory[1].result.physicalPatterns.slice(0, 2).map((p, i) => (
-                        <Text key={i} style={{ fontSize: 11, color: '#EF4444', marginBottom: 2 }} numberOfLines={1}>• {p}</Text>
-                      ))}
-                      <View style={{ marginTop: 6, backgroundColor: '#22C55E12', borderRadius: 6, padding: 6 }}>
-                        <Text style={{ fontSize: 10, color: '#22C55E', fontWeight: '700', marginBottom: 2 }}>COACH SAID</Text>
-                        <Text style={{ fontSize: 11, color: colors.foreground }} numberOfLines={3}>{debriefHistory[1].result.coachRecommendation}</Text>
-                      </View>
-                    </View>
-                  </View>
-                </View>
-              )}
-              {/* Debrief History */}
-              {debriefHistory.length > 0 && (
-                <View style={{ marginTop: 14 }}>
-                  <TouchableOpacity
-                    onPress={() => setShowDebriefHistory(v => !v)}
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
-                  >
-                    <Text style={{ fontSize: 12, fontWeight: '700', color: '#6366F1' }}>
-                      {showDebriefHistory ? '▲' : '▼'} PAST DEBRIEFS ({debriefHistory.length})
+                ) : null}
+
+                {dailyLoading ? (
+                  <View style={styles.loadingCard}>
+                    <Text style={{ fontSize: 40, textAlign: 'center', marginBottom: 12 }}>🤖</Text>
+                    <Text style={[styles.loadingTitle, { color: colors.foreground }]}>
+                      Zaki is analyzing your data...
                     </Text>
-                  </TouchableOpacity>
-                  {showDebriefHistory && debriefHistory.map((entry, idx) => (
-                    <View
-                      key={idx}
-                      style={{ marginTop: 10, backgroundColor: '#6366F108', borderRadius: 8, padding: 10, borderWidth: 1, borderColor: '#6366F120' }}
-                    >
-                      <Text style={{ fontSize: 10, color: colors.muted, marginBottom: 4 }}>
-                        {new Date(entry.timestamp).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                      </Text>
-                      <Text style={{ fontSize: 12, color: colors.foreground, fontStyle: 'italic', marginBottom: 6 }}>
-                        {entry.result.patternSummary}
-                      </Text>
-                      <View style={{ backgroundColor: '#22C55E12', borderRadius: 6, padding: 8, borderWidth: 1, borderColor: '#22C55E25' }}>
-                        <Text style={{ fontSize: 10, fontWeight: '700', color: '#22C55E', marginBottom: 2 }}>RECOMMENDATION</Text>
-                        <Text style={{ fontSize: 12, color: colors.foreground }}>{entry.result.coachRecommendation}</Text>
+                    <Text style={[styles.loadingSubtitle, { color: colors.muted }]}>
+                      Checking WHOOP recovery, workout history, and nutrition
+                    </Text>
+                    <ActivityIndicator size="large" color="#6366F1" style={{ marginTop: 20 }} />
+                  </View>
+                ) : dailyError ? (
+                  <View style={[styles.errorCard, { backgroundColor: '#FEE2E2' }]}>
+                    <Text style={{ color: '#991B1B', fontSize: 14, marginBottom: 8 }}>{dailyError}</Text>
+                    <TouchableOpacity onPress={() => fetchDailyCoaching(true)}>
+                      <Text style={{ color: '#DC2626', fontWeight: '700' }}>Retry</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : dailyResponse ? (
+                  <View style={[styles.responseCard, { backgroundColor: '#6366F108', borderColor: '#6366F130' }]}>
+                    <View style={styles.zakiHeaderRow}>
+                      <View style={styles.zakiAvatarLg}>
+                        <Text style={{ fontSize: 28 }}>🤖</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.zakiNameLg, { color: '#6366F1' }]}>Agent Zaki</Text>
+                        <Text style={[styles.zakiTimestamp, { color: colors.muted }]}>
+                          {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+                        </Text>
                       </View>
                     </View>
+                    <Text style={[styles.responseText, { color: colors.foreground }]}>
+                      {dailyResponse}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => fetchDailyCoaching(true)}
+                      style={[styles.refreshSmallBtn, { borderColor: '#6366F140' }]}
+                    >
+                      <Text style={{ color: '#6366F1', fontSize: 12, fontWeight: '600' }}>🔄 Refresh coaching</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View style={[styles.emptyCard, { backgroundColor: colors.surface }]}>
+                    <Text style={{ fontSize: 48, textAlign: 'center' }}>🤖</Text>
+                    <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+                      Get your daily coaching
+                    </Text>
+                    <Text style={[styles.emptySubtitle, { color: colors.muted }]}>
+                      Zaki will analyze your WHOOP recovery, recent workouts, and nutrition to give you personalized advice.
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => fetchDailyCoaching(true)}
+                      style={[styles.ctaBtn, { backgroundColor: '#6366F1' }]}
+                    >
+                      <Text style={styles.ctaBtnText}>Ask Zaki for Today's Plan</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                <View style={[styles.quickPromptsCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                  <Text style={[styles.sectionLabel, { color: colors.muted }]}>QUICK QUESTIONS FOR ZAKI</Text>
+                  {[
+                    'Should I push hard today or take it easy?',
+                    'What should I eat before my workout?',
+                    'How is my recovery trend this week?',
+                  ].map((prompt, i) => (
+                    <TouchableOpacity
+                      key={i}
+                      onPress={() => {
+                        setActiveTab('chat');
+                        setChatInput(prompt);
+                      }}
+                      style={[styles.promptChip, { borderColor: '#6366F130', backgroundColor: '#6366F108' }]}
+                    >
+                      <Text style={{ fontSize: 13, color: '#6366F1', flex: 1 }}>{prompt}</Text>
+                      <Text style={{ color: '#6366F1', fontSize: 14 }}>→</Text>
+                    </TouchableOpacity>
                   ))}
                 </View>
-              )}
-            </View>
-          </View>
-        )}
-
-        {/* Workout Tab */}
-        {activeTab === 'workout' && (
-          <View style={styles.tabContent}>
-            {workoutAdjustments.length === 0 ? (
-              <View style={[styles.emptyCard, { backgroundColor: colors.surface }]}>
-                <Text style={{ fontSize: 40, textAlign: 'center' }}>🏋️</Text>
-                <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-                  No adjustments yet
-                </Text>
-                <Text style={[styles.emptySubtitle, { color: colors.muted }]}>
-                  Complete a few more workouts and your AI coach will suggest smart adjustments
-                </Text>
               </View>
-            ) : (
-              workoutAdjustments.map((adj, i) => (
-                <View
-                  key={i}
-                  style={[styles.adjustmentCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                >
-                  <View style={styles.adjustmentHeader}>
-                    <Text style={{ fontSize: 20 }}>{adjustmentIcon(adj.adjustmentType)}</Text>
-                    <View style={{ flex: 1, marginLeft: 12 }}>
-                      <Text style={[styles.adjustmentExercise, { color: colors.foreground }]}>
-                        {adj.exerciseName}
-                      </Text>
-                      <Text style={[styles.adjustmentType, { color: colors.primary }]}>
-                        {adj.adjustmentType.replace(/_/g, ' ').toUpperCase()}
+            )}
+
+            {/* ── DEBRIEF TAB ── */}
+            {activeTab === 'debrief' && (
+              <View style={styles.tabContent}>
+                <View style={[styles.card, { backgroundColor: '#6366F108', borderColor: '#6366F130' }]}>
+                  <View style={styles.zakiHeaderRow}>
+                    <View style={styles.zakiAvatarLg}>
+                      <Text style={{ fontSize: 28 }}>🤖</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.zakiNameLg, { color: '#6366F1' }]}>Session Debrief</Text>
+                      <Text style={[styles.zakiTimestamp, { color: colors.muted }]}>
+                        Pattern analysis across last 3 sessions
                       </Text>
                     </View>
-                    <View
-                      style={[
-                        styles.confidenceBadge,
-                        {
-                          backgroundColor:
-                            adj.confidence === 'high'
-                              ? '#22C55E20'
-                              : adj.confidence === 'medium'
-                                ? '#F59E0B20'
-                                : '#EF444420',
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={{
-                          fontSize: 11,
-                          fontWeight: '600',
-                          color:
-                            adj.confidence === 'high'
-                              ? '#22C55E'
-                              : adj.confidence === 'medium'
-                                ? '#F59E0B'
-                                : '#EF4444',
-                        }}
+                  </View>
+                  <Text style={[styles.cardBody, { color: colors.muted, marginBottom: 14 }]}>
+                    Zaki will analyze your recent workout data and session notes to identify physical patterns, energy trends, and give you one concrete coaching recommendation.
+                  </Text>
+
+                  {debriefResponse ? (
+                    <View style={{ gap: 12 }}>
+                      <Text style={[styles.responseText, { color: colors.foreground }]}>
+                        {debriefResponse}
+                      </Text>
+                      <TouchableOpacity
+                        onPress={() => setDebriefResponse(null)}
+                        style={{ alignSelf: 'flex-end' }}
                       >
-                        {adj.confidence.toUpperCase()}
-                      </Text>
+                        <Text style={{ fontSize: 12, color: colors.muted }}>Clear ×</Text>
+                      </TouchableOpacity>
                     </View>
-                  </View>
-                  <Text style={[styles.adjustmentSuggestion, { color: colors.foreground }]}>
-                    {adj.suggestion}
-                  </Text>
-                  <Text style={[styles.adjustmentReason, { color: colors.muted }]}>
-                    {adj.reason}
-                  </Text>
-                </View>
-              ))
-            )}
-
-            {/* Form Coach Link */}
-            <TouchableOpacity
-              onPress={() => router.push('/form-coach-tracking' as any)}
-              style={[styles.formCoachLink, { backgroundColor: colors.primary }]}
-            >
-              <Text style={styles.formCoachLinkText}>📸 Open AI Form Coach</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* Nutrition Tab */}
-        {activeTab === 'nutrition' && (
-          <View style={styles.tabContent}>
-            {nutritionInsights.length === 0 ? (
-              <View style={[styles.emptyCard, { backgroundColor: colors.surface }]}>
-                <Text style={{ fontSize: 40, textAlign: 'center' }}>🥗</Text>
-                <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-                  No nutrition insights yet
-                </Text>
-                <Text style={[styles.emptySubtitle, { color: colors.muted }]}>
-                  Log your meals in the Nutrition tab and your AI coach will analyze your intake
-                </Text>
-              </View>
-            ) : (
-              nutritionInsights.map((insight, i) => (
-                <View
-                  key={i}
-                  style={[styles.insightCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                >
-                  <View style={styles.insightHeader}>
-                    <View
-                      style={[
-                        styles.priorityDot,
-                        { backgroundColor: priorityColor(insight.priority) },
-                      ]}
-                    />
-                    <Text style={[styles.insightTitle, { color: colors.foreground }]}>
-                      {insight.title}
-                    </Text>
-                  </View>
-                  <Text style={[styles.insightDetail, { color: colors.muted }]}>
-                    {insight.detail}
-                  </Text>
-                  <View style={[styles.actionableBox, { backgroundColor: colors.primary + '10' }]}>
-                    <Text style={[styles.actionableLabel, { color: colors.primary }]}>
-                      ACTION
-                    </Text>
-                    <Text style={[styles.actionableText, { color: colors.foreground }]}>
-                      {insight.actionable}
-                    </Text>
-                  </View>
-                </View>
-              ))
-            )}
-          </View>
-        )}
-
-        {/* Weekly Tab */}
-        {activeTab === 'weekly' && (
-          <View style={styles.tabContent}>
-            {weeklyDigest ? (
-              <>
-                {/* Grade */}
-                <View style={[styles.gradeCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                  <View
-                    style={[
-                      styles.gradeBadge,
-                      { backgroundColor: gradeColor(weeklyDigest.overallGrade) + '20' },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.gradeText,
-                        { color: gradeColor(weeklyDigest.overallGrade) },
-                      ]}
+                  ) : (
+                    <TouchableOpacity
+                      onPress={runDebrief}
+                      disabled={debriefLoading}
+                      style={[styles.ctaBtn, { backgroundColor: '#6366F1', alignSelf: 'flex-start' }]}
                     >
-                      {weeklyDigest.overallGrade}
-                    </Text>
-                  </View>
-                  <Text style={[styles.gradeSummary, { color: colors.foreground }]}>
-                    {weeklyDigest.weekSummary}
-                  </Text>
+                      {debriefLoading ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                          <ActivityIndicator size="small" color="#FFFFFF" />
+                          <Text style={styles.ctaBtnText}>Analyzing sessions...</Text>
+                        </View>
+                      ) : (
+                        <Text style={styles.ctaBtnText}>Run Session Debrief</Text>
+                      )}
+                    </TouchableOpacity>
+                  )}
+
+                  {debriefError && (
+                    <Text style={{ fontSize: 12, color: '#EF4444', marginTop: 8 }}>{debriefError}</Text>
+                  )}
                 </View>
 
-                {/* Highlights */}
-                {weeklyDigest.strengthHighlights.length > 0 && (
-                  <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                    <Text style={[styles.cardLabel, { color: '#22C55E' }]}>
-                      💪 STRENGTH HIGHLIGHTS
-                    </Text>
-                    {weeklyDigest.strengthHighlights.map((h, i) => (
-                      <Text key={i} style={[styles.listItem, { color: colors.foreground }]}>
-                        • {h}
+                {debriefHistory.length > 0 && (
+                  <View style={{ marginTop: 4 }}>
+                    <TouchableOpacity
+                      onPress={() => setShowDebriefHistory(v => !v)}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8 }}
+                    >
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: '#6366F1' }}>
+                        {showDebriefHistory ? '▲' : '▼'} PAST DEBRIEFS ({debriefHistory.length})
                       </Text>
+                    </TouchableOpacity>
+                    {showDebriefHistory && debriefHistory.map((entry, idx) => (
+                      <View
+                        key={idx}
+                        style={[styles.historyEntry, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                      >
+                        <Text style={{ fontSize: 10, color: colors.muted, marginBottom: 6 }}>
+                          {new Date(entry.timestamp).toLocaleDateString('en-US', {
+                            weekday: 'short', month: 'short', day: 'numeric',
+                            hour: '2-digit', minute: '2-digit',
+                          })} · {entry.sessionCount} sessions analyzed
+                        </Text>
+                        <Text style={[styles.historyText, { color: colors.foreground }]} numberOfLines={6}>
+                          {entry.response}
+                        </Text>
+                      </View>
                     ))}
                   </View>
                 )}
-
-                {/* Areas to Improve */}
-                {weeklyDigest.areasToImprove.length > 0 && (
-                  <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                    <Text style={[styles.cardLabel, { color: '#F59E0B' }]}>
-                      📈 AREAS TO IMPROVE
-                    </Text>
-                    {weeklyDigest.areasToImprove.map((a, i) => (
-                      <Text key={i} style={[styles.listItem, { color: colors.foreground }]}>
-                        • {a}
-                      </Text>
-                    ))}
-                  </View>
-                )}
-
-                {/* Next Week Plan */}
-                <View style={[styles.card, { backgroundColor: colors.primary + '10', borderColor: colors.primary + '30' }]}>
-                  <Text style={[styles.cardLabel, { color: colors.primary }]}>
-                    📋 NEXT WEEK PLAN
-                  </Text>
-                  <Text style={[styles.cardBody, { color: colors.foreground }]}>
-                    {weeklyDigest.nextWeekPlan}
-                  </Text>
-                </View>
-              </>
-            ) : (
-              <View style={[styles.emptyCard, { backgroundColor: colors.surface }]}>
-                <Text style={{ fontSize: 40, textAlign: 'center' }}>📊</Text>
-                <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-                  Weekly digest available on weekends
-                </Text>
-                <Text style={[styles.emptySubtitle, { color: colors.muted }]}>
-                  Your AI coach generates a weekly performance review every Saturday
-                </Text>
-                <TouchableOpacity
-                  onPress={() => {
-                    setActiveTab('weekly');
-                    fetchCoaching(true);
-                  }}
-                  style={[styles.generateBtn, { backgroundColor: colors.primary }]}
-                >
-                  <Text style={styles.generateBtnText}>Generate Now</Text>
-                </TouchableOpacity>
               </View>
             )}
-          </View>
+
+            {/* ── WEEKLY TAB ── */}
+            {activeTab === 'weekly' && (
+              <View style={styles.tabContent}>
+                {weeklyLoading ? (
+                  <View style={styles.loadingCard}>
+                    <Text style={{ fontSize: 40, textAlign: 'center', marginBottom: 12 }}>📊</Text>
+                    <Text style={[styles.loadingTitle, { color: colors.foreground }]}>
+                      Generating weekly digest...
+                    </Text>
+                    <ActivityIndicator size="large" color="#6366F1" style={{ marginTop: 20 }} />
+                  </View>
+                ) : weeklyError ? (
+                  <View style={[styles.errorCard, { backgroundColor: '#FEE2E2' }]}>
+                    <Text style={{ color: '#991B1B', fontSize: 14, marginBottom: 8 }}>{weeklyError}</Text>
+                    <TouchableOpacity onPress={fetchWeeklyDigest}>
+                      <Text style={{ color: '#DC2626', fontWeight: '700' }}>Retry</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : weeklyResponse ? (
+                  <View style={[styles.responseCard, { backgroundColor: '#6366F108', borderColor: '#6366F130' }]}>
+                    <View style={styles.zakiHeaderRow}>
+                      <View style={styles.zakiAvatarLg}>
+                        <Text style={{ fontSize: 28 }}>🤖</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.zakiNameLg, { color: '#6366F1' }]}>Weekly Digest</Text>
+                        <Text style={[styles.zakiTimestamp, { color: colors.muted }]}>
+                          Performance review by Agent Zaki
+                        </Text>
+                      </View>
+                    </View>
+                    <Text style={[styles.responseText, { color: colors.foreground }]}>
+                      {weeklyResponse}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={fetchWeeklyDigest}
+                      style={[styles.refreshSmallBtn, { borderColor: '#6366F140' }]}
+                    >
+                      <Text style={{ color: '#6366F1', fontSize: 12, fontWeight: '600' }}>🔄 Regenerate</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View style={[styles.emptyCard, { backgroundColor: colors.surface }]}>
+                    <Text style={{ fontSize: 48, textAlign: 'center' }}>📊</Text>
+                    <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+                      Weekly Performance Review
+                    </Text>
+                    <Text style={[styles.emptySubtitle, { color: colors.muted }]}>
+                      Zaki will grade your week, highlight your best performances, and build a plan for next week.
+                    </Text>
+                    <TouchableOpacity
+                      onPress={fetchWeeklyDigest}
+                      style={[styles.ctaBtn, { backgroundColor: '#6366F1' }]}
+                    >
+                      <Text style={styles.ctaBtnText}>Generate Weekly Digest</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            )}
+          </ScrollView>
         )}
-      </ScrollView>
+      </KeyboardAvoidingView>
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 32,
-  },
-  loadingIcon: { fontSize: 48, marginBottom: 16 },
-  loadingTitle: { fontSize: 20, fontWeight: '700', textAlign: 'center' },
-  loadingSubtitle: { fontSize: 14, textAlign: 'center', marginTop: 8, lineHeight: 20 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -767,32 +709,32 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     gap: 12,
   },
-  backBtn: {
+  iconBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
+    borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
   headerTitle: { fontSize: 22, fontWeight: '800' },
-  headerSubtitle: { fontSize: 12, marginTop: 2 },
-  refreshBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
+  headerSub: { fontSize: 12, marginTop: 1 },
+  liveBadge: {
+    flexDirection: 'row',
     alignItems: 'center',
-  },
-  errorBanner: {
-    marginHorizontal: 16,
-    marginBottom: 12,
-    padding: 12,
+    gap: 4,
+    backgroundColor: '#22C55E20',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: 10,
   },
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#22C55E' },
+  liveText: { fontSize: 9, fontWeight: '800', color: '#22C55E', letterSpacing: 0.5 },
   tabBar: {
     flexDirection: 'row',
     paddingHorizontal: 16,
-    marginBottom: 8,
+    borderBottomWidth: 1,
+    marginBottom: 4,
   },
   tabItem: {
     flex: 1,
@@ -800,118 +742,152 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
+    gap: 2,
   },
-  tabLabel: { fontSize: 14, fontWeight: '600' },
-  tabContent: { paddingHorizontal: 16, gap: 12 },
-  greetingCard: {
+  tabLabel: { fontSize: 11, fontWeight: '600' },
+  tabContent: { paddingHorizontal: 16, paddingTop: 12, gap: 12 },
+  responseCard: {
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    gap: 12,
+  },
+  responseText: {
+    fontSize: 14,
+    lineHeight: 22,
+  },
+  zakiHeaderRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
+    gap: 12,
+    marginBottom: 4,
   },
-  greeting: { fontSize: 24, fontWeight: '800' },
-  intensityBadge: {
+  zakiAvatarLg: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#6366F120',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  zakiNameLg: { fontSize: 16, fontWeight: '800' },
+  zakiTimestamp: { fontSize: 11, marginTop: 2 },
+  refreshSmallBtn: {
+    alignSelf: 'flex-start',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
+    borderWidth: 1,
+    marginTop: 4,
   },
-  intensityText: { fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
+  loadingCard: {
+    padding: 32,
+    alignItems: 'center',
+  },
+  loadingTitle: { fontSize: 18, fontWeight: '700', textAlign: 'center' },
+  loadingSubtitle: { fontSize: 13, textAlign: 'center', marginTop: 8, lineHeight: 20 },
+  errorCard: {
+    borderRadius: 12,
+    padding: 16,
+    marginHorizontal: 16,
+  },
+  emptyCard: {
+    borderRadius: 16,
+    padding: 32,
+    alignItems: 'center',
+    gap: 10,
+  },
+  emptyTitle: { fontSize: 18, fontWeight: '700', textAlign: 'center' },
+  emptySubtitle: { fontSize: 14, textAlign: 'center', lineHeight: 20 },
+  ctaBtn: {
+    paddingHorizontal: 24,
+    paddingVertical: 13,
+    borderRadius: 12,
+    marginTop: 8,
+    alignItems: 'center',
+  },
+  ctaBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
+  contextPill: {
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    alignSelf: 'flex-start',
+  },
+  quickPromptsCard: {
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    gap: 8,
+  },
+  sectionLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 0.5, marginBottom: 4 },
+  promptChip: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    gap: 8,
+  },
   card: {
     borderRadius: 14,
     padding: 16,
     borderWidth: 1,
   },
-  cardTitle: { fontSize: 17, fontWeight: '700', marginBottom: 8 },
   cardBody: { fontSize: 14, lineHeight: 22 },
-  cardLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 0.5, marginBottom: 8 },
-  focusText: { fontSize: 16, fontWeight: '600', lineHeight: 24 },
-  motivationalCard: {
-    borderRadius: 14,
-    padding: 20,
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  motivationalText: { fontSize: 16, fontWeight: '600', fontStyle: 'italic', textAlign: 'center', lineHeight: 24 },
-  emptyCard: {
-    borderRadius: 14,
-    padding: 32,
-    alignItems: 'center',
-    gap: 8,
-  },
-  emptyTitle: { fontSize: 17, fontWeight: '700', textAlign: 'center' },
-  emptySubtitle: { fontSize: 14, textAlign: 'center', lineHeight: 20 },
-  adjustmentCard: {
-    borderRadius: 14,
-    padding: 16,
-    borderWidth: 1,
-  },
-  adjustmentHeader: {
+  zakiBubble: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  adjustmentExercise: { fontSize: 16, fontWeight: '700' },
-  adjustmentType: { fontSize: 11, fontWeight: '700', marginTop: 2 },
-  confidenceBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  adjustmentSuggestion: { fontSize: 15, fontWeight: '600', marginBottom: 6 },
-  adjustmentReason: { fontSize: 13, lineHeight: 20 },
-  formCoachLink: {
+    gap: 10,
     borderRadius: 14,
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  formCoachLinkText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  insightCard: {
-    borderRadius: 14,
-    padding: 16,
+    padding: 12,
     borderWidth: 1,
-  },
-  insightHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
     marginBottom: 8,
-    gap: 8,
   },
-  priorityDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  zakiAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#6366F120',
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexShrink: 0,
   },
-  insightTitle: { fontSize: 16, fontWeight: '700' },
-  insightDetail: { fontSize: 14, lineHeight: 20, marginBottom: 10 },
-  actionableBox: {
-    borderRadius: 10,
+  zakiName: { fontSize: 11, fontWeight: '700', marginBottom: 4 },
+  userBubbleInner: {
+    borderRadius: 14,
     padding: 12,
   },
-  actionableLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 0.5, marginBottom: 4 },
-  actionableText: { fontSize: 14, lineHeight: 20 },
-  gradeCard: {
-    borderRadius: 14,
-    padding: 20,
-    borderWidth: 1,
-    alignItems: 'center',
-    gap: 12,
+  bubbleText: { fontSize: 14, lineHeight: 20 },
+  chatInputBar: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    padding: 12,
+    gap: 10,
+    borderTopWidth: 1,
   },
-  gradeBadge: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+  chatInput: {
+    flex: 1,
+    borderRadius: 20,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 14,
+    maxHeight: 100,
+  },
+  sendBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  gradeText: { fontSize: 32, fontWeight: '900' },
-  gradeSummary: { fontSize: 15, lineHeight: 22, textAlign: 'center' },
-  listItem: { fontSize: 14, lineHeight: 22, marginTop: 4 },
-  generateBtn: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 20,
-    marginTop: 12,
+  historyEntry: {
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    marginBottom: 8,
   },
-  generateBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  historyText: { fontSize: 12, lineHeight: 18 },
 });

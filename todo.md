@@ -800,3 +800,9 @@
 - [x] Feature: WHOOP live data on Home screen — sleep hours, recovery score, HRV in cards
 - [x] Feature: Recovery-gated workout warning — red banner when WHOOP recovery < 33%
 - [x] Feature: Re-authenticate WHOOP button — silent token refresh + manual re-auth for expired tokens
+
+## Session 8 Features
+- [ ] Feature: WHOOP strain vs volume scatter plot in Progress tab
+- [ ] Feature: 7-day recovery sparkline on Home screen WHOOP card
+- [ ] Feature: Smart yellow-recovery workout modification (AI suggests reduced volume)
+- [ ] Feature: Rename AI Coach to Agent Zaki with full persona throughout the app

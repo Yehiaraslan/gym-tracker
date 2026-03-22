@@ -7,6 +7,7 @@ import * as whoopService from "./whoopService";
 import * as whoopStateDb from "./whoopStateDb";
 import * as whoopDb from "./whoopDb";
 import * as aiCoach from "./ai-coaching-service";
+import * as zaki from "./zakiService";
 import * as dataSync from "./data-sync-service";
 
 // All WHOOP and sync procedures use a device-level identifier (deviceId) instead of
@@ -326,6 +327,103 @@ export const appRouter = router({
   }),
 
   // ── AI Coaching ───────────────────────────────────────────
+  zaki: router({
+    dailyCoaching: publicProcedure
+      .input(z.object({
+        recoveryScore: z.number().optional(),
+        hrv: z.number().optional(),
+        sleepHours: z.number().optional(),
+        sleepQuality: z.number().optional(),
+        todaySession: z.string().optional(),
+        lastWorkout: z.object({ name: z.string(), volume: z.number(), date: z.string() }).optional(),
+        recentWorkouts: z.array(z.object({ name: z.string(), volume: z.number(), date: z.string(), notes: z.string().optional() })).optional(),
+        todayCalories: z.number().optional(),
+        todayProtein: z.number().optional(),
+        calorieTarget: z.number().optional(),
+        proteinTarget: z.number().optional(),
+        mesocycleWeek: z.number().optional(),
+        totalWeeks: z.number().optional(),
+        isDeloadWeek: z.boolean().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const response = await zaki.getZakiDailyCoaching(input);
+        return { response };
+      }),
+
+    workoutModification: publicProcedure
+      .input(z.object({
+        sessionName: z.string(),
+        recoveryScore: z.number(),
+        sleepHours: z.number().optional(),
+        exercises: z.array(z.object({
+          name: z.string(),
+          sets: z.number(),
+          reps: z.string(),
+          weight: z.number().optional(),
+        })),
+      }))
+      .mutation(async ({ input }) => {
+        const response = await zaki.getZakiWorkoutModification(input);
+        return { response };
+      }),
+
+    ask: publicProcedure
+      .input(z.object({ message: z.string() }))
+      .mutation(async ({ input }) => {
+        const response = await zaki.askZaki(input.message);
+        return { response };
+      }),
+
+    sessionDebrief: publicProcedure
+      .input(z.object({
+        sessionNotesContext: z.string(),
+        userContext: z.string(),
+      }))
+      .mutation(async ({ input }) => {
+        const prompt = [
+          '**SESSION DEBRIEF REQUEST — GYM TRACKER**',
+          '',
+          'Analyze the following workout session notes and identify patterns across sessions.',
+          '',
+          '--- SESSION NOTES ---',
+          input.sessionNotesContext,
+          '',
+          '--- TRAINING CONTEXT ---',
+          input.userContext,
+          '',
+          'Provide a structured debrief with:',
+          '1. PATTERN SUMMARY (2-3 sentences synthesizing what you observe)',
+          '2. PHYSICAL PATTERNS (bullet list of recurring physical sensations, pain, tightness, energy)',
+          '3. MENTAL PATTERNS (bullet list of mental/motivation/focus patterns)',
+          '4. COACH RECOMMENDATION (one concrete, specific action to take)',
+          '5. WATCH OUT (one thing to monitor going forward)',
+        ].join('\n');
+        const response = await zaki.askZaki(prompt);
+        return { response };
+      }),
+
+    weeklyDigest: publicProcedure
+      .input(z.object({ userContext: z.string() }))
+      .mutation(async ({ input }) => {
+        const prompt = [
+          '**WEEKLY TRAINING DIGEST REQUEST**',
+          '',
+          input.userContext,
+          '',
+          'Give me a comprehensive weekly performance review. Include:',
+          '- Overall grade (A/B/C/D/F) with brief justification',
+          '- Week summary (2-3 sentences)',
+          '- Top 3 strength highlights',
+          '- Top 3 areas to improve',
+          '- Specific plan for next week',
+          '',
+          'Be direct, data-driven, and actionable.',
+        ].join('\n');
+        const response = await zaki.askZaki(prompt);
+        return { response };
+      }),
+  }),
+
   aiCoaching: router({
     dailyCoaching: publicProcedure
       .input(z.object({ userContext: z.string() }))
