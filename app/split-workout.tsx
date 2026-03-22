@@ -55,6 +55,7 @@ import {
   loadActiveWorkout,
   clearActiveWorkout,
 } from '@/lib/active-workout-store';
+import { trpc } from '@/lib/trpc';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -103,6 +104,37 @@ export default function SplitWorkoutScreen() {
     prs: { exercise: string; weight: number; reps: number; e1rm: number }[];
     previousVolume?: number;
   } | null>(null);
+
+  // Zaki workout modification (yellow recovery)
+  const [zakiModifLoading, setZakiModifLoading] = useState(false);
+  const [zakiModifResult, setZakiModifResult] = useState<string | null>(null);
+  const [showZakiModif, setShowZakiModif] = useState(false);
+  const zakiWorkoutModifMutation = trpc.zaki.workoutModification.useMutation();
+
+  const handleZakiModification = async () => {
+    if (!recovery) return;
+    setZakiModifLoading(true);
+    setShowZakiModif(true);
+    try {
+      const exList = exercises.map(ex => ({
+        name: ex.name,
+        sets: isDeload ? Math.ceil(ex.sets / 2) : ex.sets,
+        reps: `${ex.repsMin}-${ex.repsMax}`,
+        weight: weightSuggestions[ex.name]?.weight,
+      }));
+      const result = await zakiWorkoutModifMutation.mutateAsync({
+        sessionName: SESSION_NAMES[sessionType],
+        recoveryScore: recovery.recoveryScore,
+        sleepHours: recovery.sleepScore ? recovery.sleepScore / 10 : undefined, // sleepScore 0-100 → approximate hours
+        exercises: exList,
+      });
+      setZakiModifResult(result.response);
+    } catch (e) {
+      setZakiModifResult('Zaki is unavailable right now. Trust your body and reduce load by 10-15%.');
+    } finally {
+      setZakiModifLoading(false);
+    }
+  };
 
   // Scroll ref
   const scrollRef = useRef<ScrollView>(null);
@@ -727,6 +759,25 @@ export default function SplitWorkoutScreen() {
             </View>
           )}
 
+          {/* Zaki Modification Button — shown only when recovery is yellow (34-66%) */}
+          {recovery && recovery.recoveryScore >= 34 && recovery.recoveryScore < 67 && (
+            <View className="px-6 mb-3">
+              <TouchableOpacity
+                onPress={handleZakiModification}
+                className="py-3 rounded-2xl flex-row items-center justify-center"
+                style={{ backgroundColor: colors.surface, borderWidth: 1.5, borderColor: '#F59E0B' }}
+              >
+                <Text style={{ fontSize: 18 }}>🤖</Text>
+                <Text className="font-semibold ml-2" style={{ color: '#F59E0B' }}>
+                  Ask Zaki to Modify Session
+                </Text>
+              </TouchableOpacity>
+              <Text className="text-xs text-muted text-center mt-1">
+                Recovery {Math.round(recovery.recoveryScore)}% — Zaki will adapt this session to your body
+              </Text>
+            </View>
+          )}
+
           {/* Start button */}
           <View className="px-6">
             <TouchableOpacity
@@ -740,7 +791,7 @@ export default function SplitWorkoutScreen() {
           </View>
         </ScrollView>
 
-        {/* Video Modal */}
+         {/* Video Modal */}
         <VideoModal
           visible={showVideoModal}
           exercise={videoExercise}
@@ -749,10 +800,88 @@ export default function SplitWorkoutScreen() {
           onTogglePlay={() => setVideoPlaying(p => !p)}
           colors={colors}
         />
+
+        {/* Zaki Modification Result Modal */}
+        <Modal
+          visible={showZakiModif}
+          animationType="slide"
+          transparent
+          onRequestClose={() => setShowZakiModif(false)}
+        >
+          <View style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            justifyContent: 'flex-end',
+          }}>
+            <View style={{
+              backgroundColor: colors.background,
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              padding: 24,
+              maxHeight: '80%',
+            }}>
+              {/* Header */}
+              <View className="flex-row items-center justify-between mb-4">
+                <View className="flex-row items-center gap-2">
+                  <Text style={{ fontSize: 22 }}>🤖</Text>
+                  <Text className="text-lg font-bold text-foreground">Zaki’s Modification</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setShowZakiModif(false)}
+                  style={{ padding: 4 }}
+                >
+                  <IconSymbol name="xmark" size={20} color={colors.muted} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Recovery badge */}
+              {recovery && (
+                <View className="flex-row items-center mb-4 px-3 py-2 rounded-xl" style={{ backgroundColor: '#F59E0B22' }}>
+                  <Text className="text-sm font-semibold" style={{ color: '#F59E0B' }}>
+                    ⚡ Recovery {Math.round(recovery.recoveryScore)}% — Yellow Zone
+                  </Text>
+                </View>
+              )}
+
+              {/* Content */}
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {zakiModifLoading ? (
+                  <View className="items-center py-8">
+                    <Text className="text-muted text-base">Zaki is analysing your session…</Text>
+                  </View>
+                ) : (
+                  <Text className="text-foreground text-sm leading-relaxed" style={{ lineHeight: 22 }}>
+                    {zakiModifResult}
+                  </Text>
+                )}
+                <View style={{ height: 24 }} />
+              </ScrollView>
+
+              {/* Action buttons */}
+              {!zakiModifLoading && (
+                <View className="flex-row gap-3 mt-2">
+                  <TouchableOpacity
+                    onPress={() => setShowZakiModif(false)}
+                    className="flex-1 py-3 rounded-xl items-center"
+                    style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+                  >
+                    <Text className="text-foreground font-semibold">Got It</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => { setShowZakiModif(false); startWorkout(); }}
+                    className="flex-1 py-3 rounded-xl items-center"
+                    style={{ backgroundColor: sessionColor }}
+                  >
+                    <Text className="text-white font-semibold">Start Modified</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          </View>
+        </Modal>
       </ScreenContainer>
     );
   }
-
   // ---- Active workout ----
   return (
     <ScreenContainer className="flex-1">

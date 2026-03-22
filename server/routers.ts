@@ -8,6 +8,7 @@ import * as whoopStateDb from "./whoopStateDb";
 import * as whoopDb from "./whoopDb";
 import * as aiCoach from "./ai-coaching-service";
 import * as zaki from "./zakiService";
+import * as zakiDigest from "./zakiDailyDigest";
 import * as dataSync from "./data-sync-service";
 
 // All WHOOP and sync procedures use a device-level identifier (deviceId) instead of
@@ -367,11 +368,15 @@ export const appRouter = router({
         return { response };
       }),
 
+    // Chat with session continuity — pass zakiSessionId to maintain conversation context
     ask: publicProcedure
-      .input(z.object({ message: z.string() }))
+      .input(z.object({
+        message: z.string(),
+        zakiSessionId: z.string().optional(),
+      }))
       .mutation(async ({ input }) => {
-        const response = await zaki.askZaki(input.message);
-        return { response };
+        const result = await zaki.askZaki(input.message, input.zakiSessionId);
+        return { response: result.response, zakiSessionId: result.zakiSessionId };
       }),
 
     sessionDebrief: publicProcedure
@@ -398,8 +403,8 @@ export const appRouter = router({
           '4. COACH RECOMMENDATION (one concrete, specific action to take)',
           '5. WATCH OUT (one thing to monitor going forward)',
         ].join('\n');
-        const response = await zaki.askZaki(prompt);
-        return { response };
+        const result = await zaki.askZaki(prompt);
+        return { response: result.response };
       }),
 
     weeklyDigest: publicProcedure
@@ -419,8 +424,15 @@ export const appRouter = router({
           '',
           'Be direct, data-driven, and actionable.',
         ].join('\n');
-        const response = await zaki.askZaki(prompt);
-        return { response };
+        const result = await zaki.askZaki(prompt);
+        return { response: result.response };
+      }),
+
+    // Manually trigger the daily digest (for testing or on-demand)
+    triggerDailyDigest: publicProcedure
+      .mutation(async () => {
+        const result = await zakiDigest.triggerDailyDigestNow();
+        return result;
       }),
   }),
 

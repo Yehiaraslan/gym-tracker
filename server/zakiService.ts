@@ -2,11 +2,11 @@
  * Agent Zaki Service
  * Connects to the openclaw-bridge MCP server to communicate with Agent Zaki.
  * Handles session initialization, message sending, and response parsing.
+ * Supports conversation continuity via Zaki session_id.
  */
 
 import https from 'https';
 
-const MCP_URL = 'https://mcp.alibondabo.com/mcp';
 const MCP_TOKEN = 'pgVQg9o_Hza_FxvGd5T13xHtCa-XrYDuli3qMFt1fHI';
 
 interface McpResponse {
@@ -59,7 +59,7 @@ function parseSSEText(raw: string): string | null {
   return null;
 }
 
-async function initSession(): Promise<string> {
+async function initMcpSession(): Promise<string> {
   const init = await mcpRequest('initialize', {
     protocolVersion: '2024-11-05',
     capabilities: {},
@@ -69,7 +69,6 @@ async function initSession(): Promise<string> {
   // Extract session ID — response header may contain multiple values
   let sessionId = init.sessionId;
   if (sessionId?.includes(',')) {
-    // Pick the UUID-format value
     sessionId = sessionId.split(',').map((s) => s.trim()).find((s) => /^[0-9a-f-]{36}$/.test(s));
   }
   if (!sessionId) throw new Error('Failed to get MCP session ID from openclaw-bridge');
@@ -81,20 +80,51 @@ async function initSession(): Promise<string> {
 }
 
 /**
- * Ask Agent Zaki a question with full user context.
- * Automatically manages MCP session lifecycle.
+ * Ask Agent Zaki a question.
+ *
+ * @param message - The message to send to Zaki
+ * @param zakiSessionId - Optional Zaki conversation session ID for continuity.
+ *   Pass the same ID across calls to maintain context within a conversation.
+ * @returns { response, zakiSessionId } — response text and session ID to reuse
  */
-export async function askZaki(message: string): Promise<string> {
-  const sessionId = await initSession();
+export async function askZaki(
+  message: string,
+  zakiSessionId?: string,
+): Promise<{ response: string; zakiSessionId: string }> {
+  const mcpSessionId = await initMcpSession();
 
   const resp = await mcpRequest('tools/call', {
     name: 'ask_agent',
-    arguments: { agent: 'zaki', message },
-  }, sessionId);
+    arguments: {
+      agent: 'zaki',
+      message,
+      ...(zakiSessionId ? { session_id: zakiSessionId } : {}),
+    },
+  }, mcpSessionId);
 
-  const text = parseSSEText(resp.data);
-  if (!text) throw new Error('No response from Agent Zaki');
-  return text;
+  const rawText = parseSSEText(resp.data);
+  if (!rawText) throw new Error('No response from Agent Zaki');
+
+  // Try to extract session_id from response metadata
+  let returnedSessionId = zakiSessionId ?? '';
+  try {
+    const lines = resp.data.split('\n');
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        const parsed = JSON.parse(line.slice(6));
+        const sid =
+          parsed?.result?.session_id ??
+          parsed?.result?.metadata?.session_id ??
+          parsed?.session_id;
+        if (sid) { returnedSessionId = sid; break; }
+      }
+    }
+  } catch {}
+
+  // Fallback: generate a stable session ID for this conversation
+  if (!returnedSessionId) returnedSessionId = `gym-zaki-${Date.now()}`;
+
+  return { response: rawText, zakiSessionId: returnedSessionId };
 }
 
 /**
@@ -118,7 +148,6 @@ export async function getZakiDailyCoaching(context: {
 }): Promise<string> {
   const lines: string[] = ['**DAILY COACHING REQUEST — GYM TRACKER APP**', ''];
 
-  // Recovery & sleep
   if (context.recoveryScore !== undefined) {
     const status = context.recoveryScore >= 67 ? 'GREEN ✅' : context.recoveryScore >= 34 ? 'YELLOW ⚠️' : 'RED 🔴';
     lines.push(`**Recovery:** ${context.recoveryScore}% (${status})`);
@@ -126,19 +155,14 @@ export async function getZakiDailyCoaching(context: {
   if (context.hrv !== undefined) lines.push(`**HRV:** ${context.hrv}ms`);
   if (context.sleepHours !== undefined) lines.push(`**Sleep:** ${context.sleepHours.toFixed(1)}h${context.sleepQuality ? ` (quality: ${context.sleepQuality}%)` : ''}`);
 
-  // Today's planned session
-  if (context.todaySession) {
-    lines.push(`**Today's planned session:** ${context.todaySession}`);
-  }
+  if (context.todaySession) lines.push(`**Today's planned session:** ${context.todaySession}`);
   if (context.isDeloadWeek) lines.push('**⚠️ This is a DELOAD week**');
   if (context.mesocycleWeek) lines.push(`**Mesocycle:** Week ${context.mesocycleWeek}${context.totalWeeks ? ` of ${context.totalWeeks}` : ''}`);
 
-  // Last workout
   if (context.lastWorkout) {
     lines.push(`**Last workout:** ${context.lastWorkout.name} on ${context.lastWorkout.date} — ${context.lastWorkout.volume.toLocaleString()}kg total volume`);
   }
 
-  // Recent workouts with notes
   if (context.recentWorkouts && context.recentWorkouts.length > 0) {
     lines.push('**Recent sessions:**');
     for (const w of context.recentWorkouts.slice(0, 3)) {
@@ -148,7 +172,6 @@ export async function getZakiDailyCoaching(context: {
     }
   }
 
-  // Nutrition
   if (context.todayCalories !== undefined) {
     lines.push(`**Today's nutrition:** ${context.todayCalories}kcal${context.calorieTarget ? ` / ${context.calorieTarget}kcal target` : ''}, ${context.todayProtein ?? 0}g protein${context.proteinTarget ? ` / ${context.proteinTarget}g target` : ''}`);
   }
@@ -156,7 +179,8 @@ export async function getZakiDailyCoaching(context: {
   lines.push('');
   lines.push('Give me your coaching decision for today. Be direct and specific — what should I do, how should I train, and what should I focus on nutritionally?');
 
-  return askZaki(lines.join('\n'));
+  const result = await askZaki(lines.join('\n'));
+  return result.response;
 }
 
 /**
@@ -181,5 +205,6 @@ export async function getZakiWorkoutModification(context: {
     `Give me a modified version of this session that respects my yellow recovery. Be specific: which exercises to keep, which to cut, what % to reduce load, and target total volume range.`,
   ].filter(Boolean);
 
-  return askZaki(lines.join('\n'));
+  const result = await askZaki(lines.join('\n'));
+  return result.response;
 }

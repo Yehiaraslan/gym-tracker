@@ -30,6 +30,7 @@ const DAILY_CACHE_KEY = '@zaki_daily_cache';
 const DAILY_CACHE_TTL = 4 * 60 * 60 * 1000; // 4 hours
 const DEBRIEF_HISTORY_KEY = '@zaki_debrief_history';
 const CHAT_HISTORY_KEY = '@zaki_chat_history';
+const ZAKI_SESSION_KEY = '@zaki_session_id';
 const MAX_DEBRIEF_HISTORY = 5;
 const MAX_CHAT_HISTORY = 20;
 
@@ -77,6 +78,8 @@ export default function AICoachingDashboard() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
+  // Zaki conversation session ID — persisted so context survives app restarts
+  const zakiSessionIdRef = useRef<string | undefined>(undefined);
 
   // ── Weekly digest state ───────────────────────────────────
   const [weeklyResponse, setWeeklyResponse] = useState<string | null>(null);
@@ -88,6 +91,24 @@ export default function AICoachingDashboard() {
   const zakiDebriefMutation = trpc.zaki.sessionDebrief.useMutation();
   const zakiAskMutation = trpc.zaki.ask.useMutation();
   const zakiWeeklyMutation = trpc.zaki.weeklyDigest.useMutation();
+  const triggerDigestMutation = trpc.zaki.triggerDailyDigest.useMutation();
+  const [digestTriggerLoading, setDigestTriggerLoading] = useState(false);
+  const [digestTriggerResult, setDigestTriggerResult] = useState<string | null>(null);
+
+  const handleTriggerDigest = useCallback(async () => {
+    setDigestTriggerLoading(true);
+    setDigestTriggerResult(null);
+    try {
+      const result = await triggerDigestMutation.mutateAsync();
+      setDigestTriggerResult(result.success
+        ? `✅ Sent! Preview: "${result.preview.substring(0, 100)}…"`
+        : '⚠️ Zaki responded but notification delivery failed.');
+    } catch {
+      setDigestTriggerResult('❌ Failed to reach Zaki. Check server logs.');
+    } finally {
+      setDigestTriggerLoading(false);
+    }
+  }, [triggerDigestMutation]);
 
   // ── Load persisted data ───────────────────────────────────
   const loadPersistedData = useCallback(async () => {
@@ -104,6 +125,8 @@ export default function AICoachingDashboard() {
       if (debriefRaw) setDebriefHistory(JSON.parse(debriefRaw));
       const chatRaw = await AsyncStorage.getItem(CHAT_HISTORY_KEY);
       if (chatRaw) setChatMessages(JSON.parse(chatRaw));
+      const savedSessionId = await AsyncStorage.getItem(ZAKI_SESSION_KEY);
+      if (savedSessionId) zakiSessionIdRef.current = savedSessionId;
     } catch {}
   }, []);
 
@@ -246,7 +269,15 @@ export default function AICoachingDashboard() {
       const snapshot = await buildUserSnapshot();
       const contextLine = snapshotToPromptContext(snapshot).split('\n').slice(0, 6).join('\n');
       const fullMessage = `[Context]\n${contextLine}\n\n[Question]\n${text}`;
-      const result = await zakiAskMutation.mutateAsync({ message: fullMessage });
+      const result = await zakiAskMutation.mutateAsync({
+        message: fullMessage,
+        zakiSessionId: zakiSessionIdRef.current,
+      });
+      // Persist the session ID for conversation continuity
+      if (result.zakiSessionId) {
+        zakiSessionIdRef.current = result.zakiSessionId;
+        await AsyncStorage.setItem(ZAKI_SESSION_KEY, result.zakiSessionId);
+      }
       const zakiMsg: ChatMessage = {
         id: `z_${Date.now()}`,
         role: 'zaki',
@@ -676,6 +707,7 @@ export default function AICoachingDashboard() {
                     </TouchableOpacity>
                   </View>
                 ) : (
+                  <>
                   <View style={[styles.emptyCard, { backgroundColor: colors.surface }]}>
                     <Text style={{ fontSize: 48, textAlign: 'center' }}>📊</Text>
                     <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
@@ -691,6 +723,31 @@ export default function AICoachingDashboard() {
                       <Text style={styles.ctaBtnText}>Generate Weekly Digest</Text>
                     </TouchableOpacity>
                   </View>
+
+                  {/* Daily Digest Test Panel */}
+                  <View style={[styles.emptyCard, { backgroundColor: colors.surface, marginTop: 12 }]}>
+                    <Text style={{ fontSize: 32, textAlign: 'center' }}>🔔</Text>
+                    <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+                      Morning Brief Notification
+                    </Text>
+                    <Text style={[styles.emptySubtitle, { color: colors.muted }]}>
+                      Auto-fires daily at 07:00 Dubai time. Tap below to send one now.
+                    </Text>
+                    <TouchableOpacity
+                      onPress={handleTriggerDigest}
+                      style={[styles.ctaBtn, { backgroundColor: '#F59E0B', opacity: digestTriggerLoading ? 0.6 : 1 }]}
+                    >
+                      <Text style={styles.ctaBtnText}>
+                        {digestTriggerLoading ? 'Sending…' : 'Send Morning Brief Now'}
+                      </Text>
+                    </TouchableOpacity>
+                    {digestTriggerResult && (
+                      <Text style={{ color: colors.muted, fontSize: 12, textAlign: 'center', marginTop: 8, lineHeight: 18 }}>
+                        {digestTriggerResult}
+                      </Text>
+                    )}
+                  </View>
+                  </>
                 )}
               </View>
             )}

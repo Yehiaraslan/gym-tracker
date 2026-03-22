@@ -8,6 +8,7 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import * as whoopStateDb from "../whoopStateDb";
 import * as whoopService from "../whoopService";
+import { startDailyDigestScheduler } from "../zakiDailyDigest";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise((resolve) => {
@@ -169,3 +170,6 @@ async function startServer() {
 }
 
 startServer().catch(console.error);
+
+// Start Zaki daily digest scheduler (fires at 07:00 Dubai time every day)
+startDailyDigestScheduler();

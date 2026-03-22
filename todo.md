@@ -806,3 +806,8 @@
 - [ ] Feature: 7-day recovery sparkline on Home screen WHOOP card
 - [ ] Feature: Smart yellow-recovery workout modification (AI suggests reduced volume)
 - [ ] Feature: Rename AI Coach to Agent Zaki with full persona throughout the app
+
+## Agent Zaki Enhancements
+- [x] Zaki chat session continuity (pass session_id across messages)
+- [x] Zaki workout modification button in active workout screen (yellow recovery)
+- [x] Daily push notification digest via server scheduler (7am Zaki coaching)
