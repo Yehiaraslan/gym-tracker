@@ -64,6 +64,14 @@ export async function exchangeCodeForTokens(code: string, userOpenId: string) {
   }
 
   const data = await response.json();
+  console.log("[WHOOP] Token exchange response keys:", Object.keys(data));
+
+  // Validate that the response contains the expected token fields
+  if (!data.access_token || !data.refresh_token) {
+    console.error("[WHOOP] Token exchange response missing tokens:", JSON.stringify(data));
+    throw new Error(`WHOOP returned an invalid token response. Check that your redirect URI is registered correctly in the WHOOP developer portal.`);
+  }
+
   const expiresAt = Date.now() + (data.expires_in || 3600) * 1000;
 
   // Encrypt tokens before storing

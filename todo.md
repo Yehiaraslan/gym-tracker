@@ -766,3 +766,6 @@
 - [x] Bug: Home screen shows "Start Workout" after completing a session (streak/completion not updating)
 - [x] Bug: WHOOP OAuth callback fails with "Failed to connect WHOOP. Please try again."
 - [x] Bug: Nutrition food added but Home screen shows 0 calories
+
+## Session 3 Bug Fixes (continued)
+- [x] Bug: WHOOP "Failed to encrypt token" — access_token/refresh_token undefined due to redirect URI mismatch; added validation + better error message
