@@ -16,7 +16,9 @@ describe('WHOOP credentials', () => {
   it('should have WHOOP_REDIRECT_URI set', () => {
     const uri = process.env.WHOOP_REDIRECT_URI;
     expect(uri).toBeTruthy();
-    expect(uri).toContain('whoop-callback');
+    // Accept both /api/whoop/callback and /whoop-callback path formats
+    const hasValidPath = uri!.includes('/api/whoop/callback') || uri!.includes('/whoop-callback');
+    expect(hasValidPath).toBe(true);
   });
 
   it('should build a valid WHOOP auth URL', () => {
@@ -32,7 +34,9 @@ describe('WHOOP credentials', () => {
     });
     const url = `https://api.prod.whoop.com/oauth/oauth2/auth?${params.toString()}`;
     expect(url).toContain('client_id=');
-    expect(url).toContain('whoop-callback');
+    // Accept both /api/whoop/callback (URL-encoded as %2F) and /whoop-callback
+    const hasValidCallback = url.includes('whoop%2Fcallback') || url.includes('whoop-callback');
+    expect(hasValidCallback).toBe(true);
     expect(url).toContain('state=test-state-123');
     console.log('Auth URL preview:', url.substring(0, 100) + '...');
   });

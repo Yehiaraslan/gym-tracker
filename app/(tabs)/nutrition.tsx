@@ -475,6 +475,7 @@ export default function NutritionTab() {
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
+            style={{ height: 48, flexShrink: 0 }}
             contentContainerStyle={s.chips}
           >
             {CATEGORIES.map(cat => (
