@@ -3,7 +3,7 @@
 // ============================================================
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { trpcClient } from './trpc';
+import { syncNutritionDay } from './db-sync-fetch';
 import { isTrainingDay, NUTRITION_TARGETS, SUPPLEMENTS } from './training-program';
 
 // ---- Types ----
@@ -85,32 +85,33 @@ export async function saveDailyNutrition(nutrition: DailyNutrition): Promise<voi
     await AsyncStorage.setItem(NUTRITION_KEY, JSON.stringify(parsed));
   } catch (_e) { /* ignore */ }
   // Mirror to cloud DB — fire-and-forget, never blocks UX
-  trpcClient.sync.upsertNutritionDay.mutate({
-    day: {
-      date: nutrition.date,
-      isTrainingDay: nutrition.isTrainingDay,
-      targetCalories: nutrition.targetCalories,
-      targetProtein: nutrition.targetProtein,
-      targetCarbs: nutrition.targetCarbs,
-      targetFat: nutrition.targetFat,
-      supplements: nutrition.supplementsChecked
-        ?.filter(s => s.taken)
-        .map(s => s.name)
-        .join(',') || null,
-      meals: nutrition.meals.map((food) => ({
-        id: food.id,
-        mealNumber: food.mealNumber,
-        foodName: food.foodName,
-        protein: food.protein,
-        carbs: food.carbs,
-        fat: food.fat,
-        calories: food.calories,
-        servingGrams: null,
-        timestamp: food.timestamp,
-      })),
-    },
-  }).catch((err: unknown) => {
-    console.warn('[DB Sync] Nutrition sync failed:', err);
+  const totals = nutrition.meals.reduce(
+    (acc, m) => ({ cal: acc.cal + m.calories, prot: acc.prot + m.protein, carb: acc.carb + m.carbs, fat: acc.fat + m.fat }),
+    { cal: 0, prot: 0, carb: 0, fat: 0 },
+  );
+  syncNutritionDay({
+    date: nutrition.date,
+    isTrainingDay: nutrition.isTrainingDay,
+    targetCalories: nutrition.targetCalories,
+    targetProtein: nutrition.targetProtein,
+    targetCarbs: nutrition.targetCarbs,
+    targetFat: nutrition.targetFat,
+    totalCalories: totals.cal,
+    totalProtein: totals.prot,
+    totalCarbs: totals.carb,
+    totalFat: totals.fat,
+    meals: nutrition.meals.map(food => ({
+      mealNumber: food.mealNumber,
+      foodName: food.foodName,
+      calories: food.calories,
+      protein: food.protein,
+      carbs: food.carbs,
+      fat: food.fat,
+      servingGrams: 100,
+      timestamp: food.timestamp,
+    })),
+    supplementsTaken: nutrition.supplementsChecked?.filter(s => s.taken).length ?? 0,
+    supplementsTotal: nutrition.supplementsChecked?.length ?? 0,
   });
 }
 

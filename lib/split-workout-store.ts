@@ -4,7 +4,7 @@
 // ============================================================
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { trpcClient } from './trpc';
+import { syncWorkoutSession, syncFormCoachSession } from './db-sync-fetch';
 import type { SessionType, ProgramExercise } from './training-program';
 import { PROGRAM_SESSIONS } from './training-program';
 import { epley1RM, suggestWeight, calculateVolumeLoad } from './fitness-utils';
@@ -56,33 +56,24 @@ export async function saveSplitWorkout(workout: SplitWorkoutSession): Promise<vo
   else workouts.push(workout);
   await AsyncStorage.setItem(SPLIT_WORKOUTS_KEY, JSON.stringify(workouts));
   // Mirror to cloud DB — fire-and-forget, never blocks UX
-  trpcClient.sync.upsertWorkout.mutate({
-    session: {
-      id: workout.id,
-      date: workout.date,
-      sessionType: workout.sessionType,
-      startTime: workout.startTime,
-      endTime: workout.endTime,
-      completed: workout.completed,
-      durationMinutes: workout.durationMinutes,
-      totalVolumeKg: workout.totalVolume,
-      exercises: workout.exercises.map((ex, exIdx) => ({
-        exerciseName: ex.exerciseName,
-        exerciseOrder: exIdx,
-        skipped: ex.skipped ?? false,
-        skipReason: ex.skipReason,
-        sets: ex.sets.map((s, sIdx) => ({
-          setNumber: sIdx + 1,
-          weightKg: s.weightKg,
-          reps: s.reps,
-          rpe: s.rpe,
-          isWarmup: s.isWarmup ?? false,
-          timestamp: s.timestamp,
-        })),
+  syncWorkoutSession({
+    sessionId: workout.id,
+    splitDay: workout.sessionType,
+    startTime: workout.startTime ?? workout.date,
+    endTime: workout.endTime ?? workout.date,
+    durationMinutes: workout.durationMinutes ?? 0,
+    totalVolume: workout.totalVolume ?? 0,
+    exercises: workout.exercises.map(ex => ({
+      exerciseName: ex.exerciseName,
+      muscleGroup: '',
+      sets: ex.sets.map((s, sIdx) => ({
+        setNumber: sIdx + 1,
+        weightKg: s.weightKg,
+        reps: s.reps,
+        rpe: s.rpe,
+        completedAt: s.timestamp ?? workout.date,
       })),
-    },
-  }).catch((err: unknown) => {
-    console.warn('[DB Sync] Workout sync failed:', err);
+    })),
   });
 }
 
@@ -288,20 +279,18 @@ export async function saveFormCoachSession(session: FormCoachSession): Promise<v
   const sessions = await getFormCoachSessions();
   sessions.push(session);
   await AsyncStorage.setItem(FORM_COACH_SESSIONS_KEY, JSON.stringify(sessions));
-  // Mirror to cloud DB
-  trpcClient.sync.upsertFormCoach.mutate({
-    session: {
-      id: session.id,
-      exerciseName: session.exerciseName,
-      date: session.date,
-      totalReps: session.reps,
-      avgFormScore: session.formScore,
-      peakFormScore: session.formScore,
-      issues: session.topIssues?.join(', '),
-      durationSeconds: session.durationSeconds,
-    },
-  }).catch((err: unknown) => {
-    console.warn('[DB Sync] Form coach sync failed:', err);
+  // Mirror to cloud DB — fire-and-forget
+  syncFormCoachSession({
+    sessionId: session.id,
+    exerciseName: session.exerciseName,
+    date: session.date,
+    totalReps: session.reps,
+    avgFormScore: session.formScore,
+    peakFormScore: session.formScore,
+    lowFormScore: session.formScore,
+    durationSeconds: session.durationSeconds ?? 0,
+    repScores: [],
+    feedback: session.topIssues ?? [],
   });
 }
 

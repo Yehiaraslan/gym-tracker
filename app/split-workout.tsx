@@ -49,6 +49,11 @@ import { recordWorkout } from '@/lib/streak-tracker';
 import { generateId } from '@/lib/types';
 import { getExerciseByName } from '@/lib/data/exercise-library';
 import { getTodayRecoveryData, type RecoveryData } from '@/lib/whoop-recovery-service';
+import {
+  saveActiveWorkout,
+  loadActiveWorkout,
+  clearActiveWorkout,
+} from '@/lib/active-workout-store';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -99,6 +104,42 @@ export default function SplitWorkoutScreen() {
 
   // Scroll ref
   const scrollRef = useRef<ScrollView>(null);
+  // Resume flag — prevents double-loading
+  const resumeChecked = useRef(false);
+
+  // On mount: check for a resumable workout
+  useEffect(() => {
+    if (resumeChecked.current || sessionType === 'rest') return;
+    resumeChecked.current = true;
+    (async () => {
+      const saved = await loadActiveWorkout();
+      if (!saved || !saved.started || saved.sessionType !== sessionType) return;
+      Alert.alert(
+        'Resume Workout?',
+        `You have an in-progress ${SESSION_NAMES[saved.sessionType]} workout. Continue where you left off?`,
+        [
+          {
+            text: 'Start Fresh',
+            style: 'destructive',
+            onPress: async () => { await clearActiveWorkout(); },
+          },
+          {
+            text: 'Resume',
+            style: 'default',
+            onPress: () => {
+              setStarted(saved.started);
+              setStartTime(new Date(saved.startTime));
+              setExerciseLogs(saved.exerciseLogs);
+              setActiveExerciseIndex(saved.activeExerciseIndex);
+              setElapsed(saved.elapsed);
+            },
+          },
+        ],
+        { cancelable: false }
+      );
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Load previous session + suggestions
   useEffect(() => {
@@ -192,6 +233,23 @@ export default function SplitWorkoutScreen() {
     setIsResting(true);
     setRestExerciseName(exercise.name);
 
+    // Persist workout state for resume-on-back
+    setExerciseLogs(current => {
+      if (started && startTime) {
+        saveActiveWorkout({
+          sessionType,
+          isDeload,
+          started: true,
+          startTime: startTime.toISOString(),
+          exerciseLogs: current,
+          activeExerciseIndex: exerciseIndex,
+          elapsed,
+          savedAt: new Date().toISOString(),
+        }).catch(() => {});
+      }
+      return current;
+    });
+
     // Check progressive overload
     const displaySets = isDeload ? Math.ceil(exercises[exerciseIndex].sets / 2) : exercises[exerciseIndex].sets;
     const currentSets = exerciseLogs[exerciseIndex]?.sets || [];
@@ -272,6 +330,7 @@ export default function SplitWorkoutScreen() {
 
     await saveSplitWorkout(session);
     await recordWorkout();
+    await clearActiveWorkout(); // Remove persisted state after completion
 
     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 

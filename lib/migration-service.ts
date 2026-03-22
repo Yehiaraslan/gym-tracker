@@ -4,7 +4,12 @@
 // ============================================================
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { trpcClient } from './trpc';
+import {
+  syncWorkoutSession,
+  syncNutritionDay,
+  syncStreak,
+  syncFormCoachSession,
+} from './db-sync-fetch';
 
 const MIGRATION_KEY = '@gym_tracker_db_migration_v1';
 
@@ -49,7 +54,6 @@ async function migrateWorkouts(): Promise<void> {
       exercises: Array<{
         exerciseName: string;
         skipped?: boolean;
-        skipReason?: string;
         sets: Array<{
           weightKg: number;
           reps: number;
@@ -61,31 +65,24 @@ async function migrateWorkouts(): Promise<void> {
     }> = JSON.parse(raw);
 
     for (const session of sessions) {
-      await trpcClient.sync.upsertWorkout.mutate({
-        session: {
-          id: session.id,
-          date: session.date,
-          sessionType: session.sessionType,
-          startTime: session.startTime,
-          endTime: session.endTime,
-          completed: session.completed,
-          durationMinutes: session.durationMinutes,
-          totalVolumeKg: session.totalVolume,
-          exercises: session.exercises.map((ex, exIdx) => ({
-            exerciseName: ex.exerciseName,
-            exerciseOrder: exIdx,
-            skipped: ex.skipped ?? false,
-            skipReason: ex.skipReason,
-            sets: ex.sets.map((s, sIdx) => ({
-              setNumber: sIdx + 1,
-              weightKg: s.weightKg,
-              reps: s.reps,
-              rpe: s.rpe,
-              isWarmup: s.isWarmup ?? false,
-              timestamp: s.timestamp,
-            })),
+      syncWorkoutSession({
+        sessionId: session.id,
+        splitDay: session.sessionType,
+        startTime: session.startTime ?? session.date,
+        endTime: session.endTime ?? session.date,
+        durationMinutes: session.durationMinutes ?? 0,
+        totalVolume: session.totalVolume ?? 0,
+        exercises: session.exercises.map(ex => ({
+          exerciseName: ex.exerciseName,
+          muscleGroup: '',
+          sets: ex.sets.map((s, sIdx) => ({
+            setNumber: sIdx + 1,
+            weightKg: s.weightKg,
+            reps: s.reps,
+            rpe: s.rpe,
+            completedAt: s.timestamp ?? session.date,
           })),
-        },
+        })),
       });
     }
     console.log(`[Migration] Migrated ${sessions.length} workout sessions.`);
@@ -107,7 +104,6 @@ async function migrateNutrition(): Promise<void> {
       targetFat: number;
       supplementsChecked: Array<{ name: string; taken: boolean }>;
       meals: Array<{
-        id: string;
         mealNumber: 1 | 2 | 3 | 4 | 5;
         foodName: string;
         protein: number;
@@ -119,30 +115,33 @@ async function migrateNutrition(): Promise<void> {
     }> = JSON.parse(raw);
 
     for (const day of Object.values(allDays)) {
-      await trpcClient.sync.upsertNutritionDay.mutate({
-        day: {
-          date: day.date,
-          isTrainingDay: day.isTrainingDay,
-          targetCalories: day.targetCalories,
-          targetProtein: day.targetProtein,
-          targetCarbs: day.targetCarbs,
-          targetFat: day.targetFat,
-          supplements: day.supplementsChecked
-            ?.filter(s => s.taken)
-            .map(s => s.name)
-            .join(',') || null,
-          meals: day.meals.map(food => ({
-            id: food.id,
-            mealNumber: food.mealNumber,
-            foodName: food.foodName,
-            protein: food.protein,
-            carbs: food.carbs,
-            fat: food.fat,
-            calories: food.calories,
-            servingGrams: null,
-            timestamp: food.timestamp,
-          })),
-        },
+      const totals = day.meals.reduce(
+        (acc, m) => ({ cal: acc.cal + m.calories, prot: acc.prot + m.protein, carb: acc.carb + m.carbs, fat: acc.fat + m.fat }),
+        { cal: 0, prot: 0, carb: 0, fat: 0 },
+      );
+      syncNutritionDay({
+        date: day.date,
+        isTrainingDay: day.isTrainingDay,
+        targetCalories: day.targetCalories,
+        targetProtein: day.targetProtein,
+        targetCarbs: day.targetCarbs,
+        targetFat: day.targetFat,
+        totalCalories: totals.cal,
+        totalProtein: totals.prot,
+        totalCarbs: totals.carb,
+        totalFat: totals.fat,
+        meals: day.meals.map(food => ({
+          mealNumber: food.mealNumber,
+          foodName: food.foodName,
+          calories: food.calories,
+          protein: food.protein,
+          carbs: food.carbs,
+          fat: food.fat,
+          servingGrams: 100,
+          timestamp: food.timestamp,
+        })),
+        supplementsTaken: day.supplementsChecked?.filter(s => s.taken).length ?? 0,
+        supplementsTotal: day.supplementsChecked?.length ?? 0,
       });
     }
     console.log(`[Migration] Migrated ${Object.keys(allDays).length} nutrition days.`);
@@ -162,13 +161,11 @@ async function migrateStreak(): Promise<void> {
       workoutDates: string[];
     } = JSON.parse(raw);
 
-    await trpcClient.sync.upsertStreak.mutate({
-      streak: {
-        currentStreak: data.currentStreak,
-        bestStreak: data.bestStreak,
-        lastWorkoutDate: data.lastWorkoutDate,
-        workoutDates: data.workoutDates,
-      },
+    syncStreak({
+      currentStreak: data.currentStreak,
+      bestStreak: data.bestStreak,
+      lastWorkoutDate: data.lastWorkoutDate ?? new Date().toISOString().split('T')[0],
+      totalWorkouts: data.workoutDates.length,
     });
     console.log('[Migration] Migrated streak data.');
   } catch (err) {
@@ -191,17 +188,17 @@ async function migrateFormCoach(): Promise<void> {
     }> = JSON.parse(raw);
 
     for (const session of sessions) {
-      await trpcClient.sync.upsertFormCoach.mutate({
-        session: {
-          id: session.id,
-          exerciseName: session.exerciseName,
-          date: session.date,
-          totalReps: session.reps,
-          avgFormScore: session.formScore,
-          peakFormScore: session.formScore,
-          issues: session.topIssues?.join(', '),
-          durationSeconds: session.durationSeconds,
-        },
+      syncFormCoachSession({
+        sessionId: session.id,
+        exerciseName: session.exerciseName,
+        date: session.date,
+        totalReps: session.reps,
+        avgFormScore: session.formScore,
+        peakFormScore: session.formScore,
+        lowFormScore: session.formScore,
+        durationSeconds: session.durationSeconds ?? 0,
+        repScores: [],
+        feedback: session.topIssues ?? [],
       });
     }
     console.log(`[Migration] Migrated ${sessions.length} form coach sessions.`);

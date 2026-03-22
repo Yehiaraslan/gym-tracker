@@ -2,12 +2,19 @@ import { z } from "zod";
 import { COOKIE_NAME } from "../shared/const.js";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
+import { publicProcedure, router } from "./_core/trpc";
 import * as whoopService from "./whoopService";
 import * as whoopStateDb from "./whoopStateDb";
 import * as whoopDb from "./whoopDb";
 import * as aiCoach from "./ai-coaching-service";
 import * as dataSync from "./data-sync-service";
+
+// All WHOOP and sync procedures use a device-level identifier (deviceId) instead of
+// requiring user authentication. The app generates a persistent UUID on first launch
+// and passes it with every request. This allows the app to work fully offline-first
+// without requiring user accounts.
+
+const deviceIdInput = z.object({ deviceId: z.string().min(1) });
 
 export const appRouter = router({
   system: systemRouter,
@@ -23,70 +30,71 @@ export const appRouter = router({
   // ── WHOOP Integration ─────────────────────────────────────
   whoop: router({
     // Get WHOOP connection status
-    status: protectedProcedure.query(async ({ ctx }) => {
-      const stored = await whoopDb.getWhoopTokens(ctx.user.openId);
-      const connected = stored !== null;
-      // Token is expired if expiresAt is in the past (with 5-min buffer)
-      const tokenExpired = connected && stored!.expiresAt < Date.now() + 5 * 60 * 1000;
-      let profile = null;
-      if (connected) {
-        try {
-          profile = await whoopService.getProfile(ctx.user.openId);
-        } catch {
-          // Profile fetch may fail (e.g. expired token), still show as connected
+    status: publicProcedure
+      .input(deviceIdInput)
+      .query(async ({ input }) => {
+        const stored = await whoopDb.getWhoopTokens(input.deviceId);
+        const connected = stored !== null;
+        const tokenExpired = connected && stored!.expiresAt < Date.now() + 5 * 60 * 1000;
+        let profile = null;
+        if (connected && !tokenExpired) {
+          try {
+            profile = await whoopService.getProfile(input.deviceId);
+          } catch {
+            // Profile fetch may fail (e.g. expired token), still show as connected
+          }
         }
-      }
-      return { connected, tokenExpired, profile };
-    }),
+        return { connected, tokenExpired, profile };
+      }),
 
     // Start OAuth flow - returns auth URL
-    authUrl: protectedProcedure.query(async ({ ctx }) => {
-      const state = await whoopStateDb.createState(ctx.user.openId);
-      const url = whoopService.buildAuthUrl(state);
-      return { url };
-    }),
+    authUrl: publicProcedure
+      .input(deviceIdInput)
+      .query(async ({ input }) => {
+        const state = await whoopStateDb.createState(input.deviceId);
+        const url = whoopService.buildAuthUrl(state);
+        return { url };
+      }),
 
     // Exchange OAuth code for tokens
     callback: publicProcedure
       .input(z.object({ code: z.string(), state: z.string() }))
       .mutation(async ({ input }) => {
-        // Validate state (CSRF protection)
         const stateResult = await whoopStateDb.validateAndConsumeState(input.state);
         if (!stateResult.valid || !stateResult.userOpenId) {
           throw new Error("Invalid or expired OAuth state");
         }
-        // Exchange code for tokens
         const result = await whoopService.exchangeCodeForTokens(
           input.code,
-          stateResult.userOpenId
+          stateResult.userOpenId,
         );
         return result;
       }),
 
     // Disconnect WHOOP
-    disconnect: protectedProcedure.mutation(async ({ ctx }) => {
-      await whoopService.disconnect(ctx.user.openId);
-      return { success: true };
-    }),
+    disconnect: publicProcedure
+      .input(deviceIdInput)
+      .mutation(async ({ input }) => {
+        await whoopService.disconnect(input.deviceId);
+        return { success: true };
+      }),
 
     // Get recovery data (latest + history)
-    recovery: protectedProcedure
-      .input(z.object({ days: z.number().min(1).max(30).default(7) }).optional())
-      .query(async ({ ctx, input }) => {
-        const days = input?.days ?? 7;
+    recovery: publicProcedure
+      .input(deviceIdInput.extend({ days: z.number().min(1).max(30).default(7).optional() }))
+      .query(async ({ input }) => {
+        const days = input.days ?? 7;
         try {
-          const data = await whoopService.getRecoveryCollection(ctx.user.openId, days);
-          // Cache the data
-          await whoopDb.saveWhoopCache(ctx.user.openId, {
+          const data = await whoopService.getRecoveryCollection(input.deviceId, days);
+          await whoopDb.saveWhoopCache(input.deviceId, {
             recoveryJson: JSON.stringify(data),
           });
-          // Save individual recovery entries to history
           if (data?.records) {
             for (const record of data.records) {
               if (record.score) {
                 const date = record.created_at?.split("T")[0] || new Date().toISOString().split("T")[0];
                 await whoopDb.upsertRecoveryHistory({
-                  userOpenId: ctx.user.openId,
+                  userOpenId: input.deviceId,
                   date,
                   recoveryScore: Math.round(record.score.recovery_score ?? 0),
                   hrv: Math.round(record.score.hrv_rmssd_milli ?? 0),
@@ -100,8 +108,7 @@ export const appRouter = router({
           }
           return data;
         } catch (error) {
-          // Try to return cached data
-          const cached = await whoopDb.getWhoopCache(ctx.user.openId);
+          const cached = await whoopDb.getWhoopCache(input.deviceId);
           if (cached?.recoveryJson) {
             return { ...JSON.parse(cached.recoveryJson), cached: true };
           }
@@ -110,244 +117,228 @@ export const appRouter = router({
       }),
 
     // Get sleep data
-    sleep: protectedProcedure
-      .input(z.object({ days: z.number().min(1).max(30).default(7) }).optional())
-      .query(async ({ ctx, input }) => {
-        const days = input?.days ?? 7;
+    sleep: publicProcedure
+      .input(deviceIdInput.extend({ days: z.number().min(1).max(30).default(7).optional() }))
+      .query(async ({ input }) => {
+        const days = input.days ?? 7;
         try {
-          const data = await whoopService.getSleepCollection(ctx.user.openId, days);
-          await whoopDb.saveWhoopCache(ctx.user.openId, {
-            sleepJson: JSON.stringify(data),
-          });
+          const data = await whoopService.getSleepCollection(input.deviceId, days);
+          await whoopDb.saveWhoopCache(input.deviceId, { sleepJson: JSON.stringify(data) });
           return data;
         } catch (error) {
-          const cached = await whoopDb.getWhoopCache(ctx.user.openId);
-          if (cached?.sleepJson) {
-            return { ...JSON.parse(cached.sleepJson), cached: true };
-          }
+          const cached = await whoopDb.getWhoopCache(input.deviceId);
+          if (cached?.sleepJson) return { ...JSON.parse(cached.sleepJson), cached: true };
           throw error;
         }
       }),
 
     // Get strain/cycle data
-    cycles: protectedProcedure
-      .input(z.object({ days: z.number().min(1).max(30).default(7) }).optional())
-      .query(async ({ ctx, input }) => {
-        const days = input?.days ?? 7;
+    cycles: publicProcedure
+      .input(deviceIdInput.extend({ days: z.number().min(1).max(30).default(7).optional() }))
+      .query(async ({ input }) => {
+        const days = input.days ?? 7;
         try {
-          const data = await whoopService.getCycleCollection(ctx.user.openId, days);
-          await whoopDb.saveWhoopCache(ctx.user.openId, {
-            cycleJson: JSON.stringify(data),
-          });
+          const data = await whoopService.getCycleCollection(input.deviceId, days);
+          await whoopDb.saveWhoopCache(input.deviceId, { cycleJson: JSON.stringify(data) });
           return data;
         } catch (error) {
-          const cached = await whoopDb.getWhoopCache(ctx.user.openId);
-          if (cached?.cycleJson) {
-            return { ...JSON.parse(cached.cycleJson), cached: true };
-          }
+          const cached = await whoopDb.getWhoopCache(input.deviceId);
+          if (cached?.cycleJson) return { ...JSON.parse(cached.cycleJson), cached: true };
           throw error;
         }
       }),
 
     // Get workout data
-    workouts: protectedProcedure
-      .input(z.object({ limit: z.number().min(1).max(50).default(10) }).optional())
-      .query(async ({ ctx, input }) => {
-        const limit = input?.limit ?? 10;
+    workouts: publicProcedure
+      .input(deviceIdInput.extend({ limit: z.number().min(1).max(50).default(10).optional() }))
+      .query(async ({ input }) => {
+        const limit = input.limit ?? 10;
         try {
-          const data = await whoopService.getWorkoutCollection(ctx.user.openId, limit);
-          await whoopDb.saveWhoopCache(ctx.user.openId, {
-            workoutJson: JSON.stringify(data),
-          });
+          const data = await whoopService.getWorkoutCollection(input.deviceId, limit);
+          await whoopDb.saveWhoopCache(input.deviceId, { workoutJson: JSON.stringify(data) });
           return data;
         } catch (error) {
-          const cached = await whoopDb.getWhoopCache(ctx.user.openId);
-          if (cached?.workoutJson) {
-            return { ...JSON.parse(cached.workoutJson), cached: true };
-          }
+          const cached = await whoopDb.getWhoopCache(input.deviceId);
+          if (cached?.workoutJson) return { ...JSON.parse(cached.workoutJson), cached: true };
           throw error;
         }
       }),
 
     // Get body measurement
-    bodyMeasurement: protectedProcedure.query(async ({ ctx }) => {
-      return whoopService.getBodyMeasurement(ctx.user.openId);
-    }),
+    bodyMeasurement: publicProcedure
+      .input(deviceIdInput)
+      .query(async ({ input }) => {
+        return whoopService.getBodyMeasurement(input.deviceId);
+      }),
 
     // Get recovery history from DB
-    recoveryHistory: protectedProcedure
-      .input(z.object({ days: z.number().min(1).max(90).default(7) }).optional())
-      .query(async ({ ctx, input }) => {
-        const days = input?.days ?? 7;
-        return whoopDb.getRecoveryHistory(ctx.user.openId, days);
+    recoveryHistory: publicProcedure
+      .input(deviceIdInput.extend({ days: z.number().min(1).max(90).default(7).optional() }))
+      .query(async ({ input }) => {
+        const days = input.days ?? 7;
+        return whoopDb.getRecoveryHistory(input.deviceId, days);
       }),
   }),
 
   // ── Data Sync (Cloud Persistence) ────────────────────────
   sync: router({
-    // ── Workouts ──
-    upsertWorkout: protectedProcedure
-      .input(z.object({ session: z.any() }))
-      .mutation(async ({ ctx, input }) => {
-        await dataSync.upsertWorkoutSession(ctx.user.openId, input.session);
+    upsertWorkout: publicProcedure
+      .input(z.object({ deviceId: z.string(), session: z.any() }))
+      .mutation(async ({ input }) => {
+        await dataSync.upsertWorkoutSession(input.deviceId, input.session);
         return { success: true };
       }),
 
-    getWorkouts: protectedProcedure
-      .input(z.object({ limit: z.number().min(1).max(200).default(50) }).optional())
-      .query(async ({ ctx, input }) => {
-        return dataSync.getWorkoutSessions(ctx.user.openId, input?.limit ?? 50);
+    getWorkouts: publicProcedure
+      .input(deviceIdInput.extend({ limit: z.number().min(1).max(200).default(50).optional() }))
+      .query(async ({ input }) => {
+        return dataSync.getWorkoutSessions(input.deviceId, input.limit ?? 50);
       }),
 
-    bulkUpsertWorkouts: protectedProcedure
-      .input(z.object({ sessions: z.array(z.any()) }))
-      .mutation(async ({ ctx, input }) => {
-        const count = await dataSync.bulkUpsertWorkoutSessions(ctx.user.openId, input.sessions);
+    bulkUpsertWorkouts: publicProcedure
+      .input(z.object({ deviceId: z.string(), sessions: z.array(z.any()) }))
+      .mutation(async ({ input }) => {
+        const count = await dataSync.bulkUpsertWorkoutSessions(input.deviceId, input.sessions);
         return { count };
       }),
 
-    // ── Form Coach Sessions ──
-    upsertFormCoach: protectedProcedure
-      .input(z.object({ session: z.any() }))
-      .mutation(async ({ ctx, input }) => {
-        await dataSync.upsertFormCoachSession(ctx.user.openId, input.session);
+    upsertFormCoach: publicProcedure
+      .input(z.object({ deviceId: z.string(), session: z.any() }))
+      .mutation(async ({ input }) => {
+        await dataSync.upsertFormCoachSession(input.deviceId, input.session);
         return { success: true };
       }),
 
-    getFormCoachSessions: protectedProcedure
-      .input(z.object({ limit: z.number().min(1).max(100).default(50) }).optional())
-      .query(async ({ ctx, input }) => {
-        return dataSync.getFormCoachSessions(ctx.user.openId, input?.limit ?? 50);
+    getFormCoachSessions: publicProcedure
+      .input(deviceIdInput.extend({ limit: z.number().min(1).max(100).default(50).optional() }))
+      .query(async ({ input }) => {
+        return dataSync.getFormCoachSessions(input.deviceId, input.limit ?? 50);
       }),
 
-    bulkUpsertFormCoach: protectedProcedure
-      .input(z.object({ sessions: z.array(z.any()) }))
-      .mutation(async ({ ctx, input }) => {
+    bulkUpsertFormCoach: publicProcedure
+      .input(z.object({ deviceId: z.string(), sessions: z.array(z.any()) }))
+      .mutation(async ({ input }) => {
         let count = 0;
         for (const s of input.sessions) {
-          await dataSync.upsertFormCoachSession(ctx.user.openId, s);
+          await dataSync.upsertFormCoachSession(input.deviceId, s);
           count++;
         }
         return { count };
       }),
 
-    // ── Nutrition ──
-    upsertNutritionDay: protectedProcedure
-      .input(z.object({ day: z.any() }))
-      .mutation(async ({ ctx, input }) => {
-        await dataSync.upsertNutritionDay(ctx.user.openId, input.day);
+    upsertNutritionDay: publicProcedure
+      .input(z.object({ deviceId: z.string(), day: z.any() }))
+      .mutation(async ({ input }) => {
+        await dataSync.upsertNutritionDay(input.deviceId, input.day);
         return { success: true };
       }),
 
-    getNutritionDays: protectedProcedure
-      .input(z.object({ days: z.number().min(1).max(365).default(30) }).optional())
-      .query(async ({ ctx, input }) => {
-        return dataSync.getNutritionDays(ctx.user.openId, input?.days ?? 30);
+    getNutritionDays: publicProcedure
+      .input(deviceIdInput.extend({ days: z.number().min(1).max(365).default(30).optional() }))
+      .query(async ({ input }) => {
+        return dataSync.getNutritionDays(input.deviceId, input.days ?? 30);
       }),
 
-    bulkUpsertNutrition: protectedProcedure
-      .input(z.object({ days: z.array(z.any()) }))
-      .mutation(async ({ ctx, input }) => {
+    bulkUpsertNutrition: publicProcedure
+      .input(z.object({ deviceId: z.string(), days: z.array(z.any()) }))
+      .mutation(async ({ input }) => {
         let count = 0;
         for (const d of input.days) {
-          await dataSync.upsertNutritionDay(ctx.user.openId, d);
+          await dataSync.upsertNutritionDay(input.deviceId, d);
           count++;
         }
         return { count };
       }),
 
-    // ── Body Weight ──
-    upsertBodyWeight: protectedProcedure
-      .input(z.object({ entry: z.any() }))
-      .mutation(async ({ ctx, input }) => {
-        await dataSync.upsertBodyWeightEntry(ctx.user.openId, input.entry);
+    upsertBodyWeight: publicProcedure
+      .input(z.object({ deviceId: z.string(), entry: z.any() }))
+      .mutation(async ({ input }) => {
+        await dataSync.upsertBodyWeightEntry(input.deviceId, input.entry);
         return { success: true };
       }),
 
-    getBodyWeightEntries: protectedProcedure
-      .input(z.object({ limit: z.number().min(1).max(365).default(90) }).optional())
-      .query(async ({ ctx, input }) => {
-        return dataSync.getBodyWeightEntries(ctx.user.openId, input?.limit ?? 90);
+    getBodyWeightEntries: publicProcedure
+      .input(deviceIdInput.extend({ limit: z.number().min(1).max(365).default(90).optional() }))
+      .query(async ({ input }) => {
+        return dataSync.getBodyWeightEntries(input.deviceId, input.limit ?? 90);
       }),
 
-    bulkUpsertBodyWeight: protectedProcedure
-      .input(z.object({ entries: z.array(z.any()) }))
-      .mutation(async ({ ctx, input }) => {
+    bulkUpsertBodyWeight: publicProcedure
+      .input(z.object({ deviceId: z.string(), entries: z.array(z.any()) }))
+      .mutation(async ({ input }) => {
         let count = 0;
         for (const e of input.entries) {
-          await dataSync.upsertBodyWeightEntry(ctx.user.openId, e);
+          await dataSync.upsertBodyWeightEntry(input.deviceId, e);
           count++;
         }
         return { count };
       }),
 
-    // ── Sleep ──
-    upsertSleep: protectedProcedure
-      .input(z.object({ entry: z.any() }))
-      .mutation(async ({ ctx, input }) => {
-        await dataSync.upsertSleepEntry(ctx.user.openId, input.entry);
+    upsertSleep: publicProcedure
+      .input(z.object({ deviceId: z.string(), entry: z.any() }))
+      .mutation(async ({ input }) => {
+        await dataSync.upsertSleepEntry(input.deviceId, input.entry);
         return { success: true };
       }),
 
-    getSleepEntries: protectedProcedure
-      .input(z.object({ limit: z.number().min(1).max(90).default(30) }).optional())
-      .query(async ({ ctx, input }) => {
-        return dataSync.getSleepEntries(ctx.user.openId, input?.limit ?? 30);
+    getSleepEntries: publicProcedure
+      .input(deviceIdInput.extend({ limit: z.number().min(1).max(90).default(30).optional() }))
+      .query(async ({ input }) => {
+        return dataSync.getSleepEntries(input.deviceId, input.limit ?? 30);
       }),
 
-    bulkUpsertSleep: protectedProcedure
-      .input(z.object({ entries: z.array(z.any()) }))
-      .mutation(async ({ ctx, input }) => {
+    bulkUpsertSleep: publicProcedure
+      .input(z.object({ deviceId: z.string(), entries: z.array(z.any()) }))
+      .mutation(async ({ input }) => {
         let count = 0;
         for (const e of input.entries) {
-          await dataSync.upsertSleepEntry(ctx.user.openId, e);
+          await dataSync.upsertSleepEntry(input.deviceId, e);
           count++;
         }
         return { count };
       }),
 
-    // ── Streak ──
-    upsertStreak: protectedProcedure
-      .input(z.object({ streak: z.any() }))
-      .mutation(async ({ ctx, input }) => {
-        await dataSync.upsertStreak(ctx.user.openId, input.streak);
+    upsertStreak: publicProcedure
+      .input(z.object({ deviceId: z.string(), streak: z.any() }))
+      .mutation(async ({ input }) => {
+        await dataSync.upsertStreak(input.deviceId, input.streak);
         return { success: true };
       }),
 
-    getStreak: protectedProcedure.query(async ({ ctx }) => {
-      return dataSync.getStreak(ctx.user.openId);
-    }),
+    getStreak: publicProcedure
+      .input(deviceIdInput)
+      .query(async ({ input }) => {
+        return dataSync.getStreak(input.deviceId);
+      }),
 
-    // ── Personal Records ──
-    upsertPersonalRecord: protectedProcedure
-      .input(z.object({ pr: z.any() }))
-      .mutation(async ({ ctx, input }) => {
-        await dataSync.upsertPersonalRecord(ctx.user.openId, input.pr);
+    upsertPersonalRecord: publicProcedure
+      .input(z.object({ deviceId: z.string(), pr: z.any() }))
+      .mutation(async ({ input }) => {
+        await dataSync.upsertPersonalRecord(input.deviceId, input.pr);
         return { success: true };
       }),
 
-    getPersonalRecords: protectedProcedure.query(async ({ ctx }) => {
-      return dataSync.getPersonalRecords(ctx.user.openId);
-    }),
+    getPersonalRecords: publicProcedure
+      .input(deviceIdInput)
+      .query(async ({ input }) => {
+        return dataSync.getPersonalRecords(input.deviceId);
+      }),
   }),
 
   // ── AI Coaching ───────────────────────────────────────────
   aiCoaching: router({
-    // Generate daily coaching message + workout adjustments + nutrition insights
     dailyCoaching: publicProcedure
       .input(z.object({ userContext: z.string() }))
       .mutation(async ({ input }) => {
         return aiCoach.generateDailyCoaching(input.userContext);
       }),
 
-    // Generate weekly performance digest
     weeklyDigest: publicProcedure
       .input(z.object({ userContext: z.string() }))
       .mutation(async ({ input }) => {
         return aiCoach.generateWeeklyDigest(input.userContext);
       }),
 
-    // Generate exercise substitution suggestions
     substituteExercise: publicProcedure
       .input(z.object({
         exerciseName: z.string(),
@@ -362,7 +353,6 @@ export const appRouter = router({
         );
       }),
 
-    // Generate post-workout analysis
     postWorkoutAnalysis: publicProcedure
       .input(z.object({
         workoutSummary: z.string(),

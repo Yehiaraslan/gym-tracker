@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { trpcClient } from './trpc';
+import { syncStreak } from './db-sync-fetch';
 
 const STREAK_DATA_KEY = 'gym_tracker_streak_data';
 
@@ -61,15 +61,11 @@ async function saveStreakData(data: StreakData): Promise<void> {
     throw error;
   }
   // Mirror to cloud DB — fire-and-forget
-  trpcClient.sync.upsertStreak.mutate({
-    streak: {
-      currentStreak: data.currentStreak,
-      bestStreak: data.bestStreak,
-      lastWorkoutDate: data.lastWorkoutDate,
-      workoutDates: data.workoutDates,
-    },
-  }).catch((err: unknown) => {
-    console.warn('[DB Sync] Streak sync failed:', err);
+  syncStreak({
+    currentStreak: data.currentStreak,
+    bestStreak: data.bestStreak,
+    lastWorkoutDate: data.lastWorkoutDate ?? new Date().toISOString().split('T')[0],
+    totalWorkouts: data.workoutDates.length,
   });
 }
 

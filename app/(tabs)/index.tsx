@@ -2,7 +2,8 @@
 // HOME SCREEN — Phy-style dark card dashboard
 // ============================================================
 import { useState, useEffect, useCallback } from 'react';
-import { Text, View, TouchableOpacity, ScrollView, Platform, StyleSheet } from 'react-native';
+import { Text, View, TouchableOpacity, ScrollView, Platform, StyleSheet, Image } from 'react-native';
+import { loadUserProfile, type UserProfile } from '@/lib/profile-store';
 import { useRouter } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
 import { useColors } from '@/hooks/use-colors';
@@ -67,6 +68,7 @@ export default function HomeScreen() {
   const [recovery, setRecovery] = useState<WhoopRecovery | null>(null);
   const [nutrition, setNutrition] = useState<DailyNutrition | null>(null);
   const [recentWorkouts, setRecentWorkouts] = useState<SplitWorkoutSession[]>([]);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
   // Build this week's 7-day strip
   const weekDays = Array.from({ length: 7 }, (_, i) => {
@@ -116,6 +118,7 @@ export default function HomeScreen() {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => { loadUserProfile().then(setUserProfile); }, []);
 
   const handleStartWorkout = () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -151,8 +154,28 @@ export default function HomeScreen() {
         {/* ── WHOOP Reconnect Banner (shown when token expired) ── */}
         <WhoopReconnectBanner />
         {/* ── Header ── */}
-        <View style={[s.row, { marginBottom: 16 }]}>
-          <Text style={[s.headerName, { color: fg }]}>Yehia</Text>
+        <View style={[s.row, { marginBottom: 16, alignItems: 'center' }]}>
+          <TouchableOpacity onPress={() => router.push('/profile' as any)} activeOpacity={0.85} style={s.avatarBtn}>
+            {userProfile?.profilePhotoUri ? (
+              <Image source={{ uri: userProfile.profilePhotoUri }} style={[s.avatarImg, { borderColor: pri }]} />
+            ) : (
+              <View style={[s.avatarPlaceholder, { backgroundColor: surf, borderColor: bord }]}>
+                <Text style={s.avatarEmoji}>👤</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          <View style={{ flex: 1, marginLeft: 10 }}>
+            <Text style={[s.headerName, { color: fg }]}>{userProfile?.name || 'Yehia'}</Text>
+            {userProfile?.fitnessGoal ? (
+              <Text style={{ color: mut, fontSize: 12, textTransform: 'capitalize' }}>{userProfile.fitnessGoal.replace('_', ' ')}</Text>
+            ) : null}
+          </View>
+          <TouchableOpacity
+            style={[s.iconBtn, { backgroundColor: surf, borderColor: bord, marginRight: 8 }]}
+            onPress={() => router.push('/progress-pictures' as any)}
+          >
+            <Text style={{ fontSize: 16 }}>📸</Text>
+          </TouchableOpacity>
           <TouchableOpacity
             style={[s.exportBtn, { backgroundColor: surf, borderColor: bord }]}
             onPress={() => router.push('/weekly-report' as any)}
@@ -388,6 +411,11 @@ const s = StyleSheet.create({
   headerName: { fontSize: 28, fontWeight: '700', letterSpacing: -0.5 },
   exportBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1 },
   exportText: { fontSize: 13, fontWeight: '500' },
+  avatarBtn: { position: 'relative' },
+  avatarImg: { width: 40, height: 40, borderRadius: 20, borderWidth: 2 },
+  avatarPlaceholder: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
+  avatarEmoji: { fontSize: 20 },
+  iconBtn: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
 
   heroCard: { borderRadius: 16, borderWidth: 1, padding: 16, marginBottom: 12 },
   heroRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
