@@ -138,9 +138,11 @@ function GradeBadge({ grade, score }: { grade: string; score: number }) {
 function WorkoutSessionCard({
   entry,
   isFirst,
+  isPR,
 }: {
   entry: ExerciseSetEntry;
   isFirst: boolean;
+  isPR: boolean;
 }) {
   const colors = useColors();
   const [expanded, setExpanded] = useState(isFirst);
@@ -168,9 +170,16 @@ function WorkoutSessionCard({
       {/* Header row */}
       <View style={s.sessionHeader}>
         <View style={{ flex: 1 }}>
-          <Text style={[s.sessionDate, { color: colors.foreground }]}>
-            {formatDisplayDate(entry.date)}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={[s.sessionDate, { color: colors.foreground }]}>
+              {formatDisplayDate(entry.date)}
+            </Text>
+            {isPR && (
+              <View style={s.prBadge}>
+                <Text style={s.prBadgeText}>🏆 PR</Text>
+              </View>
+            )}
+          </View>
           <Text style={[s.sessionType, { color: colors.muted }]}>
             {sessionLabel[entry.sessionType] ?? entry.sessionType}
           </Text>
@@ -326,6 +335,15 @@ export default function RepHistoryScreen() {
     [weightHistory],
   );
 
+  const volumeChartData = useMemo(
+    () =>
+      weightHistory
+        .slice()
+        .reverse()
+        .map(e => ({ date: e.date, value: e.totalVolume })),
+    [weightHistory],
+  );
+
   const formScoreChartData = useMemo(
     () =>
       formHistory
@@ -462,6 +480,11 @@ export default function RepHistoryScreen() {
                       color={colors.primary}
                       label="Best Set Weight (kg)"
                     />
+                    <MiniChart
+                      data={volumeChartData}
+                      color="#F59E0B"
+                      label="Session Volume (kg total)"
+                    />
                   </View>
                 )}
 
@@ -472,7 +495,7 @@ export default function RepHistoryScreen() {
                       SESSION HISTORY ({weightHistory.length})
                     </Text>
                     {weightHistory.map((entry, i) => (
-                      <WorkoutSessionCard key={entry.date + i} entry={entry} isFirst={i === 0} />
+                      <WorkoutSessionCard key={entry.date + i} entry={entry} isFirst={i === 0} isPR={entry.e1rm === bestE1RM && bestE1RM > 0} />
                     ))}
                   </>
                 ) : (
@@ -656,6 +679,15 @@ const s = StyleSheet.create({
   },
   sessionDate: { fontSize: 14, fontWeight: '600' },
   sessionType: { fontSize: 12, marginTop: 2 },
+  prBadge: {
+    backgroundColor: '#F59E0B22',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: '#F59E0B55',
+  },
+  prBadgeText: { fontSize: 10, fontWeight: '700', color: '#F59E0B' },
   sessionStats: { flexDirection: 'row', gap: 8 },
   statPill: { alignItems: 'center', minWidth: 44 },
   statValue: { fontSize: 15, fontWeight: '700' },

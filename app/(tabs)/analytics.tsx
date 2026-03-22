@@ -11,13 +11,19 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  TextInput,
+  FlatList,
+  Platform,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useColors } from '@/hooks/use-colors';
+import * as Haptics from 'expo-haptics';
 import {
   getAllPRs,
   getRecentSplitWorkouts,
+  getTrackedExerciseNames,
   type SplitWorkoutSession,
 } from '@/lib/split-workout-store';
 import {
@@ -37,13 +43,17 @@ import { getRecentNutrition, getMacroTotals, type DailyNutrition } from '@/lib/n
 import { getActiveRecommendations, type CoachRecommendation } from '@/lib/coach-engine';
 import { NUTRITION_TARGETS, SLEEP_TARGETS, SESSION_NAMES, SESSION_COLORS, type SessionType } from '@/lib/training-program';
 
+type ProgressTab = 'overview' | 'history';
+
 export default function ProgressScreen() {
   const colors = useColors();
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState<ProgressTab>('overview');
 
   // Data
-  const [prs, setPrs] = useState<Record<string, { e1rm: number; weight: number; reps: number; date: string }>>({});
+  const [prs, setPrs] = useState<Record<string, { e1rm: number; weight: number; reps: number; date: string }>>({})
   const [streak, setStreak] = useState<StreakData | null>(null);
   const [recentWorkouts, setRecentWorkouts] = useState<SplitWorkoutSession[]>([]);
   const [recovery, setRecovery] = useState<RecoveryData | null>(null);
@@ -51,10 +61,12 @@ export default function ProgressScreen() {
   const [nutrition, setNutrition] = useState<DailyNutrition[]>([]);
   const [recommendations, setRecommendations] = useState<CoachRecommendation[]>([]);
   const [workoutsThisWeek, setWorkoutsThisWeek] = useState(0);
+  const [trackedExercises, setTrackedExercises] = useState<string[]>([]);
+  const [exerciseSearch, setExerciseSearch] = useState('');
 
   const loadData = useCallback(async () => {
     try {
-      const [prData, streakData, recent, rec, weekRec, nutri, recs, weekCount] = await Promise.all([
+      const [prData, streakData, recent, rec, weekRec, nutri, recs, weekCount, exerciseNames] = await Promise.all([
         getAllPRs(),
         getStreakData(),
         getRecentSplitWorkouts(10),
@@ -63,6 +75,7 @@ export default function ProgressScreen() {
         getRecentNutrition(7),
         getActiveRecommendations(),
         getWorkoutsInLastDays(7),
+        getTrackedExerciseNames(),
       ]);
       setPrs(prData);
       setStreak(streakData);
@@ -72,6 +85,7 @@ export default function ProgressScreen() {
       setNutrition(nutri);
       setRecommendations(recs);
       setWorkoutsThisWeek(weekCount);
+      setTrackedExercises(exerciseNames);
     } catch (e) {
       console.error('Failed to load progress data:', e);
     } finally {
@@ -112,18 +126,137 @@ export default function ProgressScreen() {
     .slice(0, 5)
     .reverse();
 
+  // Filtered exercise list for History tab
+  const filteredExercises = exerciseSearch.trim().length > 0
+    ? trackedExercises.filter(n => n.toLowerCase().includes(exerciseSearch.toLowerCase()))
+    : trackedExercises;
+
+  // Map exercise names to PR e1RM for display
+  const prMap = prs;
+
   return (
     <ScreenContainer className="flex-1">
+      {/* Header + Tab switcher */}
+      <View style={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 0 }}>
+        <Text className="text-2xl font-bold text-foreground">Progress</Text>
+        <View style={{
+          flexDirection: 'row',
+          marginTop: 12,
+          backgroundColor: colors.surface,
+          borderRadius: 12,
+          padding: 4,
+          gap: 4,
+        }}>
+          {(['overview', 'history'] as ProgressTab[]).map(tab => (
+            <TouchableOpacity
+              key={tab}
+              style={[
+                { flex: 1, paddingVertical: 9, borderRadius: 9, alignItems: 'center' },
+                activeTab === tab && { backgroundColor: colors.primary },
+              ]}
+              onPress={() => {
+                setActiveTab(tab);
+                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
+            >
+              <Text style={{
+                fontSize: 13,
+                fontWeight: '600',
+                color: activeTab === tab ? '#fff' : colors.muted,
+              }}>
+                {tab === 'overview' ? '📊 Overview' : '📋 Exercise History'}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      {/* History tab — searchable exercise list */}
+      {activeTab === 'history' && (
+        <View style={{ flex: 1, paddingHorizontal: 24, paddingTop: 12 }}>
+          {/* Search bar */}
+          <View style={[
+            { flexDirection: 'row', alignItems: 'center', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, marginBottom: 12 },
+            { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+          ]}>
+            <Text style={{ fontSize: 16, marginRight: 8 }}>🔍</Text>
+            <TextInput
+              style={{ flex: 1, fontSize: 15, color: colors.foreground }}
+              placeholder="Search exercises…"
+              placeholderTextColor={colors.muted}
+              value={exerciseSearch}
+              onChangeText={setExerciseSearch}
+              returnKeyType="search"
+              clearButtonMode="while-editing"
+            />
+          </View>
+
+          {trackedExercises.length === 0 ? (
+            <View style={{ alignItems: 'center', paddingTop: 60, gap: 8 }}>
+              <Text style={{ fontSize: 40 }}>🏋️</Text>
+              <Text style={{ fontSize: 17, fontWeight: '700', color: colors.foreground, textAlign: 'center' }}>
+                No workout history yet
+              </Text>
+              <Text style={{ fontSize: 14, color: colors.muted, textAlign: 'center', lineHeight: 20 }}>
+                Complete a workout to start tracking your exercise history.
+              </Text>
+            </View>
+          ) : filteredExercises.length === 0 ? (
+            <Text style={{ color: colors.muted, textAlign: 'center', marginTop: 40 }}>No exercises match your search.</Text>
+          ) : (
+            <FlatList
+              data={filteredExercises}
+              keyExtractor={item => item}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 120 }}
+              renderItem={({ item: name }) => {
+                const pr = prMap[name];
+                return (
+                  <TouchableOpacity
+                    style={[
+                      {
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        padding: 14,
+                        borderRadius: 14,
+                        marginBottom: 8,
+                        borderWidth: 0.5,
+                      },
+                      { backgroundColor: colors.surface, borderColor: colors.border },
+                    ]}
+                    onPress={() => {
+                      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      router.push({ pathname: '/rep-history', params: { exercise: name, exerciseType: '' } });
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 15, fontWeight: '600', color: colors.foreground }}>{name}</Text>
+                      {pr && (
+                        <Text style={{ fontSize: 12, color: colors.muted, marginTop: 2 }}>
+                          PR: {pr.weight}kg × {pr.reps} reps · ~{Math.round(pr.e1rm)}kg e1RM
+                        </Text>
+                      )}
+                    </View>
+                    {pr && <Text style={{ fontSize: 14 }}>🏆</Text>}
+                    <Text style={{ fontSize: 20, color: colors.muted, marginLeft: 8 }}>›</Text>
+                  </TouchableOpacity>
+                );
+              }}
+            />
+          )}
+        </View>
+      )}
+
+      {/* Overview tab */}
+      {activeTab === 'overview' && (
       <ScrollView
         className="flex-1"
         contentContainerStyle={{ paddingBottom: 100 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
       >
-        {/* Header */}
-        <View className="px-6 pt-4 pb-2">
-          <Text className="text-2xl font-bold text-foreground">Progress</Text>
-          <Text className="text-sm text-muted mt-1">Performance tracking & insights</Text>
-        </View>
+        {/* Spacer to replace removed header */}
+        <View style={{ height: 12 }} />
 
         {/* Quick Stats Row */}
         <View className="px-6 mt-4">
@@ -393,6 +526,7 @@ export default function ProgressScreen() {
 
         <View style={{ height: 20 }} />
       </ScrollView>
+      )}
     </ScreenContainer>
   );
 }

@@ -748,3 +748,8 @@
 - [x] Add "History" button to exercise cards in Library tab
 - [x] Add "History" button to exercise cards in active Workout tab
 - [x] Add icon mapping for history-related icons (using emoji icons directly)
+
+## Rep History Enhancements (Mar 22 2026)
+- [x] Add volume trend chart (3rd chart) to Rep History screen
+- [x] Add PR trophy badge to session cards when e1RM is all-time best
+- [x] Add History tab to Progress screen with searchable exercise list
