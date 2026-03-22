@@ -22,16 +22,19 @@ export const appRouter = router({
   whoop: router({
     // Get WHOOP connection status
     status: protectedProcedure.query(async ({ ctx }) => {
-      const connected = await whoopService.isConnected(ctx.user.openId);
+      const stored = await whoopDb.getWhoopTokens(ctx.user.openId);
+      const connected = stored !== null;
+      // Token is expired if expiresAt is in the past (with 5-min buffer)
+      const tokenExpired = connected && stored!.expiresAt < Date.now() + 5 * 60 * 1000;
       let profile = null;
       if (connected) {
         try {
           profile = await whoopService.getProfile(ctx.user.openId);
         } catch {
-          // Profile fetch may fail, still connected
+          // Profile fetch may fail (e.g. expired token), still show as connected
         }
       }
-      return { connected, profile };
+      return { connected, tokenExpired, profile };
     }),
 
     // Start OAuth flow - returns auth URL

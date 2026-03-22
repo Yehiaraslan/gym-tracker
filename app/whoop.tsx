@@ -53,8 +53,11 @@ export default function WhoopScreen() {
   });
 
   const isConnected = statusQuery.data?.connected ?? false;
+  const tokenExpired = statusQuery.data?.tokenExpired ?? false;
   const profile = statusQuery.data?.profile;
   const isLoading = statusQuery.isLoading;
+  // Needs reconnect if connected but token expired
+  const needsReconnect = isConnected && tokenExpired;
 
   // Extract latest recovery data
   const latestRecovery = recoveryQuery.data?.records?.[0]?.score;
@@ -135,7 +138,11 @@ export default function WhoopScreen() {
         {/* Connection Status Card */}
         <View 
           className="bg-surface rounded-2xl p-6 mb-4"
-          style={{ borderWidth: 1, borderColor: colors.border }}
+          style={{
+            borderWidth: 1.5,
+            borderColor: needsReconnect ? '#F59E0B60' : isConnected ? colors.success + '40' : colors.border,
+            backgroundColor: needsReconnect ? '#F59E0B08' : undefined,
+          }}
         >
           <View className="flex-row items-center mb-4">
             <View 
@@ -143,23 +150,25 @@ export default function WhoopScreen() {
                 width: 56,
                 height: 56,
                 borderRadius: 28,
-                backgroundColor: isConnected ? colors.success + '20' : colors.muted + '20',
+                backgroundColor: needsReconnect ? '#F59E0B25' : isConnected ? colors.success + '20' : colors.muted + '20',
                 justifyContent: 'center',
                 alignItems: 'center',
               }}
             >
-              <Text style={{ fontSize: 28 }}>⌚</Text>
+              <Text style={{ fontSize: 28 }}>{needsReconnect ? '⚠️' : '⌚'}</Text>
             </View>
             <View className="ml-4 flex-1">
               <Text className="text-lg font-semibold text-foreground">
-                {isConnected ? 'Connected' : 'Not Connected'}
+                {needsReconnect ? 'Session Expired' : isConnected ? 'Connected' : 'Not Connected'}
               </Text>
               <Text className="text-sm text-muted">
-                {isConnected 
-                  ? profile?.first_name 
-                    ? `Welcome, ${profile.first_name}!`
-                    : 'WHOOP account linked'
-                  : 'Connect your WHOOP to sync recovery data'}
+                {needsReconnect
+                  ? 'Your WHOOP token has expired — tap Reconnect below'
+                  : isConnected 
+                    ? profile?.first_name 
+                      ? `Welcome, ${profile.first_name}!`
+                      : 'WHOOP account linked'
+                    : 'Connect your WHOOP to sync recovery data'}
               </Text>
             </View>
             <View 
@@ -167,12 +176,44 @@ export default function WhoopScreen() {
                 width: 12,
                 height: 12,
                 borderRadius: 6,
-                backgroundColor: isConnected ? colors.success : colors.muted,
+                backgroundColor: needsReconnect ? '#F59E0B' : isConnected ? colors.success : colors.muted,
               }}
             />
           </View>
 
-          {isConnected ? (
+          {/* Token expired: show Reconnect + Disconnect */}
+          {needsReconnect ? (
+            <View style={{ gap: 10 }}>
+              <TouchableOpacity
+                onPress={handleConnect}
+                disabled={authUrlQuery.isFetching}
+                className="py-3 rounded-xl flex-row items-center justify-center"
+                style={{
+                  backgroundColor: '#F59E0B',
+                  opacity: authUrlQuery.isFetching ? 0.7 : 1,
+                }}
+              >
+                {authUrlQuery.isFetching ? (
+                  <ActivityIndicator color="white" size="small" />
+                ) : (
+                  <>
+                    <Text style={{ fontSize: 16, marginRight: 8 }}>🔄</Text>
+                    <Text style={{ fontWeight: '700', color: '#fff', fontSize: 15 }}>Reconnect WHOOP</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleDisconnect}
+                disabled={disconnectMutation.isPending}
+                className="py-2.5 rounded-xl"
+                style={{ backgroundColor: colors.error + '15' }}
+              >
+                <Text className="text-center text-sm" style={{ color: colors.error }}>
+                  {disconnectMutation.isPending ? 'Disconnecting...' : 'Disconnect'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : isConnected ? (
             <TouchableOpacity
               onPress={handleDisconnect}
               disabled={disconnectMutation.isPending}

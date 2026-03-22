@@ -24,6 +24,7 @@ import { getStreakData, type StreakData } from '@/lib/streak-tracker';
 import { getTodayRecovery, type WhoopRecovery } from '@/lib/whoop-api';
 import { getDailyNutrition, type DailyNutrition } from '@/lib/nutrition-store';
 import { useGym } from '@/lib/gym-context';
+import { WhoopReconnectBanner } from '@/components/whoop-reconnect-banner';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -147,6 +148,8 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 40 }}
       >
+        {/* ── WHOOP Reconnect Banner (shown when token expired) ── */}
+        <WhoopReconnectBanner />
         {/* ── Header ── */}
         <View style={[s.row, { marginBottom: 16 }]}>
           <Text style={[s.headerName, { color: fg }]}>Yehia</Text>
