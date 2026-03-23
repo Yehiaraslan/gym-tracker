@@ -368,3 +368,38 @@ export const SLEEP_TARGETS = {
   wakeTime: '7:30 AM',
   durationHours: 7.5,
 };
+
+/**
+ * Get training sessions that were scheduled but not completed in the last N days.
+ * Compares the fixed weekly schedule against the list of completed session dates.
+ *
+ * @param completedDates - ISO date strings of days a workout was completed (e.g. ["2026-03-20"])
+ * @param lookbackDays   - How many past days to check (default 7)
+ * @returns Array of missed sessions sorted by date ascending
+ */
+export function getMissedSessions(
+  completedDates: string[],
+  lookbackDays = 7
+): Array<{ date: string; sessionType: SessionType; sessionName: string; daysAgo: number }> {
+  const missed: Array<{ date: string; sessionType: SessionType; sessionName: string; daysAgo: number }> = [];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  for (let i = lookbackDays; i >= 1; i--) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    const dateStr = d.toISOString().split('T')[0];
+    const session = getSessionForDate(d);
+
+    // Only flag scheduled training days that have no completed workout
+    if (session !== 'rest' && !completedDates.includes(dateStr)) {
+      missed.push({
+        date: dateStr,
+        sessionType: session,
+        sessionName: SESSION_NAMES[session],
+        daysAgo: i,
+      });
+    }
+  }
+  return missed;
+}

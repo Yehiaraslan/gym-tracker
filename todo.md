@@ -816,3 +816,6 @@
 - [x] Floating mid-workout Zaki check-in button (active workout screen)
 - [x] Personalised morning digest with yesterday's real workout data
 - [x] Server-side Zaki session ID persistence in database
+- [x] Make-up session detection banner (missed training day → suggest make-up)
+- [x] Photo category tagging (Front/Back/Side/Other picker on capture/upload)
+- [x] Side-by-side progress photo comparison slider in Progress Gallery

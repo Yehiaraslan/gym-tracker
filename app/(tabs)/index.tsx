@@ -14,6 +14,7 @@ import {
   SESSION_NAMES,
   SESSION_COLORS,
   getMesocycleInfo,
+  getMissedSessions,
   type SessionType,
 } from '@/lib/training-program';
 import {
@@ -69,6 +70,8 @@ export default function HomeScreen() {
   const [nutrition, setNutrition] = useState<DailyNutrition | null>(null);
   const [recentWorkouts, setRecentWorkouts] = useState<SplitWorkoutSession[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [missedSessions, setMissedSessions] = useState<Array<{ date: string; sessionType: SessionType; sessionName: string; daysAgo: number }>>([]);
+  const [dismissedMakeup, setDismissedMakeup] = useState<Set<string>>(new Set());
 
   // Build this week's 7-day strip
   const weekDays = Array.from({ length: 7 }, (_, i) => {
@@ -114,6 +117,10 @@ export default function HomeScreen() {
       setRecovery(recoveryData);
       setNutrition(nutritionData);
       setRecentWorkouts(workouts);
+      // Detect missed sessions in the last 7 days
+      const completedDates = workouts.filter(w => w.completed).map(w => w.date);
+      const missed = getMissedSessions(completedDates, 7);
+      setMissedSessions(missed);
     } catch (_) {}
   }, []);
 
@@ -197,6 +204,37 @@ export default function HomeScreen() {
             <Text style={[s.exportText, { color: mut }]}>↓ Export</Text>
           </TouchableOpacity>
         </View>
+
+        {/* ── Make-up Session Banners ── */}
+        {missedSessions.filter(m => !dismissedMakeup.has(m.date)).map(missed => (
+          <View
+            key={missed.date}
+            style={[s.warningBanner, { backgroundColor: '#F59E0B15', borderColor: '#F59E0B', marginBottom: 8 }]}
+          >
+            <Text style={s.warningIcon}>📅</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[s.warningTitle, { color: '#F59E0B' }]}>
+                Missed: {missed.sessionName} ({missed.daysAgo === 1 ? 'yesterday' : `${missed.daysAgo} days ago`})
+              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push({ pathname: '/split-workout', params: { sessionType: missed.sessionType, date: missed.date } } as any);
+                }}
+              >
+                <Text style={{ color: '#F59E0B', fontSize: 12, fontWeight: '700', marginTop: 2 }}>
+                  Make it up today →
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity
+              onPress={() => setDismissedMakeup(prev => new Set([...prev, missed.date]))}
+              style={{ padding: 4 }}
+            >
+              <Text style={{ color: '#F59E0B', fontSize: 18, lineHeight: 20 }}>×</Text>
+            </TouchableOpacity>
+          </View>
+        ))}
 
         {/* ── Low Recovery Warning Banner ── */}
         {showLowRecoveryWarning && (
