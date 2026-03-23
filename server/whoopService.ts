@@ -188,39 +188,39 @@ async function whoopGet(userOpenId: string, path: string): Promise<any> {
 }
 
 export async function getProfile(userOpenId: string) {
-  return whoopGet(userOpenId, "/developer/v1/user/profile/basic");
+  return whoopGet(userOpenId, "/developer/v2/user/profile/basic");
 }
 
 export async function getRecoveryCollection(userOpenId: string, limit = 7) {
   const end = new Date().toISOString();
   const start = new Date(Date.now() - limit * 24 * 60 * 60 * 1000).toISOString();
   const params = new URLSearchParams({ start, end, limit: String(limit) });
-  return whoopGet(userOpenId, `/developer/v1/recovery?${params}`);
+  return whoopGet(userOpenId, `/developer/v2/recovery?${params}`);
 }
 
 export async function getCycleCollection(userOpenId: string, limit = 7) {
   const end = new Date().toISOString();
   const start = new Date(Date.now() - limit * 24 * 60 * 60 * 1000).toISOString();
   const params = new URLSearchParams({ start, end, limit: String(limit) });
-  return whoopGet(userOpenId, `/developer/v1/cycle?${params}`);
+  return whoopGet(userOpenId, `/developer/v2/cycle?${params}`);
 }
 
 export async function getSleepCollection(userOpenId: string, limit = 7) {
   const end = new Date().toISOString();
   const start = new Date(Date.now() - limit * 24 * 60 * 60 * 1000).toISOString();
   const params = new URLSearchParams({ start, end, limit: String(limit) });
-  return whoopGet(userOpenId, `/developer/v1/activity/sleep?${params}`);
+  return whoopGet(userOpenId, `/developer/v2/activity/sleep?${params}`);
 }
 
 export async function getWorkoutCollection(userOpenId: string, limit = 10) {
   const end = new Date().toISOString();
   const start = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   const params = new URLSearchParams({ start, end, limit: String(limit) });
-  return whoopGet(userOpenId, `/developer/v1/activity/workout?${params}`);
+  return whoopGet(userOpenId, `/developer/v2/activity/workout?${params}`);
 }
 
 export async function getBodyMeasurement(userOpenId: string) {
-  return whoopGet(userOpenId, "/developer/v1/user/measurement/body");
+  return whoopGet(userOpenId, "/developer/v2/user/measurement/body");
 }
 
 export async function isConnected(userOpenId: string): Promise<boolean> {

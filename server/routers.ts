@@ -95,6 +95,7 @@ export const appRouter = router({
         const days = input.days ?? 7;
         try {
           const data = await whoopService.getRecoveryCollection(input.deviceId, days);
+          console.log('[WHOOP DEBUG] recovery raw:', JSON.stringify(data).slice(0, 3000));
           await whoopDb.saveWhoopCache(input.deviceId, {
             recoveryJson: JSON.stringify(data),
           });
@@ -132,6 +133,7 @@ export const appRouter = router({
         const days = input.days ?? 7;
         try {
           const data = await whoopService.getSleepCollection(input.deviceId, days);
+          console.log('[WHOOP DEBUG] sleep raw:', JSON.stringify(data).slice(0, 3000));
           await whoopDb.saveWhoopCache(input.deviceId, { sleepJson: JSON.stringify(data) });
           return data;
         } catch (error) {

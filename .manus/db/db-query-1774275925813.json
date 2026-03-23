@@ -1,0 +1,16 @@
+{
+  "query": "SELECT userOpenId, LEFT(recoveryJson, 3000) as recovery_sample, LEFT(sleepJson, 3000) as sleep_sample, updatedAt FROM whoop_data_cache LIMIT 3;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2cDKYqL8H1Gz7P9.root --database cZHK9Nh6oC3jkbpfFUDiCK --execute SELECT userOpenId, LEFT(recoveryJson, 3000) as recovery_sample, LEFT(sleepJson, 3000) as sleep_sample, updatedAt FROM whoop_data_cache LIMIT 3;",
+  "rows": [
+    {
+      "userOpenId": "8930fb54-6d2b-4ffe-9b74-8a42fa861dcb",
+      "recovery_sample": "NULL",
+      "sleep_sample": "NULL",
+      "updatedAt": "2026-03-23 14:22:51"
+    }
+  ],
+  "messages": [],
+  "stdout": "userOpenId\trecovery_sample\tsleep_sample\tupdatedAt\n8930fb54-6d2b-4ffe-9b74-8a42fa861dcb\tNULL\tNULL\t2026-03-23 14:22:51\n",
+  "stderr": "",
+  "execution_time_ms": 1560
+}
