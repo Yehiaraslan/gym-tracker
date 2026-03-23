@@ -9,6 +9,7 @@ import { createContext } from "./context";
 import * as whoopStateDb from "../whoopStateDb";
 import * as whoopService from "../whoopService";
 import { startDailyDigestScheduler } from "../zakiDailyDigest";
+import { startStagnationScheduler } from "../stagnationScheduler";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise((resolve) => {
@@ -173,3 +174,5 @@ startServer().catch(console.error);
 
 // Start Zaki daily digest scheduler (fires at 07:00 Dubai time every day)
 startDailyDigestScheduler();
+// Start stagnation notification scheduler (fires at 06:55 Dubai time every day)
+startStagnationScheduler();

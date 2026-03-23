@@ -503,6 +503,41 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* ── Deload Countdown Banner (weeks 4-5 only) ── */}
+        {meso && meso.currentWeek >= 4 && (
+          <TouchableOpacity
+            style={[
+              s.deloadBanner,
+              meso.daysUntilDeload === 0
+                ? { backgroundColor: '#EF444420', borderColor: '#EF4444' }
+                : meso.daysUntilDeload <= 3
+                ? { backgroundColor: '#F59E0B20', borderColor: '#F59E0B' }
+                : { backgroundColor: '#10B98120', borderColor: '#10B981' },
+            ]}
+            onPress={() => router.push('/ai-coaching-dashboard' as any)}
+            activeOpacity={0.85}
+          >
+            <Text style={s.deloadBannerEmoji}>
+              {meso.daysUntilDeload === 0 ? '🔴' : meso.daysUntilDeload <= 3 ? '🟠' : '🟡'}
+            </Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[
+                s.deloadBannerTitle,
+                { color: meso.daysUntilDeload === 0 ? '#EF4444' : meso.daysUntilDeload <= 3 ? '#F59E0B' : '#10B981' },
+              ]}>
+                {meso.daysUntilDeload === 0
+                  ? 'Deload Week — Active Now'
+                  : `Deload in ${meso.daysUntilDeload} day${meso.daysUntilDeload !== 1 ? 's' : ''}`}
+              </Text>
+              <Text style={[s.deloadBannerSub, { color: mut }]}>
+                {meso.daysUntilDeload === 0
+                  ? 'Week 5/5 · 70% weight & half sets today'
+                  : `Week ${meso.currentWeek}/${meso.totalWeeks} · Prepare to back off soon`}
+              </Text>
+            </View>
+            <Text style={[s.deloadBannerArrow, { color: mut }]}>›</Text>
+          </TouchableOpacity>
+        )}
         {/* ── AI Form Coach Banner ── */}
         <TouchableOpacity
           style={[s.coachCard, { backgroundColor: '#1A1F2E', borderColor: '#3B82F640' }]}
@@ -655,4 +690,9 @@ const s = StyleSheet.create({
   warningSub: { fontSize: 12, lineHeight: 16 },
   syncPill: { width: 32, height: 32, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   syncDotSmall: { width: 8, height: 8, borderRadius: 4 },
+  deloadBanner: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, borderWidth: 1.5, padding: 12, marginBottom: 12 },
+  deloadBannerEmoji: { fontSize: 20 },
+  deloadBannerTitle: { fontSize: 13, fontWeight: '700', marginBottom: 2 },
+  deloadBannerSub: { fontSize: 12, lineHeight: 16 },
+  deloadBannerArrow: { fontSize: 20, fontWeight: '700' },
 });

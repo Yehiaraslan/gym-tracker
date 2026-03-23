@@ -71,6 +71,14 @@ const config: ExpoConfig = {
   plugins: [
     "expo-router",
     [
+      "expo-media-library",
+      {
+        "photosPermission": "Allow Banana Pro Gym to access your photos.",
+        "savePhotosPermission": "Allow Banana Pro Gym to save time-lapse frames to your camera roll.",
+        "isAccessMediaLocationEnabled": true
+      }
+    ],
+    [
       "expo-audio",
       {
         microphonePermission: "Allow $(PRODUCT_NAME) to access your microphone.",

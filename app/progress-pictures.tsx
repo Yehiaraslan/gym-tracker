@@ -26,6 +26,8 @@ import { ScreenContainer } from '@/components/screen-container';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useColors } from '@/hooks/use-colors';
 import { persistImage, deletePersistedImage } from '@/lib/image-store';
+import * as MediaLibrary from 'expo-media-library';
+import * as FileSystem from 'expo-file-system/legacy';
 
 const PICTURES_KEY = '@gym_progress_pictures';
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -173,14 +175,79 @@ function TimeLapsePlayer({ photos, label, onClose }: {
   photos: ProgressPicture[];
   label: string;
   onClose: () => void;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
 }) {
   const sorted = [...photos].sort((a, b) => a.date.localeCompare(b.date));
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const [speedIndex, setSpeedIndex] = useState(1); // default 1×
+  const [isSaving, setIsSaving] = useState(false);
+  const [savedCount, setSavedCount] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
-  const IMG_HEIGHT = SCREEN_HEIGHT * 0.58;
+  const IMG_HEIGHT = SCREEN_HEIGHT * 0.52; // slightly shorter to fit save button
+
+  const saveToLibrary = async () => {
+    if ((Platform.OS as string) === 'web') {
+      Alert.alert('Not supported', 'Saving to camera roll is only available on iOS and Android.');
+      return;
+    }
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      setIsSaving(true);
+      setSavedCount(0);
+
+      // Request permission
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please allow access to your photo library to save frames.');
+        setIsSaving(false);
+        return;
+      }
+
+      // Get or create album
+      let album = await MediaLibrary.getAlbumAsync('Gym Tracker');
+
+      let count = 0;
+      for (const photo of sorted) {
+        try {
+          // Ensure we have a local file URI
+          let localUri = photo.uri;
+          if (localUri.startsWith('http://') || localUri.startsWith('https://')) {
+            // Download remote URI to temp file
+            const ext = localUri.split('.').pop()?.split('?')[0] ?? 'jpg';
+            const dest = `${FileSystem.cacheDirectory}tl_frame_${count}.${ext}`;
+            await FileSystem.downloadAsync(localUri, dest);
+            localUri = dest;
+          }
+
+          if (album === null) {
+            // createAlbumAsync needs an asset on Android — create asset first then album
+            const asset = await MediaLibrary.createAssetAsync(localUri);
+            album = await MediaLibrary.createAlbumAsync('Gym Tracker', asset, false);
+          } else {
+            const asset = await MediaLibrary.createAssetAsync(localUri);
+            await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
+          }
+          count++;
+          setSavedCount(count);
+        } catch (err) {
+          console.warn('[TimeLapse] Failed to save frame:', err);
+        }
+      }
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert(
+        '✅ Saved to Camera Roll',
+        `${count} photo${count !== 1 ? 's' : ''} saved to the "Gym Tracker" album in your camera roll.`,
+      );
+    } catch (err) {
+      console.error('[TimeLapse] Save error:', err);
+      Alert.alert('Error', 'Failed to save photos. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const currentPhoto = sorted[currentIndex];
   const totalPhotos = sorted.length;
@@ -308,6 +375,19 @@ function TimeLapsePlayer({ photos, label, onClose }: {
           <Text style={tlStyles.speedText}>{SPEED_OPTIONS[speedIndex].label}</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Save to Camera Roll */}
+      <TouchableOpacity
+        onPress={saveToLibrary}
+        disabled={isSaving}
+        style={[tlStyles.saveBtn, isSaving && { opacity: 0.6 }]}
+      >
+        <Text style={tlStyles.saveBtnText}>
+          {isSaving
+            ? `Saving... ${savedCount}/${sorted.length}`
+            : `📥 Save All ${sorted.length} Photos to Camera Roll`}
+        </Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -337,6 +417,8 @@ const tlStyles = StyleSheet.create({
   playBtnText: { fontSize: 26, color: '#000' },
   speedBtn: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.12)', minWidth: 52, alignItems: 'center' },
   speedText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  saveBtn: { marginTop: 16, marginHorizontal: 24, paddingVertical: 14, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', alignItems: 'center' },
+  saveBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' },
 });
 
 // ─── Main Screen ─────────────────────────────────────────────

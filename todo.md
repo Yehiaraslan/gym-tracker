@@ -843,3 +843,8 @@
 - [x] Cloud DB: WHOOP data (recovery, sleep) auto-saved to recovery_history table on each fetch
 - [x] Cloud DB: nutrition, streaks, body weight sync to PostgreSQL via correct routes
 - [x] AI-ready schema: normalized tables with deviceId, timestamps, full set/rep/weight history
+
+- [x] Stagnation nightly push notification — server-side scheduled job detects stagnation and sends push notification each morning
+- [x] Time-lapse export to camera roll — save all frames to "Gym Tracker" camera roll album via expo-media-library
+- [x] Deload countdown banner on Home screen — show X days until deload when mesocycle is in weeks 4-5
+- [ ] Push project to GitHub

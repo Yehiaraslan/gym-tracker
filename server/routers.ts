@@ -9,6 +9,7 @@ import * as whoopDb from "./whoopDb";
 import * as aiCoach from "./ai-coaching-service";
 import * as zaki from "./zakiService";
 import * as zakiDigest from "./zakiDailyDigest";
+import { checkAndNotifyStagnation } from "./stagnationScheduler";
 import * as dataSync from "./data-sync-service";
 import * as db from "./db";
 import * as pinIdentity from "./pin-identity-service";
@@ -436,6 +437,11 @@ export const appRouter = router({
     triggerDailyDigest: publicProcedure
       .mutation(async () => {
         const result = await zakiDigest.triggerDailyDigestNow();
+        return result;
+      }),
+    triggerStagnationCheck: publicProcedure
+      .mutation(async () => {
+        const result = await checkAndNotifyStagnation();
         return result;
       }),
 
