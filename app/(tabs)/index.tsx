@@ -302,7 +302,24 @@ export default function HomeScreen() {
             <Text style={s.warningIcon}>⚠️</Text>
             <View style={{ flex: 1 }}>
               <Text style={[s.warningTitle, { color: '#EF4444' }]}>Low Recovery ({recoveryScore}%)</Text>
-              <Text style={[s.warningSub, { color: mut }]}>Consider a deload or rest session today</Text>
+              <Text style={[s.warningSub, { color: mut }]}>Your body needs rest — deload mode uses 70% weight & half sets</Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                <TouchableOpacity
+                  style={{ backgroundColor: '#EF4444', paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10 }}
+                  onPress={() => {
+                    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    router.push({ pathname: '/split-workout', params: { sessionType: todaySession, date: todayStr, deload: 'true' } } as any);
+                  }}
+                >
+                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>🏳️ Switch to Deload</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={{ backgroundColor: '#EF444430', paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10 }}
+                  onPress={handleStartWorkout}
+                >
+                  <Text style={{ color: '#EF4444', fontWeight: '600', fontSize: 13 }}>Train Anyway</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         )}

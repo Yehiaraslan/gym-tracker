@@ -111,14 +111,18 @@ export default function AICoachingDashboard() {
     }
   }, [serverSessionQuery.data]);
   const [digestTriggerLoading, setDigestTriggerLoading] = useState(false);
-  const [digestTriggerResult, setDigestTriggerResult] = useState<string | null>(null);
-
-  // ── Body composition analysis state ──────────────────────
+  const [digestTriggerResult, setDigestTriggerResult] = useState<string | null>(null);  // ── Body composition analysis state ────────────────────────
   const [bodyCompLoading, setBodyCompLoading] = useState(false);
   const [bodyCompResult, setBodyCompResult] = useState<string | null>(null);
   const [bodyCompError, setBodyCompError] = useState<string | null>(null);
   const uploadPhotoMutation = trpc.zaki.uploadProgressPhoto.useMutation();
   const analyzeBodyMutation = trpc.zaki.analyzeBodyComposition.useMutation();
+
+  // ── Performance analysis state ────────────────────────────
+  const [perfAnalysisResponse, setPerfAnalysisResponse] = useState<string | null>(null);
+  const [perfAnalysisLoading, setPerfAnalysisLoading] = useState(false);
+  const [perfAnalysisError, setPerfAnalysisError] = useState<string | null>(null);
+  const perfAnalysisMutation = trpc.zaki.performanceAnalysis.useMutation();
 
   const handleAnalyzeBodyComposition = useCallback(async () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -230,7 +234,29 @@ export default function AICoachingDashboard() {
     }
   }, [personalizedDigestMutation]);
 
-  // ── Load persisted data ───────────────────────────────────
+  // ── Performance analysis handler ───────────────────────────
+  const handlePerformanceAnalysis = useCallback(async () => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setPerfAnalysisLoading(true);
+    setPerfAnalysisResponse(null);
+    setPerfAnalysisError(null);
+    try {
+      const result = await perfAnalysisMutation.mutateAsync({
+        deviceId: deviceId || 'unknown',
+        weeksBack: 4,
+        zakiSessionId: zakiSessionIdRef.current,
+      });
+      setPerfAnalysisResponse(result.analysis);
+      if (result.zakiSessionId) zakiSessionIdRef.current = result.zakiSessionId;
+    } catch (err) {
+      console.error('[PerfAnalysis]', err);
+      setPerfAnalysisError('Could not generate performance analysis. Please try again.');
+    } finally {
+      setPerfAnalysisLoading(false);
+    }
+  }, [perfAnalysisMutation, deviceId]);
+
+  // ── Load persisted data ───────────────────────────────────────────
   const loadPersistedData = useCallback(async () => {
     try {
       const dailyRaw = await AsyncStorage.getItem(DAILY_CACHE_KEY);
@@ -877,6 +903,51 @@ export default function AICoachingDashboard() {
                     )}
                   </View>
 
+                  {/* Performance Analysis Panel */}
+                  <View style={[styles.emptyCard, { backgroundColor: colors.surface, marginTop: 12 }]}>
+                    <Text style={{ fontSize: 32, textAlign: 'center' }}>📈</Text>
+                    <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+                      Performance Analysis
+                    </Text>
+                    <Text style={[styles.emptySubtitle, { color: colors.muted }]}>
+                      Zaki analyzes your last 4 weeks of workouts from the cloud — exercise progressions, volume trends, and a specific load plan for the next 2 weeks.
+                    </Text>
+                    {perfAnalysisLoading ? (
+                      <ActivityIndicator size="small" color="#F59E0B" style={{ marginTop: 12 }} />
+                    ) : (
+                      <TouchableOpacity
+                        onPress={handlePerformanceAnalysis}
+                        style={[styles.ctaBtn, { backgroundColor: '#F59E0B' }]}
+                      >
+                        <Text style={styles.ctaBtnText}>Analyze My Progress</Text>
+                      </TouchableOpacity>
+                    )}
+                    {perfAnalysisError && (
+                      <Text style={{ color: '#EF4444', fontSize: 12, textAlign: 'center', marginTop: 8, lineHeight: 18 }}>
+                        {perfAnalysisError}
+                      </Text>
+                    )}
+                    {perfAnalysisResponse && (
+                      <View style={[styles.responseCard, { backgroundColor: '#F59E0B08', borderColor: '#F59E0B30', marginTop: 12 }]}>
+                        <View style={styles.zakiHeaderRow}>
+                          <View style={[styles.zakiAvatarLg, { backgroundColor: '#F59E0B20' }]}>
+                            <Text style={{ fontSize: 24 }}>🤖</Text>
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={[styles.zakiNameLg, { color: '#F59E0B' }]}>Performance Report</Text>
+                            <Text style={[styles.zakiTimestamp, { color: colors.muted }]}>4-week analysis by Agent Zaki</Text>
+                          </View>
+                        </View>
+                        <Text style={[styles.responseText, { color: colors.foreground }]}>{perfAnalysisResponse}</Text>
+                        <TouchableOpacity
+                          onPress={handlePerformanceAnalysis}
+                          style={[styles.refreshSmallBtn, { borderColor: '#F59E0B40' }]}
+                        >
+                          <Text style={{ color: '#F59E0B', fontSize: 12, fontWeight: '600' }}>🔄 Re-analyze</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </View>
                   {/* Body Composition Analysis Panel */}
                   <View style={[styles.emptyCard, { backgroundColor: colors.surface, marginTop: 12 }]}>
                     <Text style={{ fontSize: 32, textAlign: 'center' }}>📸</Text>

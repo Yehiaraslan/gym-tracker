@@ -3,7 +3,7 @@
 // Log and view body transformation photos over time
 // Stored locally in AsyncStorage
 // ============================================================
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Text,
   View,
@@ -13,9 +13,10 @@ import {
   Platform,
   StyleSheet,
   Image,
-  FlatList,
   Modal,
   Dimensions,
+  PanResponder,
+  Animated,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -27,7 +28,7 @@ import { useColors } from '@/hooks/use-colors';
 import { persistImage, deletePersistedImage } from '@/lib/image-store';
 
 const PICTURES_KEY = '@gym_progress_pictures';
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const THUMB_SIZE = (SCREEN_WIDTH - 48 - 8) / 3;
 
 export interface ProgressPicture {
@@ -57,19 +58,134 @@ const LABELS: { key: ProgressPicture['label']; label: string; emoji: string }[] 
   { key: 'other', label: 'Other', emoji: '📸' },
 ];
 
+// ─── Comparison Slider Component ────────────────────────────
+function ComparisonSlider({ before, after, onClose }: {
+  before: ProgressPicture;
+  after: ProgressPicture;
+  onClose: () => void;
+}) {
+  const sliderX = useRef(new Animated.Value(SCREEN_WIDTH / 2)).current;
+  const currentX = useRef(SCREEN_WIDTH / 2);
+  const IMG_HEIGHT = SCREEN_HEIGHT * 0.55;
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderMove: (_, gs) => {
+        const newX = Math.max(20, Math.min(SCREEN_WIDTH - 20, currentX.current + gs.dx));
+        sliderX.setValue(newX);
+      },
+      onPanResponderRelease: (_, gs) => {
+        currentX.current = Math.max(20, Math.min(SCREEN_WIDTH - 20, currentX.current + gs.dx));
+        if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      },
+    })
+  ).current;
+
+  const beforeDays = Math.round(
+    (new Date(after.date).getTime() - new Date(before.date).getTime()) / 86_400_000
+  );
+
+  return (
+    <View style={cmpStyles.container}>
+      {/* Close button */}
+      <TouchableOpacity style={cmpStyles.closeBtn} onPress={onClose}>
+        <Text style={cmpStyles.closeTxt}>✕</Text>
+      </TouchableOpacity>
+
+      {/* Title */}
+      <View style={cmpStyles.titleRow}>
+        <Text style={cmpStyles.title}>Progress Comparison</Text>
+        <Text style={cmpStyles.subtitle}>{beforeDays} days apart</Text>
+      </View>
+
+      {/* Image comparison area */}
+      <View style={[cmpStyles.imageArea, { height: IMG_HEIGHT }]}>
+        {/* After image (right side — full width underneath) */}
+        <Image source={{ uri: after.uri }} style={[cmpStyles.fullImg, { height: IMG_HEIGHT }]} resizeMode="cover" />
+
+        {/* Before image (left side — clipped by slider position) */}
+        <Animated.View style={[cmpStyles.beforeClip, { width: sliderX, height: IMG_HEIGHT }]}>
+          <Image
+            source={{ uri: before.uri }}
+            style={[cmpStyles.fullImg, { width: SCREEN_WIDTH, height: IMG_HEIGHT }]}
+            resizeMode="cover"
+          />
+        </Animated.View>
+
+        {/* Slider handle */}
+        <Animated.View
+          style={[cmpStyles.sliderLine, { left: Animated.subtract(sliderX, 1) }]}
+          {...panResponder.panHandlers}
+        >
+          <View style={cmpStyles.sliderHandle}>
+            <Text style={cmpStyles.sliderArrows}>◀  ▶</Text>
+          </View>
+        </Animated.View>
+
+        {/* Labels on images */}
+        <View style={cmpStyles.labelBefore} pointerEvents="none">
+          <Text style={cmpStyles.labelTxt}>BEFORE</Text>
+          <Text style={cmpStyles.labelDate}>{before.date}</Text>
+        </View>
+        <View style={cmpStyles.labelAfter} pointerEvents="none">
+          <Text style={cmpStyles.labelTxt}>AFTER</Text>
+          <Text style={cmpStyles.labelDate}>{after.date}</Text>
+        </View>
+      </View>
+
+      {/* Hint */}
+      <Text style={cmpStyles.hint}>Drag the slider to compare</Text>
+    </View>
+  );
+}
+
+const cmpStyles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#000', justifyContent: 'flex-start' },
+  closeBtn: { position: 'absolute', top: 56, right: 20, zIndex: 20, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center' },
+  closeTxt: { color: '#fff', fontSize: 18, fontWeight: '700' },
+  titleRow: { paddingTop: 60, paddingBottom: 16, alignItems: 'center' },
+  title: { color: '#fff', fontSize: 18, fontWeight: '700' },
+  subtitle: { color: 'rgba(255,255,255,0.5)', fontSize: 13, marginTop: 2 },
+  imageArea: { width: SCREEN_WIDTH, overflow: 'hidden', position: 'relative' },
+  fullImg: { position: 'absolute', top: 0, left: 0, width: SCREEN_WIDTH },
+  beforeClip: { position: 'absolute', top: 0, left: 0, overflow: 'hidden' },
+  sliderLine: { position: 'absolute', top: 0, bottom: 0, width: 2, backgroundColor: '#fff', zIndex: 10 },
+  sliderHandle: { position: 'absolute', top: '50%', left: -22, width: 44, height: 44, borderRadius: 22, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } },
+  sliderArrows: { fontSize: 11, color: '#333', fontWeight: '700' },
+  labelBefore: { position: 'absolute', top: 12, left: 12, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
+  labelAfter: { position: 'absolute', top: 12, right: 12, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
+  labelTxt: { color: '#fff', fontSize: 11, fontWeight: '800', letterSpacing: 1 },
+  labelDate: { color: 'rgba(255,255,255,0.65)', fontSize: 10, marginTop: 1 },
+  hint: { color: 'rgba(255,255,255,0.4)', fontSize: 13, textAlign: 'center', marginTop: 20 },
+});
+
+// ─── Main Screen ─────────────────────────────────────────────
 export default function ProgressPicturesScreen() {
   const colors = useColors();
   const router = useRouter();
   const [pictures, setPictures] = useState<ProgressPicture[]>([]);
   const [viewPic, setViewPic] = useState<ProgressPicture | null>(null);
   const [addLabel, setAddLabel] = useState<ProgressPicture['label']>('front');
+  const [compareLabel, setCompareLabel] = useState<ProgressPicture['label'] | null>(null);
 
   useEffect(() => {
     loadPictures().then(setPictures);
   }, []);
 
+  // Find oldest & newest for each label (for comparison)
+  const comparisonPairs: Partial<Record<ProgressPicture['label'], { before: ProgressPicture; after: ProgressPicture } | null>> = {};
+  for (const lbl of LABELS.map(l => l.key)) {
+    const byLabel = pictures.filter(p => p.label === lbl).sort((a, b) => a.date.localeCompare(b.date));
+    if (byLabel.length >= 2) {
+      comparisonPairs[lbl] = { before: byLabel[0], after: byLabel[byLabel.length - 1] };
+    } else {
+      comparisonPairs[lbl] = null;
+    }
+  }
+
   const addPicture = async (uri: string) => {
-    // Persist to permanent storage so URI survives app restarts
     let permanentUri = uri;
     try {
       permanentUri = await persistImage(uri, 'progress');
@@ -133,7 +249,7 @@ export default function ProgressPicturesScreen() {
   // Group pictures by month for timeline view
   const grouped: { month: string; pics: ProgressPicture[] }[] = [];
   for (const pic of pictures) {
-    const month = pic.date.substring(0, 7); // YYYY-MM
+    const month = pic.date.substring(0, 7);
     const existing = grouped.find(g => g.month === month);
     if (existing) existing.pics.push(pic);
     else grouped.push({ month, pics: [pic] });
@@ -143,6 +259,9 @@ export default function ProgressPicturesScreen() {
     const d = new Date(m + '-01');
     return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   };
+
+  // Check if any label has a comparison pair available
+  const hasAnyComparison = LABELS.some(l => comparisonPairs[l.key] != null);
 
   return (
     <ScreenContainer>
@@ -176,6 +295,27 @@ export default function ProgressPicturesScreen() {
           </TouchableOpacity>
         ))}
       </View>
+
+      {/* Comparison banner — shown when 2+ photos of same label exist */}
+      {hasAnyComparison && (
+        <View style={[styles.compareBanner, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.compareBannerTitle, { color: colors.foreground }]}>📊 Before vs After</Text>
+          <View style={styles.compareBannerRow}>
+            {LABELS.filter(l => comparisonPairs[l.key] != null).map(l => (
+              <TouchableOpacity
+                key={l.key}
+                style={[styles.compareChip, { backgroundColor: colors.primary + '20', borderColor: colors.primary }]}
+                onPress={() => {
+                  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  setCompareLabel(l.key);
+                }}
+              >
+                <Text style={[styles.compareChipText, { color: colors.primary }]}>{l.emoji} {l.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
 
       {pictures.length === 0 ? (
         <View style={styles.empty}>
@@ -248,6 +388,21 @@ export default function ProgressPicturesScreen() {
           )}
         </View>
       </Modal>
+
+      {/* Comparison slider modal */}
+      <Modal
+        visible={compareLabel != null}
+        animationType="slide"
+        onRequestClose={() => setCompareLabel(null)}
+      >
+        {compareLabel != null && comparisonPairs[compareLabel] != null && (
+          <ComparisonSlider
+            before={comparisonPairs[compareLabel]!.before}
+            after={comparisonPairs[compareLabel]!.after}
+            onClose={() => setCompareLabel(null)}
+          />
+        )}
+      </Modal>
     </ScreenContainer>
   );
 }
@@ -262,6 +417,11 @@ const styles = StyleSheet.create({
   labelChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1, gap: 4 },
   labelEmoji: { fontSize: 14 },
   labelText: { fontSize: 13, fontWeight: '600' },
+  compareBanner: { marginHorizontal: 16, marginBottom: 12, padding: 14, borderRadius: 14, borderWidth: 1 },
+  compareBannerTitle: { fontSize: 14, fontWeight: '700', marginBottom: 10 },
+  compareBannerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  compareChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1 },
+  compareChipText: { fontSize: 13, fontWeight: '700' },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
   emptyEmoji: { fontSize: 64, marginBottom: 16 },
   emptyTitle: { fontSize: 20, fontWeight: '700', marginBottom: 8, textAlign: 'center' },

@@ -559,6 +559,74 @@ export const appRouter = router({
         const result = await zaki.askZaki(prompt, input.zakiSessionId);
         return { analysis: result.response, zakiSessionId: result.zakiSessionId };
       }),
+
+    // ── Historical Performance Analysis (queries PostgreSQL workout history) ──
+    performanceAnalysis: publicProcedure
+      .input(z.object({
+        deviceId: z.string(),
+        weeksBack: z.number().min(1).max(12).default(4).optional(),
+        zakiSessionId: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const sessions = await dataSync.getWorkoutSessions(input.deviceId, (input.weeksBack ?? 4) * 7);
+        if (!sessions || sessions.length === 0) {
+          return {
+            analysis: "No workout history found in the cloud yet. Complete a few workouts and make sure cloud sync is enabled to get a performance analysis.",
+            zakiSessionId: input.zakiSessionId,
+          };
+        }
+        // Build exercise progression map
+        const exerciseMap: Record<string, { dates: string[]; maxWeight: number; maxReps: number; totalSets: number; totalVolume: number }> = {};
+        for (const session of sessions) {
+          for (const ex of (session as any).exercises ?? []) {
+            const name: string = ex.exerciseName || ex.name || 'Unknown';
+            if (!exerciseMap[name]) exerciseMap[name] = { dates: [], maxWeight: 0, maxReps: 0, totalSets: 0, totalVolume: 0 };
+            for (const set of (ex as any).sets ?? []) {
+              const w = parseFloat(set.weightKg ?? set.weight ?? '0');
+              const r = parseInt(set.reps ?? '0', 10);
+              if (w > exerciseMap[name].maxWeight) exerciseMap[name].maxWeight = w;
+              if (r > exerciseMap[name].maxReps) exerciseMap[name].maxReps = r;
+              exerciseMap[name].totalSets++;
+              exerciseMap[name].totalVolume += w * r;
+            }
+            const sessionDate = (session as any).date;
+            if (sessionDate && !exerciseMap[name].dates.includes(sessionDate)) {
+              exerciseMap[name].dates.push(sessionDate);
+            }
+          }
+        }
+        const exerciseSummary = Object.entries(exerciseMap)
+          .sort((a, b) => b[1].totalVolume - a[1].totalVolume)
+          .slice(0, 20)
+          .map(([name, data]) =>
+            `${name}: ${data.dates.length} sessions, max ${data.maxWeight}kg × ${data.maxReps} reps, total volume ${Math.round(data.totalVolume)}kg`
+          ).join('\n');
+        const sessionSummary = sessions.slice(0, 20).map((s: any) => {
+          const exCount = (s.exercises ?? []).length;
+          return `${s.date}: ${s.sessionName || 'Workout'} — ${exCount} exercises`;
+        }).join('\n');
+        const prompt = [
+          `**HISTORICAL PERFORMANCE ANALYSIS — Last ${input.weeksBack ?? 4} Weeks**`,
+          `Total sessions analyzed: ${sessions.length}`,
+          '',
+          '**Recent Sessions:**',
+          sessionSummary,
+          '',
+          '**Top Exercises by Volume:**',
+          exerciseSummary,
+          '',
+          'As Zaki, provide a structured performance review with:',
+          '1. **Overall Progress Grade** (A–F) with 2-sentence justification',
+          '2. **Top 3 Strength Wins** — specific exercises where load or volume increased',
+          '3. **Top 3 Weak Points** — exercises with stagnation or insufficient volume',
+          '4. **Load Progression Plan** — specific weight/rep targets for next 2 weeks for the top 5 exercises',
+          '5. **Recovery Recommendation** — based on training frequency and volume trend',
+          '',
+          'Reference actual numbers from the data. Be direct and actionable.',
+        ].join('\n');
+        const result = await zaki.askZaki(prompt, input.zakiSessionId);
+        return { analysis: result.response, zakiSessionId: result.zakiSessionId };
+      }),
   }),
 
   aiCoaching: router({
