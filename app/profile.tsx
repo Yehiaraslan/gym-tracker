@@ -16,6 +16,8 @@ import {
   Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { ScreenContainer } from '@/components/screen-container';
@@ -27,6 +29,7 @@ import {
   calculateAge,
   type UserProfile,
 } from '@/lib/profile-store';
+import { loadPinSyncState, type PinSyncState } from '@/lib/pin-sync-store';
 
 const GOALS: { key: UserProfile['fitnessGoal']; label: string; emoji: string }[] = [
   { key: 'muscle_gain', label: 'Muscle Gain', emoji: '💪' },
@@ -57,10 +60,17 @@ export default function ProfileScreen() {
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [syncState, setSyncState] = useState<PinSyncState | null>(null);
 
   useEffect(() => {
     loadUserProfile().then(setProfile);
+    loadPinSyncState().then(setSyncState);
   }, []);
+
+  // Refresh sync state when returning from pin-sync screen
+  useFocusEffect(useCallback(() => {
+    loadPinSyncState().then(setSyncState);
+  }, []));
 
   const pickPhoto = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -118,6 +128,12 @@ export default function ProfileScreen() {
   };
 
   const age = calculateAge(profile.dateOfBirth);
+
+  const formatSyncDate = (iso: string | null) => {
+    if (!iso) return 'Never';
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  };
 
   return (
     <ScreenContainer>
@@ -267,6 +283,37 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* Cloud Sync Card */}
+        <View style={[styles.syncCard, {
+          backgroundColor: colors.surface,
+          borderColor: syncState?.linked ? '#22C55E40' : colors.border,
+          borderLeftColor: syncState?.linked ? '#22C55E' : colors.border,
+        }]}>
+          <View style={styles.syncRow}>
+            <View style={[styles.syncDot, { backgroundColor: syncState?.linked ? '#22C55E' : '#94A3B8' }]} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.syncTitle, { color: colors.foreground }]}>Cloud Sync</Text>
+              <Text style={[styles.syncSubtitle, { color: colors.muted }]}>
+                {syncState?.linked
+                  ? `Linked · Last sync: ${formatSyncDate(syncState.lastSyncAt)}`
+                  : 'Tap to set up cross-device sync'}
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => router.push('/pin-sync' as any)}
+              style={[styles.syncBtn, {
+                backgroundColor: syncState?.linked ? '#22C55E15' : colors.primary + '15',
+                borderColor: syncState?.linked ? '#22C55E' : colors.primary,
+              }]}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.syncBtnText, { color: syncState?.linked ? '#22C55E' : colors.primary }]}>
+                {syncState?.linked ? 'Manage' : 'Set Up'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* Save Button */}
         <View style={styles.saveSection}>
           <TouchableOpacity
@@ -309,6 +356,15 @@ const styles = StyleSheet.create({
   goalChip: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
   goalEmoji: { fontSize: 16 },
   goalLabel: { fontSize: 13, fontWeight: '600' },
+  // Cloud sync card
+  syncCard: { marginHorizontal: 16, marginBottom: 16, borderRadius: 14, padding: 14, borderWidth: 1, borderLeftWidth: 4 },
+  syncRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  syncDot: { width: 10, height: 10, borderRadius: 5, flexShrink: 0 },
+  syncTitle: { fontSize: 15, fontWeight: '600', marginBottom: 2 },
+  syncSubtitle: { fontSize: 12, lineHeight: 16 },
+  syncBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, borderWidth: 1, flexShrink: 0 },
+  syncBtnText: { fontSize: 13, fontWeight: '600' },
+  // Save
   saveSection: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 24 },
   saveBtn: { height: 52, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
   saveBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },

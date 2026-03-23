@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { saveWhoopRecoveryToStorage } from '@/lib/whoop-recovery-service';
 import { 
   Text, 
   View, 
@@ -68,6 +69,34 @@ export default function WhoopScreen() {
   const latestRecovery = recoveryQuery.data?.records?.[0]?.score;
   const latestCycle = cyclesQuery.data?.records?.[0]?.score;
   const latestSleep = sleepQuery.data?.records?.[0]?.score;
+
+  // Persist full WHOOP biometrics to AsyncStorage so Zaki coaching context has HRV, RHR, sleep stages
+  useEffect(() => {
+    if (!isConnected) return;
+    if (!latestRecovery && !latestSleep) return;
+    const sleepRecord = sleepQuery.data?.records?.[0];
+    const stages = sleepRecord?.score?.stage_summary;
+    const totalSleepMs = stages
+      ? ((stages as any).total_light_sleep_time_milli ?? 0)
+        + ((stages as any).total_slow_wave_sleep_time_milli ?? 0)
+        + ((stages as any).total_rem_sleep_time_milli ?? 0)
+      : null;
+    saveWhoopRecoveryToStorage({
+      isConnected: true,
+      recoveryScore: latestRecovery?.recovery_score != null ? Math.round(latestRecovery.recovery_score) : undefined,
+      strain: latestCycle?.strain ?? undefined,
+      sleepScore: latestSleep?.sleep_performance_percentage != null ? Math.round(latestSleep.sleep_performance_percentage) : undefined,
+      hrv: latestRecovery?.hrv_rmssd_milli != null ? Math.round(latestRecovery.hrv_rmssd_milli) : null,
+      rhr: latestRecovery?.resting_heart_rate != null ? Math.round(latestRecovery.resting_heart_rate) : null,
+      spo2: latestRecovery?.spo2_percentage != null ? Math.round(latestRecovery.spo2_percentage) : null,
+      sleepDurationHours: totalSleepMs != null ? Math.round((totalSleepMs / 3_600_000) * 10) / 10 : null,
+      sleepEfficiency: latestSleep?.sleep_efficiency_percentage != null ? Math.round(latestSleep.sleep_efficiency_percentage) : null,
+      sleepConsistency: latestSleep?.sleep_consistency_percentage != null ? Math.round(latestSleep.sleep_consistency_percentage) : null,
+      remSleepMinutes: stages ? Math.round(((stages as any).total_rem_sleep_time_milli ?? 0) / 60_000) : null,
+      deepSleepMinutes: stages ? Math.round(((stages as any).total_slow_wave_sleep_time_milli ?? 0) / 60_000) : null,
+      lightSleepMinutes: stages ? Math.round(((stages as any).total_light_sleep_time_milli ?? 0) / 60_000) : null,
+    });
+  }, [isConnected, latestRecovery, latestSleep, latestCycle]);
 
   const handleConnect = async () => {
     if (!deviceId) return;

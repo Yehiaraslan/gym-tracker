@@ -819,3 +819,11 @@
 - [x] Make-up session detection banner (missed training day → suggest make-up)
 - [x] Photo category tagging (Front/Back/Side/Other picker on capture/upload)
 - [x] Side-by-side progress photo comparison slider in Progress Gallery
+- [ ] Future workout preview from home calendar (tap future day to see session)
+- [ ] Cross-device cloud DB sync with PIN-based identity
+- [ ] Full WHOOP data (HRV, RHR, sleep stages, sleep duration) sent to Zaki
+- [ ] Fix LSP false positives in whoop-reconnect-banner.tsx and ai-data-aggregator.ts
+- [ ] BMR/TDEE calculation added to Zaki coaching context
+- [ ] Profile completeness nudge banner on home screen
+- [ ] Push notifications enabled (permission request + server delivery)
+- [ ] Exercise swap with same-muscle alternatives in active workout

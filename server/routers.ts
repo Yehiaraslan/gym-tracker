@@ -11,6 +11,7 @@ import * as zaki from "./zakiService";
 import * as zakiDigest from "./zakiDailyDigest";
 import * as dataSync from "./data-sync-service";
 import * as db from "./db";
+import * as pinIdentity from "./pin-identity-service";
 
 // All WHOOP and sync procedures use a device-level identifier (deviceId) instead of
 // requiring user authentication. The app generates a persistent UUID on first launch
@@ -35,14 +36,19 @@ export const appRouter = router({
     // Get WHOOP connection status
     status: publicProcedure
       .input(deviceIdInput)
+      .output(z.object({
+        connected: z.boolean(),
+        tokenExpired: z.boolean(),
+        profile: z.record(z.string(), z.any()).nullable(),
+      }))
       .query(async ({ input }) => {
         const stored = await whoopDb.getWhoopTokens(input.deviceId);
         const connected = stored !== null;
         const tokenExpired = connected && stored!.expiresAt < Date.now() + 5 * 60 * 1000;
-        let profile = null;
+        let profile: Record<string, unknown> | null = null;
         if (connected && !tokenExpired) {
           try {
-            profile = await whoopService.getProfile(input.deviceId);
+            profile = await whoopService.getProfile(input.deviceId) as Record<string, unknown>;
           } catch {
             // Profile fetch may fail (e.g. expired token), still show as connected
           }
@@ -607,6 +613,41 @@ export const appRouter = router({
           input.sessionNotesContext,
           input.userContext,
         );
+      }),
+  }),
+
+  // ── PIN Identity (Cross-Device Sync) ─────────────────────
+  pin: router({
+    // Set up a new PIN or log in with an existing one
+    setupOrLogin: publicProcedure
+      .input(z.object({
+        deviceId: z.string().min(1),
+        pin: z.string().length(6).regex(/^\d{6}$/),
+        displayName: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        return pinIdentity.setupOrLoginPin(input.deviceId, input.pin, input.displayName);
+      }),
+    // Resolve a deviceId to its linked userOpenId
+    resolve: publicProcedure
+      .input(deviceIdInput)
+      .query(async ({ input }) => {
+        const userOpenId = await pinIdentity.resolveUserOpenId(input.deviceId);
+        return { userOpenId, linked: userOpenId !== null };
+      }),
+    // Unlink this device from its PIN identity
+    unlink: publicProcedure
+      .input(deviceIdInput)
+      .mutation(async ({ input }) => {
+        await pinIdentity.unlinkDevice(input.deviceId);
+        return { success: true };
+      }),
+    // Check if a PIN is already taken
+    check: publicProcedure
+      .input(z.object({ pin: z.string().length(6).regex(/^\d{6}$/) }))
+      .query(async ({ input }) => {
+        const taken = await pinIdentity.isPinTaken(input.pin);
+        return { taken };
       }),
   }),
 });

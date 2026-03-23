@@ -249,12 +249,12 @@ export async function buildUserSnapshot(): Promise<UserSnapshot> {
     },
   );
 
-  // Recovery
+  // Recovery — now includes full HRV, RHR, SpO2, sleep stages
   const recovery: RecoverySummary = {
     available: recoveryData != null,
     score: recoveryData?.recoveryScore ?? null,
-    hrv: null, // WHOOP recovery service doesn't expose HRV directly
-    rhr: null, // WHOOP recovery service doesn't expose RHR directly
+    hrv: recoveryData?.hrv ?? null,
+    rhr: recoveryData?.rhr ?? null,
     strain: recoveryData?.strain ?? null,
     sleepScore: recoveryData?.sleepScore ?? null,
     zone: getRecoveryZone(recoveryData?.recoveryScore ?? null),
@@ -414,11 +414,47 @@ export function snapshotToPromptContext(snap: UserSnapshot): string {
     );
   }
 
+  // BMR / TDEE — calculated from profile if available
+  if (snap.userProfile) {
+    const p = snap.userProfile;
+    const w = parseFloat(p.weightKg) || 0;
+    const h = parseFloat(p.heightCm) || 0;
+    const age = p.age ?? 30;
+    if (w > 0 && h > 0) {
+      // Mifflin-St Jeor BMR
+      const bmr = p.gender === 'female'
+        ? 10 * w + 6.25 * h - 5 * age - 161
+        : 10 * w + 6.25 * h - 5 * age + 5;
+      // TDEE: moderately active (4 workouts/week)
+      const tdee = Math.round(bmr * 1.55);
+      const bmrRound = Math.round(bmr);
+      lines.push(`BMR: ~${bmrRound} kcal/day | Estimated TDEE (moderate activity): ~${tdee} kcal/day`);
+    }
+  }
+
   // Recovery
   if (snap.recovery.available) {
-    lines.push(
-      `\nWHOOP Recovery: ${snap.recovery.score}% (${snap.recovery.zone}) | HRV: ${snap.recovery.hrv}ms | RHR: ${snap.recovery.rhr}bpm | Strain: ${snap.recovery.strain ?? '?'} | Sleep: ${snap.recovery.sleepScore ?? '?'}%`,
-    );
+    const r = snap.recovery;
+    lines.push(`\nWHOOP Recovery: ${r.score}% (${r.zone}) | HRV: ${r.hrv != null ? r.hrv + 'ms' : '--'} | RHR: ${r.rhr != null ? r.rhr + 'bpm' : '--'} | Strain: ${r.strain ?? '?'} | Sleep Score: ${r.sleepScore ?? '?'}%`);
+    // Extended sleep data from RecoveryData
+    const rd = snap.recovery as RecoverySummary & {
+      sleepDurationHours?: number | null;
+      sleepEfficiency?: number | null;
+      sleepConsistency?: number | null;
+      remSleepMinutes?: number | null;
+      deepSleepMinutes?: number | null;
+      lightSleepMinutes?: number | null;
+      spo2?: number | null;
+    };
+    const sleepParts: string[] = [];
+    if (rd.sleepDurationHours != null) sleepParts.push(`Duration: ${rd.sleepDurationHours}h`);
+    if (rd.sleepEfficiency != null) sleepParts.push(`Efficiency: ${rd.sleepEfficiency}%`);
+    if (rd.sleepConsistency != null) sleepParts.push(`Consistency: ${rd.sleepConsistency}%`);
+    if (rd.remSleepMinutes != null) sleepParts.push(`REM: ${rd.remSleepMinutes}min`);
+    if (rd.deepSleepMinutes != null) sleepParts.push(`Deep: ${rd.deepSleepMinutes}min`);
+    if (rd.lightSleepMinutes != null) sleepParts.push(`Light: ${rd.lightSleepMinutes}min`);
+    if (rd.spo2 != null) sleepParts.push(`SpO2: ${rd.spo2}%`);
+    if (sleepParts.length > 0) lines.push(`Sleep Details: ${sleepParts.join(' | ')}`);
   } else {
     lines.push(`\nWHOOP: Not connected`);
   }

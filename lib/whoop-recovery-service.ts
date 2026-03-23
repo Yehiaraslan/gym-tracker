@@ -12,6 +12,16 @@ export interface RecoveryData {
   recoveryScore: number;
   strain: number;
   sleepScore: number;
+  // Full WHOOP biometric fields
+  hrv: number | null;               // HRV RMSSD in ms
+  rhr: number | null;               // Resting heart rate in bpm
+  spo2: number | null;              // SpO2 percentage
+  sleepDurationHours: number | null; // Total sleep in hours
+  sleepEfficiency: number | null;    // Sleep efficiency %
+  sleepConsistency: number | null;   // Sleep consistency %
+  remSleepMinutes: number | null;    // REM sleep in minutes
+  deepSleepMinutes: number | null;   // Deep (SWS) sleep in minutes
+  lightSleepMinutes: number | null;  // Light sleep in minutes
   timestamp: number;
 }
 
@@ -41,6 +51,15 @@ export async function getTodayRecoveryData(): Promise<RecoveryData | null> {
         recoveryScore: whoopData.recoveryScore,
         strain: whoopData.strain || 0,
         sleepScore: whoopData.sleepScore || 0,
+        hrv: whoopData.hrv ?? null,
+        rhr: whoopData.rhr ?? null,
+        spo2: whoopData.spo2 ?? null,
+        sleepDurationHours: whoopData.sleepDurationHours ?? null,
+        sleepEfficiency: whoopData.sleepEfficiency ?? null,
+        sleepConsistency: whoopData.sleepConsistency ?? null,
+        remSleepMinutes: whoopData.remSleepMinutes ?? null,
+        deepSleepMinutes: whoopData.deepSleepMinutes ?? null,
+        lightSleepMinutes: whoopData.lightSleepMinutes ?? null,
         timestamp: whoopData.lastSynced || Date.now(),
       };
     }
@@ -49,6 +68,38 @@ export async function getTodayRecoveryData(): Promise<RecoveryData | null> {
   } catch (error) {
     console.error('Error getting recovery data:', error);
     return null;
+  }
+}
+
+/**
+ * Save full WHOOP recovery + sleep data to AsyncStorage.
+ * Called from the WHOOP tab when data is fetched from the server.
+ */
+export async function saveWhoopRecoveryToStorage(params: {
+  isConnected: boolean;
+  recoveryScore?: number;
+  strain?: number;
+  sleepScore?: number;
+  hrv?: number | null;
+  rhr?: number | null;
+  spo2?: number | null;
+  sleepDurationHours?: number | null;
+  sleepEfficiency?: number | null;
+  sleepConsistency?: number | null;
+  remSleepMinutes?: number | null;
+  deepSleepMinutes?: number | null;
+  lightSleepMinutes?: number | null;
+}): Promise<void> {
+  try {
+    const existing = await AsyncStorage.getItem(WHOOP_STORAGE_KEY);
+    const base = existing ? JSON.parse(existing) : {};
+    await AsyncStorage.setItem(WHOOP_STORAGE_KEY, JSON.stringify({
+      ...base,
+      ...params,
+      lastSynced: Date.now(),
+    }));
+  } catch (error) {
+    console.error('Error saving WHOOP recovery to storage:', error);
   }
 }
 

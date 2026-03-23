@@ -1,0 +1,19 @@
+{
+  "query": "SHOW TABLES LIKE 'pin_identities'; SHOW TABLES LIKE 'device_identities';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2cDKYqL8H1Gz7P9.root --database cZHK9Nh6oC3jkbpfFUDiCK --execute SHOW TABLES LIKE 'pin_identities'; SHOW TABLES LIKE 'device_identities';",
+  "rows": [
+    {
+      "Tables_in_cZHK9Nh6oC3jkbpfFUDiCK (pin_identities)": "pin_identities"
+    },
+    {
+      "Tables_in_cZHK9Nh6oC3jkbpfFUDiCK (pin_identities)": "Tables_in_cZHK9Nh6oC3jkbpfFUDiCK (device_identities)"
+    },
+    {
+      "Tables_in_cZHK9Nh6oC3jkbpfFUDiCK (pin_identities)": "device_identities"
+    }
+  ],
+  "messages": [],
+  "stdout": "Tables_in_cZHK9Nh6oC3jkbpfFUDiCK (pin_identities)\npin_identities\nTables_in_cZHK9Nh6oC3jkbpfFUDiCK (device_identities)\ndevice_identities\n",
+  "stderr": "",
+  "execution_time_ms": 1879
+}

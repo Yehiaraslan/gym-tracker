@@ -3,7 +3,7 @@
 // ============================================================
 import { useState, useCallback } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Text, View, TouchableOpacity, ScrollView, Platform, StyleSheet, Image } from 'react-native';
+import { Text, View, TouchableOpacity, ScrollView, Platform, StyleSheet, Image, Modal } from 'react-native';
 import { loadUserProfile, type UserProfile } from '@/lib/profile-store';
 import { ScreenContainer } from '@/components/screen-container';
 import { useColors } from '@/hooks/use-colors';
@@ -15,6 +15,7 @@ import {
   SESSION_COLORS,
   getMesocycleInfo,
   getMissedSessions,
+  PROGRAM_SESSIONS,
   type SessionType,
 } from '@/lib/training-program';
 import {
@@ -27,6 +28,7 @@ import { getTodayRecovery, type WhoopRecovery } from '@/lib/whoop-api';
 import { getDailyNutrition, type DailyNutrition } from '@/lib/nutrition-store';
 import { useGym } from '@/lib/gym-context';
 import { WhoopReconnectBanner } from '@/components/whoop-reconnect-banner';
+import { loadPinSyncState, type PinSyncState } from '@/lib/pin-sync-store';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -72,6 +74,8 @@ export default function HomeScreen() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [missedSessions, setMissedSessions] = useState<Array<{ date: string; sessionType: SessionType; sessionName: string; daysAgo: number }>>([]);
   const [dismissedMakeup, setDismissedMakeup] = useState<Set<string>>(new Set());
+  const [previewDay, setPreviewDay] = useState<{ date: string; session: SessionType; label: string } | null>(null);
+  const [syncState, setSyncState] = useState<PinSyncState | null>(null);
 
   // Build this week's 7-day strip
   const weekDays = Array.from({ length: 7 }, (_, i) => {
@@ -129,6 +133,7 @@ export default function HomeScreen() {
     useCallback(() => {
       loadData();
       loadUserProfile().then(setUserProfile);
+      loadPinSyncState().then(setSyncState);
     }, [loadData])
   );
 
@@ -174,6 +179,21 @@ export default function HomeScreen() {
       >
         {/* ── WHOOP Reconnect Banner (shown when token expired) ── */}
         <WhoopReconnectBanner />
+        {/* ── Profile Completeness Nudge ── */}
+        {userProfile && (!userProfile.name || !userProfile.dateOfBirth || !userProfile.heightCm || !userProfile.weightKg || !userProfile.fitnessGoal) && (
+          <TouchableOpacity
+            style={[s.warningBanner, { backgroundColor: '#3B82F615', borderColor: '#3B82F6', marginBottom: 8 }]}
+            onPress={() => router.push('/profile' as any)}
+            activeOpacity={0.8}
+          >
+            <Text style={s.warningIcon}>👤</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[s.warningTitle, { color: '#3B82F6' }]}>Complete your profile</Text>
+              <Text style={[s.warningSub, { color: mut }]}>Zaki needs your height, weight & goal for personalised coaching</Text>
+            </View>
+            <Text style={{ color: '#3B82F6', fontSize: 18 }}>›</Text>
+          </TouchableOpacity>
+        )}
         {/* ── Header ── */}
         <View style={[s.row, { marginBottom: 16, alignItems: 'center' }]}>
           <TouchableOpacity onPress={() => router.push('/profile' as any)} activeOpacity={0.85} style={s.avatarBtn}>
@@ -191,6 +211,18 @@ export default function HomeScreen() {
               <Text style={{ color: mut, fontSize: 12, textTransform: 'capitalize' }}>{userProfile.fitnessGoal.replace('_', ' ')}</Text>
             ) : null}
           </View>
+          {/* Sync status pill */}
+          <TouchableOpacity
+            style={[s.syncPill, {
+              backgroundColor: syncState?.linked ? '#22C55E15' : surf,
+              borderColor: syncState?.linked ? '#22C55E40' : bord,
+              marginRight: 6,
+            }]}
+            onPress={() => router.push('/pin-sync' as any)}
+            activeOpacity={0.7}
+          >
+            <View style={[s.syncDotSmall, { backgroundColor: syncState?.linked ? '#22C55E' : '#94A3B8' }]} />
+          </TouchableOpacity>
           <TouchableOpacity
             style={[s.iconBtn, { backgroundColor: surf, borderColor: bord, marginRight: 8 }]}
             onPress={() => router.push('/progress-pictures' as any)}
@@ -289,9 +321,14 @@ export default function HomeScreen() {
                   style={s.dayCol}
                   onPress={() => {
                     const d = day.date.toISOString().split('T')[0];
-                    if (isTraining) {
-                      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    if (!isTraining) return;
+                    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    if (day.isToday) {
+                      // Today: start workout directly
                       router.push({ pathname: '/split-workout', params: { sessionType: day.session, date: d } } as any);
+                    } else {
+                      // Future or past: show preview modal
+                      setPreviewDay({ date: d, session: day.session, label: day.label });
                     }
                   }}
                 >
@@ -315,6 +352,80 @@ export default function HomeScreen() {
             })}
           </View>
         </View>
+
+        {/* ── Future/Past Workout Preview Modal ── */}
+        <Modal
+          visible={previewDay !== null}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setPreviewDay(null)}
+        >
+          <TouchableOpacity
+            style={{ flex: 1, backgroundColor: '#00000080', justifyContent: 'flex-end' }}
+            activeOpacity={1}
+            onPress={() => setPreviewDay(null)}
+          >
+            <TouchableOpacity activeOpacity={1} onPress={() => {}}>
+              <View style={[{ backgroundColor: surf, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 36, borderWidth: 1, borderColor: bord }]}>
+                {/* Handle */}
+                <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: bord, alignSelf: 'center', marginBottom: 16 }} />
+                {/* Header */}
+                {previewDay && (() => {
+                  const exercises = previewDay.session !== 'rest' ? (PROGRAM_SESSIONS[previewDay.session as Exclude<SessionType, 'rest'>] ?? []) : [];
+                  const isFuture = previewDay.date > todayStr;
+                  const isPast = previewDay.date < todayStr;
+                  const completedSession = recentWorkouts.find(w => w.date === previewDay.date && w.completed);
+                  return (
+                    <>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                        <Text style={{ fontSize: 22 }}>{SESSION_EMOJI[previewDay.session]}</Text>
+                        <View style={{ marginLeft: 10, flex: 1 }}>
+                          <Text style={{ fontSize: 18, fontWeight: '700', color: fg }}>{SESSION_NAMES[previewDay.session]}</Text>
+                          <Text style={{ fontSize: 12, color: mut }}>{previewDay.label} · {previewDay.date}</Text>
+                        </View>
+                        {isFuture && <View style={{ backgroundColor: '#3B82F620', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 }}><Text style={{ color: '#3B82F6', fontSize: 11, fontWeight: '700' }}>UPCOMING</Text></View>}
+                        {isPast && completedSession && <View style={{ backgroundColor: '#22C55E20', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 }}><Text style={{ color: '#22C55E', fontSize: 11, fontWeight: '700' }}>DONE</Text></View>}
+                        {isPast && !completedSession && <View style={{ backgroundColor: '#F59E0B20', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 }}><Text style={{ color: '#F59E0B', fontSize: 11, fontWeight: '700' }}>MISSED</Text></View>}
+                      </View>
+                      {/* Exercise List */}
+                      <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={false}>
+                        {exercises.map((ex, idx) => (
+                          <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: idx < exercises.length - 1 ? 1 : 0, borderBottomColor: bord }}>
+                            <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: DOT_COLORS[previewDay.session] + '30', justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
+                              <Text style={{ fontSize: 11, fontWeight: '700', color: DOT_COLORS[previewDay.session] }}>{idx + 1}</Text>
+                            </View>
+                            <View style={{ flex: 1 }}>
+                              <Text style={{ fontSize: 14, fontWeight: '600', color: fg }}>{ex.name}</Text>
+                              <Text style={{ fontSize: 12, color: mut }}>{ex.sets} sets · {ex.repsMin > 0 ? `${ex.repsMin}–${ex.repsMax} reps` : 'max hold'} · {ex.bodyPart}</Text>
+                            </View>
+                          </View>
+                        ))}
+                      </ScrollView>
+                      {/* Actions */}
+                      <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
+                        <TouchableOpacity
+                          style={{ flex: 1, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: bord, alignItems: 'center' }}
+                          onPress={() => setPreviewDay(null)}
+                        >
+                          <Text style={{ color: mut, fontWeight: '600' }}>Close</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={{ flex: 2, paddingVertical: 12, borderRadius: 12, backgroundColor: pri, alignItems: 'center' }}
+                          onPress={() => {
+                            setPreviewDay(null);
+                            router.push({ pathname: '/split-workout', params: { sessionType: previewDay.session, date: previewDay.date } } as any);
+                          }}
+                        >
+                          <Text style={{ color: '#fff', fontWeight: '700' }}>{isPast ? 'Log Make-up Session' : 'Start Early'}</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </>
+                  );
+                })()}
+              </View>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </Modal>
 
         {/* ── 2×2 Metric Grid ── */}
         <View style={s.grid}>
@@ -548,4 +659,6 @@ const s = StyleSheet.create({
   warningIcon: { fontSize: 20 },
   warningTitle: { fontSize: 13, fontWeight: '700', marginBottom: 2 },
   warningSub: { fontSize: 12, lineHeight: 16 },
+  syncPill: { width: 32, height: 32, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  syncDotSmall: { width: 8, height: 8, borderRadius: 4 },
 });

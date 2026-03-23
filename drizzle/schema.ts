@@ -348,3 +348,36 @@ export const zakiSessions = mysqlTable("zaki_sessions", {
 
 export type ZakiSession = typeof zakiSessions.$inferSelect;
 export type InsertZakiSession = typeof zakiSessions.$inferInsert;
+
+// ════════════════════════════════════════════════════════════
+// PIN IDENTITY — Cross-Device Sync
+// ════════════════════════════════════════════════════════════
+// Maps a 6-digit PIN to a stable userOpenId so the same data
+// is accessible from any device. The PIN is hashed (SHA-256)
+// before storage. A device registers its deviceId under the
+// PIN's userOpenId so all sync operations use the same key.
+export const pinIdentities = mysqlTable("pin_identities", {
+  id: int("id").autoincrement().primaryKey(),
+  userOpenId: varchar("userOpenId", { length: 64 }).notNull().unique(),
+  pinHash: varchar("pinHash", { length: 64 }).notNull().unique(),
+  displayName: varchar("displayName", { length: 128 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  pinHashIdx: index("pi_pin_hash_idx").on(table.pinHash),
+}));
+export type PinIdentity = typeof pinIdentities.$inferSelect;
+export type InsertPinIdentity = typeof pinIdentities.$inferInsert;
+
+export const deviceIdentities = mysqlTable("device_identities", {
+  id: int("id").autoincrement().primaryKey(),
+  deviceId: varchar("deviceId", { length: 128 }).notNull().unique(),
+  userOpenId: varchar("userOpenId", { length: 64 }).notNull(),
+  lastSeenAt: timestamp("lastSeenAt").defaultNow().notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({
+  deviceIdx: index("di_device_idx").on(table.deviceId),
+  userIdx: index("di_user_idx").on(table.userOpenId),
+}));
+export type DeviceIdentity = typeof deviceIdentities.$inferSelect;
+export type InsertDeviceIdentity = typeof deviceIdentities.$inferInsert;

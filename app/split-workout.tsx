@@ -33,6 +33,8 @@ import {
   SESSION_COLORS,
   getTodaySession,
   type ProgramExercise,
+  getAlternativesForExercise,
+  type AlternativeExercise,
 } from '@/lib/training-program';
 import {
   type SplitSetLog,
@@ -66,7 +68,10 @@ export default function SplitWorkoutScreen() {
   const params = useLocalSearchParams<{ session?: string; deload?: string }>();
   const sessionType = (params.session as SessionType) || getTodaySession();
   const [isDeload, setIsDeload] = useState(params.deload === 'true');
-  const exercises = sessionType !== 'rest' ? PROGRAM_SESSIONS[sessionType] : [];
+  const programExercises = sessionType !== 'rest' ? PROGRAM_SESSIONS[sessionType] : [];
+  const [swappableExercises, setSwappableExercises] = useState<ProgramExercise[]>([]);
+  // Initialize swappableExercises from program on first render
+  const exercises = swappableExercises.length > 0 ? swappableExercises : programExercises;
   const sessionColor = SESSION_COLORS[sessionType] || colors.primary;
 
   // State
@@ -117,6 +122,33 @@ export default function SplitWorkoutScreen() {
   const [zakiCheckInResult, setZakiCheckInResult] = useState<string | null>(null);
   const [zakiCheckInSessionId, setZakiCheckInSessionId] = useState<string | undefined>(undefined);
   const zakiMidWorkoutMutation = trpc.zaki.midWorkoutCheckIn.useMutation();
+
+  // Exercise swap
+  const [showSwapModal, setShowSwapModal] = useState(false);
+  const [swapTargetIndex, setSwapTargetIndex] = useState<number | null>(null);
+  const [swapAlternatives, setSwapAlternatives] = useState<AlternativeExercise[]>([]);
+
+  const handleOpenSwap = (exerciseIndex: number) => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const ex = exercises[exerciseIndex];
+    if (!ex || sessionType === 'rest') return;
+    const alts = getAlternativesForExercise(ex.name, sessionType as Exclude<SessionType, 'rest'>);
+    setSwapTargetIndex(exerciseIndex);
+    setSwapAlternatives(alts);
+    setShowSwapModal(true);
+  };
+
+  const handleConfirmSwap = (alt: AlternativeExercise) => {
+    if (swapTargetIndex === null) return;
+    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    const updated = exercises.map((ex, i) => i === swapTargetIndex ? { ...alt } : ex);
+    setSwappableExercises(updated);
+    setExerciseLogs(prev => prev.map((log, i) =>
+      i === swapTargetIndex ? { ...log, exerciseName: alt.name } : log
+    ));
+    setShowSwapModal(false);
+    setSwapTargetIndex(null);
+  };
 
   const handleZakiModification = async () => {
     if (!recovery) return;
@@ -1053,6 +1085,19 @@ export default function SplitWorkoutScreen() {
                       </View>
                     </View>
 
+                    {/* Swap button */}
+                    {!isComplete && (
+                      <TouchableOpacity
+                        onPress={() => handleOpenSwap(i)}
+                        style={{
+                          width: 36, height: 36, borderRadius: 10,
+                          backgroundColor: colors.warning + '18', alignItems: 'center', justifyContent: 'center',
+                          marginRight: 4,
+                        }}
+                      >
+                        <Text style={{ fontSize: 16 }}>🔄</Text>
+                      </TouchableOpacity>
+                    )}
                     {/* History button */}
                     <TouchableOpacity
                       onPress={() => {
@@ -1067,7 +1112,6 @@ export default function SplitWorkoutScreen() {
                     >
                       <Text style={{ fontSize: 16 }}>📊</Text>
                     </TouchableOpacity>
-
                     {/* Video button */}
                     {libEntry?.videoId && (
                       <TouchableOpacity
@@ -1351,6 +1395,52 @@ export default function SplitWorkoutScreen() {
           onTogglePlay={() => setVideoPlaying(p => !p)}
           colors={colors}
         />
+      {/* Exercise Swap Modal */}
+      <Modal
+        visible={showSwapModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowSwapModal(false)}
+      >
+        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 40 }}>
+            <Text style={{ fontSize: 18, fontWeight: '700', color: colors.foreground, marginBottom: 4 }}>Swap Exercise</Text>
+            <Text style={{ fontSize: 13, color: colors.muted, marginBottom: 16 }}>
+              {swapTargetIndex !== null ? `Replacing: ${exercises[swapTargetIndex]?.name}` : ''}
+            </Text>
+            {swapAlternatives.length === 0 ? (
+              <Text style={{ color: colors.muted, textAlign: 'center', paddingVertical: 20 }}>No alternatives available for this exercise.</Text>
+            ) : (
+              swapAlternatives.map((alt, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  onPress={() => handleConfirmSwap(alt)}
+                  style={{
+                    backgroundColor: colors.background,
+                    borderRadius: 12,
+                    padding: 14,
+                    marginBottom: 10,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                  }}
+                >
+                  <Text style={{ fontSize: 15, fontWeight: '600', color: colors.foreground }}>{alt.name}</Text>
+                  <Text style={{ fontSize: 12, color: colors.muted, marginTop: 2 }}>
+                    {alt.sets} sets · {alt.repsMin}-{alt.repsMax} reps · {alt.bodyPart}
+                  </Text>
+                  {alt.notes ? <Text style={{ fontSize: 11, color: colors.muted, fontStyle: 'italic', marginTop: 2 }}>{alt.notes}</Text> : null}
+                </TouchableOpacity>
+              ))
+            )}
+            <TouchableOpacity
+              onPress={() => setShowSwapModal(false)}
+              style={{ marginTop: 8, alignItems: 'center', paddingVertical: 12 }}
+            >
+              <Text style={{ color: colors.muted, fontSize: 15 }}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </ScreenContainer>
   );
 }

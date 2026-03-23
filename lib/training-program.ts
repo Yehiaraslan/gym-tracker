@@ -403,3 +403,203 @@ export function getMissedSessions(
   }
   return missed;
 }
+
+// ==================== EXERCISE ALTERNATIVES ====================
+// Curated same-muscle swap options for each exercise in the program.
+
+export interface AlternativeExercise {
+  name: string;
+  sets: number;
+  repsMin: number;
+  repsMax: number;
+  restSeconds: number;
+  notes: string;
+  muscleGroup: 'upper' | 'lower';
+  bodyPart: BodyPart;
+  category: 'compound' | 'isolation';
+}
+
+export const EXERCISE_ALTERNATIVES: Record<string, AlternativeExercise[]> = {
+  // ── Chest ──
+  'Barbell Bench Press': [
+    { name: 'DB Flat Bench Press', sets: 4, repsMin: 8, repsMax: 10, restSeconds: 150, notes: 'Greater ROM than barbell', muscleGroup: 'upper', bodyPart: 'Chest', category: 'compound' },
+    { name: 'Machine Chest Press', sets: 4, repsMin: 8, repsMax: 12, restSeconds: 120, notes: 'Easier on shoulders', muscleGroup: 'upper', bodyPart: 'Chest', category: 'compound' },
+    { name: 'Push-Up (Weighted)', sets: 4, repsMin: 10, repsMax: 15, restSeconds: 90, notes: 'Add weight plate on back', muscleGroup: 'upper', bodyPart: 'Chest', category: 'compound' },
+  ],
+  'Dips': [
+    { name: 'Cable Crossover', sets: 3, repsMin: 12, repsMax: 15, restSeconds: 60, notes: 'High-to-low for lower chest', muscleGroup: 'upper', bodyPart: 'Chest', category: 'compound' },
+    { name: 'Decline DB Press', sets: 3, repsMin: 10, repsMax: 12, restSeconds: 90, notes: 'Lower chest emphasis', muscleGroup: 'upper', bodyPart: 'Chest', category: 'compound' },
+    { name: 'Pec Deck Machine', sets: 3, repsMin: 12, repsMax: 15, restSeconds: 60, notes: 'Isolation fly movement', muscleGroup: 'upper', bodyPart: 'Chest', category: 'isolation' },
+  ],
+  'Incline DB Press': [
+    { name: 'Incline Barbell Press', sets: 4, repsMin: 6, repsMax: 8, restSeconds: 150, notes: 'Barbell version for upper chest', muscleGroup: 'upper', bodyPart: 'Chest', category: 'compound' },
+    { name: 'High Cable Fly', sets: 3, repsMin: 12, repsMax: 15, restSeconds: 60, notes: 'Cable fly from high pulley', muscleGroup: 'upper', bodyPart: 'Chest', category: 'isolation' },
+    { name: 'Smith Machine Incline Press', sets: 4, repsMin: 8, repsMax: 10, restSeconds: 120, notes: 'Guided bar path for safety', muscleGroup: 'upper', bodyPart: 'Chest', category: 'compound' },
+  ],
+  'Cable Fly (Low-to-High)': [
+    { name: 'DB Fly', sets: 3, repsMin: 12, repsMax: 15, restSeconds: 60, notes: 'Classic dumbbell fly on flat bench', muscleGroup: 'upper', bodyPart: 'Chest', category: 'isolation' },
+    { name: 'Pec Deck Machine', sets: 3, repsMin: 12, repsMax: 15, restSeconds: 60, notes: 'Machine fly for constant tension', muscleGroup: 'upper', bodyPart: 'Chest', category: 'isolation' },
+    { name: 'Incline Cable Fly', sets: 3, repsMin: 12, repsMax: 15, restSeconds: 60, notes: 'Targets upper chest fibres', muscleGroup: 'upper', bodyPart: 'Chest', category: 'isolation' },
+  ],
+  // ── Back ──
+  'Chest-Supported DB Row': [
+    { name: 'Seated Cable Row', sets: 4, repsMin: 8, repsMax: 10, restSeconds: 120, notes: 'Close-grip for mid-back thickness', muscleGroup: 'upper', bodyPart: 'Back', category: 'compound' },
+    { name: 'Barbell Bent-Over Row', sets: 4, repsMin: 6, repsMax: 8, restSeconds: 150, notes: 'Overhand grip, hinge at hips', muscleGroup: 'upper', bodyPart: 'Back', category: 'compound' },
+    { name: 'T-Bar Row', sets: 4, repsMin: 8, repsMax: 10, restSeconds: 120, notes: 'Chest supported for lower back safety', muscleGroup: 'upper', bodyPart: 'Back', category: 'compound' },
+  ],
+  'Close-Grip Cable Row': [
+    { name: 'Wide-Grip Cable Row', sets: 3, repsMin: 10, repsMax: 12, restSeconds: 90, notes: 'Wider grip targets upper lats', muscleGroup: 'upper', bodyPart: 'Back', category: 'compound' },
+    { name: 'Single-Arm DB Row', sets: 3, repsMin: 10, repsMax: 12, restSeconds: 90, notes: 'Unilateral for balanced development', muscleGroup: 'upper', bodyPart: 'Back', category: 'compound' },
+    { name: 'Machine Row', sets: 3, repsMin: 10, repsMax: 12, restSeconds: 90, notes: 'Chest-supported machine row', muscleGroup: 'upper', bodyPart: 'Back', category: 'compound' },
+  ],
+  'Wide-Grip Lat Pulldown': [
+    { name: 'Pull-Up', sets: 3, repsMin: 6, repsMax: 10, restSeconds: 120, notes: 'Bodyweight or assisted pull-up', muscleGroup: 'upper', bodyPart: 'Back', category: 'compound' },
+    { name: 'Neutral-Grip Pulldown', sets: 3, repsMin: 10, repsMax: 12, restSeconds: 90, notes: 'Neutral grip reduces shoulder strain', muscleGroup: 'upper', bodyPart: 'Back', category: 'compound' },
+    { name: 'Straight-Arm Pulldown', sets: 3, repsMin: 12, repsMax: 15, restSeconds: 60, notes: 'Isolation for lats, arms stay straight', muscleGroup: 'upper', bodyPart: 'Back', category: 'isolation' },
+  ],
+  'Wide-Grip Seated Cable Row': [
+    { name: 'Close-Grip Cable Row', sets: 3, repsMin: 10, repsMax: 12, restSeconds: 90, notes: 'Close grip for mid-back thickness', muscleGroup: 'upper', bodyPart: 'Back', category: 'compound' },
+    { name: 'Chest-Supported DB Row', sets: 3, repsMin: 10, repsMax: 12, restSeconds: 90, notes: 'Zero lower back stress', muscleGroup: 'upper', bodyPart: 'Back', category: 'compound' },
+    { name: 'Machine Row', sets: 3, repsMin: 10, repsMax: 12, restSeconds: 90, notes: 'Chest-supported machine row', muscleGroup: 'upper', bodyPart: 'Back', category: 'compound' },
+  ],
+  'Face Pulls': [
+    { name: 'Band Pull-Apart', sets: 3, repsMin: 15, repsMax: 20, restSeconds: 45, notes: 'Resistance band, great warm-up', muscleGroup: 'upper', bodyPart: 'Shoulders', category: 'isolation' },
+    { name: 'Reverse Pec Deck', sets: 3, repsMin: 12, repsMax: 15, restSeconds: 60, notes: 'Machine rear delt fly', muscleGroup: 'upper', bodyPart: 'Shoulders', category: 'isolation' },
+    { name: 'Seated DB Rear Delt Fly', sets: 3, repsMin: 12, repsMax: 15, restSeconds: 60, notes: 'Bent over, elbows slightly bent', muscleGroup: 'upper', bodyPart: 'Shoulders', category: 'isolation' },
+  ],
+  // ── Shoulders ──
+  'DB Overhead Press': [
+    { name: 'Barbell Overhead Press', sets: 3, repsMin: 6, repsMax: 8, restSeconds: 150, notes: 'Standing or seated, strict form', muscleGroup: 'upper', bodyPart: 'Shoulders', category: 'compound' },
+    { name: 'Machine Shoulder Press', sets: 3, repsMin: 10, repsMax: 12, restSeconds: 90, notes: 'Guided path, easier on joints', muscleGroup: 'upper', bodyPart: 'Shoulders', category: 'compound' },
+    { name: 'Arnold Press', sets: 3, repsMin: 10, repsMax: 12, restSeconds: 90, notes: 'Rotational press hits all three delt heads', muscleGroup: 'upper', bodyPart: 'Shoulders', category: 'compound' },
+  ],
+  'DB Lateral Raise': [
+    { name: 'Cable Lateral Raise', sets: 3, repsMin: 12, repsMax: 15, restSeconds: 60, notes: 'Constant tension throughout ROM', muscleGroup: 'upper', bodyPart: 'Shoulders', category: 'isolation' },
+    { name: 'Machine Lateral Raise', sets: 3, repsMin: 12, repsMax: 15, restSeconds: 60, notes: 'Chest supported for strict form', muscleGroup: 'upper', bodyPart: 'Shoulders', category: 'isolation' },
+    { name: 'Leaning Cable Lateral Raise', sets: 3, repsMin: 12, repsMax: 15, restSeconds: 60, notes: 'Lean away from cable for better stretch', muscleGroup: 'upper', bodyPart: 'Shoulders', category: 'isolation' },
+  ],
+  'Cable Lateral Raise': [
+    { name: 'DB Lateral Raise', sets: 3, repsMin: 12, repsMax: 15, restSeconds: 60, notes: 'Classic dumbbell lateral raise', muscleGroup: 'upper', bodyPart: 'Shoulders', category: 'isolation' },
+    { name: 'Machine Lateral Raise', sets: 3, repsMin: 12, repsMax: 15, restSeconds: 60, notes: 'Chest supported for strict form', muscleGroup: 'upper', bodyPart: 'Shoulders', category: 'isolation' },
+    { name: 'Upright Row', sets: 3, repsMin: 10, repsMax: 12, restSeconds: 60, notes: 'Barbell or cable, elbows high', muscleGroup: 'upper', bodyPart: 'Shoulders', category: 'compound' },
+  ],
+  // ── Arms ──
+  'Incline DB Curl': [
+    { name: 'Barbell Curl', sets: 3, repsMin: 8, repsMax: 10, restSeconds: 90, notes: 'Classic compound bicep builder', muscleGroup: 'upper', bodyPart: 'Arms', category: 'isolation' },
+    { name: 'Cable Curl', sets: 3, repsMin: 10, repsMax: 12, restSeconds: 60, notes: 'Constant tension from cable', muscleGroup: 'upper', bodyPart: 'Arms', category: 'isolation' },
+    { name: 'Preacher Curl', sets: 3, repsMin: 10, repsMax: 12, restSeconds: 60, notes: 'Eliminates cheating, peak contraction', muscleGroup: 'upper', bodyPart: 'Arms', category: 'isolation' },
+  ],
+  'Cable Overhead Tricep Extension': [
+    { name: 'Skull Crusher', sets: 3, repsMin: 10, repsMax: 12, restSeconds: 60, notes: 'EZ-bar or dumbbells, long head emphasis', muscleGroup: 'upper', bodyPart: 'Arms', category: 'isolation' },
+    { name: 'Tricep Pushdown', sets: 3, repsMin: 12, repsMax: 15, restSeconds: 60, notes: 'Rope or bar attachment', muscleGroup: 'upper', bodyPart: 'Arms', category: 'isolation' },
+    { name: 'DB Overhead Tricep Extension', sets: 3, repsMin: 10, repsMax: 12, restSeconds: 60, notes: 'Single or double DB overhead', muscleGroup: 'upper', bodyPart: 'Arms', category: 'isolation' },
+  ],
+  'Hammer Curls': [
+    { name: 'EZ-Bar Curl', sets: 3, repsMin: 10, repsMax: 12, restSeconds: 60, notes: 'Easier on wrists than straight bar', muscleGroup: 'upper', bodyPart: 'Arms', category: 'isolation' },
+    { name: 'Spider Curl', sets: 3, repsMin: 10, repsMax: 12, restSeconds: 60, notes: 'Chest on incline bench, elbows forward', muscleGroup: 'upper', bodyPart: 'Arms', category: 'isolation' },
+    { name: 'Concentration Curl', sets: 3, repsMin: 12, repsMax: 15, restSeconds: 60, notes: 'Seated, elbow on inner thigh', muscleGroup: 'upper', bodyPart: 'Arms', category: 'isolation' },
+  ],
+  'Tricep Rope Pushdown': [
+    { name: 'Close-Grip Bench Press', sets: 3, repsMin: 8, repsMax: 10, restSeconds: 90, notes: 'Narrow grip, elbows tucked', muscleGroup: 'upper', bodyPart: 'Arms', category: 'compound' },
+    { name: 'Overhead Tricep Extension', sets: 3, repsMin: 10, repsMax: 12, restSeconds: 60, notes: 'Long head emphasis', muscleGroup: 'upper', bodyPart: 'Arms', category: 'isolation' },
+    { name: 'DB Kickback', sets: 3, repsMin: 12, repsMax: 15, restSeconds: 60, notes: 'Hinge forward, extend arm back', muscleGroup: 'upper', bodyPart: 'Arms', category: 'isolation' },
+  ],
+  // ── Legs ──
+  'Barbell Back Squat': [
+    { name: 'Hack Squat', sets: 4, repsMin: 8, repsMax: 10, restSeconds: 150, notes: 'Machine squat, quad dominant', muscleGroup: 'lower', bodyPart: 'Legs', category: 'compound' },
+    { name: 'Goblet Squat', sets: 4, repsMin: 10, repsMax: 12, restSeconds: 90, notes: 'DB or KB held at chest', muscleGroup: 'lower', bodyPart: 'Legs', category: 'compound' },
+    { name: 'Leg Press', sets: 4, repsMin: 10, repsMax: 12, restSeconds: 120, notes: 'High foot placement for glute emphasis', muscleGroup: 'lower', bodyPart: 'Legs', category: 'compound' },
+  ],
+  'Romanian Deadlift': [
+    { name: 'DB Romanian Deadlift', sets: 4, repsMin: 8, repsMax: 10, restSeconds: 120, notes: 'Dumbbells for greater ROM', muscleGroup: 'lower', bodyPart: 'Legs', category: 'compound' },
+    { name: 'Good Morning', sets: 3, repsMin: 10, repsMax: 12, restSeconds: 90, notes: 'Barbell on back, hinge at hips', muscleGroup: 'lower', bodyPart: 'Legs', category: 'compound' },
+    { name: 'Cable Pull-Through', sets: 3, repsMin: 12, repsMax: 15, restSeconds: 60, notes: 'Cable between legs, hip hinge', muscleGroup: 'lower', bodyPart: 'Legs', category: 'compound' },
+  ],
+  'Leg Press': [
+    { name: 'Hack Squat', sets: 4, repsMin: 8, repsMax: 10, restSeconds: 120, notes: 'Machine squat alternative', muscleGroup: 'lower', bodyPart: 'Legs', category: 'compound' },
+    { name: 'Bulgarian Split Squat', sets: 3, repsMin: 8, repsMax: 10, restSeconds: 120, notes: 'Rear foot elevated, unilateral', muscleGroup: 'lower', bodyPart: 'Legs', category: 'compound' },
+    { name: 'Smith Machine Squat', sets: 4, repsMin: 8, repsMax: 10, restSeconds: 120, notes: 'Guided path, feet forward', muscleGroup: 'lower', bodyPart: 'Legs', category: 'compound' },
+  ],
+  'Seated Leg Curl': [
+    { name: 'Nordic Curl', sets: 3, repsMin: 5, repsMax: 8, restSeconds: 120, notes: 'Eccentric hamstring, very challenging', muscleGroup: 'lower', bodyPart: 'Legs', category: 'isolation' },
+    { name: 'Swiss Ball Leg Curl', sets: 3, repsMin: 10, repsMax: 12, restSeconds: 60, notes: 'Stability ball under heels', muscleGroup: 'lower', bodyPart: 'Legs', category: 'isolation' },
+    { name: 'Lying Leg Curl', sets: 3, repsMin: 10, repsMax: 12, restSeconds: 60, notes: 'Machine lying version', muscleGroup: 'lower', bodyPart: 'Legs', category: 'isolation' },
+  ],
+  'Lying Leg Curl': [
+    { name: 'Seated Leg Curl', sets: 3, repsMin: 10, repsMax: 12, restSeconds: 60, notes: 'Machine seated version', muscleGroup: 'lower', bodyPart: 'Legs', category: 'isolation' },
+    { name: 'Nordic Curl', sets: 3, repsMin: 5, repsMax: 8, restSeconds: 120, notes: 'Eccentric hamstring, very challenging', muscleGroup: 'lower', bodyPart: 'Legs', category: 'isolation' },
+    { name: 'Swiss Ball Leg Curl', sets: 3, repsMin: 10, repsMax: 12, restSeconds: 60, notes: 'Stability ball under heels', muscleGroup: 'lower', bodyPart: 'Legs', category: 'isolation' },
+  ],
+  'Standing Calf Raise': [
+    { name: 'Seated Calf Raise', sets: 4, repsMin: 12, repsMax: 15, restSeconds: 60, notes: 'Targets soleus more than standing', muscleGroup: 'lower', bodyPart: 'Legs', category: 'isolation' },
+    { name: 'Donkey Calf Raise', sets: 4, repsMin: 12, repsMax: 15, restSeconds: 60, notes: 'Bent-over position for full stretch', muscleGroup: 'lower', bodyPart: 'Legs', category: 'isolation' },
+    { name: 'Single-Leg Calf Raise', sets: 3, repsMin: 15, repsMax: 20, restSeconds: 45, notes: 'Unilateral for balance and overload', muscleGroup: 'lower', bodyPart: 'Legs', category: 'isolation' },
+  ],
+  'Seated Calf Raise': [
+    { name: 'Standing Calf Raise', sets: 4, repsMin: 12, repsMax: 15, restSeconds: 60, notes: 'Targets gastrocnemius', muscleGroup: 'lower', bodyPart: 'Legs', category: 'isolation' },
+    { name: 'Donkey Calf Raise', sets: 4, repsMin: 12, repsMax: 15, restSeconds: 60, notes: 'Bent-over position for full stretch', muscleGroup: 'lower', bodyPart: 'Legs', category: 'isolation' },
+    { name: 'Single-Leg Calf Raise', sets: 3, repsMin: 15, repsMax: 20, restSeconds: 45, notes: 'Unilateral for balance', muscleGroup: 'lower', bodyPart: 'Legs', category: 'isolation' },
+  ],
+  'Bulgarian Split Squat': [
+    { name: 'Barbell Back Squat', sets: 4, repsMin: 8, repsMax: 10, restSeconds: 150, notes: 'Bilateral compound squat', muscleGroup: 'lower', bodyPart: 'Legs', category: 'compound' },
+    { name: 'Leg Press', sets: 4, repsMin: 10, repsMax: 12, restSeconds: 120, notes: 'Machine bilateral alternative', muscleGroup: 'lower', bodyPart: 'Legs', category: 'compound' },
+    { name: 'Reverse Lunge', sets: 3, repsMin: 10, repsMax: 12, restSeconds: 90, notes: 'Step back, easier on knees', muscleGroup: 'lower', bodyPart: 'Legs', category: 'compound' },
+  ],
+  'Barbell Hip Thrust': [
+    { name: 'Glute Bridge', sets: 4, repsMin: 12, repsMax: 15, restSeconds: 60, notes: 'Bodyweight or barbell on hips', muscleGroup: 'lower', bodyPart: 'Legs', category: 'compound' },
+    { name: 'Cable Kickback', sets: 3, repsMin: 12, repsMax: 15, restSeconds: 60, notes: 'Cable attachment around ankle', muscleGroup: 'lower', bodyPart: 'Legs', category: 'isolation' },
+    { name: 'Smith Machine Hip Thrust', sets: 4, repsMin: 10, repsMax: 12, restSeconds: 120, notes: 'Guided bar path for safety', muscleGroup: 'lower', bodyPart: 'Legs', category: 'compound' },
+  ],
+  'Leg Extension': [
+    { name: 'Sissy Squat', sets: 3, repsMin: 10, repsMax: 15, restSeconds: 60, notes: 'Bodyweight quad isolation', muscleGroup: 'lower', bodyPart: 'Legs', category: 'isolation' },
+    { name: 'Terminal Knee Extension', sets: 3, repsMin: 15, repsMax: 20, restSeconds: 45, notes: 'Band around knee, lock out', muscleGroup: 'lower', bodyPart: 'Legs', category: 'isolation' },
+    { name: 'Hack Squat (light)', sets: 3, repsMin: 12, repsMax: 15, restSeconds: 60, notes: 'Light weight, high rep for quad pump', muscleGroup: 'lower', bodyPart: 'Legs', category: 'compound' },
+  ],
+  'Walking Lunges': [
+    { name: 'Reverse Lunge', sets: 3, repsMin: 10, repsMax: 12, restSeconds: 90, notes: 'Step back, easier on knees', muscleGroup: 'lower', bodyPart: 'Legs', category: 'compound' },
+    { name: 'Bulgarian Split Squat', sets: 3, repsMin: 8, repsMax: 10, restSeconds: 120, notes: 'Rear foot elevated for stability', muscleGroup: 'lower', bodyPart: 'Legs', category: 'compound' },
+    { name: 'Step-Up', sets: 3, repsMin: 10, repsMax: 12, restSeconds: 90, notes: 'Box or bench, DBs in hand', muscleGroup: 'lower', bodyPart: 'Legs', category: 'compound' },
+  ],
+  // ── Core ──
+  'Hanging Leg Raise': [
+    { name: 'Cable Crunch', sets: 3, repsMin: 12, repsMax: 15, restSeconds: 60, notes: 'Kneeling, rope attachment', muscleGroup: 'lower', bodyPart: 'Core', category: 'isolation' },
+    { name: 'Ab Wheel Rollout', sets: 3, repsMin: 8, repsMax: 10, restSeconds: 60, notes: 'Kneel on pad, roll out and back', muscleGroup: 'lower', bodyPart: 'Core', category: 'isolation' },
+    { name: 'Plank', sets: 3, repsMin: 30, repsMax: 60, restSeconds: 45, notes: 'Isometric hold (seconds)', muscleGroup: 'lower', bodyPart: 'Core', category: 'isolation' },
+  ],
+  'Cable Crunch': [
+    { name: 'Hanging Leg Raise', sets: 3, repsMin: 10, repsMax: 12, restSeconds: 60, notes: 'Hang from bar, raise legs to 90°', muscleGroup: 'lower', bodyPart: 'Core', category: 'isolation' },
+    { name: 'Ab Wheel Rollout', sets: 3, repsMin: 8, repsMax: 10, restSeconds: 60, notes: 'Kneel on pad, roll out and back', muscleGroup: 'lower', bodyPart: 'Core', category: 'isolation' },
+    { name: 'Decline Sit-Up', sets: 3, repsMin: 12, repsMax: 15, restSeconds: 60, notes: 'Weighted on decline bench', muscleGroup: 'lower', bodyPart: 'Core', category: 'isolation' },
+  ],
+  // ── Other / Grip ──
+  "Farmer's Walk": [
+    { name: 'Dead Hang', sets: 3, repsMin: 20, repsMax: 40, restSeconds: 60, notes: 'Hang from bar, max hold (seconds)', muscleGroup: 'lower', bodyPart: 'Other', category: 'compound' },
+    { name: 'Plate Pinch', sets: 3, repsMin: 20, repsMax: 30, restSeconds: 60, notes: 'Pinch two plates together, hold', muscleGroup: 'lower', bodyPart: 'Other', category: 'isolation' },
+    { name: 'Suitcase Carry', sets: 3, repsMin: 30, repsMax: 40, restSeconds: 90, notes: 'Single DB, walk 30-40m per side', muscleGroup: 'lower', bodyPart: 'Other', category: 'compound' },
+  ],
+  'Dead Hang': [
+    { name: "Farmer's Walk", sets: 3, repsMin: 30, repsMax: 40, restSeconds: 90, notes: 'Heavy DBs, walk 30-40m', muscleGroup: 'lower', bodyPart: 'Other', category: 'compound' },
+    { name: 'Plate Pinch', sets: 3, repsMin: 20, repsMax: 30, restSeconds: 60, notes: 'Pinch two plates together, hold', muscleGroup: 'lower', bodyPart: 'Other', category: 'isolation' },
+    { name: 'Towel Pull-Up', sets: 3, repsMin: 5, repsMax: 8, restSeconds: 90, notes: 'Towel over bar for grip challenge', muscleGroup: 'upper', bodyPart: 'Other', category: 'compound' },
+  ],
+};
+
+/**
+ * Returns a list of alternative exercises for the given exercise name.
+ * Falls back to same-bodyPart alternatives from the program if no exact match.
+ */
+export function getAlternativesForExercise(
+  exerciseName: string,
+  sessionType: Exclude<SessionType, 'rest'>
+): AlternativeExercise[] {
+  if (EXERCISE_ALTERNATIVES[exerciseName]) {
+    return EXERCISE_ALTERNATIVES[exerciseName];
+  }
+  // Fallback: find exercises in the same session with the same bodyPart
+  const allExercises = PROGRAM_SESSIONS[sessionType];
+  const target = allExercises.find(e => e.name === exerciseName);
+  if (!target) return [];
+  return allExercises
+    .filter(e => e.name !== exerciseName && e.bodyPart === target.bodyPart)
+    .map(e => ({ ...e }));
+}
