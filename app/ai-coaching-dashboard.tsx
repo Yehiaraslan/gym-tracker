@@ -122,6 +122,10 @@ export default function AICoachingDashboard() {
   const [perfAnalysisResponse, setPerfAnalysisResponse] = useState<string | null>(null);
   const [perfAnalysisLoading, setPerfAnalysisLoading] = useState(false);
   const [perfAnalysisError, setPerfAnalysisError] = useState<string | null>(null);
+  const [stagnationDetected, setStagnationDetected] = useState(false);
+  const [stagnantExercises, setStagnantExercises] = useState<string[]>([]);
+  const [deloadScheduled, setDeloadScheduled] = useState(false);
+  const [deloadScheduling, setDeloadScheduling] = useState(false);
   const perfAnalysisMutation = trpc.zaki.performanceAnalysis.useMutation();
 
   const handleAnalyzeBodyComposition = useCallback(async () => {
@@ -248,6 +252,10 @@ export default function AICoachingDashboard() {
       });
       setPerfAnalysisResponse(result.analysis);
       if (result.zakiSessionId) zakiSessionIdRef.current = result.zakiSessionId;
+      // Store stagnation data for deload scheduling UI
+      setStagnationDetected(result.stagnationDetected ?? false);
+      setStagnantExercises(result.stagnantExercises ?? []);
+      setDeloadScheduled(false);
     } catch (err) {
       console.error('[PerfAnalysis]', err);
       setPerfAnalysisError('Could not generate performance analysis. Please try again.');
@@ -255,6 +263,28 @@ export default function AICoachingDashboard() {
       setPerfAnalysisLoading(false);
     }
   }, [perfAnalysisMutation, deviceId]);
+
+  // ── Schedule deload week handler ──────────────────────────
+  const handleScheduleDeloadWeek = useCallback(async () => {
+    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    setDeloadScheduling(true);
+    try {
+      // Move the mesocycle start date back so the current week becomes week 5 (deload)
+      // We do this by setting the start date to (today - 28 days), making this week 5
+      const MESO_KEY = '@gym_tracker_mesocycle_start';
+      const today = new Date();
+      const deloadStartDate = new Date(today);
+      deloadStartDate.setDate(today.getDate() - 28); // 4 weeks ago = week 5 now
+      const newStartDate = deloadStartDate.toISOString().split('T')[0];
+      await AsyncStorage.setItem(MESO_KEY, newStartDate);
+      setDeloadScheduled(true);
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (err) {
+      console.error('[ScheduleDeload]', err);
+    } finally {
+      setDeloadScheduling(false);
+    }
+  }, []);
 
   // ── Load persisted data ───────────────────────────────────────────
   const loadPersistedData = useCallback(async () => {
@@ -939,9 +969,80 @@ export default function AICoachingDashboard() {
                           </View>
                         </View>
                         <Text style={[styles.responseText, { color: colors.foreground }]}>{perfAnalysisResponse}</Text>
+
+                        {/* Stagnation detected banner */}
+                        {stagnationDetected && !deloadScheduled && (
+                          <View style={{
+                            backgroundColor: '#EF444415',
+                            borderColor: '#EF444440',
+                            borderWidth: 1,
+                            borderRadius: 12,
+                            padding: 14,
+                            marginTop: 12,
+                          }}>
+                            <Text style={{ fontSize: 16, textAlign: 'center', marginBottom: 6 }}>⚠️ Stagnation Detected</Text>
+                            <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: '600', marginBottom: 4 }}>
+                              3+ weeks without progression on:
+                            </Text>
+                            {stagnantExercises.map((ex, i) => (
+                              <Text key={i} style={{ color: colors.muted, fontSize: 12, marginBottom: 2 }}>• {ex}</Text>
+                            ))}
+                            <Text style={{ color: colors.muted, fontSize: 12, marginTop: 8, lineHeight: 18 }}>
+                              Zaki recommends scheduling a deload week to allow full recovery and break the plateau.
+                            </Text>
+                            {deloadScheduling ? (
+                              <ActivityIndicator size="small" color="#EF4444" style={{ marginTop: 12 }} />
+                            ) : (
+                              <TouchableOpacity
+                                onPress={handleScheduleDeloadWeek}
+                                style={{
+                                  backgroundColor: '#EF4444',
+                                  borderRadius: 10,
+                                  paddingVertical: 10,
+                                  paddingHorizontal: 16,
+                                  marginTop: 12,
+                                  alignItems: 'center',
+                                }}
+                              >
+                                <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>📅 Schedule Deload Week Now</Text>
+                              </TouchableOpacity>
+                            )}
+                          </View>
+                        )}
+
+                        {/* Deload scheduled confirmation */}
+                        {deloadScheduled && (
+                          <View style={{
+                            backgroundColor: '#22C55E15',
+                            borderColor: '#22C55E40',
+                            borderWidth: 1,
+                            borderRadius: 12,
+                            padding: 14,
+                            marginTop: 12,
+                          }}>
+                            <Text style={{ fontSize: 16, textAlign: 'center', marginBottom: 6 }}>✅ Deload Week Scheduled</Text>
+                            <Text style={{ color: colors.muted, fontSize: 12, lineHeight: 18, textAlign: 'center' }}>
+                              This week is now your deload week. Workouts will use 70% weight and half sets. Head to the Home screen to start today's deload session.
+                            </Text>
+                            <TouchableOpacity
+                              onPress={() => router.push('/(tabs)' as any)}
+                              style={{
+                                backgroundColor: '#22C55E',
+                                borderRadius: 10,
+                                paddingVertical: 10,
+                                paddingHorizontal: 16,
+                                marginTop: 10,
+                                alignItems: 'center',
+                              }}
+                            >
+                              <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>🏠 Go to Home Screen</Text>
+                            </TouchableOpacity>
+                          </View>
+                        )}
+
                         <TouchableOpacity
                           onPress={handlePerformanceAnalysis}
-                          style={[styles.refreshSmallBtn, { borderColor: '#F59E0B40' }]}
+                          style={[styles.refreshSmallBtn, { borderColor: '#F59E0B40', marginTop: 12 }]}
                         >
                           <Text style={{ color: '#F59E0B', fontSize: 12, fontWeight: '600' }}>🔄 Re-analyze</Text>
                         </TouchableOpacity>

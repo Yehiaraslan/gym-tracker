@@ -575,12 +575,14 @@ export const appRouter = router({
             zakiSessionId: input.zakiSessionId,
           };
         }
-        // Build exercise progression map
-        const exerciseMap: Record<string, { dates: string[]; maxWeight: number; maxReps: number; totalSets: number; totalVolume: number }> = {};
+        // Build exercise progression map with per-week volume tracking for stagnation detection
+        const exerciseMap: Record<string, { dates: string[]; maxWeight: number; maxReps: number; totalSets: number; totalVolume: number; weeklyVolume: Record<string, number> }> = {};
         for (const session of sessions) {
           for (const ex of (session as any).exercises ?? []) {
             const name: string = ex.exerciseName || ex.name || 'Unknown';
-            if (!exerciseMap[name]) exerciseMap[name] = { dates: [], maxWeight: 0, maxReps: 0, totalSets: 0, totalVolume: 0 };
+            if (!exerciseMap[name]) exerciseMap[name] = { dates: [], maxWeight: 0, maxReps: 0, totalSets: 0, totalVolume: 0, weeklyVolume: {} };
+            const sessionDate = (session as any).date;
+            let sessionVolume = 0;
             for (const set of (ex as any).sets ?? []) {
               const w = parseFloat(set.weightKg ?? set.weight ?? '0');
               const r = parseInt(set.reps ?? '0', 10);
@@ -588,10 +590,16 @@ export const appRouter = router({
               if (r > exerciseMap[name].maxReps) exerciseMap[name].maxReps = r;
               exerciseMap[name].totalSets++;
               exerciseMap[name].totalVolume += w * r;
+              sessionVolume += w * r;
             }
-            const sessionDate = (session as any).date;
-            if (sessionDate && !exerciseMap[name].dates.includes(sessionDate)) {
-              exerciseMap[name].dates.push(sessionDate);
+            if (sessionDate) {
+              if (!exerciseMap[name].dates.includes(sessionDate)) exerciseMap[name].dates.push(sessionDate);
+              // Track weekly volume: week key = ISO week (year-Wnn)
+              const d = new Date(sessionDate);
+              const startOfYear = new Date(d.getFullYear(), 0, 1);
+              const weekNum = Math.ceil(((d.getTime() - startOfYear.getTime()) / 86400000 + startOfYear.getDay() + 1) / 7);
+              const weekKey = `${d.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+              exerciseMap[name].weeklyVolume[weekKey] = (exerciseMap[name].weeklyVolume[weekKey] ?? 0) + sessionVolume;
             }
           }
         }
@@ -624,8 +632,27 @@ export const appRouter = router({
           '',
           'Reference actual numbers from the data. Be direct and actionable.',
         ].join('\n');
+        // Detect stagnation: exercises where weekly volume hasn't grown >2% across 3+ consecutive weeks
+        const stagnantExercises: string[] = [];
+        for (const [name, data] of Object.entries(exerciseMap)) {
+          const weeks = Object.keys(data.weeklyVolume).sort();
+          if (weeks.length >= 3) {
+            const volumes = weeks.map(w => data.weeklyVolume[w]);
+            let stagnant = true;
+            for (let i = 1; i < volumes.length; i++) {
+              if (volumes[i] > volumes[i - 1] * 1.02) { stagnant = false; break; }
+            }
+            if (stagnant) stagnantExercises.push(name);
+          }
+        }
+        const stagnationDetected = stagnantExercises.length >= 3;
         const result = await zaki.askZaki(prompt, input.zakiSessionId);
-        return { analysis: result.response, zakiSessionId: result.zakiSessionId };
+        return {
+          analysis: result.response,
+          zakiSessionId: result.zakiSessionId,
+          stagnationDetected,
+          stagnantExercises: stagnantExercises.slice(0, 5),
+        };
       }),
   }),
 

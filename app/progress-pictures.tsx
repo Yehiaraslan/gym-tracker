@@ -3,7 +3,7 @@
 // Log and view body transformation photos over time
 // Stored locally in AsyncStorage
 // ============================================================
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Text,
   View,
@@ -161,6 +161,184 @@ const cmpStyles = StyleSheet.create({
   hint: { color: 'rgba(255,255,255,0.4)', fontSize: 13, textAlign: 'center', marginTop: 20 },
 });
 
+// ─── Time-lapse Player Component ────────────────────────────
+const SPEED_OPTIONS = [
+  { label: '0.5×', ms: 2500 },
+  { label: '1×', ms: 1500 },
+  { label: '2×', ms: 750 },
+  { label: '3×', ms: 400 },
+];
+
+function TimeLapsePlayer({ photos, label, onClose }: {
+  photos: ProgressPicture[];
+  label: string;
+  onClose: () => void;
+}) {
+  const sorted = [...photos].sort((a, b) => a.date.localeCompare(b.date));
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const [speedIndex, setSpeedIndex] = useState(1); // default 1×
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const IMG_HEIGHT = SCREEN_HEIGHT * 0.58;
+
+  const currentPhoto = sorted[currentIndex];
+  const totalPhotos = sorted.length;
+
+  const advanceFrame = useCallback(() => {
+    setCurrentIndex(prev => {
+      const next = (prev + 1) % totalPhotos;
+      // Fade transition
+      Animated.sequence([
+        Animated.timing(fadeAnim, { toValue: 0, duration: 120, useNativeDriver: true }),
+        Animated.timing(fadeAnim, { toValue: 1, duration: 180, useNativeDriver: true }),
+      ]).start();
+      if (Platform.OS !== 'web' && next === 0) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+      return next;
+    });
+  }, [totalPhotos, fadeAnim]);
+
+  // Start/stop interval based on isPlaying
+  useEffect(() => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    if (isPlaying) {
+      intervalRef.current = setInterval(advanceFrame, SPEED_OPTIONS[speedIndex].ms);
+    }
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [isPlaying, speedIndex, advanceFrame]);
+
+  const togglePlay = () => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setIsPlaying(p => !p);
+  };
+
+  const changeSpeed = () => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSpeedIndex(s => (s + 1) % SPEED_OPTIONS.length);
+  };
+
+  const goTo = (idx: number) => {
+    setCurrentIndex(idx);
+    Animated.sequence([
+      Animated.timing(fadeAnim, { toValue: 0.3, duration: 80, useNativeDriver: true }),
+      Animated.timing(fadeAnim, { toValue: 1, duration: 150, useNativeDriver: true }),
+    ]).start();
+  };
+
+  if (!currentPhoto) return null;
+
+  const daysSinceFirst = sorted.length > 1
+    ? Math.round((new Date(currentPhoto.date).getTime() - new Date(sorted[0].date).getTime()) / 86_400_000)
+    : 0;
+
+  return (
+    <View style={tlStyles.container}>
+      {/* Close button */}
+      <TouchableOpacity style={tlStyles.closeBtn} onPress={onClose}>
+        <Text style={tlStyles.closeTxt}>✕</Text>
+      </TouchableOpacity>
+
+      {/* Title */}
+      <View style={tlStyles.titleRow}>
+        <Text style={tlStyles.title}>📽 Time-lapse — {label}</Text>
+        <Text style={tlStyles.subtitle}>{totalPhotos} photos · {daysSinceFirst} days of progress</Text>
+      </View>
+
+      {/* Photo */}
+      <View style={[tlStyles.imageArea, { height: IMG_HEIGHT }]}>
+        <Animated.Image
+          source={{ uri: currentPhoto.uri }}
+          style={[tlStyles.photo, { height: IMG_HEIGHT, opacity: fadeAnim }]}
+          resizeMode="cover"
+        />
+        {/* Date overlay */}
+        <View style={tlStyles.dateOverlay} pointerEvents="none">
+          <Text style={tlStyles.dateText}>{currentPhoto.date}</Text>
+          {currentIndex > 0 && (
+            <Text style={tlStyles.daysText}>+{daysSinceFirst}d</Text>
+          )}
+        </View>
+        {/* Frame counter */}
+        <View style={tlStyles.frameCounter} pointerEvents="none">
+          <Text style={tlStyles.frameText}>{currentIndex + 1} / {totalPhotos}</Text>
+        </View>
+      </View>
+
+      {/* Progress dots */}
+      <View style={tlStyles.dotsRow}>
+        {sorted.map((_, i) => (
+          <TouchableOpacity key={i} onPress={() => { setIsPlaying(false); goTo(i); }}>
+            <View style={[
+              tlStyles.dot,
+              i === currentIndex ? tlStyles.dotActive : tlStyles.dotInactive,
+            ]} />
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* Controls */}
+      <View style={tlStyles.controls}>
+        {/* Prev */}
+        <TouchableOpacity
+          onPress={() => { setIsPlaying(false); goTo(Math.max(0, currentIndex - 1)); }}
+          style={tlStyles.navBtn}
+        >
+          <Text style={tlStyles.navBtnText}>◀</Text>
+        </TouchableOpacity>
+
+        {/* Play/Pause */}
+        <TouchableOpacity onPress={togglePlay} style={tlStyles.playBtn}>
+          <Text style={tlStyles.playBtnText}>{isPlaying ? '⏸' : '▶'}</Text>
+        </TouchableOpacity>
+
+        {/* Next */}
+        <TouchableOpacity
+          onPress={() => { setIsPlaying(false); goTo(Math.min(totalPhotos - 1, currentIndex + 1)); }}
+          style={tlStyles.navBtn}
+        >
+          <Text style={tlStyles.navBtnText}>▶</Text>
+        </TouchableOpacity>
+
+        {/* Speed */}
+        <TouchableOpacity onPress={changeSpeed} style={tlStyles.speedBtn}>
+          <Text style={tlStyles.speedText}>{SPEED_OPTIONS[speedIndex].label}</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
+const tlStyles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#000', justifyContent: 'flex-start' },
+  closeBtn: { position: 'absolute', top: 56, right: 20, zIndex: 20, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center' },
+  closeTxt: { color: '#fff', fontSize: 18, fontWeight: '700' },
+  titleRow: { paddingTop: 60, paddingBottom: 12, alignItems: 'center' },
+  title: { color: '#fff', fontSize: 17, fontWeight: '700' },
+  subtitle: { color: 'rgba(255,255,255,0.45)', fontSize: 12, marginTop: 3 },
+  imageArea: { width: SCREEN_WIDTH, position: 'relative', overflow: 'hidden' },
+  photo: { width: SCREEN_WIDTH, position: 'absolute', top: 0, left: 0 },
+  dateOverlay: { position: 'absolute', bottom: 12, left: 12, backgroundColor: 'rgba(0,0,0,0.65)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
+  dateText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  daysText: { color: 'rgba(255,255,255,0.65)', fontSize: 11, marginTop: 1 },
+  frameCounter: { position: 'absolute', bottom: 12, right: 12, backgroundColor: 'rgba(0,0,0,0.55)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
+  frameText: { color: 'rgba(255,255,255,0.8)', fontSize: 12, fontWeight: '600' },
+  dotsRow: { flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', gap: 5, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 4 },
+  dot: { width: 7, height: 7, borderRadius: 4 },
+  dotActive: { backgroundColor: '#fff' },
+  dotInactive: { backgroundColor: 'rgba(255,255,255,0.25)' },
+  controls: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 16, paddingTop: 12 },
+  navBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.12)', justifyContent: 'center', alignItems: 'center' },
+  navBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  playBtn: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center' },
+  playBtnText: { fontSize: 26, color: '#000' },
+  speedBtn: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.12)', minWidth: 52, alignItems: 'center' },
+  speedText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+});
+
 // ─── Main Screen ─────────────────────────────────────────────
 export default function ProgressPicturesScreen() {
   const colors = useColors();
@@ -169,6 +347,7 @@ export default function ProgressPicturesScreen() {
   const [viewPic, setViewPic] = useState<ProgressPicture | null>(null);
   const [addLabel, setAddLabel] = useState<ProgressPicture['label']>('front');
   const [compareLabel, setCompareLabel] = useState<ProgressPicture['label'] | null>(null);
+  const [timeLapseLabel, setTimeLapseLabel] = useState<ProgressPicture['label'] | null>(null);
 
   useEffect(() => {
     loadPictures().then(setPictures);
@@ -184,6 +363,12 @@ export default function ProgressPicturesScreen() {
       comparisonPairs[lbl] = null;
     }
   }
+
+  // Labels with 2+ photos (eligible for time-lapse)
+  const timeLapseLabels = LABELS.filter(l => {
+    const count = pictures.filter(p => p.label === l.key).length;
+    return count >= 2;
+  });
 
   const addPicture = async (uri: string) => {
     let permanentUri = uri;
@@ -296,9 +481,10 @@ export default function ProgressPicturesScreen() {
         ))}
       </View>
 
-      {/* Comparison banner — shown when 2+ photos of same label exist */}
+      {/* Comparison + Time-lapse banner — shown when 2+ photos of same label exist */}
       {hasAnyComparison && (
         <View style={[styles.compareBanner, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          {/* Before vs After row */}
           <Text style={[styles.compareBannerTitle, { color: colors.foreground }]}>📊 Before vs After</Text>
           <View style={styles.compareBannerRow}>
             {LABELS.filter(l => comparisonPairs[l.key] != null).map(l => (
@@ -314,6 +500,31 @@ export default function ProgressPicturesScreen() {
               </TouchableOpacity>
             ))}
           </View>
+
+          {/* Time-lapse row */}
+          {timeLapseLabels.length > 0 && (
+            <>
+              <View style={[styles.divider, { backgroundColor: colors.border }]} />
+              <Text style={[styles.compareBannerTitle, { color: colors.foreground, marginTop: 4 }]}>📽 Time-lapse</Text>
+              <View style={styles.compareBannerRow}>
+                {timeLapseLabels.map(l => {
+                  const count = pictures.filter(p => p.label === l.key).length;
+                  return (
+                    <TouchableOpacity
+                      key={l.key}
+                      style={[styles.compareChip, { backgroundColor: '#8B5CF620', borderColor: '#8B5CF6' }]}
+                      onPress={() => {
+                        if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                        setTimeLapseLabel(l.key);
+                      }}
+                    >
+                      <Text style={[styles.compareChipText, { color: '#8B5CF6' }]}>▶ {l.emoji} {l.label} ({count})</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </>
+          )}
         </View>
       )}
 
@@ -403,6 +614,21 @@ export default function ProgressPicturesScreen() {
           />
         )}
       </Modal>
+
+      {/* Time-lapse player modal */}
+      <Modal
+        visible={timeLapseLabel != null}
+        animationType="slide"
+        onRequestClose={() => setTimeLapseLabel(null)}
+      >
+        {timeLapseLabel != null && (
+          <TimeLapsePlayer
+            photos={pictures.filter(p => p.label === timeLapseLabel)}
+            label={LABELS.find(l => l.key === timeLapseLabel)?.label ?? timeLapseLabel}
+            onClose={() => setTimeLapseLabel(null)}
+          />
+        )}
+      </Modal>
     </ScreenContainer>
   );
 }
@@ -422,6 +648,7 @@ const styles = StyleSheet.create({
   compareBannerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   compareChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1 },
   compareChipText: { fontSize: 13, fontWeight: '700' },
+  divider: { height: 1, marginVertical: 10 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
   emptyEmoji: { fontSize: 64, marginBottom: 16 },
   emptyTitle: { fontSize: 20, fontWeight: '700', marginBottom: 8, textAlign: 'center' },
