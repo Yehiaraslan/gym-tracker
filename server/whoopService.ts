@@ -28,7 +28,7 @@ export function buildAuthUrl(state: string): string {
     client_id: getClientId(),
     redirect_uri: getRedirectUri(),
     response_type: "code",
-    scope: "read:recovery read:cycles read:sleep read:workout read:profile read:body_measurement",
+    scope: "offline read:recovery read:cycles read:sleep read:workout read:profile read:body_measurement",
     state,
   });
   return `${WHOOP_AUTH_URL}?${params.toString()}`;
@@ -63,27 +63,43 @@ export async function exchangeCodeForTokens(code: string, userOpenId: string) {
     }
   }
 
-  const data = await response.json();
+  const rawText = await response.text();
+  console.log("[WHOOP] Token exchange raw response:", rawText.slice(0, 500));
+
+  let data: Record<string, unknown>;
+  try {
+    data = JSON.parse(rawText);
+  } catch {
+    throw new Error(`WHOOP returned non-JSON response: ${rawText.slice(0, 200)}`);
+  }
+
   console.log("[WHOOP] Token exchange response keys:", Object.keys(data));
+
+  // Handle WHOOP error responses that come back as 200 OK
+  if (data.error) {
+    const desc = (data.error_description as string) || (data.error as string);
+    console.error("[WHOOP] Token exchange error in body:", JSON.stringify(data));
+    throw new Error(`WHOOP: ${desc}`);
+  }
 
   // Validate that the response contains the expected token fields
   if (!data.access_token || !data.refresh_token) {
-    console.error("[WHOOP] Token exchange response missing tokens:", JSON.stringify(data));
-    throw new Error(`WHOOP returned an invalid token response. Check that your redirect URI is registered correctly in the WHOOP developer portal.`);
+    console.error("[WHOOP] Token exchange response missing tokens. Keys:", Object.keys(data), "Full:", JSON.stringify(data));
+    throw new Error(`WHOOP token response missing access_token or refresh_token. Got keys: ${Object.keys(data).join(', ')}. This usually means the authorization code was already used or expired — please try connecting again.`);
   }
 
-  const expiresAt = Date.now() + (data.expires_in || 3600) * 1000;
+  const expiresAt = Date.now() + ((data.expires_in as number) || 3600) * 1000;
 
   // Encrypt tokens before storing
-  const encryptedAccess = encryptToken(data.access_token);
-  const encryptedRefresh = encryptToken(data.refresh_token);
+  const encryptedAccess = encryptToken(data.access_token as string);
+  const encryptedRefresh = encryptToken(data.refresh_token as string);
 
   await whoopDb.saveWhoopTokens({
     userOpenId,
     accessToken: encryptedAccess,
     refreshToken: encryptedRefresh,
     expiresAt,
-    scope: data.scope || "",
+    scope: (data.scope as string) || "",
   });
 
   return { success: true, expiresAt };
@@ -100,6 +116,7 @@ async function refreshAccessToken(userOpenId: string): Promise<string | null> {
     refresh_token: refreshToken,
     client_id: getClientId(),
     client_secret: getClientSecret(),
+    scope: "offline",
   });
 
   const response = await fetch(WHOOP_TOKEN_URL, {
