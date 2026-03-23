@@ -6,6 +6,7 @@
 // ============================================================
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getProgressPhotos } from './progress-photos';
+import { loadUserProfile, calculateAge, type UserProfile } from './profile-store';
 import {
   getRecentSplitWorkouts,
   getExerciseHistory,
@@ -104,6 +105,14 @@ export interface UserSnapshot {
     direction: 'gaining' | 'stable' | 'losing' | 'unknown';
   };
   progressPhotos: ProgressPhotoSummary[];
+  userProfile: {
+    name: string;
+    age: number | null;
+    gender: string;
+    heightCm: string;
+    weightKg: string;
+    fitnessGoal: string;
+  } | null;
 }
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -161,14 +170,26 @@ export async function buildUserSnapshot(): Promise<UserSnapshot> {
   const todaySession = getTodaySession();
 
   // Parallel data fetching
-  const [recentWorkoutSessions, streakData, mesoStart, nutritionHistory, recoveryData] =
+  const [recentWorkoutSessions, streakData, mesoStart, nutritionHistory, recoveryData, rawProfile] =
     await Promise.all([
       getRecentSplitWorkouts(14),
       getStreakData(),
       getMesocycleStartDate(),
       getRecentNutrition(3).catch(() => [] as DailyNutrition[]),
       getTodayRecoveryData().catch(() => null as RecoveryData | null),
+      loadUserProfile().catch(() => null as UserProfile | null),
     ]);
+
+  const userProfile = rawProfile && (rawProfile.name || rawProfile.heightCm || rawProfile.fitnessGoal)
+    ? {
+        name: rawProfile.name,
+        age: calculateAge(rawProfile.dateOfBirth),
+        gender: rawProfile.gender,
+        heightCm: rawProfile.heightCm,
+        weightKg: rawProfile.weightKg,
+        fitnessGoal: rawProfile.fitnessGoal,
+      }
+    : null;
 
   // Mesocycle info
   const mesoInfo = getMesocycleInfo(mesoStart);
@@ -355,6 +376,7 @@ export async function buildUserSnapshot(): Promise<UserSnapshot> {
     progressSummaries,
     weightTrend,
     progressPhotos,
+    userProfile,
   };
 }
 
@@ -366,6 +388,18 @@ export function snapshotToPromptContext(snap: UserSnapshot): string {
   const lines: string[] = [];
 
   lines.push(`=== USER TRAINING SNAPSHOT (${snap.timestamp.split('T')[0]}) ===`);
+  // User profile — always first so Zaki knows who he's coaching
+  if (snap.userProfile) {
+    const p = snap.userProfile;
+    const parts: string[] = [];
+    if (p.name) parts.push(`Name: ${p.name}`);
+    if (p.age != null) parts.push(`Age: ${p.age}`);
+    if (p.gender) parts.push(`Gender: ${p.gender}`);
+    if (p.heightCm) parts.push(`Height: ${p.heightCm}cm`);
+    if (p.weightKg) parts.push(`Profile Weight: ${p.weightKg}kg`);
+    if (p.fitnessGoal) parts.push(`Primary Goal: ${p.fitnessGoal.replace('_', ' ')}`);
+    if (parts.length > 0) lines.push(parts.join(' | '));
+  }
   lines.push(
     `Today: ${snap.todaySessionName} | Mesocycle Week ${snap.mesocycleWeek}/${snap.mesocycleTotalWeeks} | Deload in ${snap.daysUntilDeload} days`,
   );
