@@ -66,9 +66,23 @@ export default function WhoopScreen() {
   const isLoading = !deviceId || statusQuery.isLoading;
   const needsReconnect = isConnected && tokenExpired;
 
-  const latestRecovery = recoveryQuery.data?.records?.[0]?.score;
+  // Find the most recent SCORED record (WHOOP may return PENDING_SCORE / UNSCORABLE for today)
+  const latestRecoveryRecord = (recoveryQuery.data?.records as any[])?.find(
+    (r: any) => r.score_state === 'SCORED' && r.score != null
+  );
+  const latestRecovery = latestRecoveryRecord?.score ?? null;
+  const recoveryScoreState: string | null = (recoveryQuery.data?.records as any[])?.[0]?.score_state ?? null;
+
   const latestCycle = cyclesQuery.data?.records?.[0]?.score;
-  const latestSleep = sleepQuery.data?.records?.[0]?.score;
+
+  // Filter out naps — only use the main sleep record (nap: false)
+  const latestSleepRecord = (sleepQuery.data?.records as any[])?.find(
+    (r: any) => r.nap === false && r.score_state === 'SCORED' && r.score != null
+  );
+  const latestSleep = latestSleepRecord?.score ?? null;
+  const sleepScoreState: string | null = (sleepQuery.data?.records as any[])?.find(
+    (r: any) => r.nap === false
+  )?.score_state ?? null;
 
   // Persist full WHOOP biometrics to AsyncStorage so Zaki coaching context has HRV, RHR, sleep stages
   useEffect(() => {
@@ -300,6 +314,11 @@ export default function WhoopScreen() {
                   <Text className="text-sm text-muted">Recovery Score</Text>
                   {recoveryQuery.isLoading ? (
                     <ActivityIndicator size="small" color={colors.primary} />
+                  ) : recoveryScoreState === 'PENDING_SCORE' && latestRecovery == null ? (
+                    <View>
+                      <Text className="text-2xl font-bold text-foreground">Pending</Text>
+                      <Text className="text-xs text-muted mt-0.5">WHOOP is calculating...</Text>
+                    </View>
                   ) : (
                     <Text className="text-3xl font-bold text-foreground">
                       {latestRecovery?.recovery_score != null 
@@ -396,6 +415,11 @@ export default function WhoopScreen() {
                   <Text className="text-sm text-muted">Sleep Performance</Text>
                   {sleepQuery.isLoading ? (
                     <ActivityIndicator size="small" color={colors.primary} />
+                  ) : sleepScoreState === 'PENDING_SCORE' && latestSleep == null ? (
+                    <View>
+                      <Text className="text-2xl font-bold text-foreground">Pending</Text>
+                      <Text className="text-xs text-muted mt-0.5">WHOOP is calculating...</Text>
+                    </View>
                   ) : (
                     <Text className="text-3xl font-bold text-foreground">
                       {latestSleep?.sleep_performance_percentage != null 
