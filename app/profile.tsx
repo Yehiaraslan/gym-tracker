@@ -30,6 +30,7 @@ import {
   type UserProfile,
 } from '@/lib/profile-store';
 import { loadPinSyncState, type PinSyncState } from '@/lib/pin-sync-store';
+import { persistImage } from '@/lib/image-store';
 
 const GOALS: { key: UserProfile['fitnessGoal']; label: string; emoji: string }[] = [
   { key: 'muscle_gain', label: 'Muscle Gain', emoji: '💪' },
@@ -85,7 +86,14 @@ export default function ProfileScreen() {
       quality: 0.8,
     });
     if (!result.canceled && result.assets[0]) {
-      setProfile(p => ({ ...p, profilePhotoUri: result.assets[0].uri }));
+      try {
+        const permanentUri = await persistImage(result.assets[0].uri, 'profile', 'profile.jpg');
+        const updated = { ...profile, profilePhotoUri: permanentUri };
+        setProfile(updated);
+        await saveUserProfile(updated);
+      } catch {
+        setProfile(p => ({ ...p, profilePhotoUri: result.assets[0].uri }));
+      }
     }
   };
 
@@ -101,7 +109,14 @@ export default function ProfileScreen() {
       quality: 0.8,
     });
     if (!result.canceled && result.assets[0]) {
-      setProfile(p => ({ ...p, profilePhotoUri: result.assets[0].uri }));
+      try {
+        const permanentUri = await persistImage(result.assets[0].uri, 'profile', 'profile.jpg');
+        const updated = { ...profile, profilePhotoUri: permanentUri };
+        setProfile(updated);
+        await saveUserProfile(updated);
+      } catch {
+        setProfile(p => ({ ...p, profilePhotoUri: result.assets[0].uri }));
+      }
     }
   };
 

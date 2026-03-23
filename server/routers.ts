@@ -36,11 +36,6 @@ export const appRouter = router({
     // Get WHOOP connection status
     status: publicProcedure
       .input(deviceIdInput)
-      .output(z.object({
-        connected: z.boolean(),
-        tokenExpired: z.boolean(),
-        profile: z.record(z.string(), z.any()).nullable(),
-      }))
       .query(async ({ input }) => {
         const stored = await whoopDb.getWhoopTokens(input.deviceId);
         const connected = stored !== null;

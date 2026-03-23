@@ -827,3 +827,19 @@
 - [ ] Profile completeness nudge banner on home screen
 - [ ] Push notifications enabled (permission request + server delivery)
 - [ ] Exercise swap with same-muscle alternatives in active workout
+
+## Batch Enhancement Round — Mar 23 2026
+- [x] Fix WHOOP "Not connected" on home dashboard — replaced client-side getTodayRecovery with tRPC server query
+- [x] Fix WHOOP recovery score not rendering on home dashboard — now uses v2 API snake_case fields
+- [x] Display last night's sleep data on home dashboard from WHOOP — wired via trpc.whoop.sleep
+- [x] Fix profile picture not updating in UI after upload/camera — now persists to permanent app storage
+- [x] Fix progress photos (front/side/back) not updating in UI after upload — same persistent storage fix
+- [x] Calendar: mark completed workout days with checkmark/highlight — cross-references SplitWorkoutSession history
+- [x] Calendar: show fun workout-type icons for future scheduled workouts — emoji based on bodyPart
+- [x] Remove Export button from UI — was already absent
+- [x] Fix "0 exercises done" counter in workout tab — now counts exercises with ≥1 completed working set
+- [x] Cloud DB: fix sync route names and add deviceId to all sync calls in db-sync-fetch.ts
+- [x] Cloud DB: workout/exercise/sets/reps/weights sync to PostgreSQL via sync.upsertWorkout
+- [x] Cloud DB: WHOOP data (recovery, sleep) auto-saved to recovery_history table on each fetch
+- [x] Cloud DB: nutrition, streaks, body weight sync to PostgreSQL via correct routes
+- [x] AI-ready schema: normalized tables with deviceId, timestamps, full set/rep/weight history

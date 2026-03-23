@@ -24,6 +24,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ScreenContainer } from '@/components/screen-container';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useColors } from '@/hooks/use-colors';
+import { persistImage, deletePersistedImage } from '@/lib/image-store';
 
 const PICTURES_KEY = '@gym_progress_pictures';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -68,9 +69,14 @@ export default function ProgressPicturesScreen() {
   }, []);
 
   const addPicture = async (uri: string) => {
+    // Persist to permanent storage so URI survives app restarts
+    let permanentUri = uri;
+    try {
+      permanentUri = await persistImage(uri, 'progress');
+    } catch { /* fall back to temp URI */ }
     const newPic: ProgressPicture = {
       id: Date.now().toString(),
-      uri,
+      uri: permanentUri,
       date: new Date().toISOString().split('T')[0],
       label: addLabel,
       note: '',
@@ -113,6 +119,8 @@ export default function ProgressPicturesScreen() {
         text: 'Delete',
         style: 'destructive',
         onPress: async () => {
+          const target = pictures.find(p => p.id === id);
+          if (target) await deletePersistedImage(target.uri);
           const updated = pictures.filter(p => p.id !== id);
           setPictures(updated);
           await savePictures(updated);

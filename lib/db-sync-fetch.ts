@@ -3,7 +3,17 @@
  * This avoids the tRPC client type inference issue in non-React store contexts.
  * All calls are best-effort — failures are silently swallowed so they never
  * block the local AsyncStorage save path.
+ *
+ * Route name mapping (client → server):
+ *   sync.upsertWorkout        ← syncWorkoutSession
+ *   sync.upsertFormCoach      ← syncFormCoachSession
+ *   sync.upsertNutritionDay   ← syncNutritionDay
+ *   sync.upsertStreak         ← syncStreak
+ *   sync.upsertBodyWeight     ← syncBodyWeight
+ *   sync.upsertSleep          ← syncSleep
+ *   sync.upsertPersonalRecord ← syncPersonalRecord
  */
+import { getDeviceId } from './device-id';
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? 'http://127.0.0.1:3000';
 
@@ -41,7 +51,9 @@ export function syncWorkoutSession(session: {
     }>;
   }>;
 }): void {
-  trpcMutation('sync.upsertWorkoutSession', session);
+  getDeviceId().then(deviceId => {
+    trpcMutation('sync.upsertWorkout', { deviceId, session });
+  });
 }
 
 // ── Form coach session sync ──────────────────────────────────
@@ -57,7 +69,9 @@ export function syncFormCoachSession(session: {
   repScores: number[];
   feedback: string[];
 }): void {
-  trpcMutation('sync.upsertFormCoachSession', session);
+  getDeviceId().then(deviceId => {
+    trpcMutation('sync.upsertFormCoach', { deviceId, session });
+  });
 }
 
 // ── Nutrition day sync ───────────────────────────────────────
@@ -85,7 +99,9 @@ export function syncNutritionDay(day: {
   supplementsTaken: number;
   supplementsTotal: number;
 }): void {
-  trpcMutation('sync.upsertNutritionDay', day);
+  getDeviceId().then(deviceId => {
+    trpcMutation('sync.upsertNutritionDay', { deviceId, day });
+  });
 }
 
 // ── Streak sync ──────────────────────────────────────────────
@@ -95,7 +111,9 @@ export function syncStreak(data: {
   lastWorkoutDate: string;
   totalWorkouts: number;
 }): void {
-  trpcMutation('sync.upsertStreak', data);
+  getDeviceId().then(deviceId => {
+    trpcMutation('sync.upsertStreak', { deviceId, streak: data });
+  });
 }
 
 // ── Body weight sync ─────────────────────────────────────────
@@ -104,7 +122,9 @@ export function syncBodyWeight(entry: {
   weightKg: number;
   notes?: string;
 }): void {
-  trpcMutation('sync.upsertBodyWeight', entry);
+  getDeviceId().then(deviceId => {
+    trpcMutation('sync.upsertBodyWeight', { deviceId, entry });
+  });
 }
 
 // ── Sleep sync ───────────────────────────────────────────────
@@ -116,5 +136,22 @@ export function syncSleep(entry: {
   quality?: number;
   notes?: string;
 }): void {
-  trpcMutation('sync.upsertSleep', entry);
+  getDeviceId().then(deviceId => {
+    trpcMutation('sync.upsertSleep', { deviceId, entry });
+  });
+}
+
+// ── Personal record sync ─────────────────────────────────────
+export function syncPersonalRecord(pr: {
+  exerciseName: string;
+  weightKg: number;
+  reps: number;
+  estimated1rm?: number;
+  sessionType?: string;
+  date: string;
+  sessionId?: string;
+}): void {
+  getDeviceId().then(deviceId => {
+    trpcMutation('sync.upsertPersonalRecord', { deviceId, pr });
+  });
 }

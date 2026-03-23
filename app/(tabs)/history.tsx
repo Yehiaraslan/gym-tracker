@@ -81,7 +81,10 @@ export default function HistoryScreen() {
     const totalVolume = item.totalVolume ?? item.exercises.reduce((acc, ex) =>
       acc + ex.sets.reduce((s, set) => s + (set.weightKg * set.reps), 0), 0
     );
-    const doneExercises = item.exercises.filter(ex => !ex.skipped);
+    // Count exercises that have at least one completed working set (not just non-skipped)
+    const doneExercises = item.exercises.filter(ex =>
+      !ex.skipped && ex.sets.some(s => !s.isWarmup && s.reps > 0)
+    );
 
     return (
       <TouchableOpacity onPress={() => toggleWorkout(item.id)} activeOpacity={0.7}>

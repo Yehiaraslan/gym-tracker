@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { 
   Text, 
   View, 
@@ -6,12 +6,29 @@ import {
   ScrollView,
   Platform,
 } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useColors } from '@/hooks/use-colors';
 import { useGym } from '@/lib/gym-context';
 import { getDayName } from '@/lib/types';
 import * as Haptics from 'expo-haptics';
+import { getSplitWorkouts } from '@/lib/split-workout-store';
+import type { BodyPart } from '@/lib/types';
+
+// Derive a fun emoji from the body parts of a program day's exercises
+function getWorkoutEmoji(bodyParts: BodyPart[]): string {
+  if (!bodyParts.length) return '😴';
+  const parts = bodyParts.join(' ').toLowerCase();
+  if (parts.includes('legs')) return '🦵';
+  if (parts.includes('back')) return '🏋️';
+  if (parts.includes('chest')) return '💪';
+  if (parts.includes('shoulders')) return '🔥';
+  if (parts.includes('arms')) return '💥';
+  if (parts.includes('cardio')) return '🏃';
+  if (parts.includes('core')) return '🎯';
+  return '⚡';
+}
 
 const DAYS_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -20,22 +37,42 @@ export default function CalendarScreen() {
   const { store, getProgramDay, getExerciseById, currentCycleInfo } = useGym();
   const [selectedWeek, setSelectedWeek] = useState(currentCycleInfo.week);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [completedDates, setCompletedDates] = useState<Set<string>>(new Set());
+
+  // Load completed workout dates whenever the tab is focused
+  useFocusEffect(
+    useCallback(() => {
+      getSplitWorkouts().then(sessions => {
+        const dates = new Set(sessions.filter(s => s.completed).map(s => s.date));
+        setCompletedDates(dates);
+      });
+    }, [])
+  );
 
   // Get all configured days for the selected week
   const weekProgram = useMemo(() => {
     const days = [];
     for (let day = 1; day <= 7; day++) {
       const program = getProgramDay(selectedWeek, day);
+      const start = new Date(store.settings.cycleStartDate);
+      const offsetDays = (selectedWeek - 1) * 7 + (day - 1);
+      const d = new Date(start);
+      d.setDate(d.getDate() + offsetDays);
+      const isoDate = d.toISOString().split('T')[0];
       days.push({
         dayNumber: day,
         dayName: getDayName(day),
-        hasWorkout: program && program.exercises.length > 0,
+        hasWorkout: !!(program && program.exercises.length > 0),
         exerciseCount: program?.exercises.length || 0,
         exercises: program?.exercises || [],
+        workoutEmoji: getWorkoutEmoji(
+          (program?.exercises ?? []).map(ex => getExerciseById(ex.exerciseId)?.bodyPart).filter(Boolean) as BodyPart[]
+        ),
+        isoDate,
       });
     }
     return days;
-  }, [selectedWeek, store.programDays]);
+  }, [selectedWeek, store.programDays, store.settings.cycleStartDate]);
 
   // Calculate total workouts in the 8-week cycle
   const cycleStats = useMemo(() => {
@@ -54,6 +91,15 @@ export default function CalendarScreen() {
     
     return { totalWorkouts, totalExercises };
   }, [store.programDays]);
+
+  // Compute the ISO date string for any week/day combination using cycleStartDate
+  const getDateForWeekDay = useCallback((week: number, day: number): string => {
+    const start = new Date(store.settings.cycleStartDate);
+    const offsetDays = (week - 1) * 7 + (day - 1);
+    const d = new Date(start);
+    d.setDate(d.getDate() + offsetDays);
+    return d.toISOString().split('T')[0];
+  }, [store.settings.cycleStartDate]);
 
   const selectedDayProgram = selectedDay ? weekProgram.find(d => d.dayNumber === selectedDay) : null;
 
@@ -186,6 +232,8 @@ export default function CalendarScreen() {
             {weekProgram.map((day) => {
               const isToday = selectedWeek === currentCycleInfo.week && day.dayNumber === currentCycleInfo.day;
               const isSelected = selectedDay === day.dayNumber;
+              const isCompleted = completedDates.has(day.isoDate);
+              const isPast = new Date(day.isoDate) < new Date(new Date().toISOString().split('T')[0]);
               
               return (
                 <TouchableOpacity
@@ -209,12 +257,22 @@ export default function CalendarScreen() {
                         width: 32,
                         height: 32,
                         borderRadius: 16,
-                        backgroundColor: isToday ? colors.primary : colors.success,
+                        backgroundColor: isCompleted
+                          ? colors.success
+                          : isToday
+                          ? colors.primary
+                          : isPast
+                          ? colors.error + '40'
+                          : colors.primary + '30',
                         justifyContent: 'center',
                         alignItems: 'center',
                       }}
                     >
-                      <IconSymbol name="dumbbell.fill" size={16} color="#FFFFFF" />
+                      {isCompleted ? (
+                        <Text style={{ fontSize: 16 }}>✓</Text>
+                      ) : (
+                        <Text style={{ fontSize: 16 }}>{day.workoutEmoji}</Text>
+                      )}
                     </View>
                   ) : (
                     <View 
@@ -227,14 +285,14 @@ export default function CalendarScreen() {
                         alignItems: 'center',
                       }}
                     >
-                      <Text style={{ color: colors.muted, fontSize: 10 }}>Rest</Text>
+                      <Text style={{ color: colors.muted, fontSize: 14 }}>😴</Text>
                     </View>
                   )}
                   <Text 
                     className="text-xs mt-1"
-                    style={{ color: day.hasWorkout ? colors.foreground : colors.muted }}
+                    style={{ color: isCompleted ? colors.success : day.hasWorkout ? colors.foreground : colors.muted }}
                   >
-                    {day.exerciseCount > 0 ? `${day.exerciseCount} ex` : '—'}
+                    {isCompleted ? 'Done' : day.exerciseCount > 0 ? `${day.exerciseCount} ex` : '—'}
                   </Text>
                 </TouchableOpacity>
               );
