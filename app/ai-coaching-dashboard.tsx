@@ -113,6 +113,76 @@ export default function AICoachingDashboard() {
   const [digestTriggerLoading, setDigestTriggerLoading] = useState(false);
   const [digestTriggerResult, setDigestTriggerResult] = useState<string | null>(null);
 
+  // ── Body composition analysis state ──────────────────────
+  const [bodyCompLoading, setBodyCompLoading] = useState(false);
+  const [bodyCompResult, setBodyCompResult] = useState<string | null>(null);
+  const [bodyCompError, setBodyCompError] = useState<string | null>(null);
+  const uploadPhotoMutation = trpc.zaki.uploadProgressPhoto.useMutation();
+  const analyzeBodyMutation = trpc.zaki.analyzeBodyComposition.useMutation();
+
+  const handleAnalyzeBodyComposition = useCallback(async () => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setBodyCompLoading(true);
+    setBodyCompResult(null);
+    setBodyCompError(null);
+    try {
+      const { getProgressPhotos } = await import('@/lib/progress-photos');
+      const photos = await getProgressPhotos();
+      if (photos.length === 0) {
+        setBodyCompError('No progress photos found. Add photos in the Progress Gallery first.');
+        setBodyCompLoading(false);
+        return;
+      }
+      // Take the most recent photo per category (up to 4)
+      const byCategory = new Map<string, typeof photos[0]>();
+      for (const p of photos.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())) {
+        const cat = p.category || 'other';
+        if (!byCategory.has(cat)) byCategory.set(cat, p);
+      }
+      const selected = Array.from(byCategory.values()).slice(0, 4);
+      // Upload each to S3 to get a public URL for Zaki to analyze
+      const FileSystem = await import('expo-file-system/legacy');
+      const uploadedPhotos: { url: string; category: string; date: string }[] = [];
+      for (const photo of selected) {
+        try {
+          const base64 = await FileSystem.readAsStringAsync(photo.uri, { encoding: FileSystem.EncodingType.Base64 });
+          const result = await uploadPhotoMutation.mutateAsync({
+            deviceId: deviceId || 'unknown',
+            base64,
+            mimeType: 'image/jpeg',
+            category: photo.category || 'other',
+            date: photo.date,
+          });
+          uploadedPhotos.push({ url: result.url, category: photo.category || 'other', date: photo.date });
+        } catch (uploadErr) {
+          console.warn('[BodyComp] Failed to upload photo:', uploadErr);
+        }
+      }
+      if (uploadedPhotos.length === 0) {
+        setBodyCompError('Could not upload photos for analysis. Check your connection.');
+        setBodyCompLoading(false);
+        return;
+      }
+      const snapshot = await buildUserSnapshot();
+      const context = snapshotToPromptContext(snapshot);
+      const result = await analyzeBodyMutation.mutateAsync({
+        deviceId: deviceId || 'unknown',
+        photoUrls: uploadedPhotos,
+        userContext: context,
+        zakiSessionId: zakiSessionIdRef.current,
+      });
+      setBodyCompResult(result.analysis);
+      if (result.zakiSessionId) {
+        zakiSessionIdRef.current = result.zakiSessionId;
+      }
+    } catch (err) {
+      console.error('[BodyComp]', err);
+      setBodyCompError('Could not analyze photos. Please try again.');
+    } finally {
+      setBodyCompLoading(false);
+    }
+  }, [uploadPhotoMutation, analyzeBodyMutation, deviceId]);
+
   const handleTriggerDigest = useCallback(async () => {
     setDigestTriggerLoading(true);
     setDigestTriggerResult(null);
@@ -722,6 +792,7 @@ export default function AICoachingDashboard() {
             {/* ── WEEKLY TAB ── */}
             {activeTab === 'weekly' && (
               <View style={styles.tabContent}>
+                {/* Weekly digest — loading / error / response / empty */}
                 {weeklyLoading ? (
                   <View style={styles.loadingCard}>
                     <Text style={{ fontSize: 40, textAlign: 'center', marginBottom: 12 }}>📊</Text>
@@ -761,7 +832,6 @@ export default function AICoachingDashboard() {
                     </TouchableOpacity>
                   </View>
                 ) : (
-                  <>
                   <View style={[styles.emptyCard, { backgroundColor: colors.surface }]}>
                     <Text style={{ fontSize: 48, textAlign: 'center' }}>📊</Text>
                     <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
@@ -777,6 +847,11 @@ export default function AICoachingDashboard() {
                       <Text style={styles.ctaBtnText}>Generate Weekly Digest</Text>
                     </TouchableOpacity>
                   </View>
+                )}
+
+                {/* Always-visible utility cards below the digest */}
+                {!weeklyLoading && (
+                  <>
 
                   {/* Daily Digest Test Panel */}
                   <View style={[styles.emptyCard, { backgroundColor: colors.surface, marginTop: 12 }]}>
@@ -799,6 +874,52 @@ export default function AICoachingDashboard() {
                       <Text style={{ color: colors.muted, fontSize: 12, textAlign: 'center', marginTop: 8, lineHeight: 18 }}>
                         {digestTriggerResult}
                       </Text>
+                    )}
+                  </View>
+
+                  {/* Body Composition Analysis Panel */}
+                  <View style={[styles.emptyCard, { backgroundColor: colors.surface, marginTop: 12 }]}>
+                    <Text style={{ fontSize: 32, textAlign: 'center' }}>📸</Text>
+                    <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+                      Body Composition Analysis
+                    </Text>
+                    <Text style={[styles.emptySubtitle, { color: colors.muted }]}>
+                      Zaki will analyze your most recent progress photos alongside your training and nutrition data.
+                    </Text>
+                    {bodyCompLoading ? (
+                      <ActivityIndicator size="small" color="#10B981" style={{ marginTop: 12 }} />
+                    ) : (
+                      <TouchableOpacity
+                        onPress={handleAnalyzeBodyComposition}
+                        style={[styles.ctaBtn, { backgroundColor: '#10B981' }]}
+                      >
+                        <Text style={styles.ctaBtnText}>Analyze My Progress Photos</Text>
+                      </TouchableOpacity>
+                    )}
+                    {bodyCompError && (
+                      <Text style={{ color: '#EF4444', fontSize: 12, textAlign: 'center', marginTop: 8, lineHeight: 18 }}>
+                        {bodyCompError}
+                      </Text>
+                    )}
+                    {bodyCompResult && (
+                      <View style={[styles.responseCard, { backgroundColor: '#10B98108', borderColor: '#10B98130', marginTop: 12 }]}>
+                        <View style={styles.zakiHeaderRow}>
+                          <View style={[styles.zakiAvatarLg, { backgroundColor: '#10B98120' }]}>
+                            <Text style={{ fontSize: 24 }}>🤖</Text>
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={[styles.zakiNameLg, { color: '#10B981' }]}>Body Composition Report</Text>
+                            <Text style={[styles.zakiTimestamp, { color: colors.muted }]}>Analysis by Agent Zaki</Text>
+                          </View>
+                        </View>
+                        <Text style={[styles.responseText, { color: colors.foreground }]}>{bodyCompResult}</Text>
+                        <TouchableOpacity
+                          onPress={handleAnalyzeBodyComposition}
+                          style={[styles.refreshSmallBtn, { borderColor: '#10B98140' }]}
+                        >
+                          <Text style={{ color: '#10B981', fontSize: 12, fontWeight: '600' }}>🔄 Re-analyze</Text>
+                        </TouchableOpacity>
+                      </View>
                     )}
                   </View>
                   </>

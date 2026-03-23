@@ -23,6 +23,7 @@ import {
   ProgressPhoto,
 } from '@/lib/progress-photos';
 import * as Haptics from 'expo-haptics';
+import * as ImagePicker from 'expo-image-picker';
 import { Platform } from 'react-native';
 
 export default function ProgressGalleryScreen() {
@@ -61,27 +62,79 @@ export default function ProgressGalleryScreen() {
     }
   };
 
-  const handlePickImage = async () => {
-    try {
-      setUploading(true);
-      // Demo: Use a placeholder image
-      const demoUri = 'https://via.placeholder.com/300x400?text=Progress+Photo';
-      
-      const photo = await addProgressPhoto(demoUri, '', category);
-      setPhotos(prev => [photo, ...prev]);
-      loadStats();
-
-      if (Platform.OS !== 'web') {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      }
-
-      Alert.alert('Success', 'Progress photo added!');
-    } catch (error) {
-      console.error('Error picking image:', error);
-      Alert.alert('Error', 'Failed to add photo. Please try again.');
-    } finally {
-      setUploading(false);
+  const handlePickImage = () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
+    Alert.alert('Add Progress Photo', 'Choose a photo source', [
+      {
+        text: '📷  Take Photo',
+        onPress: async () => {
+          try {
+            setUploading(true);
+            const { status } = await ImagePicker.requestCameraPermissionsAsync();
+            if (status !== 'granted') {
+              Alert.alert('Permission Required', 'Please allow camera access to take a progress photo.');
+              setUploading(false);
+              return;
+            }
+            const result = await ImagePicker.launchCameraAsync({
+              quality: 0.85,
+              allowsEditing: true,
+              aspect: [3, 4],
+            });
+            if (!result.canceled && result.assets[0]) {
+              const photo = await addProgressPhoto(result.assets[0].uri, '', category);
+              setPhotos(prev => [photo, ...prev]);
+              loadStats();
+              if (Platform.OS !== 'web') {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              }
+            }
+          } catch (error) {
+            console.error('Error taking photo:', error);
+            Alert.alert('Error', 'Failed to take photo. Please try again.');
+          } finally {
+            setUploading(false);
+          }
+        },
+      },
+      {
+        text: '🖼  Choose from Library',
+        onPress: async () => {
+          try {
+            setUploading(true);
+            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (status !== 'granted') {
+              Alert.alert('Permission Required', 'Please allow access to your photo library.');
+              setUploading(false);
+              return;
+            }
+            const result = await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: ImagePicker.MediaTypeOptions.Images,
+              quality: 0.85,
+              allowsEditing: true,
+              aspect: [3, 4],
+              allowsMultipleSelection: false,
+            });
+            if (!result.canceled && result.assets[0]) {
+              const photo = await addProgressPhoto(result.assets[0].uri, '', category);
+              setPhotos(prev => [photo, ...prev]);
+              loadStats();
+              if (Platform.OS !== 'web') {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              }
+            }
+          } catch (error) {
+            console.error('Error picking image:', error);
+            Alert.alert('Error', 'Failed to add photo. Please try again.');
+          } finally {
+            setUploading(false);
+          }
+        },
+      },
+      { text: 'Cancel', style: 'cancel', onPress: () => setUploading(false) },
+    ]);
   };
 
   const handleDeletePhoto = (photoId: string) => {

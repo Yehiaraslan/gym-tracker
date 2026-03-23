@@ -48,7 +48,7 @@ const config: ExpoConfig = {
     edgeToEdgeEnabled: true,
     predictiveBackGestureEnabled: false,
     package: env.androidPackage,
-    permissions: ["POST_NOTIFICATIONS", "CAMERA"],
+    permissions: ["POST_NOTIFICATIONS", "CAMERA", "READ_EXTERNAL_STORAGE", "READ_MEDIA_IMAGES"],
     intentFilters: [
       {
         action: "VIEW",
@@ -104,6 +104,13 @@ const config: ExpoConfig = {
         ios: {
           useFrameworks: "static",
         },
+      },
+    ],
+    [
+      "expo-image-picker",
+      {
+        photosPermission: "Allow $(PRODUCT_NAME) to access your photos for progress tracking.",
+        cameraPermission: "Allow $(PRODUCT_NAME) to access your camera for progress photos.",
       },
     ],
     [

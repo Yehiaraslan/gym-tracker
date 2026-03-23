@@ -517,6 +517,45 @@ export const appRouter = router({
         await db.upsertZakiSession(input.deviceId, input.zakiSessionId);
         return { success: true };
       }),
+
+    // Upload a base64-encoded progress photo to S3 and return a public URL
+    uploadProgressPhoto: publicProcedure
+      .input(z.object({
+        deviceId: z.string(),
+        base64: z.string(),
+        mimeType: z.string().default('image/jpeg'),
+        category: z.enum(['front', 'back', 'side', 'other']).default('front'),
+        date: z.string(),
+      }))
+      .mutation(async ({ input }) => {
+        const { storagePut } = await import('./storage');
+        const buffer = Buffer.from(input.base64, 'base64');
+        const ext = input.mimeType === 'image/png' ? 'png' : 'jpg';
+        const key = `progress-photos/${input.deviceId}/${input.date}-${input.category}-${Date.now()}.${ext}`;
+        const { url } = await storagePut(key, buffer, input.mimeType);
+        return { url, key };
+      }),
+
+    // Analyze body composition from progress photos using Zaki
+    analyzeBodyComposition: publicProcedure
+      .input(z.object({
+        deviceId: z.string(),
+        photoUrls: z.array(z.object({
+          url: z.string(),
+          category: z.string(),
+          date: z.string(),
+        })),
+        userContext: z.string().optional(),
+        zakiSessionId: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const photoDesc = input.photoUrls
+          .map(p => `${p.category} view (${p.date}): ${p.url}`)
+          .join('\n');
+        const prompt = `You are reviewing ${input.photoUrls.length} progress photo(s) for Yehia:\n${photoDesc}\n\n${input.userContext || ''}\n\nAnalyze visible body composition changes, muscle development, and provide specific, actionable coaching feedback. Be direct and precise.`;
+        const result = await zaki.askZaki(prompt, input.zakiSessionId);
+        return { analysis: result.response, zakiSessionId: result.zakiSessionId };
+      }),
   }),
 
   aiCoaching: router({

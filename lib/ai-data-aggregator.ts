@@ -5,6 +5,7 @@
 // structured snapshot to the server for inference.
 // ============================================================
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getProgressPhotos } from './progress-photos';
 import {
   getRecentSplitWorkouts,
   getExerciseHistory,
@@ -72,6 +73,15 @@ export interface ProgressSummary {
   volumeTrend: 'increasing' | 'stable' | 'decreasing';
 }
 
+export interface ProgressPhotoSummary {
+  id: string;
+  uri: string;
+  date: string;
+  category?: 'front' | 'back' | 'side' | 'other';
+  notes?: string;
+  s3Url?: string;
+}
+
 export interface UserSnapshot {
   timestamp: string;
   todaySession: string;
@@ -93,6 +103,7 @@ export interface UserSnapshot {
     twoWeeksAgo: number | null;
     direction: 'gaining' | 'stable' | 'losing' | 'unknown';
   };
+  progressPhotos: ProgressPhotoSummary[];
 }
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -309,6 +320,24 @@ export async function buildUserSnapshot(): Promise<UserSnapshot> {
     return d >= startOfLastWeek && d < startOfWeek && w.completed;
   }).length;
 
+  // Progress photos — load last 6 (most recent per category)
+  let progressPhotos: ProgressPhotoSummary[] = [];
+  try {
+    const allPhotos = await getProgressPhotos();
+    progressPhotos = allPhotos
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 6)
+      .map(p => ({
+        id: p.id,
+        uri: p.uri,
+        date: p.date,
+        category: p.category,
+        notes: p.notes,
+      }));
+  } catch {
+    // ignore — photos are optional
+  }
+
   return {
     timestamp: now.toISOString(),
     todaySession: todaySession,
@@ -325,6 +354,7 @@ export async function buildUserSnapshot(): Promise<UserSnapshot> {
     recovery,
     progressSummaries,
     weightTrend,
+    progressPhotos,
   };
 }
 
@@ -396,6 +426,17 @@ export function snapshotToPromptContext(snap: UserSnapshot): string {
       lines.push(
         `${p.exerciseName}: best e1RM ${Math.round(p.bestE1RM)}kg, latest ${Math.round(p.latestE1RM)}kg (${p.e1rmTrend}) | ${p.sessions} sessions | vol: ${p.volumeTrend}`,
       );
+    }
+  }
+
+  // Progress photos
+  if (snap.progressPhotos && snap.progressPhotos.length > 0) {
+    lines.push(`\n--- PROGRESS PHOTOS (${snap.progressPhotos.length} total) ---`);
+    for (const p of snap.progressPhotos) {
+      const catLabel = p.category ? ` [${p.category}]` : '';
+      const notesLabel = p.notes ? ` — "${p.notes}"` : '';
+      const urlLabel = p.s3Url ? ` URL: ${p.s3Url}` : ' (local only)';
+      lines.push(`${p.date}${catLabel}${notesLabel}${urlLabel}`);
     }
   }
 
