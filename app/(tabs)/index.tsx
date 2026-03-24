@@ -19,6 +19,10 @@ import {
   type SessionType,
 } from '@/lib/training-program';
 import {
+  getTodaySessionFromSchedule,
+  getWeekScheduleFromStore,
+} from '@/lib/schedule-store';
+import {
   getRecentSplitWorkouts,
   type SplitWorkoutSession,
 } from '@/lib/split-workout-store';
@@ -62,7 +66,9 @@ export default function HomeScreen() {
   const router = useRouter();
   const { store } = useGym();
 
-  const todaySession = getTodaySession();
+  // Async schedule: loads override from AsyncStorage on focus, falls back to default
+  const [todaySession, setTodaySession] = useState<SessionType>(getTodaySession());
+  const [scheduleWeek, setScheduleWeek] = useState<{ date: Date; session: SessionType; dayName: string }[] | null>(null);
   const isRest = todaySession === 'rest';
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
@@ -96,18 +102,17 @@ export default function HomeScreen() {
     { enabled: !!deviceId && whoopConnected, staleTime: 60_000, retry: 1 }
   );
 
-  // Build this week's 7-day strip
-  const weekDays = Array.from({ length: 7 }, (_, i) => {
+  // Build this week's 7-day strip (uses schedule override if set, else default)
+  const weekDays = (scheduleWeek ?? Array.from({ length: 7 }, (_, i) => {
     const d = new Date(today);
-    const dayOfWeek = today.getDay();
-    d.setDate(today.getDate() - dayOfWeek + i);
-    return {
-      date: d,
-      label: DAY_LABELS[i],
-      session: getSessionForDate(d),
-      isToday: d.toISOString().split('T')[0] === todayStr,
-    };
-  });
+    d.setDate(today.getDate() - today.getDay() + i);
+    return { date: d, session: getSessionForDate(d), dayName: DAY_LABELS[i] };
+  })).map((day, i) => ({
+    date: day.date,
+    label: DAY_LABELS[i],
+    session: day.session,
+    isToday: day.date.toISOString().split('T')[0] === todayStr,
+  }));
 
   // Weekly weight average
   const recentWeights = [...store.weightEntries]
@@ -120,6 +125,17 @@ export default function HomeScreen() {
   // Last night sleep (local log)
   const lastSleep = [...store.sleepEntries]
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+
+  const loadSchedule = useCallback(async () => {
+    try {
+      const [session, week] = await Promise.all([
+        getTodaySessionFromSchedule(),
+        getWeekScheduleFromStore(new Date()),
+      ]);
+      setTodaySession(session);
+      setScheduleWeek(week);
+    } catch (_) {}
+  }, []);
 
   const loadData = useCallback(async () => {
     try {
@@ -149,9 +165,10 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       loadData();
+      loadSchedule();
       loadUserProfile().then(setUserProfile);
       loadPinSyncState().then(setSyncState);
-    }, [loadData])
+    }, [loadData, loadSchedule])
   );
 
   const handleStartWorkout = () => {

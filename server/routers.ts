@@ -445,6 +445,78 @@ export const appRouter = router({
         return result;
       }),
 
+    // Propose a new training schedule based on user's request and full context
+    proposeSchedule: publicProcedure
+      .input(z.object({
+        userRequest: z.string(),
+        currentContext: z.string(),
+        zakiSessionId: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const ALL_DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+        const SESSION_TYPES = ['upper-a','lower-a','upper-b','lower-b','rest'];
+        const prompt = [
+          '=== SCHEDULE MODIFICATION REQUEST ===',
+          '',
+          input.currentContext,
+          '',
+          '=== USER REQUEST ===',
+          input.userRequest,
+          '',
+          '=== YOUR TASK ===',
+          "Based on the user's full training history, WHOOP recovery data, nutrition program, and their request above,",
+          'propose a new 7-day training schedule. You MUST respond with a JSON object in this EXACT format:',
+          '',
+          '{',
+          '  "description": "<one-sentence description of the schedule>",',
+          '  "rationale": "<2-3 sentences explaining why this schedule suits the user based on their data>",',
+          '  "schedule": {',
+          '    "Sunday": "<session_type>",',
+          '    "Monday": "<session_type>",',
+          '    "Tuesday": "<session_type>",',
+          '    "Wednesday": "<session_type>",',
+          '    "Thursday": "<session_type>",',
+          '    "Friday": "<session_type>",',
+          '    "Saturday": "<session_type>"',
+          '  },',
+          '  "weightAdjustments": "<optional: any weight/intensity adjustments for the first week>"',
+          '}',
+          '',
+          `Valid session types: ${SESSION_TYPES.join(', ')}`,
+          'upper-a = Upper Body A, lower-a = Lower Body A, upper-b = Upper Body B, lower-b = Lower Body B, rest = Rest Day',
+          'The schedule MUST include exactly 4 training days (one each of upper-a, lower-a, upper-b, lower-b) and 3 rest days.',
+          'Respond ONLY with the JSON object, no other text.',
+        ].join('\n');
+        const result = await zaki.askZaki(prompt, input.zakiSessionId);
+        try {
+          const jsonMatch = result.response.match(/\{[\s\S]*\}/);
+          if (!jsonMatch) throw new Error('No JSON found in response');
+          const parsed = JSON.parse(jsonMatch[0]);
+          const schedule: Record<string, string> = {};
+          for (const day of ALL_DAYS) {
+            const session = parsed.schedule?.[day];
+            schedule[day] = SESSION_TYPES.includes(session) ? session : 'rest';
+          }
+          return {
+            success: true,
+            description: (parsed.description ?? 'Custom schedule') as string,
+            rationale: (parsed.rationale ?? '') as string,
+            schedule,
+            weightAdjustments: (parsed.weightAdjustments ?? '') as string,
+            zakiSessionId: result.zakiSessionId,
+          };
+        } catch {
+          return {
+            success: false,
+            description: '',
+            rationale: result.response,
+            schedule: {} as Record<string, string>,
+            weightAdjustments: '',
+            zakiSessionId: result.zakiSessionId,
+          };
+        }
+      }),
+
     // Mid-workout check-in: Zaki evaluates current progress and advises on remaining sets
     midWorkoutCheckIn: publicProcedure
       .input(z.object({

@@ -23,6 +23,7 @@ import { ScreenContainer } from '@/components/screen-container';
 import { useColors } from '@/hooks/use-colors';
 import { trpc } from '@/lib/trpc';
 import { buildUserSnapshot, snapshotToPromptContext } from '@/lib/ai-data-aggregator';
+import { saveScheduleOverride, type ScheduleOverride, type CustomSchedule, type DayName } from '@/lib/schedule-store';
 import { getSplitWorkouts } from '@/lib/split-workout-store';
 import { getDeviceId } from '@/lib/device-id';
 
@@ -47,11 +48,20 @@ interface DebriefEntry {
   sessionCount: number;
 }
 
+interface ScheduleProposal {
+  description: string;
+  rationale: string;
+  schedule: Record<string, string>;
+  weightAdjustments: string;
+}
+
 interface ChatMessage {
   id: string;
   role: 'user' | 'zaki';
   text: string;
   timestamp: number;
+  /** If present, this message contains a schedule proposal card */
+  scheduleProposal?: ScheduleProposal;
 }
 
 export default function AICoachingDashboard() {
@@ -127,6 +137,11 @@ export default function AICoachingDashboard() {
   const [deloadScheduled, setDeloadScheduled] = useState(false);
   const [deloadScheduling, setDeloadScheduling] = useState(false);
   const perfAnalysisMutation = trpc.zaki.performanceAnalysis.useMutation();
+  const proposeScheduleMutation = trpc.zaki.proposeSchedule.useMutation();
+
+  // ── Schedule proposal state ───────────────────────────────
+  const [scheduleProposalLoading, setScheduleProposalLoading] = useState(false);
+  const [pendingProposal, setPendingProposal] = useState<ScheduleProposal | null>(null);
 
   const handleAnalyzeBodyComposition = useCallback(async () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -426,6 +441,65 @@ export default function AICoachingDashboard() {
     }
   }, [zakiDebriefMutation, debriefHistory]);
 
+  // ── Schedule intent detection ────────────────────────────
+  const isScheduleRequest = (text: string): boolean => {
+    const lower = text.toLowerCase();
+    return (
+      lower.includes('schedule') ||
+      lower.includes('change my') ||
+      lower.includes('modify') ||
+      lower.includes('train every') ||
+      lower.includes('workout days') ||
+      lower.includes('training days') ||
+      lower.includes('back-to-back') ||
+      lower.includes('every other day') ||
+      lower.includes('split') && lower.includes('change') ||
+      lower.includes('rearrange') ||
+      lower.includes('new schedule')
+    );
+  };
+
+  // ── Apply schedule proposal ───────────────────────────────
+  const handleApplySchedule = useCallback(async (proposal: ScheduleProposal) => {
+    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    try {
+      const override: ScheduleOverride = {
+        appliedAt: new Date().toISOString(),
+        description: proposal.description,
+        schedule: proposal.schedule as CustomSchedule,
+        appliedByZaki: true,
+      };
+      await saveScheduleOverride(override);
+      setPendingProposal(null);
+      const confirmMsg: ChatMessage = {
+        id: `z_confirm_${Date.now()}`,
+        role: 'zaki',
+        text: `✅ Schedule applied! Your new training schedule is now active:\n\n${
+          Object.entries(proposal.schedule)
+            .map(([day, session]) => `${day.slice(0,3)}: ${session === 'rest' ? '🛌 Rest' : `🏋️ ${session}`}`)
+            .join('\n')
+        }\n\nThe Home screen and calendar will reflect this immediately. ${proposal.weightAdjustments ? '\n\n💡 ' + proposal.weightAdjustments : ''}`,
+        timestamp: Date.now(),
+      };
+      setChatMessages(prev => [...prev, confirmMsg]);
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+    } catch (err) {
+      console.error('[Schedule Apply]', err);
+    }
+  }, [proposeScheduleMutation]);
+
+  // ── Dismiss schedule proposal ─────────────────────────────
+  const handleDismissSchedule = useCallback(() => {
+    setPendingProposal(null);
+    const dismissMsg: ChatMessage = {
+      id: `z_dismiss_${Date.now()}`,
+      role: 'zaki',
+      text: "No problem — your current schedule stays unchanged. Let me know if you'd like to try a different arrangement.",
+      timestamp: Date.now(),
+    };
+    setChatMessages(prev => [...prev, dismissMsg]);
+  }, []);
+
   // ── Chat with Zaki ────────────────────────────────────────
   const sendChatMessage = useCallback(async () => {
     const text = chatInput.trim();
@@ -441,6 +515,57 @@ export default function AICoachingDashboard() {
     setChatMessages(updatedMessages);
     setChatInput('');
     setChatLoading(true);
+
+    // Detect schedule modification requests and route to proposeSchedule
+    if (isScheduleRequest(text)) {
+      try {
+        const snapshot = await buildUserSnapshot();
+        const fullContext = snapshotToPromptContext(snapshot);
+        const result = await proposeScheduleMutation.mutateAsync({
+          userRequest: text,
+          currentContext: fullContext,
+          zakiSessionId: zakiSessionIdRef.current,
+        });
+        if (result.zakiSessionId) {
+          zakiSessionIdRef.current = result.zakiSessionId;
+          await AsyncStorage.setItem(ZAKI_SESSION_KEY, result.zakiSessionId);
+        }
+        if (result.success && Object.keys(result.schedule).length === 7) {
+          const proposal: ScheduleProposal = {
+            description: result.description,
+            rationale: result.rationale,
+            schedule: result.schedule,
+            weightAdjustments: result.weightAdjustments,
+          };
+          const proposalMsg: ChatMessage = {
+            id: `z_proposal_${Date.now()}`,
+            role: 'zaki',
+            text: result.rationale,
+            timestamp: Date.now(),
+            scheduleProposal: proposal,
+          };
+          const withProposal = [...updatedMessages, proposalMsg];
+          setChatMessages(withProposal);
+          await AsyncStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(withProposal.slice(-MAX_CHAT_HISTORY)));
+        } else {
+          // Fallback: show Zaki's raw response
+          const fallbackMsg: ChatMessage = {
+            id: `z_${Date.now()}`,
+            role: 'zaki',
+            text: result.rationale || 'I had trouble generating a schedule. Could you rephrase your request?',
+            timestamp: Date.now(),
+          };
+          setChatMessages(prev => [...prev, fallbackMsg]);
+        }
+        setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+        setChatLoading(false);
+        return;
+      } catch (err) {
+        console.error('[Schedule Proposal]', err);
+        // Fall through to normal chat
+      }
+    }
+
     try {
       const snapshot = await buildUserSnapshot();
       const contextLine = snapshotToPromptContext(snapshot).split('\n').slice(0, 6).join('\n');
@@ -615,6 +740,54 @@ export default function AICoachingDashboard() {
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.zakiName, { color: '#6366F1' }]}>Agent Zaki</Text>
                         <Text style={[styles.bubbleText, { color: colors.foreground }]}>{msg.text}</Text>
+                        {/* Schedule proposal card */}
+                        {msg.scheduleProposal && (
+                          <View style={[styles.scheduleCard, { backgroundColor: colors.surface, borderColor: '#6366F140' }]}>
+                            <Text style={[styles.scheduleCardTitle, { color: colors.foreground }]}>
+                              📅 {msg.scheduleProposal.description}
+                            </Text>
+                            <View style={styles.scheduleGrid}>
+                              {['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'].map(day => {
+                                const session = msg.scheduleProposal!.schedule[day] ?? 'rest';
+                                const isRest = session === 'rest';
+                                const sessionLabels: Record<string, string> = {
+                                  'upper-a': '🏋️ Upper A',
+                                  'lower-a': '🦵 Lower A',
+                                  'upper-b': '💪 Upper B',
+                                  'lower-b': '🦵 Lower B',
+                                  'rest': '🛌 Rest',
+                                };
+                                return (
+                                  <View key={day} style={[styles.scheduleDayRow, { borderBottomColor: colors.border }]}>
+                                    <Text style={[styles.scheduleDayLabel, { color: colors.muted }]}>{day.slice(0,3)}</Text>
+                                    <Text style={[styles.scheduleSessionLabel, { color: isRest ? colors.muted : '#6366F1' }]}>
+                                      {sessionLabels[session] ?? session}
+                                    </Text>
+                                  </View>
+                                );
+                              })}
+                            </View>
+                            {msg.scheduleProposal.weightAdjustments ? (
+                              <Text style={[styles.scheduleNote, { color: colors.muted }]}>
+                                💡 {msg.scheduleProposal.weightAdjustments}
+                              </Text>
+                            ) : null}
+                            <View style={styles.scheduleActions}>
+                              <TouchableOpacity
+                                style={[styles.scheduleApplyBtn, { backgroundColor: '#6366F1' }]}
+                                onPress={() => handleApplySchedule(msg.scheduleProposal!)}
+                              >
+                                <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>✅ Apply This Schedule</Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                style={[styles.scheduleDismissBtn, { borderColor: colors.border }]}
+                                onPress={handleDismissSchedule}
+                              >
+                                <Text style={{ color: colors.muted, fontSize: 13 }}>Dismiss</Text>
+                              </TouchableOpacity>
+                            </View>
+                          </View>
+                        )}
                       </View>
                     </View>
                   )}
@@ -1294,4 +1467,58 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   historyText: { fontSize: 12, lineHeight: 18 },
+  // Schedule proposal card styles
+  scheduleCard: {
+    marginTop: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 14,
+    gap: 10,
+  },
+  scheduleCardTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 20,
+  },
+  scheduleGrid: {
+    gap: 0,
+  },
+  scheduleDayRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 6,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  scheduleDayLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    width: 36,
+  },
+  scheduleSessionLabel: {
+    fontSize: 13,
+    fontWeight: '500',
+    flex: 1,
+    textAlign: 'right',
+  },
+  scheduleNote: {
+    fontSize: 12,
+    lineHeight: 18,
+    fontStyle: 'italic',
+  },
+  scheduleActions: {
+    gap: 8,
+    marginTop: 4,
+  },
+  scheduleApplyBtn: {
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  scheduleDismissBtn: {
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+  },
 });

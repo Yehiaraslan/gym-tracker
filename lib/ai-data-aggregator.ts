@@ -9,20 +9,31 @@ import { getProgressPhotos } from './progress-photos';
 import { loadUserProfile, calculateAge, type UserProfile } from './profile-store';
 import {
   getRecentSplitWorkouts,
+  getSplitWorkouts,
   getExerciseHistory,
   type SplitWorkoutSession,
   type ExerciseSetEntry,
 } from './split-workout-store';
 import { getDailyNutrition, getRecentNutrition, type DailyNutrition, type FoodEntry } from './nutrition-store';
-import { getTodayRecoveryData, type RecoveryData } from './whoop-recovery-service';
+import { getTodayRecoveryData, getWeeklyRecoveryData, type RecoveryData, type WeeklyRecoveryData } from './whoop-recovery-service';
 import { getStreakData } from './streak-tracker';
 import { getMesocycleStartDate, epley1RM } from './coach-engine';
 import {
   getMesocycleInfo,
   getTodaySession,
   SESSION_NAMES,
+  NUTRITION_TARGETS,
+  MEAL_SCHEDULE,
+  SUPPLEMENTS,
+  USER_PROFILE,
   type SessionType,
 } from './training-program';
+import {
+  loadScheduleOverride,
+  getActiveSchedule,
+  scheduleToString,
+  type ScheduleOverride,
+} from './schedule-store';
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -95,8 +106,12 @@ export interface UserSnapshot {
   workoutsThisWeek: number;
   workoutsLastWeek: number;
   recentWorkouts: WorkoutSummary[];
+  /** Full workout history (all sessions ever logged) */
+  allWorkouts: WorkoutSummary[];
   recentNutrition: NutritionSummary[];
   recovery: RecoverySummary;
+  /** 30-day WHOOP recovery/strain/sleep history */
+  whoopHistory: WeeklyRecoveryData[];
   progressSummaries: ProgressSummary[];
   weightTrend: {
     current: number | null;
@@ -113,6 +128,17 @@ export interface UserSnapshot {
     weightKg: string;
     fitnessGoal: string;
   } | null;
+  /** Programmed nutrition targets and meal schedule */
+  nutritionProgram: {
+    trainingDay: { calories: number; protein: number; fat: number; carbs: number };
+    restDay: { calories: number; protein: number; fat: number; carbs: number };
+    mealSchedule: { meal: number; time: string; kcal: number; focus: string }[];
+    supplements: { name: string; dose: string; timing: string }[];
+  };
+  /** Compact string representation of the active 7-day schedule */
+  activeSchedule: string;
+  /** The current schedule override (null = using hardcoded default) */
+  scheduleOverride: ScheduleOverride | null;
 }
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -170,15 +196,29 @@ export async function buildUserSnapshot(): Promise<UserSnapshot> {
   const todaySession = getTodaySession();
 
   // Parallel data fetching
-  const [recentWorkoutSessions, streakData, mesoStart, nutritionHistory, recoveryData, rawProfile] =
-    await Promise.all([
-      getRecentSplitWorkouts(14),
-      getStreakData(),
-      getMesocycleStartDate(),
-      getRecentNutrition(3).catch(() => [] as DailyNutrition[]),
-      getTodayRecoveryData().catch(() => null as RecoveryData | null),
-      loadUserProfile().catch(() => null as UserProfile | null),
-    ]);
+  const [
+    recentWorkoutSessions,
+    allWorkoutSessions,
+    streakData,
+    mesoStart,
+    nutritionHistory,
+    recoveryData,
+    rawProfile,
+    whoopHistory,
+    activeScheduleMap,
+    scheduleOverride,
+  ] = await Promise.all([
+    getRecentSplitWorkouts(14),
+    getSplitWorkouts().then(s => s.filter(w => w.completed).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())),
+    getStreakData(),
+    getMesocycleStartDate(),
+    getRecentNutrition(3).catch(() => [] as DailyNutrition[]),
+    getTodayRecoveryData().catch(() => null as RecoveryData | null),
+    loadUserProfile().catch(() => null as UserProfile | null),
+    getWeeklyRecoveryData().catch(() => [] as WeeklyRecoveryData[]),
+    getActiveSchedule(),
+    loadScheduleOverride(),
+  ]);
 
   const userProfile = rawProfile && (rawProfile.name || rawProfile.heightCm || rawProfile.fitnessGoal)
     ? {
@@ -359,6 +399,33 @@ export async function buildUserSnapshot(): Promise<UserSnapshot> {
     // ignore — photos are optional
   }
 
+  // Build full workout history summaries (all sessions, not just last 7 days)
+  const allWorkouts: WorkoutSummary[] = allWorkoutSessions.map((w: SplitWorkoutSession) => {
+    const exercises = w.exercises.map((ex) => {
+      const sets = ex.sets.map((s) => ({
+        weight: s.weightKg,
+        reps: s.reps,
+        e1rm: epley1RM(s.weightKg, s.reps),
+      }));
+      const bestE1RM = Math.max(0, ...sets.map((s) => s.e1rm));
+      const totalVolume = sets.reduce((sum, set) => sum + set.weight * set.reps, 0);
+      return { name: ex.exerciseName, sets, bestE1RM, totalVolume };
+    });
+    const totalSets = exercises.reduce((s, e) => s + e.sets.length, 0);
+    const totalVolume = exercises.reduce((s, e) => s + e.totalVolume, 0);
+    return {
+      date: w.date,
+      sessionType: w.sessionType,
+      sessionName: SESSION_NAMES[w.sessionType as SessionType] || w.sessionType,
+      completed: w.completed,
+      durationMinutes: w.durationMinutes ?? 0,
+      totalSets,
+      totalVolume,
+      exercises,
+      notes: w.notes,
+    };
+  });
+
   return {
     timestamp: now.toISOString(),
     todaySession: todaySession,
@@ -371,12 +438,22 @@ export async function buildUserSnapshot(): Promise<UserSnapshot> {
     workoutsThisWeek,
     workoutsLastWeek,
     recentWorkouts,
+    allWorkouts,
     recentNutrition,
     recovery,
+    whoopHistory,
     progressSummaries,
     weightTrend,
     progressPhotos,
     userProfile,
+    nutritionProgram: {
+      trainingDay: NUTRITION_TARGETS.training,
+      restDay: NUTRITION_TARGETS.rest,
+      mealSchedule: MEAL_SCHEDULE,
+      supplements: SUPPLEMENTS,
+    },
+    activeSchedule: scheduleToString(activeScheduleMap),
+    scheduleOverride,
   };
 }
 
@@ -509,6 +586,53 @@ export function snapshotToPromptContext(snap: UserSnapshot): string {
       lines.push(`${p.date}${catLabel}${notesLabel}${urlLabel}`);
     }
   }
+
+  // WHOOP 30-day history
+  if (snap.whoopHistory && snap.whoopHistory.length > 0) {
+    lines.push(`\n--- WHOOP HISTORY (${snap.whoopHistory.length} days) ---`);
+    for (const h of snap.whoopHistory) {
+      lines.push(`${h.date} | Recovery: ${h.recoveryScore}% | Strain: ${h.strain} | Sleep: ${h.sleepScore}%`);
+    }
+  }
+
+  // Full workout history (beyond last 7 days)
+  const olderWorkouts = snap.allWorkouts.filter(w => {
+    if (!snap.recentWorkouts.some(r => r.date === w.date && r.sessionType === w.sessionType)) return true;
+    return false;
+  });
+  if (olderWorkouts.length > 0) {
+    lines.push(`\n--- FULL WORKOUT HISTORY (${snap.allWorkouts.length} sessions total) ---`);
+    for (const w of olderWorkouts.slice(0, 30)) {
+      lines.push(
+        `${w.date} | ${w.sessionName} | ${w.durationMinutes}min | ${w.totalSets} sets | ${Math.round(w.totalVolume)}kg vol`,
+      );
+      for (const ex of w.exercises) {
+        const setsStr = ex.sets.map((s) => `${s.weight}x${s.reps}`).join(', ');
+        lines.push(`  ${ex.name}: ${setsStr} (best e1RM: ${Math.round(ex.bestE1RM)}kg)`);
+      }
+      if (w.notes) lines.push(`  [Notes] ${w.notes}`);
+    }
+  }
+
+  // Nutrition program
+  const np = snap.nutritionProgram;
+  lines.push(`\n--- NUTRITION PROGRAM ---`);
+  lines.push(`Training day: ${np.trainingDay.calories}kcal | P:${np.trainingDay.protein}g C:${np.trainingDay.carbs}g F:${np.trainingDay.fat}g`);
+  lines.push(`Rest day: ${np.restDay.calories}kcal | P:${np.restDay.protein}g C:${np.restDay.carbs}g F:${np.restDay.fat}g`);
+  lines.push(`Meal schedule:`);
+  for (const m of np.mealSchedule) {
+    lines.push(`  Meal ${m.meal} @ ${m.time}: ${m.kcal}kcal — ${m.focus}`);
+  }
+  lines.push(`Supplements: ${np.supplements.map(s => `${s.name} ${s.dose} (${s.timing})`).join(', ')}`);
+
+  // Active schedule
+  lines.push(`\n--- ACTIVE TRAINING SCHEDULE ---`);
+  if (snap.scheduleOverride) {
+    lines.push(`Custom schedule (set by ${snap.scheduleOverride.appliedByZaki ? 'Zaki' : 'user'} on ${snap.scheduleOverride.appliedAt.split('T')[0]}): ${snap.scheduleOverride.description}`);
+  } else {
+    lines.push(`Default schedule (Upper/Lower 4-day split):`);
+  }
+  lines.push(snap.activeSchedule);
 
   return lines.join('\n');
 }

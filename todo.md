@@ -850,3 +850,8 @@
 - [x] Push project to GitHub
 
 - [x] BUG FIX: Workout > Exercise shows 0 activities — fixed by reading from split-workout-store instead of store.workoutLogs
+
+- [x] Editable schedule store — AsyncStorage-persisted schedule override
+- [x] Zaki schedule tool — tRPC route that parses schedule intent and writes to editable schedule
+- [x] Confirmation UI card — proposed schedule shown in chat with Apply/Dismiss buttons
+- [x] Enrich Zaki context — full WHOOP history, multi-session workout history, nutrition program
