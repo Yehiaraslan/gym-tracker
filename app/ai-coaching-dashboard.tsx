@@ -33,7 +33,7 @@ import {
   type DayName,
   type ScheduleHistoryEntry,
 } from '@/lib/schedule-store';
-import { getSplitWorkouts } from '@/lib/split-workout-store';
+import { getSplitWorkouts, savePendingWeights, parseZakiWeightText } from '@/lib/split-workout-store';
 import { getDeviceId } from '@/lib/device-id';
 
 // ── Storage keys ──────────────────────────────────────────────
@@ -817,6 +817,26 @@ export default function AICoachingDashboard() {
                               >
                                 <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>✅ Apply This Schedule</Text>
                               </TouchableOpacity>
+                              {msg.scheduleProposal.weightAdjustments ? (
+                                <TouchableOpacity
+                                  style={[styles.scheduleApplyBtn, { backgroundColor: '#10B981', marginTop: 8 }]}
+                                  onPress={async () => {
+                                    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                    const weights = parseZakiWeightText(msg.scheduleProposal!.weightAdjustments);
+                                    if (Object.keys(weights).length > 0) {
+                                      await savePendingWeights(weights);
+                                      setChatMessages(prev => [...prev, {
+                                        id: Date.now().toString(),
+                                        role: 'zaki',
+                                        text: `✅ Weights saved! The next time you open the workout screen, I’ll pre-fill the first set of each exercise with my suggested weights: ${Object.entries(weights).map(([n, kg]) => `${n} → ${kg}kg`).join(', ')}.`,
+                                        timestamp: Date.now(),
+                                      }]);
+                                    }
+                                  }}
+                                >
+                                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>💪 Load These Weights</Text>
+                                </TouchableOpacity>
+                              ) : null}
                               <TouchableOpacity
                                 style={[styles.scheduleDismissBtn, { borderColor: colors.border }]}
                                 onPress={handleDismissSchedule}

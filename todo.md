@@ -859,3 +859,7 @@
 - [x] Reset to default schedule button in AI Coach chat tab
 - [x] Zaki weight proposals in schedule confirmation card (server fetches last 5 sets per exercise)
 - [x] Timestamped schedule history log (inline panel in chat tab with apply/reset entries)
+
+- [x] Zaki mid-workout recovery nudge — WHOOP recovery <50% triggers session swap suggestion in workout screen
+- [x] This week's plan row on Home screen — schedule preview below week strip using active schedule
+- [x] Load These Weights button in Zaki schedule confirmation card — pre-fills first set weights on next workout open

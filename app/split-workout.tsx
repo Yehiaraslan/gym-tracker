@@ -45,6 +45,7 @@ import {
   getSmartWeightSuggestion,
   getConsecutiveTopRange,
   getExercisePR,
+  consumePendingWeights,
 } from '@/lib/split-workout-store';
 import { calculateVolumeLoad, deloadWeight, getWarmupSets, epley1RM } from '@/lib/fitness-utils';
 import { checkProgressiveOverload, saveRecommendation } from '@/lib/coach-engine';
@@ -127,6 +128,15 @@ export default function SplitWorkoutScreen() {
   const [showSwapModal, setShowSwapModal] = useState(false);
   const [swapTargetIndex, setSwapTargetIndex] = useState<number | null>(null);
   const [swapAlternatives, setSwapAlternatives] = useState<AlternativeExercise[]>([]);
+  const [nudgeDismissed, setNudgeDismissed] = useState(false);
+
+  // Lighter alternative for the recovery nudge (Strength → Volume)
+  const nudgeAlternative: SessionType | null = (() => {
+    if (!recovery || recovery.recoveryScore >= 50 || nudgeDismissed || started) return null;
+    if (sessionType === 'upper-a') return 'upper-b';
+    if (sessionType === 'lower-a') return 'lower-b';
+    return null;
+  })();
 
   const handleOpenSwap = (exerciseIndex: number) => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -276,6 +286,19 @@ export default function SplitWorkoutScreen() {
         if (suggestion) suggestions[ex.name] = suggestion;
         const consecutive = await getConsecutiveTopRange(sessionType, ex.name, ex.repsMax);
         hints[ex.name] = consecutive >= 1 && !isDeload;
+      }
+      // Override with Zaki's pending weights if the user tapped "Load These Weights"
+      const pending = await consumePendingWeights();
+      if (pending && Object.keys(pending).length > 0) {
+        for (const ex of exercises) {
+          const kg = pending[ex.name];
+          if (kg && kg > 0) {
+            suggestions[ex.name] = {
+              weight: kg,
+              reason: `💪 Zaki suggested ${kg}kg based on your schedule plan`,
+            };
+          }
+        }
       }
       setWeightSuggestions(suggestions);
       setProgressionHints(hints);
@@ -839,6 +862,52 @@ export default function SplitWorkoutScreen() {
                   {previousSession.durationMinutes ? ` · ${previousSession.durationMinutes}m` : ''}
                   {previousSession.totalVolume ? ` · ${previousSession.totalVolume.toLocaleString()}kg` : ''}
                 </Text>
+              </View>
+            </View>
+          )}
+
+          {/* ── Zaki Recovery Nudge Banner (recovery < 50%, Strength session, not yet started) ── */}
+          {nudgeAlternative && (
+            <View className="px-6 mb-3">
+              <View
+                style={{
+                  borderRadius: 16,
+                  borderWidth: 1.5,
+                  borderColor: '#EF4444',
+                  backgroundColor: '#EF444410',
+                  padding: 14,
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <Text style={{ color: '#EF4444', fontWeight: '700', fontSize: 14 }}>
+                    🔴 Recovery {Math.round(recovery!.recoveryScore)}% — Zaki Recommends
+                  </Text>
+                  <TouchableOpacity onPress={() => setNudgeDismissed(true)} style={{ padding: 4 }}>
+                    <Text style={{ color: '#EF4444', fontSize: 16 }}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+                <Text style={{ color: colors.foreground, fontSize: 13, marginBottom: 10 }}>
+                  Your recovery is below 50%. Switching to{' '}
+                  <Text style={{ fontWeight: '700' }}>{SESSION_NAMES[nudgeAlternative]}</Text>{' '}
+                  (lighter volume day) will protect your joints and still drive adaptation.
+                </Text>
+                <TouchableOpacity
+                  style={{
+                    backgroundColor: '#EF4444',
+                    borderRadius: 10,
+                    paddingVertical: 10,
+                    alignItems: 'center',
+                  }}
+                  onPress={() => {
+                    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    router.setParams({ session: nudgeAlternative });
+                    setNudgeDismissed(true);
+                  }}
+                >
+                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>
+                    Switch to {SESSION_NAMES[nudgeAlternative].split('—')[0].trim()}
+                  </Text>
+                </TouchableOpacity>
               </View>
             </View>
           )}

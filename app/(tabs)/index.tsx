@@ -369,6 +369,22 @@ export default function HomeScreen() {
               );
             })}
           </View>
+          {/* ── This Week’s Plan row ── */}
+          <View style={{ flexDirection: 'row', paddingHorizontal: 8, paddingTop: 10, borderTopWidth: 1, borderTopColor: bord, marginTop: 8 }}>
+            {weekDays.map((d, i) => {
+              const short: Record<string, string> = {
+                'upper-a': 'UA', 'lower-a': 'LA', 'upper-b': 'UB', 'lower-b': 'LB', 'rest': '—',
+              };
+              const color = d.session === 'rest' ? mut : DOT_COLORS[d.session];
+              return (
+                <View key={i} style={{ flex: 1, alignItems: 'center' }}>
+                  <Text style={{ fontSize: 10, fontWeight: d.isToday ? '800' : '500', color, letterSpacing: 0.3 }}>
+                    {short[d.session] ?? d.session}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
         </View>
 
         {/* ── Day Preview Modal ── */}

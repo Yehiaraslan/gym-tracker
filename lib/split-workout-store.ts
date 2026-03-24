@@ -454,3 +454,47 @@ export async function getSplitExerciseSessionCount(
     );
   }).length;
 }
+
+// ── Pending Weight Pre-fill (from Zaki schedule proposal) ──────────────────
+const PENDING_WEIGHTS_KEY = '@gym_tracker_pending_weights';
+
+/**
+ * Save Zaki's proposed weights so the next workout screen can pre-fill them.
+ * weights: { 'Bench Press': 80, 'Squat': 100 }
+ */
+export async function savePendingWeights(weights: Record<string, number>): Promise<void> {
+  await AsyncStorage.setItem(PENDING_WEIGHTS_KEY, JSON.stringify(weights));
+}
+
+/**
+ * Load and immediately clear the pending weights (one-shot pre-fill).
+ */
+export async function consumePendingWeights(): Promise<Record<string, number> | null> {
+  const raw = await AsyncStorage.getItem(PENDING_WEIGHTS_KEY);
+  if (!raw) return null;
+  await AsyncStorage.removeItem(PENDING_WEIGHTS_KEY);
+  try {
+    return JSON.parse(raw) as Record<string, number>;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Parse Zaki's weightAdjustments text into a flat exercise→kg map.
+ * Input example: "Upper A: Bench Press 80kg×8, Squat 100kg×5. Lower A: Leg Press 120kg×10"
+ */
+export function parseZakiWeightText(text: string): Record<string, number> {
+  const result: Record<string, number> = {};
+  // Match patterns like "Exercise Name 80kg" or "Exercise Name 80 kg"
+  const regex = /([A-Za-z][A-Za-z\s\-\/]+?)\s+(\d+(?:\.\d+)?)\s*kg/gi;
+  let match;
+  while ((match = regex.exec(text)) !== null) {
+    const name = match[1].trim().replace(/^[:\-,\s]+|[:\-,\s]+$/g, '').trim();
+    const kg = parseFloat(match[2]);
+    if (name && kg > 0 && name.length > 2) {
+      result[name] = kg;
+    }
+  }
+  return result;
+}
