@@ -863,3 +863,5 @@
 - [x] Zaki mid-workout recovery nudge — WHOOP recovery <50% triggers session swap suggestion in workout screen
 - [x] This week's plan row on Home screen — schedule preview below week strip using active schedule
 - [x] Load These Weights button in Zaki schedule confirmation card — pre-fills first set weights on next workout open
+
+- [x] BUG FIX: Week strip shows wrong day as today — fixed UTC offset issue (Dubai UTC+4) and fixed getWeekScheduleFromStore to always start from Sunday of the current week

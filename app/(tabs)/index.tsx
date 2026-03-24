@@ -71,7 +71,8 @@ export default function HomeScreen() {
   const [scheduleWeek, setScheduleWeek] = useState<{ date: Date; session: SessionType; dayName: string }[] | null>(null);
   const isRest = todaySession === 'rest';
   const today = new Date();
-  const todayStr = today.toISOString().split('T')[0];
+  // Use local date string to avoid UTC offset issues (e.g., Dubai UTC+4 at 2am shows wrong day with ISO)
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
   const [streak, setStreak] = useState<StreakData | null>(null);
   const [meso, setMeso] = useState<{ daysUntilDeload: number; currentWeek: number; totalWeeks: number } | null>(null);
@@ -111,7 +112,7 @@ export default function HomeScreen() {
     date: day.date,
     label: DAY_LABELS[i],
     session: day.session,
-    isToday: day.date.toISOString().split('T')[0] === todayStr,
+    isToday: `${day.date.getFullYear()}-${String(day.date.getMonth() + 1).padStart(2, '0')}-${String(day.date.getDate()).padStart(2, '0')}` === todayStr,
   }));
 
   // Weekly weight average
@@ -345,7 +346,7 @@ export default function HomeScreen() {
         <View style={[s.card, { backgroundColor: surf, borderColor: bord, paddingVertical: 12 }]}>
           <View style={s.weekRow}>
             {weekDays.map((d, i) => {
-              const dateStr = d.date.toISOString().split('T')[0];
+              const dateStr = `${d.date.getFullYear()}-${String(d.date.getMonth() + 1).padStart(2, '0')}-${String(d.date.getDate()).padStart(2, '0')}`;
               const isCompleted = recentWorkouts.some(w => w.date === dateStr && w.completed);
               const dotColor = DOT_COLORS[d.session];
               return (

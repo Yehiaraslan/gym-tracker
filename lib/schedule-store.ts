@@ -104,13 +104,17 @@ export async function getSessionForDateFromSchedule(date: Date): Promise<Session
  * Get the next 7 days of schedule starting from a given date.
  */
 export async function getWeekScheduleFromStore(
-  startDate: Date,
+  anyDateInWeek: Date,
 ): Promise<{ date: Date; session: SessionType; dayName: string }[]> {
   const schedule = await getActiveSchedule();
   const result: { date: Date; session: SessionType; dayName: string }[] = [];
+  // Always start from Sunday of the week containing anyDateInWeek
+  const sunday = new Date(anyDateInWeek);
+  sunday.setDate(anyDateInWeek.getDate() - anyDateInWeek.getDay());
+  sunday.setHours(0, 0, 0, 0);
   for (let i = 0; i < 7; i++) {
-    const d = new Date(startDate);
-    d.setDate(startDate.getDate() + i);
+    const d = new Date(sunday);
+    d.setDate(sunday.getDate() + i);
     const dayName = d.toLocaleDateString('en-US', { weekday: 'long' }) as DayName;
     result.push({ date: d, session: schedule[dayName] ?? 'rest', dayName });
   }
