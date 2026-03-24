@@ -12,6 +12,8 @@ import { useColors } from '@/hooks/use-colors';
 import { useGym } from '@/lib/gym-context';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { calculateDifficultyStats, getDifficultyTrend } from '@/lib/difficulty-analytics';
+import { getSplitWorkouts } from '@/lib/split-workout-store';
+import type { ExerciseLog } from '@/lib/types';
 
 export default function ExerciseDetailScreen() {
   const colors = useColors();
@@ -21,18 +23,56 @@ export default function ExerciseDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
   const [trend, setTrend] = useState<any>(null);
+  const [sessionCount, setSessionCount] = useState(0);
 
   useEffect(() => {
     loadExerciseDetails();
-  }, [exerciseId, store.workoutLogs]);
+  }, [exerciseId]);
 
   const loadExerciseDetails = async () => {
     try {
       const exercise = store.exercises.find(ex => ex.id === exerciseId);
       if (!exercise) return;
 
-      // Get all exercise logs for this exercise
-      const allLogs = store.workoutLogs.flatMap(log => log.exercises);
+      // Pull exercise logs from split workout sessions (the active data source)
+      // SplitExerciseLog uses exerciseName not exerciseId, so we match by name.
+      // We convert them to ExerciseLog shape so difficulty-analytics can process them.
+      const splitSessions = await getSplitWorkouts();
+      const allLogs: ExerciseLog[] = splitSessions
+        .filter(s => s.completed)
+        .flatMap(s =>
+          s.exercises
+            .filter(
+              e =>
+                !e.skipped &&
+                e.exerciseName.toLowerCase() === exercise.name.toLowerCase(),
+            )
+            .map(e => ({
+              exerciseId: exercise.id,
+              exerciseName: exercise.name,
+              targetSets: e.sets.filter(st => !st.isWarmup).length,
+              targetReps: '',
+              sets: e.sets.map((st, idx) => ({
+                setNumber: idx + 1,
+                weight: st.weightKg,
+                reps: st.reps,
+                completedAt: Date.now(),
+              })),
+              difficulty: undefined, // split workouts don't store difficulty rating
+            }))
+        );
+
+      // Count actual sessions this exercise appeared in
+      const count = splitSessions.filter(
+        s =>
+          s.completed &&
+          s.exercises.some(
+            e =>
+              !e.skipped &&
+              e.exerciseName.toLowerCase() === exercise.name.toLowerCase(),
+          ),
+      ).length;
+      setSessionCount(count);
 
       // Calculate difficulty stats
       const diffStats = calculateDifficultyStats(exercise.id, exercise.name, allLogs);
@@ -128,8 +168,8 @@ export default function ExerciseDetailScreen() {
               className="flex-1 bg-surface rounded-xl p-4"
               style={{ borderWidth: 1, borderColor: colors.border }}
             >
-              <Text className="text-2xl font-bold text-foreground">{stats.totalAttempts}</Text>
-              <Text className="text-xs text-muted mt-1">Total Attempts</Text>
+              <Text className="text-2xl font-bold text-foreground">{sessionCount}</Text>
+              <Text className="text-xs text-muted mt-1">Sessions Logged</Text>
             </View>
             <View
               className="flex-1 bg-surface rounded-xl p-4"

@@ -13,7 +13,7 @@ import { ScreenContainer } from '@/components/screen-container';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useColors } from '@/hooks/use-colors';
 import { useGym } from '@/lib/gym-context';
-import { getSplitWorkouts, type SplitWorkoutSession } from '@/lib/split-workout-store';
+import { getSplitWorkouts, getSplitWeightHistory, type SplitWorkoutSession } from '@/lib/split-workout-store';
 import { SESSION_NAMES } from '@/lib/training-program';
 import { BodyMeasurementsView } from '@/components/body-measurements';
 import * as Haptics from 'expo-haptics';
@@ -33,7 +33,8 @@ type ViewMode = 'workouts' | 'exercises' | 'body';
 
 export default function HistoryScreen() {
   const colors = useColors();
-  const { store, getWeightHistory } = useGym();
+  const { store } = useGym();
+  const [exerciseHistoryMap, setExerciseHistoryMap] = useState<Record<string, { date: string; weight: number; reps: number }[]>>({});
   const [viewMode, setViewMode] = useState<ViewMode>('workouts');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedWorkout, setExpandedWorkout] = useState<string | null>(null);
@@ -41,7 +42,7 @@ export default function HistoryScreen() {
   const [splitWorkouts, setSplitWorkouts] = useState<SplitWorkoutSession[]>([]);
   const [workoutSearchQuery, setWorkoutSearchQuery] = useState('');
 
-  // Reload split workouts every time this tab is focused
+  // Reload split workouts and exercise history every time this tab is focused
   useFocusEffect(
     useCallback(() => {
       getSplitWorkouts().then(sessions => {
@@ -49,6 +50,19 @@ export default function HistoryScreen() {
           .filter(s => s.completed)
           .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         setSplitWorkouts(completed);
+        // Build per-exercise weight history from split sessions
+        const uniqueNames = Array.from(
+          new Set(
+            completed.flatMap(s => s.exercises.filter(e => !e.skipped).map(e => e.exerciseName))
+          )
+        );
+        Promise.all(
+          uniqueNames.map(name => getSplitWeightHistory(name).then(h => ({ name, h })))
+        ).then(results => {
+          const map: Record<string, { date: string; weight: number; reps: number }[]> = {};
+          results.forEach(({ name, h }) => { map[name] = h; });
+          setExerciseHistoryMap(map);
+        });
       });
     }, [])
   );
@@ -166,7 +180,8 @@ export default function HistoryScreen() {
   };
 
   const renderExerciseItem = ({ item }: { item: typeof store.exercises[0] }) => {
-    const history = getWeightHistory(item.id);
+    // Use split workout history (keyed by name) as the primary data source
+    const history = exerciseHistoryMap[item.name] ?? [];
     const isSelected = selectedExercise === item.id;
     const maxWeight = history.length > 0 ? Math.max(...history.map(h => h.weight)) : null;
 

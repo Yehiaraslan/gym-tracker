@@ -405,3 +405,52 @@ export async function getTrackedExerciseNames(): Promise<string[]> {
   }
   return Array.from(names).sort();
 }
+
+/**
+ * Get weight history for a named exercise from split workout sessions.
+ * Returns one entry per session (best working set), sorted oldest→newest.
+ * This is the primary source of truth for exercise progress since all
+ * workouts are saved as SplitWorkoutSessions, not WorkoutLogs.
+ */
+export async function getSplitWeightHistory(
+  exerciseName: string,
+): Promise<{ date: string; weight: number; reps: number }[]> {
+  const workouts = await getSplitWorkouts();
+  const history: { date: string; weight: number; reps: number }[] = [];
+  const sorted = workouts
+    .filter(w => w.completed)
+    .sort((a, b) => a.date.localeCompare(b.date)); // oldest first
+  for (const w of sorted) {
+    const exLog = w.exercises.find(
+      e => e.exerciseName.toLowerCase() === exerciseName.toLowerCase(),
+    );
+    if (!exLog || exLog.skipped) continue;
+    const workingSets = exLog.sets.filter(s => !s.isWarmup && s.reps > 0);
+    if (workingSets.length === 0) continue;
+    const bestSet = workingSets.reduce((best, s) =>
+      s.weightKg > best.weightKg ? s : best,
+    );
+    history.push({
+      date: w.date,
+      weight: bestSet.weightKg,
+      reps: bestSet.reps,
+    });
+  }
+  return history;
+}
+
+/**
+ * Count how many split workout sessions included a given exercise (by name).
+ * Used for the "X workouts logged" counter in the Exercise history view.
+ */
+export async function getSplitExerciseSessionCount(
+  exerciseName: string,
+): Promise<number> {
+  const workouts = await getSplitWorkouts();
+  return workouts.filter(w => {
+    if (!w.completed) return false;
+    return w.exercises.some(
+      e => !e.skipped && e.exerciseName.toLowerCase() === exerciseName.toLowerCase(),
+    );
+  }).length;
+}

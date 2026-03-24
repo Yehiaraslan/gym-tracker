@@ -847,4 +847,6 @@
 - [x] Stagnation nightly push notification — server-side scheduled job detects stagnation and sends push notification each morning
 - [x] Time-lapse export to camera roll — save all frames to "Gym Tracker" camera roll album via expo-media-library
 - [x] Deload countdown banner on Home screen — show X days until deload when mesocycle is in weeks 4-5
-- [ ] Push project to GitHub
+- [x] Push project to GitHub
+
+- [x] BUG FIX: Workout > Exercise shows 0 activities — fixed by reading from split-workout-store instead of store.workoutLogs
