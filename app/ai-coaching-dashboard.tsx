@@ -23,7 +23,16 @@ import { ScreenContainer } from '@/components/screen-container';
 import { useColors } from '@/hooks/use-colors';
 import { trpc } from '@/lib/trpc';
 import { buildUserSnapshot, snapshotToPromptContext } from '@/lib/ai-data-aggregator';
-import { saveScheduleOverride, type ScheduleOverride, type CustomSchedule, type DayName } from '@/lib/schedule-store';
+import {
+  saveScheduleOverride,
+  applyScheduleWithHistory,
+  resetToDefaultSchedule,
+  loadScheduleHistory,
+  type ScheduleOverride,
+  type CustomSchedule,
+  type DayName,
+  type ScheduleHistoryEntry,
+} from '@/lib/schedule-store';
 import { getSplitWorkouts } from '@/lib/split-workout-store';
 import { getDeviceId } from '@/lib/device-id';
 
@@ -142,6 +151,10 @@ export default function AICoachingDashboard() {
   // ── Schedule proposal state ───────────────────────────────
   const [scheduleProposalLoading, setScheduleProposalLoading] = useState(false);
   const [pendingProposal, setPendingProposal] = useState<ScheduleProposal | null>(null);
+  // ── Schedule history & reset state ───────────────────────
+  const [scheduleHistory, setScheduleHistory] = useState<ScheduleHistoryEntry[]>([]);
+  const [showScheduleHistory, setShowScheduleHistory] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
 
   const handleAnalyzeBodyComposition = useCallback(async () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -469,8 +482,10 @@ export default function AICoachingDashboard() {
         schedule: proposal.schedule as CustomSchedule,
         appliedByZaki: true,
       };
-      await saveScheduleOverride(override);
+      await applyScheduleWithHistory(override, proposal.weightAdjustments);
       setPendingProposal(null);
+      // Refresh history
+      loadScheduleHistory().then(setScheduleHistory);
       const confirmMsg: ChatMessage = {
         id: `z_confirm_${Date.now()}`,
         role: 'zaki',
@@ -486,9 +501,32 @@ export default function AICoachingDashboard() {
     } catch (err) {
       console.error('[Schedule Apply]', err);
     }
-  }, [proposeScheduleMutation]);
+  }, []);
 
-  // ── Dismiss schedule proposal ─────────────────────────────
+  // ── Reset to default schedule ─────────────────────────────────
+  const handleResetSchedule = useCallback(async () => {
+    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setResetLoading(true);
+    try {
+      await resetToDefaultSchedule();
+      const history = await loadScheduleHistory();
+      setScheduleHistory(history);
+      const resetMsg: ChatMessage = {
+        id: `z_reset_${Date.now()}`,
+        role: 'zaki',
+        text: '✅ Schedule reset to default: Sun=Upper A, Mon=Lower A, Wed=Upper B, Thu=Lower B. The Home screen will reflect this on next focus.',
+        timestamp: Date.now(),
+      };
+      setChatMessages(prev => [...prev, resetMsg]);
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+    } catch (err) {
+      console.error('[Schedule Reset]', err);
+    } finally {
+      setResetLoading(false);
+    }
+  }, []);
+
+  // ── Dismiss schedule proposal ─────────────────────────────────────
   const handleDismissSchedule = useCallback(() => {
     setPendingProposal(null);
     const dismissMsg: ChatMessage = {
@@ -812,6 +850,49 @@ export default function AICoachingDashboard() {
                 </View>
               )}
             </ScrollView>
+            {/* ── Schedule Actions Bar ── */}
+            <View style={{ flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 6, gap: 8, borderTopWidth: 0.5, borderTopColor: colors.border, backgroundColor: colors.surface }}>
+              <TouchableOpacity
+                onPress={handleResetSchedule}
+                disabled={resetLoading}
+                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 7, borderRadius: 8, backgroundColor: '#EF444415', borderWidth: 1, borderColor: '#EF444430' }}
+              >
+                <Text style={{ fontSize: 13, color: '#EF4444', fontWeight: '600' }}>{resetLoading ? '...' : '🔄 Reset Schedule'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={async () => {
+                  const h = await loadScheduleHistory();
+                  setScheduleHistory(h);
+                  setShowScheduleHistory(v => !v);
+                }}
+                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 7, borderRadius: 8, backgroundColor: '#6366F115', borderWidth: 1, borderColor: '#6366F130' }}
+              >
+                <Text style={{ fontSize: 13, color: '#6366F1', fontWeight: '600' }}>📜 Schedule History</Text>
+              </TouchableOpacity>
+            </View>
+            {/* ── Schedule History Panel ── */}
+            {showScheduleHistory && (
+              <View style={{ maxHeight: 220, backgroundColor: colors.background, borderTopWidth: 0.5, borderTopColor: colors.border }}>
+                <ScrollView contentContainerStyle={{ padding: 12, gap: 8 }}>
+                  {scheduleHistory.length === 0 ? (
+                    <Text style={{ color: colors.muted, fontSize: 13, textAlign: 'center' }}>No schedule changes yet.</Text>
+                  ) : (
+                    scheduleHistory.map((entry, idx) => (
+                      <View key={idx} style={{ padding: 10, borderRadius: 8, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 3 }}>
+                          <Text style={{ fontSize: 11, fontWeight: '700', color: entry.appliedByZaki ? '#6366F1' : '#F59E0B' }}>{entry.appliedByZaki ? '🤖 Zaki' : '🔄 Reset'}</Text>
+                          <Text style={{ fontSize: 10, color: colors.muted }}>{new Date(entry.appliedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</Text>
+                        </View>
+                        <Text style={{ fontSize: 12, color: colors.foreground, fontWeight: '600', marginBottom: 2 }}>{entry.description}</Text>
+                        {entry.weightSuggestions ? (
+                          <Text style={{ fontSize: 11, color: colors.muted, marginTop: 2 }}>💪 {entry.weightSuggestions}</Text>
+                        ) : null}
+                      </View>
+                    ))
+                  )}
+                </ScrollView>
+              </View>
+            )}
             <View style={[styles.chatInputBar, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
               <TextInput
                 style={[styles.chatInput, { color: colors.foreground, backgroundColor: colors.background, borderColor: colors.border }]}

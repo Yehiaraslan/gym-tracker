@@ -10,6 +10,7 @@ import * as aiCoach from "./ai-coaching-service";
 import * as zaki from "./zakiService";
 import * as zakiDigest from "./zakiDailyDigest";
 import { checkAndNotifyStagnation } from "./stagnationScheduler";
+import { ENV } from './_core/env';
 import * as dataSync from "./data-sync-service";
 import * as db from "./db";
 import * as pinIdentity from "./pin-identity-service";
@@ -455,10 +456,45 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         const ALL_DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
         const SESSION_TYPES = ['upper-a','lower-a','upper-b','lower-b','rest'];
+
+        // Build exercise weight history for the last 5 sets per exercise
+        let weightHistoryContext = '';
+        try {
+          const ownerOpenId = ENV.ownerOpenId;
+          if (ownerOpenId) {
+            const sessions = await dataSync.getWorkoutSessions(ownerOpenId, 20);
+            const exerciseMap: Record<string, { weight: number; reps: number }[]> = {};
+            for (const session of sessions) {
+              const exercises: any[] = (session as any).exercises ?? [];
+              for (const ex of exercises) {
+                const name: string = ex.exerciseName ?? ex.name ?? 'Unknown';
+                const sets: any[] = ex.sets ?? [];
+                for (const set of sets) {
+                  if (!exerciseMap[name]) exerciseMap[name] = [];
+                  if (exerciseMap[name].length < 5) {
+                    exerciseMap[name].push({ weight: Number(set.weight ?? 0), reps: Number(set.reps ?? 0) });
+                  }
+                }
+              }
+            }
+            const lines = Object.entries(exerciseMap)
+              .filter(([, sets]) => sets.length > 0)
+              .map(([name, sets]) => {
+                const latest = sets[0];
+                const avg = Math.round(sets.reduce((s, x) => s + x.weight, 0) / sets.length);
+                return `  ${name}: last=${latest.weight}kg×${latest.reps}reps, avg5=${avg}kg`;
+              });
+            if (lines.length > 0) {
+              weightHistoryContext = '\n=== EXERCISE WEIGHT HISTORY (last 5 sets each) ===\n' + lines.join('\n');
+            }
+          }
+        } catch {}
+
         const prompt = [
           '=== SCHEDULE MODIFICATION REQUEST ===',
           '',
           input.currentContext,
+          weightHistoryContext,
           '',
           '=== USER REQUEST ===',
           input.userRequest,
@@ -479,7 +515,7 @@ export const appRouter = router({
           '    "Friday": "<session_type>",',
           '    "Saturday": "<session_type>"',
           '  },',
-          '  "weightAdjustments": "<optional: any weight/intensity adjustments for the first week>"',
+          '  "weightAdjustments": "<required: for each training session in the new schedule, list 2-3 key exercises with specific starting weight suggestions based on the weight history above. Format: Session A: Bench Press 80kg×8, Squat 100kg×6. Be specific.>"',
           '}',
           '',
           `Valid session types: ${SESSION_TYPES.join(', ')}`,

@@ -8,6 +8,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { WEEKLY_SCHEDULE, type SessionType } from './training-program';
 
 const SCHEDULE_KEY = '@custom_schedule_v1';
+const SCHEDULE_HISTORY_KEY = '@schedule_history_v1';
+const MAX_HISTORY_ENTRIES = 20;
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -174,4 +176,70 @@ export function scheduleToString(schedule: CustomSchedule): string {
 /** Format a CustomSchedule as a human-readable table for the UI */
 export function scheduleToDisplayRows(schedule: CustomSchedule): { day: string; session: SessionType }[] {
   return ALL_DAYS.map(day => ({ day, session: schedule[day] }));
+}
+
+// ── Schedule History Log ──────────────────────────────────────
+
+export interface ScheduleHistoryEntry {
+  /** ISO timestamp when this schedule was applied */
+  appliedAt: string;
+  /** Human-readable description */
+  description: string;
+  /** The 7-day session map at time of application */
+  schedule: CustomSchedule;
+  /** Whether Zaki applied this (true) or it was reset to default (false) */
+  appliedByZaki: boolean;
+  /** Optional weight suggestions Zaki provided */
+  weightSuggestions?: string;
+}
+
+/** Load the full schedule history log (newest first) */
+export async function loadScheduleHistory(): Promise<ScheduleHistoryEntry[]> {
+  try {
+    const raw = await AsyncStorage.getItem(SCHEDULE_HISTORY_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw) as ScheduleHistoryEntry[];
+  } catch {
+    return [];
+  }
+}
+
+/** Append a new entry to the schedule history log */
+export async function appendScheduleHistory(entry: ScheduleHistoryEntry): Promise<void> {
+  try {
+    const existing = await loadScheduleHistory();
+    const updated = [entry, ...existing].slice(0, MAX_HISTORY_ENTRIES);
+    await AsyncStorage.setItem(SCHEDULE_HISTORY_KEY, JSON.stringify(updated));
+  } catch {}
+}
+
+/**
+ * Save a new schedule override AND append it to the history log.
+ * This is the preferred way to apply a schedule change.
+ */
+export async function applyScheduleWithHistory(
+  override: ScheduleOverride,
+  weightSuggestions?: string,
+): Promise<void> {
+  await saveScheduleOverride(override);
+  await appendScheduleHistory({
+    appliedAt: override.appliedAt,
+    description: override.description,
+    schedule: override.schedule,
+    appliedByZaki: override.appliedByZaki,
+    weightSuggestions,
+  });
+}
+
+/**
+ * Reset to the default schedule and log the reset event.
+ */
+export async function resetToDefaultSchedule(): Promise<void> {
+  await clearScheduleOverride();
+  await appendScheduleHistory({
+    appliedAt: new Date().toISOString(),
+    description: 'Reset to default schedule (Sun/Mon/Wed/Thu)',
+    schedule: defaultSchedule(),
+    appliedByZaki: false,
+  });
 }

@@ -855,3 +855,7 @@
 - [x] Zaki schedule tool — tRPC route that parses schedule intent and writes to editable schedule
 - [x] Confirmation UI card — proposed schedule shown in chat with Apply/Dismiss buttons
 - [x] Enrich Zaki context — full WHOOP history, multi-session workout history, nutrition program
+
+- [x] Reset to default schedule button in AI Coach chat tab
+- [x] Zaki weight proposals in schedule confirmation card (server fetches last 5 sets per exercise)
+- [x] Timestamped schedule history log (inline panel in chat tab with apply/reset entries)
