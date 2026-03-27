@@ -25,6 +25,7 @@ import { milestoneNotificationMonitor } from "@/lib/milestone-notification-monit
 import { runCoachingChecks } from "@/lib/ai-coaching-notifications";
 import { runMigrationIfNeeded } from "@/lib/migration-service";
 import { useAuth } from "@/hooks/use-auth";
+import { loadUserProfile } from "@/lib/profile-store";
 
 const DEFAULT_WEB_INSETS: EdgeInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 const DEFAULT_WEB_FRAME: Rect = { x: 0, y: 0, width: 0, height: 0 };
@@ -33,25 +34,50 @@ export const unstable_settings = {
   anchor: "(tabs)",
 };
 
-/** Auth-gated navigation: redirect to login if not authenticated */
+/** Auth-gated navigation: redirect to login if not authenticated, onboarding if new user */
 function AuthGate() {
   const { isAuthenticated, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+  const [profileChecked, setProfileChecked] = useState(false);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
+
+  useEffect(() => {
+    if (loading || !isAuthenticated) {
+      setProfileChecked(false);
+      return;
+    }
+    // Check if user has completed onboarding
+    // Existing users with profile data (name or fitnessGoal) are treated as onboarded
+    loadUserProfile().then(profile => {
+      const hasExistingData = !!(profile.name || profile.fitnessGoal);
+      setNeedsOnboarding(!profile.onboardingCompleted && !hasExistingData);
+      setProfileChecked(true);
+    }).catch(() => {
+      setNeedsOnboarding(true);
+      setProfileChecked(true);
+    });
+  }, [isAuthenticated, loading]);
 
   useEffect(() => {
     if (loading) return;
 
     const inAuthGroup = segments[0] === 'login' || segments[0] === 'oauth';
+    const inOnboarding = segments[0] === 'onboarding';
 
     if (!isAuthenticated && !inAuthGroup) {
-      // Not authenticated and not on login/oauth screen → redirect to login
+      // Not authenticated → redirect to login
       router.replace('/login');
-    } else if (isAuthenticated && inAuthGroup && segments[0] === 'login') {
-      // Authenticated but on login screen → redirect to home
-      router.replace('/(tabs)');
+    } else if (isAuthenticated && segments[0] === 'login') {
+      // Authenticated but on login screen → check onboarding
+      if (profileChecked) {
+        router.replace(needsOnboarding ? '/onboarding' : '/(tabs)');
+      }
+    } else if (isAuthenticated && profileChecked && needsOnboarding && !inOnboarding && !inAuthGroup) {
+      // Authenticated but hasn't completed onboarding → redirect
+      router.replace('/onboarding');
     }
-  }, [isAuthenticated, loading, segments]);
+  }, [isAuthenticated, loading, segments, profileChecked, needsOnboarding]);
 
   return null;
 }
@@ -145,6 +171,7 @@ export default function RootLayout() {
           <AuthGate />
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="login" options={{ animation: 'fade' }} />
+            <Stack.Screen name="onboarding" options={{ animation: 'fade', gestureEnabled: false }} />
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="workout" options={{ presentation: 'fullScreenModal' }} />
             <Stack.Screen name="split-workout" options={{ presentation: 'fullScreenModal' }} />

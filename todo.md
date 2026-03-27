@@ -892,3 +892,10 @@
 - [x] Schedule override flow verified end-to-end — all 4 checkpoints confirmed (Home reads override, params match, getMissedSessions schedule-aware)
 - [x] Photo timeline side-by-side comparison slider — already fully built in progress-gallery.tsx with drag handle and BEFORE/AFTER labels
 - [x] Mid-workout recovery nudge — already fully built in split-workout.tsx with RecoveryBanner + nudge alternative + auto-adjusted rest times
+
+## Batch 10 — Onboarding Questionnaire (Mar 27)
+- [x] Create 3-step onboarding screen (goal selection, experience level, available equipment)
+- [x] Show onboarding after first login for new users (skip for existing users with profile data)
+- [x] Save onboarding answers to user profile in AsyncStorage
+- [x] Feed onboarding data into Zaki's context so coaching is personalized from day one
+- [x] Use onboarding data to suggest an initial program split instead of default PPL (Zaki receives experience + equipment in context)

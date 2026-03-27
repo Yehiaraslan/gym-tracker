@@ -28,6 +28,8 @@ import {
   saveUserProfile,
   calculateAge,
   type UserProfile,
+  type ExperienceLevel,
+  type EquipmentAccess,
 } from '@/lib/profile-store';
 import { useAuth } from '@/hooks/use-auth';
 import { loadPinSyncState, type PinSyncState } from '@/lib/pin-sync-store';
@@ -46,6 +48,18 @@ const GENDERS: { key: UserProfile['gender']; label: string }[] = [
   { key: 'other', label: 'Other' },
 ];
 
+const EXPERIENCE_LEVELS: { key: ExperienceLevel; label: string }[] = [
+  { key: 'beginner', label: 'Beginner' },
+  { key: 'intermediate', label: 'Intermediate' },
+  { key: 'advanced', label: 'Advanced' },
+];
+
+const EQUIPMENT_OPTIONS: { key: EquipmentAccess; label: string }[] = [
+  { key: 'full_gym', label: 'Full Gym' },
+  { key: 'home_dumbbells', label: 'Home Gym' },
+  { key: 'bodyweight', label: 'Bodyweight Only' },
+];
+
 const DEFAULT_PROFILE: UserProfile = {
   name: '',
   dateOfBirth: '',
@@ -54,6 +68,9 @@ const DEFAULT_PROFILE: UserProfile = {
   heightCm: '',
   weightKg: '',
   fitnessGoal: '',
+  experienceLevel: '',
+  equipment: '',
+  onboardingCompleted: false,
 };
 
 export default function ProfileScreen() {
@@ -306,9 +323,56 @@ export default function ProfileScreen() {
                 </TouchableOpacity>
               ))}
             </View>
+           </View>
+
+          {/* Experience Level */}
+          <View style={styles.fieldGroup}>
+            <Text style={[styles.label, { color: colors.muted }]}>EXPERIENCE LEVEL</Text>
+            <View style={styles.chipRow}>
+              {EXPERIENCE_LEVELS.map(e => (
+                <TouchableOpacity
+                  key={e.key}
+                  onPress={() => setProfile(p => ({ ...p, experienceLevel: e.key }))}
+                  style={[
+                    styles.goalChip,
+                    {
+                      backgroundColor: profile.experienceLevel === e.key ? colors.primary + '20' : colors.surface,
+                      borderColor: profile.experienceLevel === e.key ? colors.primary : colors.border,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.goalLabel, { color: profile.experienceLevel === e.key ? colors.primary : colors.foreground }]}>
+                    {e.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Equipment */}
+          <View style={styles.fieldGroup}>
+            <Text style={[styles.label, { color: colors.muted }]}>AVAILABLE EQUIPMENT</Text>
+            <View style={styles.chipRow}>
+              {EQUIPMENT_OPTIONS.map(eq => (
+                <TouchableOpacity
+                  key={eq.key}
+                  onPress={() => setProfile(p => ({ ...p, equipment: eq.key }))}
+                  style={[
+                    styles.goalChip,
+                    {
+                      backgroundColor: profile.equipment === eq.key ? colors.primary + '20' : colors.surface,
+                      borderColor: profile.equipment === eq.key ? colors.primary : colors.border,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.goalLabel, { color: profile.equipment === eq.key ? colors.primary : colors.foreground }]}>
+                    {eq.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
         </View>
-
         {/* Cloud Sync Card */}
         <View style={[styles.syncCard, {
           backgroundColor: colors.surface,

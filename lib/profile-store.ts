@@ -1,11 +1,15 @@
 // ============================================================
 // PROFILE STORE
-// User profile: name, date of birth, profile photo, fitness goal
+// User profile: name, date of birth, profile photo, fitness goal,
+// experience level, available equipment, onboarding status
 // Stored locally in AsyncStorage
 // ============================================================
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const PROFILE_KEY = '@gym_user_profile';
+
+export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced' | '';
+export type EquipmentAccess = 'full_gym' | 'home_dumbbells' | 'bodyweight' | '';
 
 export interface UserProfile {
   name: string;
@@ -15,6 +19,9 @@ export interface UserProfile {
   heightCm: string;
   weightKg: string;
   fitnessGoal: 'muscle_gain' | 'fat_loss' | 'strength' | 'endurance' | '';
+  experienceLevel: ExperienceLevel;
+  equipment: EquipmentAccess;
+  onboardingCompleted: boolean;
 }
 
 const DEFAULT_PROFILE: UserProfile = {
@@ -25,6 +32,9 @@ const DEFAULT_PROFILE: UserProfile = {
   heightCm: '',
   weightKg: '',
   fitnessGoal: '',
+  experienceLevel: '',
+  equipment: '',
+  onboardingCompleted: false,
 };
 
 export async function loadUserProfile(): Promise<UserProfile> {

@@ -128,6 +128,8 @@ export interface UserSnapshot {
     heightCm: string;
     weightKg: string;
     fitnessGoal: string;
+    experienceLevel: string;
+    equipment: string;
   } | null;
   /** Programmed nutrition targets and meal schedule */
   nutritionProgram: {
@@ -230,6 +232,8 @@ export async function buildUserSnapshot(): Promise<UserSnapshot> {
         heightCm: rawProfile.heightCm,
         weightKg: rawProfile.weightKg,
         fitnessGoal: rawProfile.fitnessGoal,
+        experienceLevel: rawProfile.experienceLevel || '',
+        equipment: rawProfile.equipment || '',
       }
     : null;
 
@@ -477,6 +481,8 @@ export function snapshotToPromptContext(snap: UserSnapshot): string {
     if (p.heightCm) parts.push(`Height: ${p.heightCm}cm`);
     if (p.weightKg) parts.push(`Profile Weight: ${p.weightKg}kg`);
     if (p.fitnessGoal) parts.push(`Primary Goal: ${p.fitnessGoal.replace('_', ' ')}`);
+    if (p.experienceLevel) parts.push(`Experience: ${p.experienceLevel}`);
+    if (p.equipment) parts.push(`Equipment: ${p.equipment.replace('_', ' ')}`);
     if (parts.length > 0) lines.push(parts.join(' | '));
   }
   lines.push(
