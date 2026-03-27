@@ -72,10 +72,10 @@ async function migrateWorkouts(): Promise<void> {
         endTime: session.endTime ?? session.date,
         durationMinutes: session.durationMinutes ?? 0,
         totalVolume: session.totalVolume ?? 0,
-        exercises: session.exercises.map(ex => ({
+        exercises: (session.exercises ?? []).map(ex => ({
           exerciseName: ex.exerciseName,
           muscleGroup: '',
-          sets: ex.sets.map((s, sIdx) => ({
+          sets: (ex.sets ?? []).map((s, sIdx) => ({
             setNumber: sIdx + 1,
             weightKg: s.weightKg,
             reps: s.reps,

@@ -173,17 +173,17 @@ function computeVolumeTrend(
   exerciseName: string,
 ): ProgressSummary['volumeTrend'] {
   const relevant = workouts
-    .filter((w) => w.exercises.some((e) => e.name === exerciseName))
+    .filter((w) => (w.exercises ?? []).some((e) => e.name === exerciseName))
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   if (relevant.length < 2) return 'stable';
   const recentVol =
     relevant.slice(-2).reduce((s, w) => {
-      const ex = w.exercises.find((e) => e.name === exerciseName);
+      const ex = (w.exercises ?? []).find((e) => e.name === exerciseName);
       return s + (ex?.totalVolume ?? 0);
     }, 0) / 2;
   const olderVol =
     relevant.slice(0, 2).reduce((s, w) => {
-      const ex = w.exercises.find((e) => e.name === exerciseName);
+      const ex = (w.exercises ?? []).find((e) => e.name === exerciseName);
       return s + (ex?.totalVolume ?? 0);
     }, 0) / 2;
   const diff = recentVol - olderVol;
@@ -248,7 +248,7 @@ export async function buildUserSnapshot(): Promise<UserSnapshot> {
       return daysDiff <= 7;
     })
     .map((w: SplitWorkoutSession) => {
-      const exercises = w.exercises.map((ex) => {
+      const exercises = (w.exercises ?? []).map((ex) => {
         const sets = ex.sets.map((s) => ({
           weight: s.weightKg,
           reps: s.reps,
@@ -309,7 +309,7 @@ export async function buildUserSnapshot(): Promise<UserSnapshot> {
   // Progress summaries
   const allExerciseNames = new Set<string>();
   recentWorkoutSessions.forEach((w: SplitWorkoutSession) =>
-    w.exercises.forEach((e) => allExerciseNames.add(e.exerciseName)),
+    (w.exercises ?? []).forEach((e) => allExerciseNames.add(e.exerciseName)),
   );
 
   const progressSummaries: ProgressSummary[] = [];
@@ -551,7 +551,7 @@ export function snapshotToPromptContext(snap: UserSnapshot): string {
       lines.push(
         `${w.date} | ${w.sessionName} | ${w.completed ? 'Completed' : 'Incomplete'} | ${w.durationMinutes}min | ${w.totalSets} sets | ${Math.round(w.totalVolume)}kg vol`,
       );
-      for (const ex of w.exercises) {
+      for (const ex of (w.exercises ?? [])) {
         const setsStr = ex.sets.map((s) => `${s.weight}x${s.reps}`).join(', ');
         lines.push(
           `  ${ex.name}: ${setsStr} (best e1RM: ${Math.round(ex.bestE1RM)}kg, vol: ${Math.round(ex.totalVolume)}kg)`,
@@ -614,7 +614,7 @@ export function snapshotToPromptContext(snap: UserSnapshot): string {
       lines.push(
         `${w.date} | ${w.sessionName} | ${w.durationMinutes}min | ${w.totalSets} sets | ${Math.round(w.totalVolume)}kg vol`,
       );
-      for (const ex of w.exercises) {
+      for (const ex of (w.exercises ?? [])) {
         const setsStr = ex.sets.map((s) => `${s.weight}x${s.reps}`).join(', ');
         lines.push(`  ${ex.name}: ${setsStr} (best e1RM: ${Math.round(ex.bestE1RM)}kg)`);
       }

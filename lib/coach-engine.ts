@@ -111,7 +111,7 @@ function detectStrengthStalls(store: GymStore): CoachRecommendation | null {
   const exerciseWeights: Record<string, number[]> = {};
   
   for (const log of recentLogs) {
-    for (const ex of log.exercises) {
+    for (const ex of (log.exercises ?? [])) {
       if (!exerciseWeights[ex.exerciseName]) {
         exerciseWeights[ex.exerciseName] = [];
       }
@@ -297,7 +297,7 @@ export function getPersonalRecords(store: GymStore): PersonalRecord[] {
   
   for (const log of store.workoutLogs) {
     if (!log.isCompleted) continue;
-    for (const ex of log.exercises) {
+    for (const ex of (log.exercises ?? [])) {
       for (const set of ex.sets) {
         const est1RM = epley1RM(set.weight, set.reps);
         const existing = prMap[ex.exerciseName];

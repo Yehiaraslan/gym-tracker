@@ -249,6 +249,20 @@ export default function PinSyncScreen() {
             durationMinutes: w.durationMinutes,
             totalVolumeKg: w.totalVolume,
             notes: w.notes,
+            exercises: (w.exercises ?? []).map((ex, idx) => ({
+              exerciseName: ex.exerciseName,
+              exerciseOrder: idx,
+              skipped: ex.skipped ?? false,
+              skipReason: ex.skipReason,
+              sets: (ex.sets ?? []).map((s, sIdx) => ({
+                setNumber: sIdx + 1,
+                weightKg: s.weightKg,
+                reps: s.reps,
+                rpe: s.rpe,
+                isWarmup: s.isWarmup,
+                timestamp: s.timestamp,
+              })),
+            })),
           })),
         });
       }

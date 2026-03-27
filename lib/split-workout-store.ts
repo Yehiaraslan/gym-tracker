@@ -66,7 +66,7 @@ export async function saveSplitWorkout(workout: SplitWorkoutSession): Promise<vo
     endTime: workout.endTime ?? workout.date,
     durationMinutes: workout.durationMinutes ?? 0,
     totalVolume: workout.totalVolume ?? 0,
-    exercises: workout.exercises.map(ex => ({
+    exercises: (workout.exercises ?? []).map(ex => ({
       exerciseName: ex.exerciseName,
       muscleGroup: '',
       sets: ex.sets.map((s, sIdx) => ({
@@ -115,7 +115,7 @@ export async function getConsecutiveTopRange(
   let count = 0;
 
   for (const session of sessions) {
-    const exLog = session.exercises.find(e => e.exerciseName === exerciseName);
+    const exLog = (session.exercises ?? []).find(e => e.exerciseName === exerciseName);
     if (!exLog || exLog.skipped) break;
 
     const workingSets = exLog.sets.filter(s => !s.isWarmup);
@@ -140,7 +140,7 @@ export async function getSmartWeightSuggestion(
   const lastSession = await getLastSessionOfType(sessionType);
   if (!lastSession) return null;
 
-  const lastExLog = lastSession.exercises.find(e => e.exerciseName === exercise.name);
+  const lastExLog = (lastSession.exercises ?? []).find(e => e.exerciseName === exercise.name);
   if (!lastExLog || lastExLog.skipped) return null;
 
   const workingSets = lastExLog.sets.filter(s => !s.isWarmup);
@@ -171,7 +171,7 @@ export async function getExercisePR(exerciseName: string): Promise<{ e1rm: numbe
 
   for (const w of workouts) {
     if (!w.completed) continue;
-    const exLog = w.exercises.find(e => e.exerciseName === exerciseName);
+    const exLog = (w.exercises ?? []).find(e => e.exerciseName === exerciseName);
     if (!exLog) continue;
 
     for (const s of exLog.sets) {
@@ -195,7 +195,7 @@ export async function getAllPRs(): Promise<Record<string, { e1rm: number; weight
 
   for (const w of workouts) {
     if (!w.completed) continue;
-    for (const exLog of w.exercises) {
+    for (const exLog of (w.exercises ?? [])) {
       for (const s of exLog.sets) {
         if (s.isWarmup || s.weightKg <= 0 || s.reps <= 0) continue;
         const e1rm = epley1RM(s.weightKg, s.reps);
@@ -222,7 +222,7 @@ export async function get1RMHistory(exerciseName: string): Promise<{ date: strin
     .sort((a, b) => a.date.localeCompare(b.date));
 
   for (const w of sorted) {
-    const exLog = w.exercises.find(e => e.exerciseName === exerciseName);
+    const exLog = (w.exercises ?? []).find(e => e.exerciseName === exerciseName);
     if (!exLog) continue;
 
     const best = exLog.sets
@@ -250,7 +250,7 @@ export async function getVolumeHistory(sessionType: SessionType, daysBack?: numb
     .sort((a, b) => a.date.localeCompare(b.date))
     .map(w => ({
       date: w.date,
-      volume: w.totalVolume || w.exercises.reduce((total, ex) =>
+      volume: w.totalVolume || (w.exercises ?? []).reduce((total, ex) =>
         total + calculateVolumeLoad(ex.sets.filter(s => !s.isWarmup).map(s => ({ weight: s.weightKg, reps: s.reps }))), 0),
     }));
 }
@@ -358,7 +358,7 @@ export async function getExerciseHistory(
     .sort((a, b) => b.date.localeCompare(a.date));
 
   for (const w of sorted) {
-    const exLog = w.exercises.find(
+    const exLog = (w.exercises ?? []).find(
       e => e.exerciseName.toLowerCase() === exerciseName.toLowerCase(),
     );
     if (!exLog || exLog.skipped) continue;
@@ -399,7 +399,7 @@ export async function getTrackedExerciseNames(): Promise<string[]> {
   const workouts = await getSplitWorkouts();
   const names = new Set<string>();
   for (const w of workouts) {
-    for (const ex of w.exercises) {
+    for (const ex of (w.exercises ?? [])) {
       if (!ex.skipped) names.add(ex.exerciseName);
     }
   }
@@ -421,7 +421,7 @@ export async function getSplitWeightHistory(
     .filter(w => w.completed)
     .sort((a, b) => a.date.localeCompare(b.date)); // oldest first
   for (const w of sorted) {
-    const exLog = w.exercises.find(
+    const exLog = (w.exercises ?? []).find(
       e => e.exerciseName.toLowerCase() === exerciseName.toLowerCase(),
     );
     if (!exLog || exLog.skipped) continue;
@@ -449,7 +449,7 @@ export async function getSplitExerciseSessionCount(
   const workouts = await getSplitWorkouts();
   return workouts.filter(w => {
     if (!w.completed) return false;
-    return w.exercises.some(
+    return (w.exercises ?? []).some(
       e => !e.skipped && e.exerciseName.toLowerCase() === exerciseName.toLowerCase(),
     );
   }).length;

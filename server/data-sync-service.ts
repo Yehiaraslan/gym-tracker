@@ -77,7 +77,7 @@ export async function upsertWorkoutSession(userOpenId: string, session: SyncWork
   });
 
   // For each exercise, upsert the exercise log and its sets
-  for (const ex of session.exercises) {
+  for (const ex of (session.exercises ?? [])) {
     // Check if exercise log already exists
     const existing = await db.select({ id: workoutExerciseLogs.id })
       .from(workoutExerciseLogs)
@@ -108,12 +108,12 @@ export async function upsertWorkoutSession(userOpenId: string, session: SyncWork
     }
 
     // Delete and re-insert sets (simpler than per-set upsert)
-    if (ex.sets.length > 0) {
+    if ((ex.sets ?? []).length > 0) {
       await db.delete(workoutSetLogs)
         .where(eq(workoutSetLogs.exerciseLogId, exerciseLogId));
 
       await db.insert(workoutSetLogs).values(
-        ex.sets.map(s => ({
+        (ex.sets ?? []).map(s => ({
           exerciseLogId,
           sessionId: session.id,
           userOpenId,

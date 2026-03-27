@@ -940,4 +940,11 @@
 - [x] Multiple PRs: paginated with dot indicator, "Next PR →" button cycles through all, then "See Summary →"
 - [x] PR celebration fires BEFORE workout summary (replaces generic haptic)
 - [x] All 305 tests pass
-- [ ] Push to GitHub
+- [x] Push to GitHub
+
+## Batch 15 — Bug Fixes (Mar 28)
+- [x] Fix Cloud Sync "session.exercises is not iterable" error — root cause: pin-sync.tsx handleSync didn't include exercises array in bulk upsert payload
+- [x] Added exercises array mapping to pin-sync.tsx handleSync (exercises + sets with all fields)
+- [x] Added defensive ?? [] guards on server-side: data-sync-service.ts (session.exercises, ex.sets)
+- [x] Added defensive ?? [] guards across client-side: migration-service.ts, split-workout-store.ts (11 refs), ai-data-aggregator.ts (8 refs), coach-engine.ts (2 refs), difficulty-analytics.ts (2 refs)
+- [x] All 304 tests pass

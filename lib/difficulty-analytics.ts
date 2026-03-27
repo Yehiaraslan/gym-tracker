@@ -157,7 +157,7 @@ export function getExercisesThatNeedAttention(
   const exerciseMap = new Map<string, string>();
 
   workoutLogs.forEach(workout => {
-    workout.exercises.forEach(exercise => {
+    (workout.exercises ?? []).forEach(exercise => {
       allLogs.push(exercise);
       exerciseMap.set(exercise.exerciseId, exercise.exerciseName);
     });
@@ -184,7 +184,7 @@ export function getRecommendedFocusExercises(
   const exerciseMap = new Map<string, string>();
 
   workoutLogs.forEach(workout => {
-    workout.exercises.forEach(exercise => {
+    (workout.exercises ?? []).forEach(exercise => {
       allLogs.push(exercise);
       exerciseMap.set(exercise.exerciseId, exercise.exerciseName);
     });
