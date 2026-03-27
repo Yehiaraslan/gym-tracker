@@ -331,6 +331,19 @@ export const appRouter = router({
       .query(async ({ input }) => {
         return dataSync.getPersonalRecords(input.deviceId);
       }),
+
+    upsertScheduleOverride: publicProcedure
+      .input(z.object({ deviceId: z.string(), override: z.any() }))
+      .mutation(async ({ input }) => {
+        await dataSync.upsertScheduleOverride(input.deviceId, input.override);
+        return { success: true };
+      }),
+
+    getScheduleOverride: publicProcedure
+      .input(deviceIdInput)
+      .query(async ({ input }) => {
+        return dataSync.getLatestScheduleOverride(input.deviceId);
+      }),
   }),
 
   // ── AI Coaching ───────────────────────────────────────────

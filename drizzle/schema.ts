@@ -381,3 +381,26 @@ export const deviceIdentities = mysqlTable("device_identities", {
 }));
 export type DeviceIdentity = typeof deviceIdentities.$inferSelect;
 export type InsertDeviceIdentity = typeof deviceIdentities.$inferInsert;
+
+// ════════════════════════════════════════════════════════════
+// SCHEDULE OVERRIDES — Cloud-synced Zaki schedule changes
+// ════════════════════════════════════════════════════════════
+// Stores the active schedule override so Zaki's changes persist
+// across app reinstalls and device changes. Only the latest
+// override per device/user is active.
+export const scheduleOverrides = mysqlTable("schedule_overrides", {
+  id: int("id").autoincrement().primaryKey(),
+  deviceId: varchar("deviceId", { length: 128 }).notNull(),
+  scheduleJson: json("scheduleJson").notNull(), // { sunday: 'rest', monday: 'upper-a', ... }
+  description: varchar("description", { length: 512 }),
+  appliedByZaki: boolean("appliedByZaki").default(false).notNull(),
+  weightAdjustments: text("weightAdjustments"),
+  appliedAt: timestamp("appliedAt").defaultNow().notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  deviceIdx: index("so_device_idx").on(table.deviceId),
+  appliedAtIdx: index("so_applied_at_idx").on(table.appliedAt),
+}));
+export type ScheduleOverride = typeof scheduleOverrides.$inferSelect;
+export type InsertScheduleOverride = typeof scheduleOverrides.$inferInsert;

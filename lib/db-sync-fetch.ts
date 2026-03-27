@@ -155,3 +155,19 @@ export function syncPersonalRecord(pr: {
     trpcMutation('sync.upsertPersonalRecord', { deviceId, pr });
   });
 }
+
+/**
+ * Sync a schedule override to the cloud database.
+ * Fire-and-forget — errors are logged but don't block the UI.
+ */
+export function syncScheduleOverride(override: {
+  scheduleJson: Record<string, string>;
+  description?: string;
+  appliedByZaki?: boolean;
+  weightAdjustments?: string;
+  appliedAt: string;
+}): void {
+  getDeviceId().then(deviceId => {
+    trpcMutation('sync.upsertScheduleOverride', { deviceId, override });
+  });
+}

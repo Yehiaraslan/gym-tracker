@@ -14,6 +14,7 @@ import {
   sleepEntries,
   workoutStreaks,
   personalRecords,
+  scheduleOverrides,
 } from '../drizzle/schema';
 import { eq, and, desc, gte, sql } from 'drizzle-orm';
 
@@ -542,4 +543,61 @@ export async function getPersonalRecords(userOpenId: string): Promise<any[]> {
     .from(personalRecords)
     .where(eq(personalRecords.userOpenId, userOpenId))
     .orderBy(desc(personalRecords.estimated1rm));
+}
+
+
+// ════════════════════════════════════════════════════════════
+// SCHEDULE OVERRIDES
+// ════════════════════════════════════════════════════════════
+
+export interface SyncScheduleOverride {
+  scheduleJson: Record<string, string>;
+  description?: string;
+  appliedByZaki?: boolean;
+  weightAdjustments?: string;
+  appliedAt: string;
+}
+
+/**
+ * Upsert the latest schedule override for a device.
+ * Inserts a new row each time (history), so we can track evolution.
+ */
+export async function upsertScheduleOverride(
+  deviceId: string,
+  override: SyncScheduleOverride,
+): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(scheduleOverrides).values({
+    deviceId,
+    scheduleJson: override.scheduleJson,
+    description: override.description ?? null,
+    appliedByZaki: override.appliedByZaki ?? false,
+    weightAdjustments: override.weightAdjustments ?? null,
+    appliedAt: new Date(override.appliedAt),
+  });
+}
+
+/**
+ * Get the latest schedule override for a device.
+ */
+export async function getLatestScheduleOverride(
+  deviceId: string,
+): Promise<SyncScheduleOverride | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select()
+    .from(scheduleOverrides)
+    .where(eq(scheduleOverrides.deviceId, deviceId))
+    .orderBy(desc(scheduleOverrides.appliedAt))
+    .limit(1);
+  if (rows.length === 0) return null;
+  const row = rows[0];
+  return {
+    scheduleJson: row.scheduleJson as Record<string, string>,
+    description: row.description ?? undefined,
+    appliedByZaki: row.appliedByZaki,
+    weightAdjustments: row.weightAdjustments ?? undefined,
+    appliedAt: row.appliedAt.toISOString(),
+  };
 }

@@ -3,7 +3,7 @@
 // ============================================================
 import { useState, useCallback, useEffect } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Text, View, TouchableOpacity, ScrollView, Platform, StyleSheet, Image, Modal } from 'react-native';
+import { Text, View, TouchableOpacity, ScrollView, Platform, StyleSheet, Image, Modal, Dimensions, RefreshControl, TextInput, FlatList } from 'react-native';
 import { loadUserProfile, type UserProfile } from '@/lib/profile-store';
 import { ScreenContainer } from '@/components/screen-container';
 import { useColors } from '@/hooks/use-colors';
@@ -35,6 +35,27 @@ import { WhoopReconnectBanner } from '@/components/whoop-reconnect-banner';
 import { loadPinSyncState, type PinSyncState } from '@/lib/pin-sync-store';
 import { trpc } from '@/lib/trpc';
 import { getDeviceId } from '@/lib/device-id';
+import { hasResumableWorkout, type ActiveWorkoutState } from '@/lib/active-workout-store';
+import {
+  getAllPRs,
+  getTrackedExerciseNames,
+  getVolumeHistory,
+  getDeloadWeekDates,
+} from '@/lib/split-workout-store';
+import {
+  getTodayRecoveryData,
+  getWeeklyRecoveryData,
+  getRecoveryTrend,
+  getWeeklyAverageRecovery,
+  type RecoveryData,
+  type WeeklyRecoveryData,
+} from '@/lib/whoop-recovery-service';
+import { getRecentNutrition, getMacroTotals } from '@/lib/nutrition-store';
+import { getActiveRecommendations, type CoachRecommendation } from '@/lib/coach-engine';
+import { getWorkoutsInLastDays } from '@/lib/streak-tracker';
+import { NUTRITION_TARGETS } from '@/lib/training-program';
+import Svg, { Polyline, Line, Circle, Text as SvgText } from 'react-native-svg';
+const SCREEN_WIDTH = Dimensions.get('window').width;
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -88,6 +109,16 @@ export default function HomeScreen() {
   const [previewDay, setPreviewDay] = useState<{ date: string; session: SessionType; label: string } | null>(null);
   const [syncState, setSyncState] = useState<PinSyncState | null>(null);
   const [deviceId, setDeviceId] = useState<string | null>(null);
+  const [resumableWorkout, setResumableWorkout] = useState<ActiveWorkoutState | null>(null);
+
+  // Progress tab data merged into Home
+  const [prs, setPrs] = useState<Record<string, { e1rm: number; weight: number; reps: number; date: string }>>({});
+  const [recovery, setRecovery] = useState<RecoveryData | null>(null);
+  const [weeklyRecovery, setWeeklyRecovery] = useState<WeeklyRecoveryData[]>([]);
+  const [recentNutrition, setRecentNutrition] = useState<DailyNutrition[]>([]);
+  const [recommendations, setRecommendations] = useState<CoachRecommendation[]>([]);
+  const [workoutsThisWeek, setWorkoutsThisWeek] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Load deviceId once on mount
   useEffect(() => { getDeviceId().then(setDeviceId); }, []);
@@ -146,11 +177,18 @@ export default function HomeScreen() {
 
   const loadData = useCallback(async () => {
     try {
-      const [streakData, startDate, nutritionData, workouts] = await Promise.all([
+      const [streakData, startDate, nutritionData, workouts, prData, rec, weekRec, nutri7, recs, weekCount, resumable] = await Promise.all([
         getStreakData(),
         getMesocycleStartDate(),
         getDailyNutrition().catch(() => null),
-        getRecentSplitWorkouts(7),
+        getRecentSplitWorkouts(10),
+        getAllPRs(),
+        getTodayRecoveryData().catch(() => null),
+        getWeeklyRecoveryData().catch(() => []),
+        getRecentNutrition(7).catch(() => []),
+        getActiveRecommendations().catch(() => []),
+        getWorkoutsInLastDays(7).catch(() => 0),
+        hasResumableWorkout(),
       ]);
       setStreak(streakData);
       const mesoInfo = getMesocycleInfo(startDate);
@@ -161,12 +199,20 @@ export default function HomeScreen() {
       });
       setNutrition(nutritionData);
       setRecentWorkouts(workouts);
+      setPrs(prData);
+      setRecovery(rec);
+      setWeeklyRecovery(weekRec);
+      setRecentNutrition(nutri7);
+      setRecommendations(recs);
+      setWorkoutsThisWeek(weekCount);
+      setResumableWorkout(resumable);
       // Detect missed sessions in the last 7 days (using Zaki's schedule override if set)
       const completedDates = workouts.filter(w => w.completed).map(w => w.date);
       const activeSchedule = await getActiveSchedule();
       const missed = getMissedSessions(completedDates, 7, activeSchedule as Record<string, SessionType>);
       setMissedSessions(missed);
     } catch (_) {}
+    setRefreshing(false);
   }, []);
 
   // Reload every time the tab comes into focus so nutrition/workout data is always fresh
@@ -235,6 +281,7 @@ export default function HomeScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 40 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); loadSchedule(); }} tintColor={pri} />}
       >
         {/* ── WHOOP Reconnect Banner (shown when token expired) ── */}
         <WhoopReconnectBanner />
@@ -290,36 +337,42 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* ── Make-up Session Banners ── */}
-        {missedSessions.filter(m => !dismissedMakeup.has(m.date)).map(missed => (
-          <View
-            key={missed.date}
-            style={[s.warningBanner, { backgroundColor: '#F59E0B15', borderColor: '#F59E0B', marginBottom: 8 }]}
-          >
-            <Text style={s.warningIcon}>📅</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={[s.warningTitle, { color: '#F59E0B' }]}>
-                Missed: {missed.sessionName} ({missed.daysAgo === 1 ? 'yesterday' : `${missed.daysAgo} days ago`})
-              </Text>
+        {/* ── Missed Session Banner (only last missed) ── */}
+        {(() => {
+          const visible = missedSessions.filter(m => !dismissedMakeup.has(m.date));
+          if (visible.length === 0) return null;
+          const last = visible[0]; // most recent missed
+          return (
+            <View style={[s.warningBanner, { backgroundColor: '#F59E0B15', borderColor: '#F59E0B', marginBottom: 8 }]}>
+              <Text style={s.warningIcon}>📅</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={[s.warningTitle, { color: '#F59E0B' }]}>
+                  Missed: {last.sessionName} ({last.daysAgo === 1 ? 'yesterday' : `${last.daysAgo} days ago`})
+                </Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    router.push({ pathname: '/split-workout', params: { sessionType: last.sessionType, date: last.date } } as any);
+                  }}
+                >
+                  <Text style={{ color: '#F59E0B', fontSize: 12, fontWeight: '700', marginTop: 2 }}>
+                    Make it up today →
+                  </Text>
+                </TouchableOpacity>
+              </View>
               <TouchableOpacity
                 onPress={() => {
-                  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push({ pathname: '/split-workout', params: { sessionType: missed.sessionType, date: missed.date } } as any);
+                  // Dismiss all missed sessions at once
+                  const allDates = new Set(visible.map(m => m.date));
+                  setDismissedMakeup(prev => new Set([...prev, ...allDates]));
                 }}
+                style={{ padding: 4 }}
               >
-                <Text style={{ color: '#F59E0B', fontSize: 12, fontWeight: '700', marginTop: 2 }}>
-                  Make it up today →
-                </Text>
+                <Text style={{ color: mut, fontSize: 11 }}>{visible.length > 1 ? `Dismiss All (${visible.length})` : '✕'}</Text>
               </TouchableOpacity>
             </View>
-            <TouchableOpacity
-              onPress={() => setDismissedMakeup(prev => new Set([...prev, missed.date]))}
-              style={{ padding: 4 }}
-            >
-              <Text style={{ color: mut, fontSize: 16 }}>✕</Text>
-            </TouchableOpacity>
-          </View>
-        ))}
+          );
+        })()}
 
         {/* ── Low Recovery Warning ── */}
         {showLowRecoveryWarning && (
@@ -418,6 +471,29 @@ export default function HomeScreen() {
             </View>
           </TouchableOpacity>
         </Modal>
+
+        {/* ── Resume Workout Banner ── */}
+        {resumableWorkout && (
+          <TouchableOpacity
+            style={[s.warningBanner, { backgroundColor: '#3B82F615', borderColor: '#3B82F6', marginBottom: 8 }]}
+            onPress={() => {
+              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              router.push({ pathname: '/split-workout', params: { sessionType: resumableWorkout.sessionType, date: todayStr } } as any);
+            }}
+            activeOpacity={0.8}
+          >
+            <Text style={s.warningIcon}>⏱️</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[s.warningTitle, { color: '#3B82F6' }]}>In-Progress: {SESSION_NAMES[resumableWorkout.sessionType]}</Text>
+              <Text style={[s.warningSub, { color: mut }]}>
+                {resumableWorkout.exerciseLogs.filter(e => e.sets.length > 0).length} exercises started · {Math.round(resumableWorkout.elapsed / 60)}min elapsed
+              </Text>
+            </View>
+            <View style={{ backgroundColor: '#3B82F6', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 }}>
+              <Text style={{ color: '#fff', fontWeight: '700', fontSize: 12 }}>Resume</Text>
+            </View>
+          </TouchableOpacity>
+        )}
 
         {/* ── Today's Session Hero ── */}
         <TouchableOpacity
@@ -661,8 +737,141 @@ export default function HomeScreen() {
             </View>
           </View>
         </TouchableOpacity>
+
+        {/* ── Training Readiness (from Progress tab) ── */}
+        {(() => {
+          const recoveryTrend = weeklyRecovery.length > 0 ? getRecoveryTrend(weeklyRecovery) : 'stable';
+          const avgRecovery = weeklyRecovery.length > 0 ? getWeeklyAverageRecovery(weeklyRecovery) : null;
+          const readinessScore = calculateReadiness(recovery, avgRecovery, streak, workoutsThisWeek);
+          const readinessColor = readinessScore >= 67 ? '#10B981' : readinessScore >= 34 ? '#F59E0B' : '#EF4444';
+          const readinessLabel = readinessScore >= 80 ? 'Peak Readiness' : readinessScore >= 67 ? 'Good to Train' : readinessScore >= 50 ? 'Moderate' : readinessScore >= 34 ? 'Consider Light' : 'Rest Recommended';
+          return (
+            <View style={[s.card, { backgroundColor: surf, borderColor: bord }]}>
+              <Text style={[s.sectionLabel, { color: mut, marginBottom: 10 }]}>TRAINING READINESS</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                <View style={{ width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: readinessColor + '20', marginRight: 12 }}>
+                  <Text style={{ fontSize: 18, fontWeight: '800', color: readinessColor }}>{readinessScore}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: fg }}>{readinessLabel}</Text>
+                  <Text style={{ fontSize: 12, color: mut }}>
+                    {readinessScore >= 67 ? 'Push hard today' : readinessScore >= 34 ? 'Reduce intensity slightly' : 'Take a rest day'}
+                  </Text>
+                </View>
+              </View>
+              <View style={{ gap: 6 }}>
+                <ReadinessBar label="Recovery" value={recovery ? `${Math.round(recovery.recoveryScore)}%` : 'N/A'} progress={recovery ? recovery.recoveryScore / 100 : 0} color={recovery ? (recovery.recoveryScore >= 67 ? '#10B981' : recovery.recoveryScore >= 34 ? '#F59E0B' : '#EF4444') : mut} colors={colors} />
+                <ReadinessBar label="Sleep" value={recovery ? `${Math.round(recovery.sleepScore)}%` : 'N/A'} progress={recovery ? recovery.sleepScore / 100 : 0} color={recovery ? (recovery.sleepScore >= 67 ? '#10B981' : recovery.sleepScore >= 34 ? '#F59E0B' : '#EF4444') : mut} colors={colors} />
+                <ReadinessBar label="Weekly Load" value={`${workoutsThisWeek}/4`} progress={Math.min(1, workoutsThisWeek / 4)} color={workoutsThisWeek <= 4 ? '#10B981' : '#F59E0B'} colors={colors} />
+              </View>
+            </View>
+          );
+        })()}
+
+        {/* ── Personal Records ── */}
+        {(() => {
+          const prList = Object.entries(prs).sort((a, b) => b[1].e1rm - a[1].e1rm);
+          if (prList.length === 0) return null;
+          return (
+            <View style={[s.card, { backgroundColor: surf, borderColor: bord, paddingBottom: 4 }]}>
+              <Text style={[s.sectionLabel, { color: mut, marginBottom: 10 }]}>PERSONAL RECORDS</Text>
+              {prList.slice(0, 5).map(([name, pr], i) => (
+                <TouchableOpacity
+                  key={name}
+                  style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderTopWidth: i > 0 ? 1 : 0, borderTopColor: bord }}
+                  onPress={() => router.push({ pathname: '/rep-history', params: { exercise: name, exerciseType: '' } } as any)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={{ fontSize: 14, marginRight: 8 }}>🏆</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: fg }}>{name}</Text>
+                    <Text style={{ fontSize: 11, color: mut }}>{pr.weight}kg x {pr.reps} · {new Date(pr.date + 'T00:00:00').toLocaleDateString('en', { month: 'short', day: 'numeric' })}</Text>
+                  </View>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#F59E0B' }}>~{Math.round(pr.e1rm)}kg</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          );
+        })()}
+
+        {/* ── Recent Workouts ── */}
+        {recentWorkouts.length > 0 && (
+          <View style={[s.card, { backgroundColor: surf, borderColor: bord, paddingBottom: 4 }]}>
+            <Text style={[s.sectionLabel, { color: mut, marginBottom: 10 }]}>RECENT WORKOUTS</Text>
+            {recentWorkouts.slice(0, 5).map((w, i) => {
+              const sColor = SESSION_COLORS[w.sessionType as SessionType] || pri;
+              return (
+                <View key={w.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderTopWidth: i > 0 ? 1 : 0, borderTopColor: bord }}>
+                  <View style={{ width: 4, height: 28, borderRadius: 2, backgroundColor: sColor, marginRight: 10 }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: fg }}>{SESSION_NAMES[w.sessionType as SessionType] || w.sessionType}</Text>
+                    <Text style={{ fontSize: 11, color: mut }}>
+                      {new Date(w.date + 'T00:00:00').toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' })}
+                      {w.durationMinutes ? ` · ${w.durationMinutes}m` : ''}
+                    </Text>
+                  </View>
+                  {w.totalVolume ? <Text style={{ fontSize: 13, fontWeight: '600', color: sColor }}>{(w.totalVolume / 1000).toFixed(1)}t</Text> : null}
+                </View>
+              );
+            })}
+          </View>
+        )}
+
+        {/* ── Coach Insights ── */}
+        {recommendations.length > 0 && (
+          <View style={[s.card, { backgroundColor: surf, borderColor: bord }]}>
+            <Text style={[s.sectionLabel, { color: mut, marginBottom: 10 }]}>COACH INSIGHTS</Text>
+            {recommendations.slice(0, 3).map((rec, i) => {
+              const catIcon: Record<string, string> = { nutrition: '🍗', training: '🏋️', recovery: '😴', overload: '📈' };
+              return (
+                <View key={i} style={{ paddingVertical: 6, borderTopWidth: i > 0 ? 1 : 0, borderTopColor: bord }}>
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: fg }}>{catIcon[rec.type] || '💡'} {rec.message}</Text>
+                  <Text style={{ fontSize: 11, color: mut, marginTop: 2, lineHeight: 16 }}>{rec.actionable}</Text>
+                </View>
+              );
+            })}
+          </View>
+        )}
       </ScrollView>
     </ScreenContainer>
+  );
+}
+
+// ---- Helper Functions ----
+
+function calculateReadiness(
+  recovery: RecoveryData | null,
+  avgRecovery: number | null,
+  streak: StreakData | null,
+  workoutsThisWeek: number,
+): number {
+  let score = 70;
+  if (recovery) {
+    score = recovery.recoveryScore * 0.4;
+    score += recovery.sleepScore * 0.3;
+  }
+  if (workoutsThisWeek <= 4) score += 20;
+  else if (workoutsThisWeek === 5) score += 10;
+  else score += 5;
+  if (streak && streak.currentStreak >= 3) score += 10;
+  else if (streak && streak.currentStreak >= 1) score += 5;
+  return Math.round(Math.min(100, Math.max(0, score)));
+}
+
+function ReadinessBar({ label, value, progress, color, colors }: {
+  label: string; value: string; progress: number; color: string;
+  colors: ReturnType<typeof useColors>;
+}) {
+  return (
+    <View>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 3 }}>
+        <Text style={{ fontSize: 11, color: colors.muted }}>{label}</Text>
+        <Text style={{ fontSize: 11, fontWeight: '600', color }}>{value}</Text>
+      </View>
+      <View style={{ height: 5, borderRadius: 3, backgroundColor: colors.border, overflow: 'hidden' }}>
+        <View style={{ height: 5, borderRadius: 3, width: `${Math.max(2, progress * 100)}%`, backgroundColor: color } as any} />
+      </View>
+    </View>
   );
 }
 

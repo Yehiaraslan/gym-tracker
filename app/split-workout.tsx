@@ -17,6 +17,7 @@ import {
   TextInput,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ScreenContainer } from '@/components/screen-container';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { SplitSetLogger } from '@/components/split-set-logger';
@@ -72,7 +73,20 @@ export default function SplitWorkoutScreen() {
   const [isDeload, setIsDeload] = useState(params.deload === 'true');
   const programExercises = sessionType !== 'rest' ? PROGRAM_SESSIONS[sessionType] : [];
   const [swappableExercises, setSwappableExercises] = useState<ProgramExercise[]>([]);
-  // Initialize swappableExercises from program on first render
+  // Load saved swaps from AsyncStorage on mount
+  useEffect(() => {
+    if (sessionType === 'rest') return;
+    const key = `@gym_swap_${sessionType}`;
+    AsyncStorage.getItem(key).then(raw => {
+      if (raw) {
+        try {
+          const saved = JSON.parse(raw) as Record<number, ProgramExercise>;
+          const updated = programExercises.map((ex, i) => saved[i] ? { ...saved[i] } : ex);
+          setSwappableExercises(updated);
+        } catch { /* ignore */ }
+      }
+    });
+  }, [sessionType]);
   const exercises = swappableExercises.length > 0 ? swappableExercises : programExercises;
   const sessionColor = SESSION_COLORS[sessionType] || colors.primary;
 
@@ -157,6 +171,14 @@ export default function SplitWorkoutScreen() {
     setExerciseLogs(prev => prev.map((log, i) =>
       i === swapTargetIndex ? { ...log, exerciseName: alt.name } : log
     ));
+    // Persist swap so it's remembered in future sessions
+    if (sessionType !== 'rest') {
+      const swapMap: Record<number, ProgramExercise> = {};
+      updated.forEach((ex, i) => {
+        if (ex.name !== programExercises[i]?.name) swapMap[i] = ex;
+      });
+      AsyncStorage.setItem(`@gym_swap_${sessionType}`, JSON.stringify(swapMap)).catch(() => {});
+    }
     setShowSwapModal(false);
     setSwapTargetIndex(null);
   };

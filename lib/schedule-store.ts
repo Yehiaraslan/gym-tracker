@@ -233,6 +233,17 @@ export async function applyScheduleWithHistory(
     appliedByZaki: override.appliedByZaki,
     weightSuggestions,
   });
+  // Sync to cloud database (fire-and-forget)
+  try {
+    const { syncScheduleOverride } = require('./db-sync-fetch');
+    syncScheduleOverride({
+      scheduleJson: override.schedule,
+      description: override.description,
+      appliedByZaki: override.appliedByZaki,
+      weightAdjustments: weightSuggestions,
+      appliedAt: override.appliedAt,
+    });
+  } catch { /* sync is best-effort */ }
 }
 
 /**

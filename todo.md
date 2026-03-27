@@ -872,3 +872,15 @@
 - [x] BUG: Home screen shows Rest Day even after Zaki moves a session to that day (schedule override not read by getTodaySession / Start Workout)
 - [x] BUG: Progress photos not saving when selecting from camera roll or taking a picture
 - [x] FEATURE: Zaki should proactively adjust workout weights based on WHOOP recovery, fitness goal, body photos, and all user data
+
+## Batch 8 — User Requests (Mar 27)
+- [x] FEATURE: Workout session resume — Home screen shows Resume Workout button when in-progress session exists
+- [x] FEATURE: Merge Home + Progress tabs into one unified screen (Training Readiness, PRs, Recent Workouts, Coach Insights merged into Home)
+- [x] FEATURE: Nutrition "Same as yesterday" — one-tap copy of previous day's meals
+- [x] BUG: Workout streak resets on rest days — fixed to only reset if scheduled training day is missed
+- [x] FEATURE: Exercise shuffle/swap during workout — swaps now persist across sessions via AsyncStorage
+- [x] FEATURE: Simplify missed sessions banner — only shows most recent missed session
+- [x] FEATURE: Dismiss All button on missed sessions banner
+- [x] FEATURE: Zaki auto-apply — expanded schedule intent detection to cover rest/skip/postpone/move requests
+- [x] FEATURE: Load These Weights auto-fill — already implemented via savePendingWeights/consumePendingWeights pipeline
+- [x] REVIEW: Cloud sync — added scheduleOverrides table + sync endpoints; Zaki schedule changes now persist to cloud DB

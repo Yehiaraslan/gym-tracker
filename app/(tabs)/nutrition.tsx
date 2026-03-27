@@ -143,6 +143,7 @@ export default function NutritionTab() {
   const [customProtein, setCustomProtein] = useState('');
   const [customCarbs, setCustomCarbs] = useState('');
   const [customFat, setCustomFat] = useState('');
+  const [copyingYesterday, setCopyingYesterday] = useState(false);
 
   // ── Load data on mount ───────────────────────────────────
   useEffect(() => {
@@ -297,13 +298,45 @@ export default function NutritionTab() {
   const pri = colors.primary;
   const bord = colors.border;
 
+  // ── Copy yesterday's meals ──────────────────────────────
+  const copyYesterday = useCallback(async () => {
+    try {
+      setCopyingYesterday(true);
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yStr = yesterday.toLocaleDateString('en-CA');
+      const yLog = await getDailyNutrition(yStr);
+      if (!yLog || yLog.meals.length === 0) {
+        Alert.alert('No Data', 'No meals logged yesterday.');
+        setCopyingYesterday(false);
+        return;
+      }
+      const copiedMeals: FoodEntry[] = yLog.meals.map(m => ({
+        id: generateId(),
+        mealNumber: m.mealNumber,
+        foodName: m.foodName,
+        protein: m.protein,
+        carbs: m.carbs,
+        fat: m.fat,
+        calories: m.calories,
+        servingGrams: (m as any).servingGrams ?? 100,
+        timestamp: new Date().toISOString(),
+      }));
+      const updatedLog = { ...log, meals: [...log.meals, ...copiedMeals] };
+      await saveLog(updatedLog);
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert('Copied', `${copiedMeals.length} items from yesterday added.`);
+    } catch { Alert.alert('Error', 'Could not copy yesterday\'s meals.'); }
+    setCopyingYesterday(false);
+  }, [log, saveLog]);
+
   const supplementsTaken = log.supplementsChecked.filter(s => s.taken).length;
 
   return (
     <ScreenContainer containerClassName="bg-background">
       <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
 
-        {/* ── Header ─────────────────────────────────────── */}
+        {/* ── Header ─────────────────────────────────────────── */}
         <View style={s.header}>
           <View>
             <Text style={[s.headerTitle, { color: fg }]}>Nutrition</Text>
@@ -318,6 +351,25 @@ export default function NutritionTab() {
             <Text style={s.searchBtnText}>🔍 Search Foods</Text>
           </TouchableOpacity>
         </View>
+
+        {/* ── Same as Yesterday Button ───────────────────── */}
+        {log.meals.length === 0 && (
+          <TouchableOpacity
+            style={[s.yesterdayBtn, { backgroundColor: surf, borderColor: bord }]}
+            onPress={copyYesterday}
+            activeOpacity={0.7}
+            disabled={copyingYesterday}
+          >
+            <Text style={{ fontSize: 16, marginRight: 8 }}>🔁</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 14, fontWeight: '600', color: fg }}>
+                {copyingYesterday ? 'Copying...' : 'Same as Yesterday'}
+              </Text>
+              <Text style={{ fontSize: 11, color: mut }}>Copy all meals from yesterday</Text>
+            </View>
+            <Text style={{ fontSize: 16, color: mut }}>›</Text>
+          </TouchableOpacity>
+        )}
 
         {/* ── Circular Macro Rings ────────────────────────── */}
         <View style={[s.macroCard, { backgroundColor: surf }]}>
@@ -783,6 +835,15 @@ export default function NutritionTab() {
 
 // ── Styles ────────────────────────────────────────────────────
 const s = StyleSheet.create({
+  yesterdayBtn: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 14,
+    marginHorizontal: 16,
+    marginBottom: 12,
+  },
   header: {
     flexDirection: 'row', alignItems: 'flex-start',
     justifyContent: 'space-between',

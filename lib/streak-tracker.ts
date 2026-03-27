@@ -1,5 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { syncStreak } from './db-sync-fetch';
+import { getSessionForDate, type SessionType } from './training-program';
+import { getActiveSchedule } from './schedule-store';
 
 const STREAK_DATA_KEY = 'gym_tracker_streak_data';
 
@@ -90,21 +92,39 @@ export async function recordWorkout(): Promise<StreakData> {
     }
   }
 
-  // Calculate new streak
+  // Calculate new streak — only breaks if a TRAINING day was missed (rest days don't count)
   if (streakData.lastWorkoutDate === null) {
     // First workout ever
     streakData.currentStreak = 1;
   } else {
     const daysSinceLastWorkout = getDaysDifference(streakData.lastWorkoutDate, today);
     
-    if (daysSinceLastWorkout === 1) {
-      // Consecutive day - extend streak
-      streakData.currentStreak += 1;
-    } else if (daysSinceLastWorkout === 0) {
-      // Same day - no change
+    if (daysSinceLastWorkout <= 1) {
+      // Same day or consecutive day — extend streak
+      if (daysSinceLastWorkout === 1) streakData.currentStreak += 1;
     } else {
-      // Streak broken - reset to 1
-      streakData.currentStreak = 1;
+      // Check if any TRAINING days were missed between last workout and today
+      const schedule = await getActiveSchedule();
+      let missedTrainingDay = false;
+      for (let i = 1; i < daysSinceLastWorkout; i++) {
+        const checkDate = new Date(streakData.lastWorkoutDate + 'T12:00:00');
+        checkDate.setDate(checkDate.getDate() + i);
+        const dateStr = checkDate.toLocaleDateString('en-CA');
+        const dayOfWeek = checkDate.getDay();
+        const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        const sessionFromSchedule = schedule?.[dayNames[dayOfWeek] as keyof typeof schedule] as SessionType | undefined;
+        const session = sessionFromSchedule || getSessionForDate(checkDate);
+        if (session !== 'rest' && !streakData.workoutDates.includes(dateStr)) {
+          missedTrainingDay = true;
+          break;
+        }
+      }
+      if (missedTrainingDay) {
+        streakData.currentStreak = 1;
+      } else {
+        // Only rest days were skipped — streak continues
+        streakData.currentStreak += 1;
+      }
     }
   }
 
@@ -134,10 +154,27 @@ export async function checkStreakStatus(): Promise<StreakData> {
   const today = getDateString();
   const daysSinceLastWorkout = getDaysDifference(streakData.lastWorkoutDate, today);
 
-  // If more than 1 day has passed, streak is broken
+  // Only break streak if a TRAINING day was missed (rest days don't count)
   if (daysSinceLastWorkout > 1) {
-    streakData.currentStreak = 0;
-    await saveStreakData(streakData);
+    const schedule = await getActiveSchedule();
+    let missedTrainingDay = false;
+    for (let i = 1; i < daysSinceLastWorkout; i++) {
+      const checkDate = new Date(streakData.lastWorkoutDate! + 'T12:00:00');
+      checkDate.setDate(checkDate.getDate() + i);
+      const dateStr = checkDate.toLocaleDateString('en-CA');
+      const dayOfWeek = checkDate.getDay();
+      const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      const sessionFromSchedule = schedule?.[dayNames[dayOfWeek] as keyof typeof schedule] as SessionType | undefined;
+      const session = sessionFromSchedule || getSessionForDate(checkDate);
+      if (session !== 'rest' && !streakData.workoutDates.includes(dateStr)) {
+        missedTrainingDay = true;
+        break;
+      }
+    }
+    if (missedTrainingDay) {
+      streakData.currentStreak = 0;
+      await saveStreakData(streakData);
+    }
   }
 
   return streakData;

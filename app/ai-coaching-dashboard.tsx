@@ -466,9 +466,19 @@ export default function AICoachingDashboard() {
       lower.includes('training days') ||
       lower.includes('back-to-back') ||
       lower.includes('every other day') ||
-      lower.includes('split') && lower.includes('change') ||
+      (lower.includes('split') && lower.includes('change')) ||
       lower.includes('rearrange') ||
-      lower.includes('new schedule')
+      lower.includes('new schedule') ||
+      lower.includes('should i train') ||
+      lower.includes('should i rest') ||
+      lower.includes('rest today') ||
+      lower.includes('skip today') ||
+      lower.includes('move my workout') ||
+      lower.includes('swap my') ||
+      lower.includes('postpone') ||
+      lower.includes('take a day off') ||
+      lower.includes('move lower') ||
+      lower.includes('move upper')
     );
   };
 
