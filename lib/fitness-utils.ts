@@ -53,7 +53,7 @@ export function suggestWeight(params: {
   lastReps: number;
   lastRPE?: number;
   targetRepsMax: number;
-  muscleGroup: 'upper' | 'lower';
+  muscleGroup: 'upper' | 'lower' | 'core';
   isDeload: boolean;
   consecutiveTopRangeSessions: number; // how many sessions in a row hit top of range
 }): { weight: number; reason: string } {

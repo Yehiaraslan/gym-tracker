@@ -441,6 +441,32 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* Program History Link */}
+        <TouchableOpacity
+          onPress={() => {
+            if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.push('/program-history' as any);
+          }}
+          style={[styles.syncCard, {
+            backgroundColor: colors.surface,
+            borderColor: colors.border,
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: 16,
+            paddingVertical: 14,
+          }]}
+          activeOpacity={0.75}
+        >
+          <View style={[styles.syncDot, { backgroundColor: '#F59E0B' }]} />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.syncTitle, { color: colors.foreground }]}>Program History</Text>
+            <Text style={[styles.syncSubtitle, { color: colors.muted }]}>
+              View past programs, PRs hit, and volume
+            </Text>
+          </View>
+          <Text style={{ color: colors.muted, fontSize: 18 }}>›</Text>
+        </TouchableOpacity>
+
         {/* Save Button */}
         <View style={styles.saveSection}>
           <TouchableOpacity

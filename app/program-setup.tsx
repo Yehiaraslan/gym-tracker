@@ -2,8 +2,9 @@
 // PROGRAM SETUP SCREEN
 // Shown after onboarding — recommends a tailored program based
 // on the user's goal, experience, and equipment.
+// Includes Zaki AI generation: full custom program via LLM.
 // ============================================================
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Text,
   View,
@@ -12,6 +13,9 @@ import {
   ScrollView,
   Platform,
   ActivityIndicator,
+  TextInput,
+  Modal,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -24,16 +28,59 @@ import {
   loadCustomProgram,
   PROGRAM_TEMPLATES,
   type ProgramTemplate,
+  type CustomProgram,
 } from '@/lib/custom-program-store';
+import { getRecentSplitWorkouts } from '@/lib/split-workout-store';
+import { getAllPRs } from '@/lib/split-workout-store';
 import { SESSION_NAMES, SESSION_COLORS } from '@/lib/training-program';
+import { trpcClient } from '@/lib/trpc';
+import { applyScheduleWithHistory, buildFullSchedule, type DayName } from '@/lib/schedule-store';
+import { saveCustomProgram } from '@/lib/custom-program-store';
+import type { SessionType } from '@/lib/training-program';
 
 const DAY_ORDER = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const DAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+// ── Zaki AI Questionnaire ─────────────────────────────────────
+
+interface ZakiQuestionnaire {
+  daysPerWeek: number;
+  weakPoints: string;
+  injuryHistory: string;
+  preferredExercises: string;
+  avoidedExercises: string;
+}
+
+const DEFAULT_Q: ZakiQuestionnaire = {
+  daysPerWeek: 4,
+  weakPoints: '',
+  injuryHistory: '',
+  preferredExercises: '',
+  avoidedExercises: '',
+};
+
+// ── Template → CustomProgram adapter ─────────────────────────
+
+function templateToCustomProgram(template: ProgramTemplate): CustomProgram {
+  const colorPool = ['#3B82F6', '#8B5CF6', '#06B6D4', '#10B981', '#F59E0B', '#EF4444'];
+  return {
+    name: template.name,
+    description: template.description,
+    sessions: template.sessions,
+    sessionNames: template.sessionNames,
+    sessionColors: Object.fromEntries(
+      Object.keys(template.sessionNames).map((key, i) => [key, colorPool[i % colorPool.length]])
+    ),
+    weeklySchedule: template.weeklySchedule,
+    createdAt: new Date().toISOString(),
+    generatedByZaki: false,
+    durationWeeks: 4,
+  };
+}
+
 export default function ProgramSetupScreen() {
   const colors = useColors();
   const router = useRouter();
-
   const [template, setTemplate] = useState<ProgramTemplate | null>(null);
   const [allTemplates, setAllTemplates] = useState<ProgramTemplate[]>([]);
   const [showBrowse, setShowBrowse] = useState(false);
@@ -41,6 +88,14 @@ export default function ProgramSetupScreen() {
   const [applying, setApplying] = useState(false);
   const [isChangeMode, setIsChangeMode] = useState(false);
   const [currentProgramName, setCurrentProgramName] = useState<string | null>(null);
+  const [userProfile, setUserProfile] = useState<any>(null);
+
+  // Zaki AI generation
+  const [showZakiModal, setShowZakiModal] = useState(false);
+  const [questionnaire, setQuestionnaire] = useState<ZakiQuestionnaire>(DEFAULT_Q);
+  const [generatingAI, setGeneratingAI] = useState(false);
+  const [generationStatus, setGenerationStatus] = useState('');
+  const [aiGeneratedProgram, setAiGeneratedProgram] = useState<CustomProgram | null>(null);
 
   const fg = colors.foreground;
   const mt = colors.muted;
@@ -56,6 +111,7 @@ export default function ProgramSetupScreen() {
         loadUserProfile(),
         loadCustomProgram(),
       ]);
+      setUserProfile(profile);
       if (existingProg) {
         setIsChangeMode(true);
         setCurrentProgramName(existingProg.name);
@@ -70,6 +126,8 @@ export default function ProgramSetupScreen() {
     })();
   }, []);
 
+  // ── Apply template program ────────────────────────────────
+
   const handleApply = async () => {
     if (!template) return;
     setApplying(true);
@@ -83,8 +141,122 @@ export default function ProgramSetupScreen() {
     setApplying(false);
   };
 
+  // ── Apply AI-generated program ────────────────────────────
+
+  const handleApplyAI = async () => {
+    if (!aiGeneratedProgram) return;
+    setApplying(true);
+    try {
+      // Archive existing program
+      const existing = await loadCustomProgram();
+      if (existing) {
+        const { archiveProgram } = await import('@/lib/custom-program-store');
+        await archiveProgram(existing);
+      }
+      await saveCustomProgram(aiGeneratedProgram);
+      // Update schedule
+      const schedule = buildFullSchedule(
+        aiGeneratedProgram.weeklySchedule as Partial<Record<DayName, SessionType>>
+      );
+      await applyScheduleWithHistory({
+        appliedAt: new Date().toISOString(),
+        description: `Applied Zaki AI program: ${aiGeneratedProgram.name}`,
+        schedule,
+        appliedByZaki: true,
+      });
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      router.replace('/(tabs)');
+    } catch (e) {
+      console.error('[ProgramSetup] Apply AI error:', e);
+    }
+    setApplying(false);
+  };
+
+  // ── Zaki AI Generation ────────────────────────────────────
+
+  const handleGenerateWithZaki = async () => {
+    setGeneratingAI(true);
+    setGenerationStatus('Analyzing your training history...');
+    try {
+      // Gather context
+      const [recentWorkouts, allPRs] = await Promise.all([
+        getRecentSplitWorkouts(10),
+        getAllPRs(),
+      ]);
+
+      setGenerationStatus('Building your performance profile...');
+
+      // Format recent workout history
+      const workoutHistoryLines = recentWorkouts.slice(0, 5).map(w => {
+        const exNames = w.exercises.map(e => e.exerciseName).join(', ');
+        return `${w.date} — ${w.sessionType} (${w.durationMinutes ?? '?'}min): ${exNames}`;
+      });
+
+      // Format PRs
+      const prLines = Object.entries(allPRs).slice(0, 10).map(([name, pr]) =>
+        `${name}: ${pr.weight}kg × ${pr.reps} reps (e1RM: ${Math.round(pr.e1rm)}kg)`
+      );
+
+      setGenerationStatus('Zaki is designing your custom program...');
+
+      const result = await trpcClient.zaki.generateProgram.mutate({
+        goal: userProfile?.fitnessGoal || 'muscle_gain',
+        experience: userProfile?.experienceLevel || 'intermediate',
+        equipment: userProfile?.equipment || 'full_gym',
+        daysPerWeek: questionnaire.daysPerWeek,
+        weakPoints: questionnaire.weakPoints,
+        injuryHistory: questionnaire.injuryHistory,
+        preferredExercises: questionnaire.preferredExercises,
+        avoidedExercises: questionnaire.avoidedExercises,
+        recentPRs: prLines.join('\n'),
+        bodyWeightKg: userProfile?.weightKg || 80,
+        heightCm: userProfile?.heightCm || 175,
+        age: userProfile?.dateOfBirth
+          ? Math.floor((Date.now() - new Date(userProfile.dateOfBirth).getTime()) / (365.25 * 24 * 3600 * 1000))
+          : 30,
+        recentWorkoutHistory: workoutHistoryLines.join('\n'),
+      });
+
+      setGenerationStatus('Program ready!');
+
+      // Convert to CustomProgram format
+      const generated = result.program;
+      const customProgram: CustomProgram = {
+        name: generated.name,
+        description: generated.description,
+        sessions: Object.fromEntries(
+          generated.sessions.map(s => [s.id, s.exercises.map(e => ({
+            name: e.name,
+            sets: e.sets,
+            repsMin: e.repsMin,
+            repsMax: e.repsMax,
+            restSeconds: e.restSeconds,
+            notes: e.notes,
+            muscleGroup: e.muscleGroup as 'upper' | 'lower' | 'core',
+            bodyPart: e.bodyPart as import('@/lib/types').BodyPart,
+            category: e.category as 'compound' | 'isolation',
+          }))])
+        ),
+        sessionNames: Object.fromEntries(generated.sessions.map(s => [s.id, s.name])),
+        sessionColors: Object.fromEntries(generated.sessions.map(s => [s.id, s.color])),
+        weeklySchedule: generated.weeklySchedule,
+        nutritionTargets: generated.nutritionTargets,
+        createdAt: new Date().toISOString(),
+        generatedByZaki: true,
+        durationWeeks: generated.durationWeeks || 4,
+      };
+
+      setAiGeneratedProgram(customProgram);
+      setShowZakiModal(false);
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (e) {
+      console.error('[ProgramSetup] AI generation error:', e);
+      setGenerationStatus('Generation failed — please try again');
+    }
+    setGeneratingAI(false);
+  };
+
   const handleSkip = () => {
-    // Skip / go back
     if (isChangeMode) {
       router.back();
     } else {
@@ -103,25 +275,29 @@ export default function ProgramSetupScreen() {
     );
   }
 
-  if (!template) return null;
+  // ── Active program to display (AI or template) ────────────
+  const activeProgram: CustomProgram | null = aiGeneratedProgram
+    || (template ? templateToCustomProgram(template) : null);
+
+  if (!activeProgram) return null;
 
   // Build schedule display
   const scheduleRows = DAY_ORDER.map((day, i) => {
-    const sessionId = template.weeklySchedule[day] || 'rest';
+    const sessionId = activeProgram.weeklySchedule[day] || 'rest';
     const isRest = sessionId === 'rest';
-    const displayName = template.sessionNames[sessionId] || SESSION_NAMES[sessionId as keyof typeof SESSION_NAMES] || sessionId;
-    const color = template.sessions[sessionId]
-      ? ['#3B82F6', '#8B5CF6', '#06B6D4', '#10B981', '#F59E0B', '#EF4444'][Object.keys(template.sessionNames).indexOf(sessionId) % 6]
-      : SESSION_COLORS[sessionId as keyof typeof SESSION_COLORS] || '#6B7280';
+    const displayName = activeProgram.sessionNames[sessionId]
+      || SESSION_NAMES[sessionId as keyof typeof SESSION_NAMES]
+      || sessionId;
+    const color = activeProgram.sessionColors[sessionId]
+      || SESSION_COLORS[sessionId as keyof typeof SESSION_COLORS]
+      || '#6B7280';
     return { day: DAY_SHORT[i], sessionId, displayName, isRest, color };
   });
 
-  // Count training days
   const trainingDays = scheduleRows.filter(r => !r.isRest).length;
 
-  // Count total exercises per session
-  const sessionSummaries = Object.entries(template.sessionNames).map(([id, name]) => {
-    const exercises = template.sessions[id] || [];
+  const sessionSummaries = Object.entries(activeProgram.sessionNames).map(([id, name]) => {
+    const exercises = activeProgram.sessions[id] || [];
     const compounds = exercises.filter(e => e.category === 'compound').length;
     const isolations = exercises.filter(e => e.category === 'isolation').length;
     const totalSets = exercises.reduce((sum, e) => sum + e.sets, 0);
@@ -142,21 +318,55 @@ export default function ProgramSetupScreen() {
             {isChangeMode ? 'Change Program' : 'Your Program'}
           </Text>
           <Text style={[s.headerSubtitle, { color: mt }]}>
-            {isChangeMode
+            {aiGeneratedProgram
+              ? 'Zaki designed this program specifically for you'
+              : isChangeMode
               ? `Currently: ${currentProgramName || 'Default Upper/Lower'}. Pick a new program below.`
               : "Based on your goals and experience, here's what Zaki recommends"}
           </Text>
         </View>
 
+        {/* Zaki AI Banner */}
+        {!aiGeneratedProgram && (
+          <TouchableOpacity
+            style={[s.zakiAIBanner, { backgroundColor: pr + '12', borderColor: pr + '40' }]}
+            onPress={() => setShowZakiModal(true)}
+            activeOpacity={0.85}
+          >
+            <View style={s.zakiAILeft}>
+              <Text style={s.zakiAIEmoji}>🤖</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={[s.zakiAITitle, { color: pr }]}>Let Zaki Build My Program</Text>
+                <Text style={[s.zakiAISub, { color: mt }]}>
+                  Custom exercises based on your weak points, injuries & preferences
+                </Text>
+              </View>
+            </View>
+            <Text style={{ color: pr, fontSize: 18 }}>›</Text>
+          </TouchableOpacity>
+        )}
+
+        {/* AI Generated Badge */}
+        {aiGeneratedProgram && (
+          <View style={[s.aiBadge, { backgroundColor: '#22C55E15', borderColor: '#22C55E40' }]}>
+            <Text style={{ color: '#22C55E', fontSize: 13, fontWeight: '700' }}>
+              🤖 Zaki-Generated Program
+            </Text>
+            <TouchableOpacity onPress={() => setAiGeneratedProgram(null)} activeOpacity={0.7}>
+              <Text style={{ color: mt, fontSize: 12 }}>Use template instead</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Program Card */}
         <View style={[s.programCard, { backgroundColor: surf, borderColor: bord }]}>
           <View style={s.programHeader}>
-            <Text style={[s.programName, { color: fg }]}>{template.name}</Text>
+            <Text style={[s.programName, { color: fg }]}>{activeProgram.name}</Text>
             <View style={[s.badge, { backgroundColor: pr + '20' }]}>
               <Text style={[s.badgeText, { color: pr }]}>{trainingDays}x/week</Text>
             </View>
           </View>
-          <Text style={[s.programDesc, { color: mt }]}>{template.description}</Text>
+          <Text style={[s.programDesc, { color: mt }]}>{activeProgram.description}</Text>
         </View>
 
         {/* Weekly Schedule */}
@@ -217,16 +427,17 @@ export default function ProgramSetupScreen() {
         <View style={[s.zakiNote, { backgroundColor: pr + '10', borderColor: pr + '30' }]}>
           <Text style={[s.zakiNoteTitle, { color: pr }]}>Zaki says</Text>
           <Text style={[s.zakiNoteText, { color: fg }]}>
-            This program is your starting point. As you train, I'll learn your strengths and weaknesses.
-            Ask me anytime to adjust exercises, add cardio sessions, or change the schedule.
+            {aiGeneratedProgram
+              ? `This program was built specifically for you. ${(aiGeneratedProgram as any).zakiNotes || 'Train hard, recover well, and ask me anytime to adjust.'}`
+              : 'This program is your starting point. As you train, I\'ll learn your strengths and weaknesses. Ask me anytime to adjust exercises, add cardio sessions, or change the schedule.'}
           </Text>
         </View>
 
         {/* Action Buttons */}
         <View style={s.actions}>
           <TouchableOpacity
-            style={[s.applyBtn, { backgroundColor: pr }]}
-            onPress={handleApply}
+            style={[s.applyBtn, { backgroundColor: aiGeneratedProgram ? '#22C55E' : pr }]}
+            onPress={aiGeneratedProgram ? handleApplyAI : handleApply}
             disabled={applying}
             activeOpacity={0.8}
           >
@@ -234,53 +445,59 @@ export default function ProgramSetupScreen() {
               <ActivityIndicator color="#fff" />
             ) : (
               <Text style={s.applyBtnText}>
-                {isChangeMode ? 'Switch to This Program' : 'Start This Program'}
+                {aiGeneratedProgram
+                  ? '🤖 Start Zaki\'s Program'
+                  : isChangeMode ? 'Switch to This Program' : 'Start This Program'}
               </Text>
             )}
           </TouchableOpacity>
 
           {/* Browse All Programs */}
-          <TouchableOpacity
-            style={[s.skipBtn, { borderColor: pr, marginBottom: 4 }]}
-            onPress={() => setShowBrowse(!showBrowse)}
-            activeOpacity={0.7}
-          >
-            <Text style={[s.skipBtnText, { color: pr }]}>
-              {showBrowse ? 'Hide Other Programs' : 'Browse All Programs'}
-            </Text>
-          </TouchableOpacity>
-
-          {showBrowse && allTemplates.filter(t => t.id !== template.id).map(t => {
-            const tDays = Object.values(t.weeklySchedule).filter(s => s !== 'rest').length;
-            const isCurrent = t.name === currentProgramName;
-            return (
+          {!aiGeneratedProgram && (
+            <>
               <TouchableOpacity
-                key={t.id}
-                style={[s.sessionCard, {
-                  backgroundColor: isCurrent ? pr + '08' : surf,
-                  borderColor: isCurrent ? pr : bord,
-                  marginBottom: 8,
-                }]}
-                onPress={() => {
-                  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setTemplate(t);
-                  setShowBrowse(false);
-                }}
+                style={[s.skipBtn, { borderColor: pr, marginBottom: 4 }]}
+                onPress={() => setShowBrowse(!showBrowse)}
                 activeOpacity={0.7}
               >
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                  <Text style={[s.sessionName, { color: fg, marginBottom: 0, flex: 1 }]}>{t.name}</Text>
-                  <View style={[s.badge, { backgroundColor: pr + '20' }]}>
-                    <Text style={[s.badgeText, { color: pr }]}>{tDays}x/week</Text>
-                  </View>
-                </View>
-                <Text style={{ color: mt, fontSize: 13, lineHeight: 18 }}>{t.description}</Text>
-                {isCurrent && (
-                  <Text style={{ color: pr, fontSize: 11, fontWeight: '700', marginTop: 6 }}>CURRENT PROGRAM</Text>
-                )}
+                <Text style={[s.skipBtnText, { color: pr }]}>
+                  {showBrowse ? 'Hide Other Programs' : 'Browse All Programs'}
+                </Text>
               </TouchableOpacity>
-            );
-          })}
+
+              {showBrowse && allTemplates.filter(t => t.id !== template?.id).map(t => {
+                const tDays = Object.values(t.weeklySchedule).filter(s => s !== 'rest').length;
+                const isCurrent = t.name === currentProgramName;
+                return (
+                  <TouchableOpacity
+                    key={t.id}
+                    style={[s.sessionCard, {
+                      backgroundColor: isCurrent ? pr + '08' : surf,
+                      borderColor: isCurrent ? pr : bord,
+                      marginBottom: 8,
+                    }]}
+                    onPress={() => {
+                      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setTemplate(t);
+                      setShowBrowse(false);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                      <Text style={[s.sessionName, { color: fg, marginBottom: 0, flex: 1 }]}>{t.name}</Text>
+                      <View style={[s.badge, { backgroundColor: pr + '20' }]}>
+                        <Text style={[s.badgeText, { color: pr }]}>{tDays}x/week</Text>
+                      </View>
+                    </View>
+                    <Text style={{ color: mt, fontSize: 13, lineHeight: 18 }}>{t.description}</Text>
+                    {isCurrent && (
+                      <Text style={{ color: pr, fontSize: 11, fontWeight: '700', marginTop: 6 }}>CURRENT PROGRAM</Text>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </>
+          )}
 
           <TouchableOpacity
             style={[s.skipBtn, { borderColor: bord }]}
@@ -293,6 +510,157 @@ export default function ProgramSetupScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* ── Zaki AI Questionnaire Modal ── */}
+      <Modal
+        visible={showZakiModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => !generatingAI && setShowZakiModal(false)}
+      >
+        <KeyboardAvoidingView
+          style={{ flex: 1, backgroundColor: bg }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <ScrollView
+            contentContainerStyle={{ padding: 24, paddingBottom: 60 }}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* Modal Header */}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+              <View>
+                <Text style={{ color: fg, fontSize: 22, fontWeight: '700' }}>🤖 Zaki's Program Builder</Text>
+                <Text style={{ color: mt, fontSize: 14, marginTop: 4 }}>
+                  Answer a few questions for a fully custom program
+                </Text>
+              </View>
+              {!generatingAI && (
+                <TouchableOpacity onPress={() => setShowZakiModal(false)} activeOpacity={0.7}>
+                  <Text style={{ color: mt, fontSize: 28, lineHeight: 32 }}>×</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {generatingAI ? (
+              <View style={{ alignItems: 'center', paddingVertical: 60, gap: 20 }}>
+                <ActivityIndicator size="large" color={pr} />
+                <Text style={{ color: fg, fontSize: 17, fontWeight: '600', textAlign: 'center' }}>
+                  {generationStatus}
+                </Text>
+                <Text style={{ color: mt, fontSize: 14, textAlign: 'center', lineHeight: 20 }}>
+                  Zaki is analyzing your training history and designing a program tailored to your body and goals...
+                </Text>
+              </View>
+            ) : (
+              <>
+                {/* Days per week */}
+                <View style={s.qSection}>
+                  <Text style={[s.qLabel, { color: fg }]}>How many days can you train per week?</Text>
+                  <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+                    {[2, 3, 4, 5, 6].map(d => (
+                      <TouchableOpacity
+                        key={d}
+                        style={[s.dayChip, {
+                          backgroundColor: questionnaire.daysPerWeek === d ? pr : surf,
+                          borderColor: questionnaire.daysPerWeek === d ? pr : bord,
+                        }]}
+                        onPress={() => {
+                          if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          setQuestionnaire(q => ({ ...q, daysPerWeek: d }));
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={{ color: questionnaire.daysPerWeek === d ? '#fff' : fg, fontWeight: '600' }}>{d}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                {/* Weak points */}
+                <View style={s.qSection}>
+                  <Text style={[s.qLabel, { color: fg }]}>What are your weak points or lagging muscle groups?</Text>
+                  <Text style={[s.qHint, { color: mt }]}>e.g. "Chest is lagging, arms are weak, poor shoulder mobility"</Text>
+                  <TextInput
+                    style={[s.qInput, { backgroundColor: surf, borderColor: bord, color: fg }]}
+                    value={questionnaire.weakPoints}
+                    onChangeText={v => setQuestionnaire(q => ({ ...q, weakPoints: v }))}
+                    placeholder="Your weak points..."
+                    placeholderTextColor={mt}
+                    multiline
+                    numberOfLines={2}
+                    returnKeyType="done"
+                  />
+                </View>
+
+                {/* Injury history */}
+                <View style={s.qSection}>
+                  <Text style={[s.qLabel, { color: fg }]}>Any injuries or areas to avoid?</Text>
+                  <Text style={[s.qHint, { color: mt }]}>e.g. "Left shoulder impingement, lower back pain"</Text>
+                  <TextInput
+                    style={[s.qInput, { backgroundColor: surf, borderColor: bord, color: fg }]}
+                    value={questionnaire.injuryHistory}
+                    onChangeText={v => setQuestionnaire(q => ({ ...q, injuryHistory: v }))}
+                    placeholder="Injuries or limitations (or leave blank)..."
+                    placeholderTextColor={mt}
+                    multiline
+                    numberOfLines={2}
+                    returnKeyType="done"
+                  />
+                </View>
+
+                {/* Preferred exercises */}
+                <View style={s.qSection}>
+                  <Text style={[s.qLabel, { color: fg }]}>Exercises you enjoy or want included?</Text>
+                  <Text style={[s.qHint, { color: mt }]}>e.g. "Love deadlifts and pull-ups, want more back work"</Text>
+                  <TextInput
+                    style={[s.qInput, { backgroundColor: surf, borderColor: bord, color: fg }]}
+                    value={questionnaire.preferredExercises}
+                    onChangeText={v => setQuestionnaire(q => ({ ...q, preferredExercises: v }))}
+                    placeholder="Preferred exercises (or leave blank)..."
+                    placeholderTextColor={mt}
+                    multiline
+                    numberOfLines={2}
+                    returnKeyType="done"
+                  />
+                </View>
+
+                {/* Avoided exercises */}
+                <View style={s.qSection}>
+                  <Text style={[s.qLabel, { color: fg }]}>Exercises to avoid?</Text>
+                  <Text style={[s.qHint, { color: mt }]}>e.g. "No barbell squats, avoid overhead pressing"</Text>
+                  <TextInput
+                    style={[s.qInput, { backgroundColor: surf, borderColor: bord, color: fg }]}
+                    value={questionnaire.avoidedExercises}
+                    onChangeText={v => setQuestionnaire(q => ({ ...q, avoidedExercises: v }))}
+                    placeholder="Exercises to avoid (or leave blank)..."
+                    placeholderTextColor={mt}
+                    multiline
+                    numberOfLines={2}
+                    returnKeyType="done"
+                  />
+                </View>
+
+                {/* Generate button */}
+                <TouchableOpacity
+                  style={[s.applyBtn, { backgroundColor: pr, marginTop: 8 }]}
+                  onPress={handleGenerateWithZaki}
+                  activeOpacity={0.85}
+                >
+                  <Text style={s.applyBtnText}>🤖 Generate My Program</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={{ alignItems: 'center', marginTop: 16 }}
+                  onPress={() => setShowZakiModal(false)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={{ color: mt, fontSize: 14 }}>Cancel</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </Modal>
     </ScreenContainer>
   );
 }
@@ -325,6 +693,42 @@ const s = StyleSheet.create({
   headerSubtitle: {
     fontSize: 15,
     lineHeight: 22,
+  },
+  zakiAIBanner: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  zakiAILeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  zakiAIEmoji: {
+    fontSize: 28,
+  },
+  zakiAITitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 3,
+  },
+  zakiAISub: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  aiBadge: {
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 12,
+    marginBottom: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   programCard: {
     borderRadius: 16,
@@ -460,5 +864,37 @@ const s = StyleSheet.create({
   },
   skipBtnText: {
     fontSize: 15,
+  },
+  // Questionnaire styles
+  qSection: {
+    marginBottom: 24,
+  },
+  qLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    lineHeight: 22,
+    marginBottom: 4,
+  },
+  qHint: {
+    fontSize: 12,
+    lineHeight: 18,
+    marginBottom: 8,
+  },
+  qInput: {
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 12,
+    fontSize: 14,
+    lineHeight: 20,
+    minHeight: 60,
+    textAlignVertical: 'top',
+  },
+  dayChip: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

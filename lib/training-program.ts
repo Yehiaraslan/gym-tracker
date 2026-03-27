@@ -14,7 +14,7 @@ export interface ProgramExercise {
   repsMax: number;
   restSeconds: number;
   notes: string;
-  muscleGroup: 'upper' | 'lower';
+  muscleGroup: 'upper' | 'lower' | 'core';
   bodyPart: BodyPart;
   category: 'compound' | 'isolation';
 }
@@ -423,7 +423,7 @@ export interface AlternativeExercise {
   repsMax: number;
   restSeconds: number;
   notes: string;
-  muscleGroup: 'upper' | 'lower';
+  muscleGroup: 'upper' | 'lower' | 'core';
   bodyPart: BodyPart;
   category: 'compound' | 'isolation';
 }

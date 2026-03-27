@@ -916,4 +916,17 @@
 - [x] Add "Change Program" card in Profile screen with Browse All Programs
 - [x] Program progression logic — getProgramProgress + suggestNextProgram + archiveProgram + loadProgramHistory
 - [x] Show program progress bar (active) and completion banner (done) on Home screen
-- [ ] Push all changes to GitHub repository (pending)
+- [x] Push all changes to GitHub repository
+
+## Batch 13 — Zaki AI Programs + Program History Screen (Mar 28)
+- [x] Zaki AI program generation — server-side LLM call (zakiProgramService.ts) creates fully custom exercise selections based on goal, experience, equipment, weaknesses, and recent workout history
+- [x] generateProgram tRPC procedure added to zaki router in routers.ts
+- [x] program-setup.tsx rewritten — "Let Zaki Build My Program" button opens questionnaire modal with streaming generation status
+- [x] Zaki asks targeted questions (weak points, injury history, preferred exercises, training days/week) before generating
+- [x] LLM returns structured JSON: sessions, exercises, sets/reps, rest, weekly schedule, nutrition targets
+- [x] Validate and apply AI-generated program to custom-program-store + schedule-store
+- [x] ProgramExercise.muscleGroup widened to include 'core' across training-program.ts, coach-engine.ts, fitness-utils.ts
+- [x] Program History screen (app/program-history.tsx) — expandable cards with workouts, PRs, volume, schedule grid
+- [x] Wire Program History into Profile screen (new "Program History" row with amber dot)
+- [x] All 305 tests pass
+- [ ] Push all changes to GitHub

@@ -240,7 +240,7 @@ export function checkProgressiveOverload(
   exerciseName: string,
   sets: { weight: number; reps: number }[],
   repsMax: number,
-  muscleGroup: 'upper' | 'lower',
+  muscleGroup: 'upper' | 'lower' | 'core',
 ): CoachRecommendation | null {
   if (sets.length === 0) return null;
   const allHitTop = sets.every(s => s.reps >= repsMax);

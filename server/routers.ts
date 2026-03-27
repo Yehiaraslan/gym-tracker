@@ -8,6 +8,7 @@ import * as whoopStateDb from "./whoopStateDb";
 import * as whoopDb from "./whoopDb";
 import * as aiCoach from "./ai-coaching-service";
 import * as zaki from "./zakiService";
+import * as zakiProgram from "./zakiProgramService";
 import * as zakiDigest from "./zakiDailyDigest";
 import { checkAndNotifyStagnation } from "./stagnationScheduler";
 import { ENV } from './_core/env';
@@ -457,6 +458,27 @@ export const appRouter = router({
       .mutation(async () => {
         const result = await checkAndNotifyStagnation();
         return result;
+      }),
+    // Generate a fully custom AI training program
+    generateProgram: publicProcedure
+      .input(z.object({
+        goal: z.string(),
+        experience: z.string(),
+        equipment: z.string(),
+        daysPerWeek: z.number().min(2).max(6),
+        weakPoints: z.string().default(''),
+        injuryHistory: z.string().default(''),
+        preferredExercises: z.string().default(''),
+        avoidedExercises: z.string().default(''),
+        recentPRs: z.string().default(''),
+        bodyWeightKg: z.number().default(80),
+        heightCm: z.number().default(175),
+        age: z.number().default(30),
+        recentWorkoutHistory: z.string().default(''),
+      }))
+      .mutation(async ({ input }) => {
+        const program = await zakiProgram.generateZakiProgram(input);
+        return { program };
       }),
 
     // Propose a new training schedule based on user's request and full context
