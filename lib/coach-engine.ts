@@ -38,7 +38,7 @@ function analyzeWeightTrend(entries: WeightEntry[]): CoachRecommendation | null 
   if (diff > 0.5) {
     return {
       id: generateId(),
-      date: new Date().toISOString().split('T')[0],
+      date: new Date().toLocaleDateString('en-CA'),
       type: 'nutrition',
       message: `Weight trending up (+${diff.toFixed(1)} kg). If this is unintended, consider reducing daily calories by 200-300.`,
       actionable: 'Review your calorie intake and adjust portions.',
@@ -50,7 +50,7 @@ function analyzeWeightTrend(entries: WeightEntry[]): CoachRecommendation | null 
   if (diff < -0.5) {
     return {
       id: generateId(),
-      date: new Date().toISOString().split('T')[0],
+      date: new Date().toLocaleDateString('en-CA'),
       type: 'nutrition',
       message: `Weight trending down (${diff.toFixed(1)} kg). If bulking, increase daily calories by 200-300.`,
       actionable: 'Add an extra meal or increase portion sizes.',
@@ -75,7 +75,7 @@ function analyzeSleep(entries: SleepEntry[]): CoachRecommendation | null {
   if (avgDuration < 7) {
     return {
       id: generateId(),
-      date: new Date().toISOString().split('T')[0],
+      date: new Date().toLocaleDateString('en-CA'),
       type: 'recovery',
       message: `Average sleep is ${avgDuration.toFixed(1)}h — below the 7-8h target. Sleep debt impairs muscle recovery and strength gains.`,
       actionable: 'Set a consistent bedtime alarm 8 hours before your wake time.',
@@ -87,7 +87,7 @@ function analyzeSleep(entries: SleepEntry[]): CoachRecommendation | null {
   if (avgQuality < 3) {
     return {
       id: generateId(),
-      date: new Date().toISOString().split('T')[0],
+      date: new Date().toLocaleDateString('en-CA'),
       type: 'recovery',
       message: `Sleep quality averaging ${avgQuality.toFixed(1)}/5. Poor sleep quality reduces testosterone and growth hormone.`,
       actionable: 'Avoid screens 1h before bed. Keep room cool and dark.',
@@ -129,7 +129,7 @@ function detectStrengthStalls(store: GymStore): CoachRecommendation | null {
       if (allSame) {
         return {
           id: generateId(),
-          date: new Date().toISOString().split('T')[0],
+          date: new Date().toLocaleDateString('en-CA'),
           type: 'training',
           message: `${name} has stalled at ${last3[0]} kg for 3 sessions. Time to apply progressive overload.`,
           actionable: 'Try adding 2.5 kg, or increase reps by 1-2 before adding weight.',
@@ -148,7 +148,7 @@ function checkDeloadNeeded(store: GymStore): CoachRecommendation | null {
   if (store.mesocycle.currentWeek >= 5 && !store.mesocycle.isDeload) {
     return {
       id: generateId(),
-      date: new Date().toISOString().split('T')[0],
+      date: new Date().toLocaleDateString('en-CA'),
       type: 'recovery',
       message: 'Week 5 of mesocycle — time for a deload week. Reduce volume by 40-50% to allow recovery.',
       actionable: 'Use 60% of normal working weights. Keep sets at 2 instead of 3-4.',
@@ -161,7 +161,7 @@ function checkDeloadNeeded(store: GymStore): CoachRecommendation | null {
 
 // Check protein intake
 function checkProteinIntake(store: GymStore): CoachRecommendation | null {
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date().toLocaleDateString('en-CA');
   const recentLogs = store.nutritionLogs
     .filter(l => {
       const diff = Math.abs(new Date(today).getTime() - new Date(l.date).getTime());
@@ -201,7 +201,7 @@ const WEIGHT_KEY_CE = '@gym_tracker_weight';
 export async function getMesocycleStartDate(): Promise<string> {
   const data = await AsyncStorage.getItem(MESO_KEY);
   if (data) return data;
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date().toLocaleDateString('en-CA');
   await AsyncStorage.setItem(MESO_KEY, today);
   return today;
 }
@@ -251,7 +251,7 @@ export function checkProgressiveOverload(
 
   return {
     id: generateId(),
-    date: new Date().toISOString().split('T')[0],
+    date: new Date().toLocaleDateString('en-CA'),
     type: 'overload',
     message: `${exerciseName}: Hit top of rep range on all sets!`,
     actionable: `Increase weight to ${currentWeight + increment}kg next session (+${increment}kg)`,

@@ -104,7 +104,7 @@ export async function triggerMissedWorkoutNotification(): Promise<void> {
 
   // Check if today's workout was completed
   const recentWorkouts = await getRecentSplitWorkouts(1);
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date().toLocaleDateString('en-CA');
   const todayWorkout = recentWorkouts.find(w => w.date === today && w.completed);
 
   if (todayWorkout) return; // Workout was done, no need to alert

@@ -25,7 +25,7 @@ const defaultState: GymStore = {
     cooldownExercises: [],
   },
   settings: {
-    cycleStartDate: new Date().toISOString().split('T')[0],
+    cycleStartDate: new Date().toLocaleDateString('en-CA'),
     currentCycle: 1,
   },
   nutritionLogs: [],
@@ -33,7 +33,7 @@ const defaultState: GymStore = {
   weightEntries: [],
   mesocycle: {
     id: 'meso-1',
-    startDate: new Date().toISOString().split('T')[0],
+    startDate: new Date().toLocaleDateString('en-CA'),
     currentWeek: 1,
     totalWeeks: 5,
     isDeload: false,

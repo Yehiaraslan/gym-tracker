@@ -46,7 +46,7 @@ function makeId(): string {
 }
 
 function getTodayString(): string {
-  return new Date().toISOString().split('T')[0];
+  return new Date().toLocaleDateString('en-CA');
 }
 
 function getDefaultNutrition(date?: string): DailyNutrition {

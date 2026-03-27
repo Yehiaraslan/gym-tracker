@@ -99,8 +99,8 @@ export async function getWeeklyRecommendations(): Promise<WeeklyRecommendation[]
     const startDate = new Date(today);
     startDate.setDate(today.getDate() - 7);
 
-    const startStr = startDate.toISOString().split('T')[0];
-    const endStr = today.toISOString().split('T')[0];
+    const startStr = startDate.toLocaleDateString('en-CA');
+    const endStr = today.toLocaleDateString('en-CA');
 
     const recoveries = await getRecoveryRange(startStr, endStr);
 
@@ -152,7 +152,7 @@ export async function findNextGoodTrainingDay(): Promise<string | null> {
       
       // Assume recovery improves over time
       if (i >= 2) {
-        return checkDate.toISOString().split('T')[0];
+        return checkDate.toLocaleDateString('en-CA');
       }
     }
 

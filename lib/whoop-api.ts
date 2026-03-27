@@ -71,7 +71,7 @@ export async function getTodayRecovery(): Promise<WhoopRecovery | null> {
     if (!token) return null;
 
     const today = new Date();
-    const startDate = today.toISOString().split('T')[0];
+    const startDate = today.toLocaleDateString('en-CA');
 
     const response = await fetch(
       `${WHOOP_API_BASE}/recovery?start=${startDate}T00:00:00Z&end=${startDate}T23:59:59Z`,
@@ -135,7 +135,7 @@ export async function getTodayWorkouts(): Promise<WhoopWorkout[]> {
     if (!token) return [];
 
     const today = new Date();
-    const startDate = today.toISOString().split('T')[0];
+    const startDate = today.toLocaleDateString('en-CA');
 
     const response = await fetch(
       `${WHOOP_API_BASE}/workout?start=${startDate}T00:00:00Z&end=${startDate}T23:59:59Z`,

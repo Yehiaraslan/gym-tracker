@@ -18,7 +18,7 @@ export default function BodyMeasurementsScreen() {
   const router = useRouter();
   const colors = useColors();
   const { store, updateStore } = useGym();
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date().toLocaleDateString('en-CA');
 
   const [weight, setWeight] = useState('');
   const [bodyFat, setBodyFat] = useState('');

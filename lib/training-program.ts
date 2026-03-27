@@ -388,7 +388,8 @@ export function getMissedSessions(
   for (let i = lookbackDays; i >= 1; i--) {
     const d = new Date(today);
     d.setDate(today.getDate() - i);
-    const dateStr = d.toISOString().split('T')[0];
+    // Use local date string to avoid UTC offset issues (e.g., Dubai UTC+4 at midnight)
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     const session = getSessionForDate(d);
 
     // Only flag scheduled training days that have no completed workout

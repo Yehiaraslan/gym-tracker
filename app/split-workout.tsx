@@ -48,6 +48,7 @@ import {
   consumePendingWeights,
 } from '@/lib/split-workout-store';
 import { calculateVolumeLoad, deloadWeight, getWarmupSets, epley1RM } from '@/lib/fitness-utils';
+import { localDateStr } from '@/lib/utils';
 import { checkProgressiveOverload, saveRecommendation } from '@/lib/coach-engine';
 import { recordWorkout } from '@/lib/streak-tracker';
 import { generateId } from '@/lib/types';
@@ -459,7 +460,7 @@ export default function SplitWorkoutScreen() {
 
     const session: SplitWorkoutSession = {
       id: generateId(),
-      date: new Date().toISOString().split('T')[0],
+      date: localDateStr(),
       sessionType,
       exercises: exerciseLogs,
       startTime: startTime.toISOString(),

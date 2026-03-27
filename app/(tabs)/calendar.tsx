@@ -58,7 +58,7 @@ export default function CalendarScreen() {
       const offsetDays = (selectedWeek - 1) * 7 + (day - 1);
       const d = new Date(start);
       d.setDate(d.getDate() + offsetDays);
-      const isoDate = d.toISOString().split('T')[0];
+      const isoDate = d.toLocaleDateString('en-CA');
       days.push({
         dayNumber: day,
         dayName: getDayName(day),
@@ -98,7 +98,7 @@ export default function CalendarScreen() {
     const offsetDays = (week - 1) * 7 + (day - 1);
     const d = new Date(start);
     d.setDate(d.getDate() + offsetDays);
-    return d.toISOString().split('T')[0];
+    return d.toLocaleDateString('en-CA');
   }, [store.settings.cycleStartDate]);
 
   const selectedDayProgram = selectedDay ? weekProgram.find(d => d.dayNumber === selectedDay) : null;
@@ -233,7 +233,7 @@ export default function CalendarScreen() {
               const isToday = selectedWeek === currentCycleInfo.week && day.dayNumber === currentCycleInfo.day;
               const isSelected = selectedDay === day.dayNumber;
               const isCompleted = completedDates.has(day.isoDate);
-              const isPast = new Date(day.isoDate) < new Date(new Date().toISOString().split('T')[0]);
+              const isPast = new Date(day.isoDate) < new Date(new Date().toLocaleDateString('en-CA'));
               
               return (
                 <TouchableOpacity

@@ -164,7 +164,7 @@ async function migrateStreak(): Promise<void> {
     syncStreak({
       currentStreak: data.currentStreak,
       bestStreak: data.bestStreak,
-      lastWorkoutDate: data.lastWorkoutDate ?? new Date().toISOString().split('T')[0],
+      lastWorkoutDate: data.lastWorkoutDate ?? new Date().toLocaleDateString('en-CA'),
       totalWorkouts: data.workoutDates.length,
     });
     console.log('[Migration] Migrated streak data.');

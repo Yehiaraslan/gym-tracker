@@ -21,7 +21,7 @@ const DEFAULT_STREAK_DATA: StreakData = {
  * Get the current date as ISO string (YYYY-MM-DD)
  */
 function getDateString(date: Date = new Date()): string {
-  return date.toISOString().split('T')[0];
+  return date.toLocaleDateString('en-CA');
 }
 
 /**
@@ -64,7 +64,7 @@ async function saveStreakData(data: StreakData): Promise<void> {
   syncStreak({
     currentStreak: data.currentStreak,
     bestStreak: data.bestStreak,
-    lastWorkoutDate: data.lastWorkoutDate ?? new Date().toISOString().split('T')[0],
+    lastWorkoutDate: data.lastWorkoutDate ?? new Date().toLocaleDateString('en-CA'),
     totalWorkouts: data.workoutDates.length,
   });
 }

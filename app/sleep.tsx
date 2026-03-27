@@ -22,7 +22,7 @@ export default function SleepScreen() {
   const router = useRouter();
   const colors = useColors();
   const { store, updateStore } = useGym();
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date().toLocaleDateString('en-CA');
 
   const [bedtime, setBedtime] = useState('23:00');
   const [wakeTime, setWakeTime] = useState('07:00');

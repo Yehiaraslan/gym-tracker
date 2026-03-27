@@ -125,7 +125,7 @@ export async function getWeeklyRecoveryData(): Promise<WeeklyRecoveryData[]> {
       const baseSleep = 75 + Math.random() * 15;
 
       demoData.push({
-        date: date.toISOString().split('T')[0],
+        date: date.toLocaleDateString('en-CA'),
         recoveryScore: Math.round(baseRecovery),
         strain: Math.round(baseStrain * 10) / 10,
         sleepScore: Math.round(baseSleep),

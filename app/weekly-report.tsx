@@ -88,7 +88,7 @@ export default function WeeklyReportScreen() {
       const now = new Date();
       const weekAgo = new Date(now);
       weekAgo.setDate(weekAgo.getDate() - 7);
-      const weekAgoStr = weekAgo.toISOString().split('T')[0];
+      const weekAgoStr = weekAgo.toLocaleDateString('en-CA');
 
       // Get this week's workouts
       const allWorkouts = await getRecentSplitWorkouts(30);
@@ -121,7 +121,7 @@ export default function WeeklyReportScreen() {
       const prevWeights = weightEntries.filter(e => {
         const twoWeeksAgo = new Date(now);
         twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
-        return e.date >= twoWeeksAgo.toISOString().split('T')[0] && e.date < weekAgoStr;
+        return e.date >= twoWeeksAgo.toLocaleDateString('en-CA') && e.date < weekAgoStr;
       });
       const avgRecent = recentWeights.length > 0 ? recentWeights.reduce((s: number, e) => s + (e.weightKg ?? e.weight ?? 0), 0) / recentWeights.length : null;
       const avgPrev = prevWeights.length > 0 ? prevWeights.reduce((s: number, e) => s + (e.weightKg ?? e.weight ?? 0), 0) / prevWeights.length : null;

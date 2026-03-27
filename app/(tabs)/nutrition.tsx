@@ -124,7 +124,7 @@ function MacroRing({
 // ── Main component ───────────────────────────────────────────
 export default function NutritionTab() {
   const colors = useColors();
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date().toLocaleDateString('en-CA');
 
   // ── Local state ──────────────────────────────────────────
   const [todayLog, setTodayLog] = useState<DailyNutrition | null>(null);

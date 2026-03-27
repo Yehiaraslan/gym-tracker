@@ -460,7 +460,7 @@ export default function ProgressPicturesScreen() {
     const newPic: ProgressPicture = {
       id: Date.now().toString(),
       uri: permanentUri,
-      date: new Date().toISOString().split('T')[0],
+      date: new Date().toLocaleDateString('en-CA'),
       label: addLabel,
       note: '',
     };

@@ -243,7 +243,7 @@ export async function get1RMHistory(exerciseName: string): Promise<{ date: strin
 export async function getVolumeHistory(sessionType: SessionType, daysBack?: number): Promise<{ date: string; volume: number }[]> {
   const workouts = await getSplitWorkouts();
   const cutoff = daysBack
-    ? new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    ? new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000).toLocaleDateString('en-CA')
     : null;
   return workouts
     .filter(w => w.completed && w.sessionType === sessionType && (!cutoff || w.date >= cutoff))

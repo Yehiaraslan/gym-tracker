@@ -865,3 +865,7 @@
 - [x] Load These Weights button in Zaki schedule confirmation card — pre-fills first set weights on next workout open
 
 - [x] BUG FIX: Week strip shows wrong day as today — fixed UTC offset issue (Dubai UTC+4) and fixed getWeekScheduleFromStore to always start from Sunday of the current week
+
+- [ ] BUG FIX: Missed session banners use UTC date comparison — fix to local date
+- [ ] BUG FIX: Workout completion dot uses UTC date comparison — fix to local date
+- [ ] BUG FIX: Mesocycle start date / deload countdown has UTC offset issue

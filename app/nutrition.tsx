@@ -36,7 +36,7 @@ export default function NutritionScreen() {
   const router = useRouter();
   const colors = useColors();
   const { store, updateStore } = useGym();
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date().toLocaleDateString('en-CA');
 
   const [showFoodSearch, setShowFoodSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');

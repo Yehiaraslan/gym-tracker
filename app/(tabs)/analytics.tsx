@@ -129,7 +129,7 @@ export default function ProgressScreen() {
   const avgRecovery = weeklyRecovery.length > 0 ? getWeeklyAverageRecovery(weeklyRecovery) : null;
 
   // Protein tracking
-  const todayNutrition = nutrition.find(n => n.date === new Date().toISOString().split('T')[0]);
+  const todayNutrition = nutrition.find(n => n.date === new Date().toLocaleDateString('en-CA'));
   const todayMacros = todayNutrition ? getMacroTotals(todayNutrition.meals) : { protein: 0, carbs: 0, fat: 0, calories: 0 };
   const proteinTarget = NUTRITION_TARGETS.training.protein;
   const proteinPercent = Math.min(100, Math.round((todayMacros.protein / proteinTarget) * 100));

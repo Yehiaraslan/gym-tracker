@@ -227,7 +227,7 @@ export default function AICoachingDashboard() {
       const allWorkouts = await getSplitWorkouts();
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
-      const yDate = yesterday.toISOString().split('T')[0];
+      const yDate = yesterday.toLocaleDateString('en-CA');
       const yWorkout = allWorkouts
         .filter(w => w.completed && w.date.startsWith(yDate))
         .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())[0];
@@ -303,7 +303,7 @@ export default function AICoachingDashboard() {
       const today = new Date();
       const deloadStartDate = new Date(today);
       deloadStartDate.setDate(today.getDate() - 28); // 4 weeks ago = week 5 now
-      const newStartDate = deloadStartDate.toISOString().split('T')[0];
+      const newStartDate = deloadStartDate.toLocaleDateString('en-CA');
       await AsyncStorage.setItem(MESO_KEY, newStartDate);
       setDeloadScheduled(true);
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

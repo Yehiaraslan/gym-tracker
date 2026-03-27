@@ -99,7 +99,7 @@ export default function WorkoutScreen() {
 
       const log: WorkoutLog = {
         id: generateId(),
-        date: new Date().toISOString().split('T')[0],
+        date: new Date().toLocaleDateString('en-CA'),
         cycleNumber: currentCycleInfo.cycle,
         weekNumber: currentCycleInfo.week,
         dayNumber: currentCycleInfo.day,

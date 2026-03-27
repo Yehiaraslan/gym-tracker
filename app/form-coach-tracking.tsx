@@ -51,6 +51,7 @@ import {
 import { ConfidenceLegend } from '@/components/confidence-legend';
 import { JointLossAlertManager } from '@/lib/joint-loss-alert';
 import { saveFormCoachSession } from '@/lib/split-workout-store';
+import { localDateStr } from '@/lib/utils';
 import { generateId } from '@/lib/types';
 
 // Helper to get summary with additional fields
@@ -428,7 +429,7 @@ export default function FormCoachTrackingScreen() {
     // Persist the form coach session for Rep History
     if (sessionRef.current && currentRep > 0) {
       const summary = getFormSummaryExtended(sessionRef.current);
-      const today = new Date().toISOString().split('T')[0];
+      const today = localDateStr();
       const exerciseNames: Record<string, string> = {
         pushup: 'Push-ups',
         pullup: 'Pull-ups',

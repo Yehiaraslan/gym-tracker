@@ -39,7 +39,7 @@ export function BodyMeasurementsView() {
   const [modalVisible, setModalVisible] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Record<string, string>>({
-    date: new Date().toISOString().split('T')[0],
+    date: new Date().toLocaleDateString('en-CA'),
     weight: '',
     chest: '',
     waist: '',
@@ -55,7 +55,7 @@ export function BodyMeasurementsView() {
 
   const resetForm = () => {
     setFormData({
-      date: new Date().toISOString().split('T')[0],
+      date: new Date().toLocaleDateString('en-CA'),
       weight: '',
       chest: '',
       waist: '',

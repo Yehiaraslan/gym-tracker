@@ -31,7 +31,7 @@ export async function addProgressPhoto(
     const newPhoto: ProgressPhoto = {
       id: `photo-${Date.now()}`,
       uri,
-      date: new Date().toISOString().split('T')[0],
+      date: new Date().toLocaleDateString('en-CA'),
       notes,
       category,
       createdAt: Date.now(),

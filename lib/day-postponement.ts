@@ -135,7 +135,7 @@ export function getNextAvailableDay(
   for (let i = 1; i <= daysToCheck; i++) {
     const nextDate = new Date(current);
     nextDate.setDate(nextDate.getDate() + i);
-    return nextDate.toISOString().split('T')[0];
+    return nextDate.toLocaleDateString('en-CA');
   }
   return currentDate;
 }
