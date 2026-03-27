@@ -453,21 +453,34 @@ export default function ProgressPicturesScreen() {
   });
 
   const addPicture = async (uri: string) => {
-    let permanentUri = uri;
     try {
-      permanentUri = await persistImage(uri, 'progress');
-    } catch { /* fall back to temp URI */ }
-    const newPic: ProgressPicture = {
-      id: Date.now().toString(),
-      uri: permanentUri,
-      date: new Date().toLocaleDateString('en-CA'),
-      label: addLabel,
-      note: '',
-    };
-    const updated = [newPic, ...pictures];
-    setPictures(updated);
-    await savePictures(updated);
-    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      const permanentUri = await persistImage(uri, 'progress');
+      const newPic: ProgressPicture = {
+        id: Date.now().toString(),
+        uri: permanentUri,
+        date: new Date().toLocaleDateString('en-CA'),
+        label: addLabel,
+        note: '',
+      };
+      const updated = [newPic, ...pictures];
+      setPictures(updated);
+      await savePictures(updated);
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (err) {
+      console.error('[progress-pictures] Failed to save photo:', err);
+      // Still save with the temp URI as fallback so the photo at least appears this session
+      const newPic: ProgressPicture = {
+        id: Date.now().toString(),
+        uri,
+        date: new Date().toLocaleDateString('en-CA'),
+        label: addLabel,
+        note: '',
+      };
+      const updated = [newPic, ...pictures];
+      setPictures(updated);
+      await savePictures(updated);
+      Alert.alert('Photo Saved', 'Photo was saved but may not persist after app restart. Please try again if the photo disappears.');
+    }
   };
 
   const handleAdd = () => {

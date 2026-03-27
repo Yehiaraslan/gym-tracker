@@ -21,6 +21,7 @@ import {
 import {
   getTodaySessionFromSchedule,
   getWeekScheduleFromStore,
+  getActiveSchedule,
 } from '@/lib/schedule-store';
 import {
   getRecentSplitWorkouts,
@@ -66,8 +67,11 @@ export default function HomeScreen() {
   const router = useRouter();
   const { store } = useGym();
 
-  // Async schedule: loads override from AsyncStorage on focus, falls back to default
-  const [todaySession, setTodaySession] = useState<SessionType>(getTodaySession());
+  // Async schedule: loads override from AsyncStorage on focus, falls back to default.
+  // Initial state is 'rest' until the async loadSchedule() resolves with the real value
+  // (which reads Zaki's schedule override from AsyncStorage).
+  const [todaySession, setTodaySession] = useState<SessionType>('rest');
+  const [scheduleLoaded, setScheduleLoaded] = useState(false);
   const [scheduleWeek, setScheduleWeek] = useState<{ date: Date; session: SessionType; dayName: string }[] | null>(null);
   const isRest = todaySession === 'rest';
   const today = new Date();
@@ -135,7 +139,9 @@ export default function HomeScreen() {
       ]);
       setTodaySession(session);
       setScheduleWeek(week);
-    } catch (_) {}
+    } catch (_) {} finally {
+      setScheduleLoaded(true);
+    }
   }, []);
 
   const loadData = useCallback(async () => {
@@ -155,9 +161,10 @@ export default function HomeScreen() {
       });
       setNutrition(nutritionData);
       setRecentWorkouts(workouts);
-      // Detect missed sessions in the last 7 days
+      // Detect missed sessions in the last 7 days (using Zaki's schedule override if set)
       const completedDates = workouts.filter(w => w.completed).map(w => w.date);
-      const missed = getMissedSessions(completedDates, 7);
+      const activeSchedule = await getActiveSchedule();
+      const missed = getMissedSessions(completedDates, 7, activeSchedule as Record<string, SessionType>);
       setMissedSessions(missed);
     } catch (_) {}
   }, []);

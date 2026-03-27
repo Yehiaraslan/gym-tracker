@@ -606,8 +606,8 @@ export default function AICoachingDashboard() {
 
     try {
       const snapshot = await buildUserSnapshot();
-      const contextLine = snapshotToPromptContext(snapshot).split('\n').slice(0, 6).join('\n');
-      const fullMessage = `[Context]\n${contextLine}\n\n[Question]\n${text}`;
+      const fullContext = snapshotToPromptContext(snapshot);
+      const fullMessage = `[Full Training Context]\n${fullContext}\n\n[User Question]\n${text}\n\n[Instructions]\nYou are Agent Zaki, an elite strength & conditioning coach. Use ALL the data above to give specific, data-driven answers. When discussing weights, reference the user's actual numbers from their workout history. When recovery is low (<50%), proactively suggest lighter alternatives. When the user asks about their body or progress, reference their progress photos and weight trend. Always be direct and actionable.`;
       const result = await zakiAskMutation.mutateAsync({
         message: fullMessage,
         zakiSessionId: zakiSessionIdRef.current,

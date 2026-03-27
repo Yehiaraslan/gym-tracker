@@ -31,6 +31,7 @@ import {
 import {
   loadScheduleOverride,
   getActiveSchedule,
+  getTodaySessionFromSchedule,
   scheduleToString,
   type ScheduleOverride,
 } from './schedule-store';
@@ -193,7 +194,8 @@ function computeVolumeTrend(
 
 export async function buildUserSnapshot(): Promise<UserSnapshot> {
   const now = new Date();
-  const todaySession = getTodaySession();
+  // Use schedule-aware session (reads Zaki's override from AsyncStorage)
+  const todaySession = await getTodaySessionFromSchedule();
 
   // Parallel data fetching
   const [

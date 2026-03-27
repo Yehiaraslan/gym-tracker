@@ -177,7 +177,12 @@ export async function getZakiDailyCoaching(context: {
   }
 
   lines.push('');
-  lines.push('Give me your coaching decision for today. Be direct and specific — what should I do, how should I train, and what should I focus on nutritionally?');
+  lines.push('Give me your coaching decision for today. Be direct and specific:');
+  lines.push('1. Should I train today or rest? If training, confirm the session type.');
+  lines.push('2. Based on my recovery score, should I adjust my working weights? If recovery <50%, suggest specific % reductions for compound lifts.');
+  lines.push('3. What should I focus on nutritionally today? Reference my actual intake vs targets.');
+  lines.push('4. Any specific exercise modifications based on my recent performance trends?');
+  lines.push('Be data-driven — reference my actual numbers, not generic advice.');
 
   const result = await askZaki(lines.join('\n'));
   return result.response;
@@ -202,7 +207,12 @@ export async function getZakiWorkoutModification(context: {
     `Programmed exercises:`,
     ...context.exercises.map((e) => `  - ${e.name}: ${e.sets}×${e.reps}${e.weight ? ` @ ${e.weight}kg` : ''}`),
     ``,
-    `Give me a modified version of this session that respects my yellow recovery. Be specific: which exercises to keep, which to cut, what % to reduce load, and target total volume range.`,
+      `Give me a modified version of this session that respects my yellow recovery. Be specific:`,
+      `1. Which exercises to keep and which to cut or swap`,
+      `2. Exact weight reductions in kg (not just %) for each exercise based on my recent numbers`,
+      `3. Adjusted rep ranges and total set count`,
+      `4. Target total volume range for this modified session`,
+      `5. Any warm-up or mobility additions to compensate for low recovery`,
   ].filter(Boolean);
 
   const result = await askZaki(lines.join('\n'));

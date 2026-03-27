@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { persistImage } from './image-store';
 
 export interface ProgressPhoto {
   id: string;
@@ -28,9 +29,17 @@ export async function addProgressPhoto(
   try {
     const photos = await getProgressPhotos();
 
+    // Persist image to permanent storage so it survives app restarts
+    let permanentUri = uri;
+    try {
+      permanentUri = await persistImage(uri, 'progress');
+    } catch (e) {
+      console.warn('[progress-photos] persistImage failed, using original URI:', e);
+    }
+
     const newPhoto: ProgressPhoto = {
       id: `photo-${Date.now()}`,
-      uri,
+      uri: permanentUri,
       date: new Date().toLocaleDateString('en-CA'),
       notes,
       category,

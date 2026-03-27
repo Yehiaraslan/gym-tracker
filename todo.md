@@ -866,6 +866,9 @@
 
 - [x] BUG FIX: Week strip shows wrong day as today — fixed UTC offset issue (Dubai UTC+4) and fixed getWeekScheduleFromStore to always start from Sunday of the current week
 
-- [ ] BUG FIX: Missed session banners use UTC date comparison — fix to local date
-- [ ] BUG FIX: Workout completion dot uses UTC date comparison — fix to local date
-- [ ] BUG FIX: Mesocycle start date / deload countdown has UTC offset issue
+- [x] BUG FIX: Missed session banners use UTC date comparison — fix to local date
+- [x] BUG FIX: Workout completion dot uses UTC date comparison — fix to local date
+- [x] BUG FIX: Mesocycle start date / deload countdown has UTC offset issue
+- [x] BUG: Home screen shows Rest Day even after Zaki moves a session to that day (schedule override not read by getTodaySession / Start Workout)
+- [x] BUG: Progress photos not saving when selecting from camera roll or taking a picture
+- [x] FEATURE: Zaki should proactively adjust workout weights based on WHOOP recovery, fitness goal, body photos, and all user data

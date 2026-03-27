@@ -67,8 +67,8 @@ export default function SplitWorkoutScreen() {
   useKeepAwake();
   const colors = useColors();
   const router = useRouter();
-  const params = useLocalSearchParams<{ session?: string; deload?: string }>();
-  const sessionType = (params.session as SessionType) || getTodaySession();
+  const params = useLocalSearchParams<{ sessionType?: string; session?: string; deload?: string }>();
+  const sessionType = (params.sessionType as SessionType) || (params.session as SessionType) || getTodaySession();
   const [isDeload, setIsDeload] = useState(params.deload === 'true');
   const programExercises = sessionType !== 'rest' ? PROGRAM_SESSIONS[sessionType] : [];
   const [swappableExercises, setSwappableExercises] = useState<ProgramExercise[]>([]);
