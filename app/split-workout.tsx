@@ -15,6 +15,8 @@ import {
   Dimensions,
   Modal,
   TextInput,
+  Animated,
+  Easing,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -165,6 +167,70 @@ export default function SplitWorkoutScreen() {
     prs: { exercise: string; weight: number; reps: number; e1rm: number }[];
     previousVolume?: number;
   } | null>(null);
+
+  // PR Celebration overlay
+  const [showPRCelebration, setShowPRCelebration] = useState(false);
+  const [celebrationPRs, setCelebrationPRs] = useState<{ exercise: string; weight: number; reps: number; e1rm: number }[]>([]);
+  const [celebrationIndex, setCelebrationIndex] = useState(0);
+  const prCardOpacity = useRef(new Animated.Value(0)).current;
+  const prCardScale = useRef(new Animated.Value(0.7)).current;
+  const prCardY = useRef(new Animated.Value(60)).current;
+  // Confetti particles (stable refs)
+  const CONFETTI_COUNT = 36;
+  const confettiX = useRef(Array.from({ length: CONFETTI_COUNT }, () => new Animated.Value(0))).current;
+  const confettiY = useRef(Array.from({ length: CONFETTI_COUNT }, () => new Animated.Value(0))).current;
+  const confettiOpacity = useRef(Array.from({ length: CONFETTI_COUNT }, () => new Animated.Value(0))).current;
+  const confettiRotate = useRef(Array.from({ length: CONFETTI_COUNT }, () => new Animated.Value(0))).current;
+  const CONFETTI_COLORS = ['#F59E0B', '#10B981', '#3B82F6', '#EF4444', '#8B5CF6', '#EC4899', '#F97316', '#06B6D4'];
+
+  const launchPRCelebration = (prs: { exercise: string; weight: number; reps: number; e1rm: number }[]) => {
+    if (prs.length === 0) return;
+    setCelebrationPRs(prs);
+    setCelebrationIndex(0);
+    setShowPRCelebration(true);
+    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    // Reset all animated values
+    prCardOpacity.setValue(0);
+    prCardScale.setValue(0.7);
+    prCardY.setValue(60);
+    confettiX.forEach((v, i) => v.setValue((Math.random() - 0.5) * SCREEN_WIDTH * 0.9));
+    confettiY.forEach(v => v.setValue(-80));
+    confettiOpacity.forEach(v => v.setValue(1));
+    confettiRotate.forEach(v => v.setValue(0));
+
+    // Card entrance
+    Animated.parallel([
+      Animated.spring(prCardScale, { toValue: 1, useNativeDriver: true, tension: 80, friction: 8 }),
+      Animated.timing(prCardOpacity, { toValue: 1, duration: 250, useNativeDriver: true }),
+      Animated.timing(prCardY, { toValue: 0, duration: 300, easing: Easing.out(Easing.back(1.5)), useNativeDriver: true }),
+    ]).start();
+
+    // Confetti burst
+    const confettiAnims = confettiX.map((_, i) =>
+      Animated.parallel([
+        Animated.timing(confettiY[i], {
+          toValue: 400 + Math.random() * 300,
+          duration: 1200 + Math.random() * 800,
+          delay: Math.random() * 300,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(confettiOpacity[i], {
+          toValue: 0,
+          duration: 1400,
+          delay: 600 + Math.random() * 400,
+          useNativeDriver: true,
+        }),
+        Animated.timing(confettiRotate[i], {
+          toValue: (Math.random() > 0.5 ? 1 : -1) * (2 + Math.random() * 4),
+          duration: 1400,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    Animated.stagger(20, confettiAnims).start();
+  };
 
   // Zaki workout modification (yellow recovery)
   const [zakiModifLoading, setZakiModifLoading] = useState(false);
@@ -538,8 +604,6 @@ export default function SplitWorkoutScreen() {
     await recordWorkout();
     await clearActiveWorkout(); // Remove persisted state after completion
 
-    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
     setSummaryData({
       duration,
       totalVolume,
@@ -548,7 +612,14 @@ export default function SplitWorkoutScreen() {
       prs,
       previousVolume: previousSession?.totalVolume,
     });
-    setShowSummary(true);
+
+    // Show PR celebration BEFORE summary if there are new PRs
+    if (prs.length > 0) {
+      launchPRCelebration(prs);
+    } else {
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setShowSummary(true);
+    }
   };
 
   const formatTime = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
@@ -1006,6 +1077,138 @@ export default function SplitWorkoutScreen() {
             </TouchableOpacity>
           </View>
         </ScrollView>
+
+        {/* ── PR Celebration Overlay ── */}
+        {showPRCelebration && (
+          <View
+            style={{
+              position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+              backgroundColor: 'rgba(0,0,0,0.75)',
+              justifyContent: 'center',
+              alignItems: 'center',
+              zIndex: 999,
+            }}
+          >
+            {/* Confetti particles */}
+            {confettiX.map((xVal, i) => (
+              <Animated.View
+                key={i}
+                style={{
+                  position: 'absolute',
+                  top: '30%',
+                  left: '50%',
+                  width: 8 + (i % 4) * 2,
+                  height: 8 + (i % 4) * 2,
+                  borderRadius: i % 3 === 0 ? 4 : 2,
+                  backgroundColor: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+                  opacity: confettiOpacity[i],
+                  transform: [
+                    { translateX: xVal },
+                    { translateY: confettiY[i] },
+                    { rotate: confettiRotate[i].interpolate({ inputRange: [-5, 5], outputRange: ['-1800deg', '1800deg'] }) },
+                  ],
+                }}
+              />
+            ))}
+
+            {/* PR Card */}
+            <Animated.View
+              style={{
+                opacity: prCardOpacity,
+                transform: [{ scale: prCardScale }, { translateY: prCardY }],
+                width: SCREEN_WIDTH * 0.85,
+                backgroundColor: '#1a1a2e',
+                borderRadius: 24,
+                padding: 28,
+                alignItems: 'center',
+                borderWidth: 2,
+                borderColor: '#F59E0B',
+                shadowColor: '#F59E0B',
+                shadowOffset: { width: 0, height: 0 },
+                shadowOpacity: 0.6,
+                shadowRadius: 20,
+                elevation: 20,
+              }}
+            >
+              {/* Trophy icon */}
+              <Text style={{ fontSize: 56, marginBottom: 8 }}>🏆</Text>
+
+              <Text style={{ color: '#F59E0B', fontSize: 13, fontWeight: '700', letterSpacing: 2, marginBottom: 4 }}>
+                PERSONAL RECORD
+              </Text>
+
+              {/* Current PR */}
+              {celebrationPRs[celebrationIndex] && (
+                <>
+                  <Text style={{ color: '#FFFFFF', fontSize: 22, fontWeight: '800', textAlign: 'center', marginBottom: 4, lineHeight: 28 }}>
+                    {celebrationPRs[celebrationIndex].exercise}
+                  </Text>
+                  <Text style={{ color: '#F59E0B', fontSize: 36, fontWeight: '900', marginBottom: 4 }}>
+                    {celebrationPRs[celebrationIndex].weight}kg × {celebrationPRs[celebrationIndex].reps}
+                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 20 }}>
+                    <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>Est. 1RM</Text>
+                    <Text style={{ color: '#10B981', fontSize: 18, fontWeight: '700' }}>~{Math.round(celebrationPRs[celebrationIndex].e1rm)}kg</Text>
+                  </View>
+                </>
+              )}
+
+              {/* Multiple PRs indicator */}
+              {celebrationPRs.length > 1 && (
+                <View style={{ flexDirection: 'row', gap: 6, marginBottom: 16 }}>
+                  {celebrationPRs.map((_, i) => (
+                    <View
+                      key={i}
+                      style={{
+                        width: 8, height: 8, borderRadius: 4,
+                        backgroundColor: i === celebrationIndex ? '#F59E0B' : 'rgba(255,255,255,0.3)',
+                      }}
+                    />
+                  ))}
+                </View>
+              )}
+
+              {/* Action buttons */}
+              <View style={{ flexDirection: 'row', gap: 10, width: '100%' }}>
+                {celebrationIndex < celebrationPRs.length - 1 ? (
+                  <TouchableOpacity
+                    style={{
+                      flex: 1, backgroundColor: '#F59E0B', borderRadius: 14,
+                      paddingVertical: 14, alignItems: 'center',
+                    }}
+                    onPress={() => {
+                      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                      setCelebrationIndex(i => i + 1);
+                      // Re-animate card for next PR
+                      prCardScale.setValue(0.85);
+                      prCardY.setValue(20);
+                      Animated.parallel([
+                        Animated.spring(prCardScale, { toValue: 1, useNativeDriver: true, tension: 100, friction: 8 }),
+                        Animated.timing(prCardY, { toValue: 0, duration: 200, useNativeDriver: true }),
+                      ]).start();
+                    }}
+                  >
+                    <Text style={{ color: '#000', fontWeight: '800', fontSize: 16 }}>Next PR →</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    style={{
+                      flex: 1, backgroundColor: '#F59E0B', borderRadius: 14,
+                      paddingVertical: 14, alignItems: 'center',
+                    }}
+                    onPress={() => {
+                      setShowPRCelebration(false);
+                      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                      setShowSummary(true);
+                    }}
+                  >
+                    <Text style={{ color: '#000', fontWeight: '800', fontSize: 16 }}>See Summary →</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </Animated.View>
+          </View>
+        )}
 
          {/* Video Modal */}
         <VideoModal

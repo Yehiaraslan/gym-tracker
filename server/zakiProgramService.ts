@@ -55,6 +55,10 @@ export interface ProgramGenerationInput {
   heightCm: number;
   age: number;
   recentWorkoutHistory: string;
+  // Refinement loop fields
+  refinementFeedback?: string;   // User's feedback on the previous version
+  previousProgramJson?: string;  // JSON of the previously generated program
+  refinementRound?: number;      // Which iteration this is (1, 2, 3...)
 }
 
 // ── Color Pool ───────────────────────────────────────────────
@@ -104,6 +108,15 @@ ${input.recentWorkoutHistory || 'No history available — treat as fresh start'}
 
 RECENT PRs:
 ${input.recentPRs || 'No PRs recorded yet'}
+${input.refinementFeedback ? `
+--- REFINEMENT REQUEST (Round ${input.refinementRound ?? 1}) ---
+The user has already seen a generated program and wants these changes applied:
+"${input.refinementFeedback}"
+
+PREVIOUS PROGRAM (for reference — apply the requested changes to this):
+${input.previousProgramJson || 'Not provided'}
+
+IMPORTANT: Keep everything the same EXCEPT what the user explicitly asked to change. Preserve exercise names, sets/reps, and structure unless the feedback specifically targets them.` : ''}
 
 Return a JSON object with this exact structure:
 {

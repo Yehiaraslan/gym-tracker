@@ -475,6 +475,10 @@ export const appRouter = router({
         heightCm: z.number().default(175),
         age: z.number().default(30),
         recentWorkoutHistory: z.string().default(''),
+        // Refinement loop
+        refinementFeedback: z.string().optional(),
+        previousProgramJson: z.string().optional(),
+        refinementRound: z.number().optional(),
       }))
       .mutation(async ({ input }) => {
         const program = await zakiProgram.generateZakiProgram(input);

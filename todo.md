@@ -929,4 +929,15 @@
 - [x] Program History screen (app/program-history.tsx) — expandable cards with workouts, PRs, volume, schedule grid
 - [x] Wire Program History into Profile screen (new "Program History" row with amber dot)
 - [x] All 305 tests pass
-- [ ] Push all changes to GitHub
+- [x] Push all changes to GitHub
+
+## Batch 14 — Zaki Refinement Loop + PR Celebration (Mar 28)
+- [x] Zaki program refinement loop — feedback text input + quick chips appear below preview after AI generation
+- [x] Refinement history — collapsible revision log shows each round's feedback and resulting program name
+- [x] Server-side: refinementFeedback + previousProgramJson + refinementRound added to generateProgram tRPC procedure
+- [x] PR milestone full-screen celebration card with 36-particle confetti burst animation
+- [x] PR card shows exercise name, new weight × reps, estimated 1RM, gold glow border, dark overlay
+- [x] Multiple PRs: paginated with dot indicator, "Next PR →" button cycles through all, then "See Summary →"
+- [x] PR celebration fires BEFORE workout summary (replaces generic haptic)
+- [x] All 305 tests pass
+- [ ] Push to GitHub

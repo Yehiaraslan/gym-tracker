@@ -97,6 +97,12 @@ export default function ProgramSetupScreen() {
   const [generationStatus, setGenerationStatus] = useState('');
   const [aiGeneratedProgram, setAiGeneratedProgram] = useState<CustomProgram | null>(null);
 
+  // Refinement loop
+  const [refinementFeedback, setRefinementFeedback] = useState('');
+  const [refinementRound, setRefinementRound] = useState(0);
+  const [refinementHistory, setRefinementHistory] = useState<{ round: number; feedback: string; programName: string }[]>([]);
+  const [showRefinementHistory, setShowRefinementHistory] = useState(false);
+
   const fg = colors.foreground;
   const mt = colors.muted;
   const pr = colors.primary;
@@ -247,11 +253,102 @@ export default function ProgramSetupScreen() {
       };
 
       setAiGeneratedProgram(customProgram);
+      setRefinementRound(0);
+      setRefinementFeedback('');
+      setRefinementHistory([]);
       setShowZakiModal(false);
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e) {
       console.error('[ProgramSetup] AI generation error:', e);
       setGenerationStatus('Generation failed — please try again');
+    }
+    setGeneratingAI(false);
+  };
+
+  // ── Refinement Loop ───────────────────────────────────────
+
+  const handleRefineProgram = async () => {
+    if (!refinementFeedback.trim() || !aiGeneratedProgram) return;
+    const round = refinementRound + 1;
+    setGeneratingAI(true);
+    setGenerationStatus(`Applying your feedback (round ${round})...`);
+    try {
+      const [recentWorkouts, allPRs] = await Promise.all([
+        getRecentSplitWorkouts(10),
+        getAllPRs(),
+      ]);
+      const workoutHistoryLines = recentWorkouts.slice(0, 5).map(w => {
+        const exNames = w.exercises.map((e: any) => e.exerciseName).join(', ');
+        return `${w.date} — ${w.sessionType} (${w.durationMinutes ?? '?'}min): ${exNames}`;
+      });
+      const prLines = Object.entries(allPRs).slice(0, 10).map(([name, pr]) =>
+        `${name}: ${(pr as any).weight}kg × ${(pr as any).reps} reps`
+      );
+
+      setGenerationStatus('Zaki is refining your program...');
+
+      const result = await trpcClient.zaki.generateProgram.mutate({
+        goal: userProfile?.fitnessGoal || 'muscle_gain',
+        experience: userProfile?.experienceLevel || 'intermediate',
+        equipment: userProfile?.equipment || 'full_gym',
+        daysPerWeek: questionnaire.daysPerWeek,
+        weakPoints: questionnaire.weakPoints,
+        injuryHistory: questionnaire.injuryHistory,
+        preferredExercises: questionnaire.preferredExercises,
+        avoidedExercises: questionnaire.avoidedExercises,
+        recentPRs: prLines.join('\n'),
+        bodyWeightKg: userProfile?.weightKg || 80,
+        heightCm: userProfile?.heightCm || 175,
+        age: userProfile?.dateOfBirth
+          ? Math.floor((Date.now() - new Date(userProfile.dateOfBirth).getTime()) / (365.25 * 24 * 3600 * 1000))
+          : 30,
+        recentWorkoutHistory: workoutHistoryLines.join('\n'),
+        // Refinement context
+        refinementFeedback: refinementFeedback.trim(),
+        previousProgramJson: JSON.stringify(aiGeneratedProgram),
+        refinementRound: round,
+      });
+
+      setGenerationStatus('Program updated!');
+
+      const generated = result.program;
+      const customProgram: CustomProgram = {
+        name: generated.name,
+        description: generated.description,
+        sessions: Object.fromEntries(
+          generated.sessions.map(s => [s.id, s.exercises.map(e => ({
+            name: e.name,
+            sets: e.sets,
+            repsMin: e.repsMin,
+            repsMax: e.repsMax,
+            restSeconds: e.restSeconds,
+            notes: e.notes,
+            muscleGroup: e.muscleGroup as 'upper' | 'lower' | 'core',
+            bodyPart: e.bodyPart as import('@/lib/types').BodyPart,
+            category: e.category as 'compound' | 'isolation',
+          }))])
+        ),
+        sessionNames: Object.fromEntries(generated.sessions.map(s => [s.id, s.name])),
+        sessionColors: Object.fromEntries(generated.sessions.map(s => [s.id, s.color])),
+        weeklySchedule: generated.weeklySchedule,
+        nutritionTargets: generated.nutritionTargets,
+        createdAt: new Date().toISOString(),
+        generatedByZaki: true,
+        durationWeeks: generated.durationWeeks || 4,
+      };
+
+      // Save to refinement history
+      setRefinementHistory(prev => [
+        ...prev,
+        { round, feedback: refinementFeedback.trim(), programName: customProgram.name },
+      ]);
+      setRefinementRound(round);
+      setRefinementFeedback('');
+      setAiGeneratedProgram(customProgram);
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (e) {
+      console.error('[ProgramSetup] Refinement error:', e);
+      setGenerationStatus('Refinement failed — please try again');
     }
     setGeneratingAI(false);
   };
@@ -432,6 +529,91 @@ export default function ProgramSetupScreen() {
               : 'This program is your starting point. As you train, I\'ll learn your strengths and weaknesses. Ask me anytime to adjust exercises, add cardio sessions, or change the schedule.'}
           </Text>
         </View>
+
+        {/* ── Refinement Loop (shown only after AI generation) ── */}
+        {aiGeneratedProgram && (
+          <View style={[s.refinementCard, { backgroundColor: surf, borderColor: bord }]}>
+            <View style={s.refinementHeader}>
+              <Text style={[s.refinementTitle, { color: fg }]}>🔄 Refine This Program</Text>
+              {refinementHistory.length > 0 && (
+                <TouchableOpacity
+                  onPress={() => setShowRefinementHistory(!showRefinementHistory)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={{ color: pr, fontSize: 12 }}>
+                    {showRefinementHistory ? 'Hide history' : `${refinementHistory.length} revision${refinementHistory.length > 1 ? 's' : ''}`}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Revision history */}
+            {showRefinementHistory && refinementHistory.map((h, i) => (
+              <View key={i} style={[s.revisionRow, { borderColor: bord }]}>
+                <Text style={{ color: pr, fontSize: 11, fontWeight: '700', marginBottom: 2 }}>Round {h.round}</Text>
+                <Text style={{ color: mt, fontSize: 12 }}>Feedback: "{h.feedback}"</Text>
+                <Text style={{ color: fg, fontSize: 12, marginTop: 2 }}>→ {h.programName}</Text>
+              </View>
+            ))}
+
+            <Text style={[s.refinementHint, { color: mt }]}>
+              Tell Zaki what to change. Be specific — e.g. "make it 3 days/week", "replace squats with leg press", "add more chest volume"
+            </Text>
+
+            {generatingAI ? (
+              <View style={{ alignItems: 'center', paddingVertical: 20, gap: 12 }}>
+                <ActivityIndicator size="small" color={pr} />
+                <Text style={{ color: mt, fontSize: 13, textAlign: 'center' }}>{generationStatus}</Text>
+              </View>
+            ) : (
+              <View style={s.refinementInputRow}>
+                <TextInput
+                  style={[s.refinementInput, { backgroundColor: colors.background, borderColor: bord, color: fg }]}
+                  value={refinementFeedback}
+                  onChangeText={setRefinementFeedback}
+                  placeholder="e.g. make it 3 days/week, add more back work..."
+                  placeholderTextColor={mt}
+                  multiline
+                  numberOfLines={2}
+                  returnKeyType="done"
+                />
+                <TouchableOpacity
+                  style={[s.refinementBtn, {
+                    backgroundColor: refinementFeedback.trim() ? pr : bord,
+                    opacity: refinementFeedback.trim() ? 1 : 0.5,
+                  }]}
+                  onPress={handleRefineProgram}
+                  disabled={!refinementFeedback.trim()}
+                  activeOpacity={0.8}
+                >
+                  <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>Apply</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Quick suggestion chips */}
+            {!generatingAI && (
+              <View style={s.chipRow}>
+                {[
+                  'Make it 3 days/week',
+                  'Add more volume',
+                  'Less exercises per session',
+                  'More compound movements',
+                  'Add cardio day',
+                ].map(chip => (
+                  <TouchableOpacity
+                    key={chip}
+                    style={[s.chip, { backgroundColor: pr + '15', borderColor: pr + '40' }]}
+                    onPress={() => setRefinementFeedback(chip)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={{ color: pr, fontSize: 11 }}>{chip}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
 
         {/* Action Buttons */}
         <View style={s.actions}>
@@ -896,5 +1078,64 @@ const s = StyleSheet.create({
     borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  // Refinement loop styles
+  refinementCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 16,
+    gap: 12,
+  },
+  refinementHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  refinementTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  refinementHint: {
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  refinementInputRow: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'flex-end',
+  },
+  refinementInput: {
+    flex: 1,
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 10,
+    fontSize: 13,
+    lineHeight: 18,
+    minHeight: 52,
+    textAlignVertical: 'top',
+  },
+  refinementBtn: {
+    height: 52,
+    width: 64,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  chip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  revisionRow: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 10,
   },
 });
