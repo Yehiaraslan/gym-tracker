@@ -35,6 +35,7 @@ import {
 } from '@/lib/schedule-store';
 import { getSplitWorkouts, savePendingWeights, parseZakiWeightText } from '@/lib/split-workout-store';
 import { getDeviceId } from '@/lib/device-id';
+import { addCustomExercise, addCustomSession, parseExerciseCommands, type CustomExercise } from '@/lib/custom-exercises-store';
 
 // ── Storage keys ──────────────────────────────────────────────
 const DAILY_CACHE_KEY = '@zaki_daily_cache';
@@ -617,7 +618,7 @@ export default function AICoachingDashboard() {
     try {
       const snapshot = await buildUserSnapshot();
       const fullContext = snapshotToPromptContext(snapshot);
-      const fullMessage = `[Full Training Context]\n${fullContext}\n\n[User Question]\n${text}\n\n[Instructions]\nYou are Agent Zaki, an elite strength & conditioning coach. Use ALL the data above to give specific, data-driven answers. When discussing weights, reference the user's actual numbers from their workout history. When recovery is low (<50%), proactively suggest lighter alternatives. When the user asks about their body or progress, reference their progress photos and weight trend. Always be direct and actionable.`;
+      const fullMessage = `[Full Training Context]\n${fullContext}\n\n[User Question]\n${text}\n\n[Instructions]\nYou are Agent Zaki, an elite strength & conditioning coach. Use ALL the data above to give specific, data-driven answers. When discussing weights, reference the user's actual numbers from their workout history. When recovery is low (<50%), proactively suggest lighter alternatives. When the user asks about their body or progress, reference their progress photos and weight trend. Always be direct and actionable.\n\n[Exercise Creation]\nIf the user asks you to add a new exercise, create a cardio session, or suggests any exercise not in the current program, you MUST include a JSON block in your response with the exercise details. Format:\n\`\`\`json\n{"action":"add_exercise","name":"Exercise Name","sets":3,"repsMin":8,"repsMax":12,"restSeconds":90,"notes":"Coaching notes","muscleGroup":"upper","bodyPart":"chest","category":"compound","instructions":["Step 1","Step 2","Step 3"]}\n\`\`\`\nFor cardio exercises, use sets=1, repsMin=1, repsMax=1, and put duration in notes (e.g. "20 min steady state"). For a full custom session, output multiple exercise blocks. The bodyPart must be one of: chest, back, shoulders, biceps, triceps, forearms, quads, hamstrings, glutes, calves, abs, cardio.`;
       const result = await zakiAskMutation.mutateAsync({
         message: fullMessage,
         zakiSessionId: zakiSessionIdRef.current,
@@ -631,10 +632,41 @@ export default function AICoachingDashboard() {
           saveSessionMutation.mutate({ deviceId, zakiSessionId: result.zakiSessionId });
         }
       }
+      // Parse exercise creation commands from Zaki's response
+      const exerciseCommands = parseExerciseCommands(result.response);
+      let exerciseNotice = '';
+      if (exerciseCommands.length > 0) {
+        for (const cmd of exerciseCommands) {
+          if (cmd.action === 'add_exercise' && cmd.data?.name) {
+            try {
+              await addCustomExercise({
+                name: cmd.data.name,
+                sets: cmd.data.sets || 3,
+                repsMin: cmd.data.repsMin || 8,
+                repsMax: cmd.data.repsMax || 12,
+                restSeconds: cmd.data.restSeconds || 90,
+                notes: cmd.data.notes || '',
+                muscleGroup: cmd.data.muscleGroup || 'upper',
+                bodyPart: cmd.data.bodyPart || 'chest',
+                category: cmd.data.category || 'compound',
+                instructions: cmd.data.instructions || [],
+                createdBy: 'zaki',
+              });
+              exerciseNotice += `\n\n✅ Added "${cmd.data.name}" to your exercise library.`;
+            } catch (e) {
+              console.error('[Exercise Creation]', e);
+            }
+          }
+        }
+      }
+      // Clean the response: remove JSON blocks for cleaner display
+      let cleanResponse = result.response.replace(/```json\s*\n?[\s\S]*?\n?```/g, '').trim();
+      if (exerciseNotice) cleanResponse += exerciseNotice;
+
       const zakiMsg: ChatMessage = {
         id: `z_${Date.now()}`,
         role: 'zaki',
-        text: result.response,
+        text: cleanResponse,
         timestamp: Date.now(),
       };
       const withZaki = [...updatedMessages, zakiMsg];

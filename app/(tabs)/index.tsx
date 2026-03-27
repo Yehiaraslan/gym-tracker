@@ -35,6 +35,7 @@ import { WhoopReconnectBanner } from '@/components/whoop-reconnect-banner';
 import { loadPinSyncState, type PinSyncState } from '@/lib/pin-sync-store';
 import { trpc } from '@/lib/trpc';
 import { getDeviceId } from '@/lib/device-id';
+import { useAuth } from '@/hooks/use-auth';
 import { hasResumableWorkout, type ActiveWorkoutState } from '@/lib/active-workout-store';
 import {
   getAllPRs,
@@ -87,6 +88,7 @@ export default function HomeScreen() {
   const colors = useColors();
   const router = useRouter();
   const { store } = useGym();
+  const { user: authUser } = useAuth();
 
   // Async schedule: loads override from AsyncStorage on focus, falls back to default.
   // Initial state is 'rest' until the async loadSchedule() resolves with the real value
@@ -312,7 +314,7 @@ export default function HomeScreen() {
             )}
           </TouchableOpacity>
           <View style={{ flex: 1, marginLeft: 10 }}>
-            <Text style={[s.headerName, { color: fg }]}>{userProfile?.name || 'Yehia'}</Text>
+            <Text style={[s.headerName, { color: fg }]}>{authUser?.name || userProfile?.name || 'Athlete'}</Text>
             {userProfile?.fitnessGoal ? (
               <Text style={{ color: mut, fontSize: 12, textTransform: 'capitalize' }}>{userProfile.fitnessGoal.replace('_', ' ')}</Text>
             ) : null}

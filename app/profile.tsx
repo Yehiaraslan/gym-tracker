@@ -29,6 +29,7 @@ import {
   calculateAge,
   type UserProfile,
 } from '@/lib/profile-store';
+import { useAuth } from '@/hooks/use-auth';
 import { loadPinSyncState, type PinSyncState } from '@/lib/pin-sync-store';
 import { persistImage } from '@/lib/image-store';
 
@@ -58,15 +59,25 @@ const DEFAULT_PROFILE: UserProfile = {
 export default function ProfileScreen() {
   const colors = useColors();
   const router = useRouter();
+  const { user: authUser, logout } = useAuth();
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [syncState, setSyncState] = useState<PinSyncState | null>(null);
 
   useEffect(() => {
-    loadUserProfile().then(setProfile);
+    loadUserProfile().then(p => {
+      // Auto-fill name from auth user if profile name is empty
+      if (!p.name && authUser?.name) {
+        const updated = { ...p, name: authUser.name };
+        setProfile(updated);
+        saveUserProfile(updated);
+      } else {
+        setProfile(p);
+      }
+    });
     loadPinSyncState().then(setSyncState);
-  }, []);
+  }, [authUser]);
 
   // Refresh sync state when returning from pin-sync screen
   useFocusEffect(useCallback(() => {
@@ -341,6 +352,34 @@ export default function ProfileScreen() {
             </Text>
           </TouchableOpacity>
         </View>
+
+        {/* Account section */}
+        {authUser && (
+          <View style={styles.accountSection}>
+            <Text style={[styles.accountEmail, { color: colors.muted }]}>
+              Signed in as {authUser.email || authUser.name || 'User'}
+            </Text>
+            <TouchableOpacity
+              onPress={() => {
+                Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Sign Out',
+                    style: 'destructive',
+                    onPress: async () => {
+                      await logout();
+                      router.replace('/login' as any);
+                    },
+                  },
+                ]);
+              }}
+              style={[styles.logoutBtn, { borderColor: colors.error }]}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.logoutText, { color: colors.error }]}>Sign Out</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </ScrollView>
     </ScreenContainer>
   );
@@ -383,4 +422,9 @@ const styles = StyleSheet.create({
   saveSection: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 24 },
   saveBtn: { height: 52, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
   saveBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+  // Account
+  accountSection: { paddingHorizontal: 16, paddingBottom: 40, alignItems: 'center', gap: 12 },
+  accountEmail: { fontSize: 13, textAlign: 'center' },
+  logoutBtn: { paddingHorizontal: 28, paddingVertical: 12, borderRadius: 12, borderWidth: 1.5 },
+  logoutText: { fontSize: 15, fontWeight: '600' },
 });

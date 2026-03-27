@@ -111,7 +111,7 @@ export async function recordWorkout(): Promise<StreakData> {
         checkDate.setDate(checkDate.getDate() + i);
         const dateStr = checkDate.toLocaleDateString('en-CA');
         const dayOfWeek = checkDate.getDay();
-        const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
         const sessionFromSchedule = schedule?.[dayNames[dayOfWeek] as keyof typeof schedule] as SessionType | undefined;
         const session = sessionFromSchedule || getSessionForDate(checkDate);
         if (session !== 'rest' && !streakData.workoutDates.includes(dateStr)) {
@@ -163,7 +163,7 @@ export async function checkStreakStatus(): Promise<StreakData> {
       checkDate.setDate(checkDate.getDate() + i);
       const dateStr = checkDate.toLocaleDateString('en-CA');
       const dayOfWeek = checkDate.getDay();
-      const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
       const sessionFromSchedule = schedule?.[dayNames[dayOfWeek] as keyof typeof schedule] as SessionType | undefined;
       const session = sessionFromSchedule || getSessionForDate(checkDate);
       if (session !== 'rest' && !streakData.workoutDates.includes(dateStr)) {

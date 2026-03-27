@@ -884,3 +884,11 @@
 - [x] FEATURE: Zaki auto-apply — expanded schedule intent detection to cover rest/skip/postpone/move requests
 - [x] FEATURE: Load These Weights auto-fill — already implemented via savePendingWeights/consumePendingWeights pipeline
 - [x] REVIEW: Cloud sync — added scheduleOverrides table + sync endpoints; Zaki schedule changes now persist to cloud DB
+
+## Batch 9 — Beta Launch Pass (Mar 27)
+- [x] Full logic audit and usability polish — fixed streak day name capitalization bug, verified all navigation paths, login screen uses app icon
+- [x] Sign-in with persistent auth (Manus OAuth) — login screen, auth gating in root layout, profile auto-fill from auth, logout button
+- [x] Zaki dynamic exercise creation — custom-exercises-store.ts, parseExerciseCommands, auto-add to library with ExerciseDB video lookup
+- [x] Schedule override flow verified end-to-end — all 4 checkpoints confirmed (Home reads override, params match, getMissedSessions schedule-aware)
+- [x] Photo timeline side-by-side comparison slider — already fully built in progress-gallery.tsx with drag handle and BEFORE/AFTER labels
+- [x] Mid-workout recovery nudge — already fully built in split-workout.tsx with RecoveryBanner + nudge alternative + auto-adjusted rest times
