@@ -899,3 +899,13 @@
 - [x] Save onboarding answers to user profile in AsyncStorage
 - [x] Feed onboarding data into Zaki's context so coaching is personalized from day one
 - [x] Use onboarding data to suggest an initial program split instead of default PPL (Zaki receives experience + equipment in context)
+
+## Batch 11 — Body Analysis Research + Welcome Program Generator (Mar 27)
+- [x] Research: Can multimodal LLMs (Claude Opus) analyze body photos for fitness assessment?
+- [x] Research: Specialized APIs/models for body composition analysis (Hugging Face, etc.)
+- [x] Deliver research findings with recommendation
+- [x] Welcome program generator — custom program store + program templates + program-setup screen + onboarding flow
+- [x] Home screen integration — display custom program session names, colors, emojis dynamically instead of hardcoded defaults
+- [x] Widen SessionType to accept custom program session IDs (e.g., 'full-a', 'push', 'circuit-a')
+- [x] Preview modal and hero card use custom program display names
+- [x] Week strip dot colors and plan row abbreviations adapt to custom programs

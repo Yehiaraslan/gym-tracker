@@ -117,7 +117,7 @@ export default function OnboardingScreen() {
       };
       await saveUserProfile(updated);
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.replace('/(tabs)');
+      router.replace('/program-setup');
     } catch (e) {
       console.error('[Onboarding] Save error:', e);
     }

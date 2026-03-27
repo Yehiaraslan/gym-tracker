@@ -22,6 +22,7 @@ import {
   type SplitWorkoutSession,
 } from '@/lib/split-workout-store';
 import { getMesocycleStartDate, getActiveRecommendations, type CoachRecommendation } from '@/lib/coach-engine';
+import { loadCustomProgram, type CustomProgram } from '@/lib/custom-program-store';
 
 export function SplitHomeSection() {
   const colors = useColors();
@@ -29,7 +30,11 @@ export function SplitHomeSection() {
 
   const todaySession = getTodaySession();
   const isRest = todaySession === 'rest';
-  const sessionColor = SESSION_COLORS[todaySession];
+  const [customProg, setCustomProg] = useState<CustomProgram | null>(null);
+  useEffect(() => { loadCustomProgram().then(setCustomProg); }, []);
+  const resolveName = (st: string) => customProg?.sessionNames?.[st] || SESSION_NAMES[st as keyof typeof SESSION_NAMES] || st;
+  const resolveColor = (st: string) => customProg?.sessionColors?.[st] || SESSION_COLORS[st as keyof typeof SESSION_COLORS] || colors.primary;
+  const sessionColor = resolveColor(todaySession);
   const exercises = !isRest ? PROGRAM_SESSIONS[todaySession] : [];
 
   const [mesoInfo, setMesoInfo] = useState<{ currentWeek: number; isDeload: boolean; daysUntilDeload: number } | null>(null);
@@ -101,7 +106,7 @@ export function SplitHomeSection() {
                 Today's Split Workout
               </Text>
               <Text className="text-xl font-bold text-foreground mt-1">
-                {SESSION_NAMES[todaySession]}
+                {resolveName(todaySession)}
               </Text>
               <Text className="text-sm text-muted mt-1">
                 {exercises.length} exercises · 9:00 PM
@@ -227,16 +232,16 @@ export function SplitHomeSection() {
               className="flex-row items-center rounded-xl p-3 mb-2"
               style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
             >
-              <View className="w-2 h-8 rounded-full mr-3" style={{ backgroundColor: SESSION_COLORS[w.sessionType] }} />
+              <View className="w-2 h-8 rounded-full mr-3" style={{ backgroundColor: resolveColor(w.sessionType) }} />
               <View className="flex-1">
-                <Text className="text-sm font-medium text-foreground">{SESSION_NAMES[w.sessionType]}</Text>
+                <Text className="text-sm font-medium text-foreground">{resolveName(w.sessionType)}</Text>
                 <Text className="text-xs text-muted">
                   {new Date(w.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                   {w.durationMinutes ? ` · ${w.durationMinutes}m` : ''}
                 </Text>
               </View>
               {w.totalVolume && (
-                <Text className="text-sm font-semibold" style={{ color: SESSION_COLORS[w.sessionType] }}>
+                <Text className="text-sm font-semibold" style={{ color: resolveColor(w.sessionType) }}>
                   {(w.totalVolume / 1000).toFixed(1)}t
                 </Text>
               )}

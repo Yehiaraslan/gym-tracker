@@ -25,6 +25,7 @@ import {
   type SplitWorkoutSession,
 } from '@/lib/split-workout-store';
 import { getMesocycleStartDate } from '@/lib/coach-engine';
+import { loadCustomProgram, type CustomProgram } from '@/lib/custom-program-store';
 
 interface DayPreview {
   date: Date;
@@ -41,6 +42,8 @@ export default function NextWeekScreen() {
   const [days, setDays] = useState<DayPreview[]>([]);
   const [mesoInfo, setMesoInfo] = useState<{ currentWeek: number; isDeload: boolean } | null>(null);
   const [expandedDay, setExpandedDay] = useState<number | null>(null);
+  const [customProg, setCustomProg] = useState<CustomProgram | null>(null);
+  useEffect(() => { loadCustomProgram().then(setCustomProg); }, []);
 
   useEffect(() => {
     (async () => {
@@ -143,7 +146,7 @@ export default function NextWeekScreen() {
         {/* Days */}
         {days.map((day, i) => {
           const isRest = day.session === 'rest';
-          const sessionColor = SESSION_COLORS[day.session];
+          const sessionColor = customProg?.sessionColors?.[day.session] || SESSION_COLORS[day.session] || colors.primary;
           const today = isToday(day.date);
           const isExpanded = expandedDay === i;
           const dateStr = day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -181,7 +184,7 @@ export default function NextWeekScreen() {
                         )}
                       </View>
                       <Text className="text-sm" style={{ color: isRest ? colors.muted : sessionColor }}>
-                        {isRest ? '😴 Rest Day' : SESSION_NAMES[day.session]}
+                        {isRest ? '😴 Rest Day' : (customProg?.sessionNames?.[day.session] || SESSION_NAMES[day.session] || day.session)}
                       </Text>
                     </View>
                   </View>

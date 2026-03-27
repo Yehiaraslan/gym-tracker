@@ -4,7 +4,8 @@
 
 import type { BodyPart } from './types';
 
-export type SessionType = 'upper-a' | 'lower-a' | 'upper-b' | 'lower-b' | 'rest';
+/** Known default session types + any custom string from AI-generated programs */
+export type SessionType = 'upper-a' | 'lower-a' | 'upper-b' | 'lower-b' | 'rest' | (string & {});
 
 export interface ProgramExercise {
   name: string;

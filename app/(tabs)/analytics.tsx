@@ -46,6 +46,7 @@ import {
 import { getRecentNutrition, getMacroTotals, type DailyNutrition } from '@/lib/nutrition-store';
 import { getActiveRecommendations, type CoachRecommendation } from '@/lib/coach-engine';
 import { NUTRITION_TARGETS, SLEEP_TARGETS, SESSION_NAMES, SESSION_COLORS, type SessionType } from '@/lib/training-program';
+import { loadCustomProgram, type CustomProgram } from '@/lib/custom-program-store';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -57,6 +58,10 @@ export default function ProgressScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<ProgressTab>('overview');
+  const [customProg, setCustomProg] = useState<CustomProgram | null>(null);
+  useEffect(() => { loadCustomProgram().then(setCustomProg); }, []);
+  const resolveName = (st: string) => customProg?.sessionNames?.[st] || SESSION_NAMES[st as keyof typeof SESSION_NAMES] || st;
+  const resolveColor = (st: string) => customProg?.sessionColors?.[st] || SESSION_COLORS[st as keyof typeof SESSION_COLORS] || colors.primary;
 
   // Data
   const [prs, setPrs] = useState<Record<string, { e1rm: number; weight: number; reps: number; date: string }>>({})
@@ -478,7 +483,7 @@ export default function ProgressScreen() {
             <Text className="text-sm font-semibold text-foreground mb-3">Recent Workouts</Text>
             <View className="rounded-2xl overflow-hidden" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
               {recentWorkouts.slice(0, 5).map((w, i) => {
-                const sColor = SESSION_COLORS[w.sessionType as SessionType] || colors.primary;
+                const sColor = resolveColor(w.sessionType);
                 return (
                   <View
                     key={w.id}
@@ -490,7 +495,7 @@ export default function ProgressScreen() {
                     />
                     <View className="flex-1">
                       <Text className="text-sm font-medium text-foreground">
-                        {SESSION_NAMES[w.sessionType as SessionType] || w.sessionType}
+                        {resolveName(w.sessionType)}
                       </Text>
                       <Text className="text-xs text-muted">
                         {new Date(w.date + 'T00:00:00').toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' })}

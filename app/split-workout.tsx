@@ -61,6 +61,7 @@ import {
   clearActiveWorkout,
 } from '@/lib/active-workout-store';
 import { trpc } from '@/lib/trpc';
+import { loadCustomProgram } from '@/lib/custom-program-store';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -71,24 +72,63 @@ export default function SplitWorkoutScreen() {
   const params = useLocalSearchParams<{ sessionType?: string; session?: string; deload?: string }>();
   const sessionType = (params.sessionType as SessionType) || (params.session as SessionType) || getTodaySession();
   const [isDeload, setIsDeload] = useState(params.deload === 'true');
-  const programExercises = sessionType !== 'rest' ? PROGRAM_SESSIONS[sessionType] : [];
+  const defaultExercises = sessionType !== 'rest' ? (PROGRAM_SESSIONS[sessionType] ?? []) : [];
+  const [programExercises, setProgramExercises] = useState<ProgramExercise[]>(defaultExercises);
   const [swappableExercises, setSwappableExercises] = useState<ProgramExercise[]>([]);
-  // Load saved swaps from AsyncStorage on mount
+
+  // Load exercises from custom program if available, then apply saved swaps
   useEffect(() => {
     if (sessionType === 'rest') return;
-    const key = `@gym_swap_${sessionType}`;
-    AsyncStorage.getItem(key).then(raw => {
+    (async () => {
+      // 1. Check custom program first
+      let baseExercises = defaultExercises;
+      try {
+        const custom = await loadCustomProgram();
+        if (custom?.sessions?.[sessionType]) {
+          baseExercises = custom.sessions[sessionType];
+          setProgramExercises(baseExercises);
+        }
+      } catch { /* use default */ }
+
+      // 2. Apply saved swaps
+      const key = `@gym_swap_${sessionType}`;
+      const raw = await AsyncStorage.getItem(key);
       if (raw) {
         try {
           const saved = JSON.parse(raw) as Record<number, ProgramExercise>;
-          const updated = programExercises.map((ex, i) => saved[i] ? { ...saved[i] } : ex);
+          const updated = baseExercises.map((ex, i) => saved[i] ? { ...saved[i] } : ex);
           setSwappableExercises(updated);
         } catch { /* ignore */ }
       }
-    });
+    })();
   }, [sessionType]);
   const exercises = swappableExercises.length > 0 ? swappableExercises : programExercises;
-  const sessionColor = SESSION_COLORS[sessionType] || colors.primary;
+  // Dynamic session color and name: check custom program first, then defaults
+  const [sessionColor, setSessionColor] = useState(SESSION_COLORS[sessionType] || colors.primary);
+  const [sessionDisplayName, setSessionDisplayName] = useState(SESSION_NAMES[sessionType] || sessionType);
+  const [customProg, setCustomProg] = useState<Awaited<ReturnType<typeof loadCustomProgram>>>(null);
+  useEffect(() => {
+    (async () => {
+      try {
+        const custom = await loadCustomProgram();
+        setCustomProg(custom);
+        if (custom?.sessionColors?.[sessionType]) {
+          setSessionColor(custom.sessionColors[sessionType]);
+        }
+        if (custom?.sessionNames?.[sessionType]) {
+          setSessionDisplayName(custom.sessionNames[sessionType]);
+        }
+      } catch { /* use default */ }
+    })();
+  }, [sessionType]);
+  const resolveSessionName = (st: string): string => {
+    if (customProg?.sessionNames?.[st]) return customProg.sessionNames[st];
+    return SESSION_NAMES[st as keyof typeof SESSION_NAMES] || st;
+  };
+  const resolveSessionColor = (st: string): string => {
+    if (customProg?.sessionColors?.[st]) return customProg.sessionColors[st];
+    return SESSION_COLORS[st as keyof typeof SESSION_COLORS] || colors.primary;
+  };
 
   // State
   const [started, setStarted] = useState(false);
@@ -195,7 +235,7 @@ export default function SplitWorkoutScreen() {
         weight: weightSuggestions[ex.name]?.weight,
       }));
       const result = await zakiWorkoutModifMutation.mutateAsync({
-        sessionName: SESSION_NAMES[sessionType],
+        sessionName: sessionDisplayName,
         recoveryScore: recovery.recoveryScore,
         sleepHours: recovery.sleepScore ? recovery.sleepScore / 10 : undefined, // sleepScore 0-100 → approximate hours
         exercises: exList,
@@ -237,7 +277,7 @@ export default function SplitWorkoutScreen() {
         .map(log => log.exerciseName);
 
       const result = await zakiMidWorkoutMutation.mutateAsync({
-        sessionName: SESSION_NAMES[sessionType],
+        sessionName: sessionDisplayName,
         elapsedMinutes: Math.round(elapsed / 60),
         recoveryScore: recovery?.recoveryScore,
         completedExercises,
@@ -267,7 +307,7 @@ export default function SplitWorkoutScreen() {
       if (!saved || !saved.started || saved.sessionType !== sessionType) return;
       Alert.alert(
         'Resume Workout?',
-        `You have an in-progress ${SESSION_NAMES[saved.sessionType]} workout. Continue where you left off?`,
+        `You have an in-progress ${resolveSessionName(saved.sessionType)} workout. Continue where you left off?`,
         [
           {
             text: 'Start Fresh',
@@ -549,7 +589,7 @@ export default function SplitWorkoutScreen() {
           <View className="items-center pt-12 pb-8 px-6">
             <Text style={{ fontSize: 64 }}>🏆</Text>
             <Text className="text-3xl font-bold text-foreground mt-4">Workout Complete!</Text>
-            <Text className="text-base text-muted mt-2">{SESSION_NAMES[sessionType]}</Text>
+            <Text className="text-base text-muted mt-2">{sessionDisplayName}</Text>
           </View>
 
           {/* Stats Grid */}
@@ -762,7 +802,7 @@ export default function SplitWorkoutScreen() {
             <TouchableOpacity onPress={() => router.back()} className="mb-4">
               <IconSymbol name="chevron.left" size={24} color={colors.muted} />
             </TouchableOpacity>
-            <Text className="text-2xl font-bold text-foreground">{SESSION_NAMES[sessionType]}</Text>
+            <Text className="text-2xl font-bold text-foreground">{sessionDisplayName}</Text>
             <Text className="text-sm text-muted mt-1">
               {exercises.length} exercises{isDeload ? ' · Deload Week' : ''}
             </Text>
@@ -771,15 +811,15 @@ export default function SplitWorkoutScreen() {
           {/* Session type selector */}
           <View className="px-6 mb-4">
             <View className="flex-row flex-wrap" style={{ gap: 8 }}>
-              {(['upper-a', 'lower-a', 'upper-b', 'lower-b'] as const).map(s => (
+              {(customProg ? Object.keys(customProg.sessionNames) : ['upper-a', 'lower-a', 'upper-b', 'lower-b']).map(s => (
                 <TouchableOpacity
                   key={s}
                   onPress={() => router.setParams({ session: s })}
                   className="flex-1 py-3 px-2 rounded-xl items-center"
                   style={{
-                    backgroundColor: sessionType === s ? SESSION_COLORS[s] : colors.surface,
+                    backgroundColor: sessionType === s ? resolveSessionColor(s) : colors.surface,
                     borderWidth: 1,
-                    borderColor: sessionType === s ? SESSION_COLORS[s] : colors.border,
+                    borderColor: sessionType === s ? resolveSessionColor(s) : colors.border,
                     minWidth: '45%',
                   }}
                 >
@@ -787,7 +827,7 @@ export default function SplitWorkoutScreen() {
                     className="text-xs font-semibold"
                     style={{ color: sessionType === s ? '#FFFFFF' : colors.muted }}
                   >
-                    {SESSION_NAMES[s].split('—')[0].trim()}
+                    {resolveSessionName(s).split('—')[0].trim()}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -911,7 +951,7 @@ export default function SplitWorkoutScreen() {
                 </View>
                 <Text style={{ color: colors.foreground, fontSize: 13, marginBottom: 10 }}>
                   Your recovery is below 50%. Switching to{' '}
-                  <Text style={{ fontWeight: '700' }}>{SESSION_NAMES[nudgeAlternative]}</Text>{' '}
+                  <Text style={{ fontWeight: '700' }}>{resolveSessionName(nudgeAlternative)}</Text>{' '}
                   (lighter volume day) will protect your joints and still drive adaptation.
                 </Text>
                 <TouchableOpacity
@@ -928,7 +968,7 @@ export default function SplitWorkoutScreen() {
                   }}
                 >
                   <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>
-                    Switch to {SESSION_NAMES[nudgeAlternative].split('—')[0].trim()}
+                    Switch to {resolveSessionName(nudgeAlternative).split('—')[0].trim()}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -1065,7 +1105,7 @@ export default function SplitWorkoutScreen() {
       <View className="px-4 py-3" style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}>
         <View className="flex-row items-center justify-between mb-2">
           <View>
-            <Text className="text-base font-bold text-foreground">{SESSION_NAMES[sessionType]}</Text>
+            <Text className="text-base font-bold text-foreground">{sessionDisplayName}</Text>
             <Text className="text-xs text-muted">
               ⏱ {formatTime(elapsed)} · {totalSetsLogged}/{totalSetsTarget} sets
             </Text>

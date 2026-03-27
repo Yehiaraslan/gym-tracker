@@ -18,6 +18,7 @@ import {
   PROGRAM_SESSIONS,
   type SessionType,
 } from '@/lib/training-program';
+import { loadCustomProgram, type CustomProgram } from '@/lib/custom-program-store';
 import {
   getTodaySessionFromSchedule,
   getWeekScheduleFromStore,
@@ -60,7 +61,8 @@ const SCREEN_WIDTH = Dimensions.get('window').width;
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-const DOT_COLORS: Record<SessionType, string> = {
+// Default lookup tables for the hardcoded Upper/Lower split
+const DEFAULT_DOT_COLORS: Record<string, string> = {
   'upper-a': '#3B82F6',
   'lower-a': '#8B5CF6',
   'upper-b': '#06B6D4',
@@ -68,7 +70,7 @@ const DOT_COLORS: Record<SessionType, string> = {
   rest: '#374151',
 };
 
-const SESSION_EMOJI: Record<SessionType, string> = {
+const DEFAULT_SESSION_EMOJI: Record<string, string> = {
   'upper-a': '💪',
   'lower-a': '🦵',
   'upper-b': '🏋️',
@@ -76,13 +78,40 @@ const SESSION_EMOJI: Record<SessionType, string> = {
   rest: '😴',
 };
 
-const SESSION_SUBTITLE: Record<SessionType, string> = {
+const DEFAULT_SESSION_SUBTITLE: Record<string, string> = {
   'upper-a': 'Chest · Back · Shoulders · Arms',
   'lower-a': 'Quads · Hamstrings · Glutes · Calves',
   'upper-b': 'Volume push/pull — hypertrophy focus',
   'lower-b': 'Volume legs — hypertrophy focus',
   rest: 'Recovery is where gains are made',
 };
+
+// Auto-assign emoji based on session name keywords
+function guessSessionEmoji(sessionId: string, sessionName?: string): string {
+  const lower = (sessionName || sessionId).toLowerCase();
+  if (lower.includes('push')) return '💪';
+  if (lower.includes('pull')) return '🦶';
+  if (lower.includes('leg')) return '🦵';
+  if (lower.includes('upper')) return '🏋️';
+  if (lower.includes('lower')) return '🔥';
+  if (lower.includes('full') || lower.includes('body')) return '💪';
+  if (lower.includes('circuit')) return '⚡';
+  if (lower.includes('home')) return '🏠';
+  if (lower.includes('rest')) return '😴';
+  return '🏋️';
+}
+
+// Auto-generate subtitle from exercises in a session
+function guessSessionSubtitle(sessionId: string, program: CustomProgram | null): string {
+  if (sessionId === 'rest') return 'Recovery is where gains are made';
+  if (!program?.sessions?.[sessionId]) return '';
+  const exercises = program.sessions[sessionId];
+  const bodyParts = [...new Set(exercises.map(e => e.bodyPart).filter(Boolean))];
+  return bodyParts.slice(0, 4).join(' \u00b7 ') || `${exercises.length} exercises`;
+}
+
+// Color pool for custom sessions that don't have a preset color
+const COLOR_POOL = ['#3B82F6', '#8B5CF6', '#06B6D4', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#14B8A6'];
 
 export default function HomeScreen() {
   const colors = useColors();
@@ -121,6 +150,8 @@ export default function HomeScreen() {
   const [recommendations, setRecommendations] = useState<CoachRecommendation[]>([]);
   const [workoutsThisWeek, setWorkoutsThisWeek] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  // Custom program state — loaded on focus, used for dynamic display names/colors
+  const [customProgram, setCustomProgram] = useState<CustomProgram | null>(null);
 
   // Load deviceId once on mount
   useEffect(() => { getDeviceId().then(setDeviceId); }, []);
@@ -224,8 +255,38 @@ export default function HomeScreen() {
       loadSchedule();
       loadUserProfile().then(setUserProfile);
       loadPinSyncState().then(setSyncState);
+      loadCustomProgram().then(setCustomProgram);
     }, [loadData, loadSchedule])
   );
+
+  // ── Dynamic lookups that adapt to custom programs ──
+  const getColor = (sessionId: string): string => {
+    if (sessionId === 'rest') return DEFAULT_DOT_COLORS.rest;
+    // Check custom program colors first
+    if (customProgram?.sessionColors?.[sessionId]) return customProgram.sessionColors[sessionId];
+    // Fall back to defaults
+    if (DEFAULT_DOT_COLORS[sessionId]) return DEFAULT_DOT_COLORS[sessionId];
+    // Auto-assign from color pool based on session index
+    const sessionKeys = customProgram ? Object.keys(customProgram.sessionNames) : [];
+    const idx = sessionKeys.indexOf(sessionId);
+    return COLOR_POOL[idx >= 0 ? idx % COLOR_POOL.length : 0];
+  };
+
+  const getName = (sessionId: string): string => {
+    if (sessionId === 'rest') return 'Rest Day';
+    if (customProgram?.sessionNames?.[sessionId]) return customProgram.sessionNames[sessionId];
+    return SESSION_NAMES[sessionId as keyof typeof SESSION_NAMES] || sessionId;
+  };
+
+  const getEmoji = (sessionId: string): string => {
+    if (DEFAULT_SESSION_EMOJI[sessionId]) return DEFAULT_SESSION_EMOJI[sessionId];
+    return guessSessionEmoji(sessionId, customProgram?.sessionNames?.[sessionId]);
+  };
+
+  const getSubtitle = (sessionId: string): string => {
+    if (DEFAULT_SESSION_SUBTITLE[sessionId]) return DEFAULT_SESSION_SUBTITLE[sessionId];
+    return guessSessionSubtitle(sessionId, customProgram);
+  };
 
   const handleStartWorkout = () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -410,7 +471,7 @@ export default function HomeScreen() {
             {weekDays.map((d, i) => {
               const dateStr = `${d.date.getFullYear()}-${String(d.date.getMonth() + 1).padStart(2, '0')}-${String(d.date.getDate()).padStart(2, '0')}`;
               const isCompleted = recentWorkouts.some(w => w.date === dateStr && w.completed);
-              const dotColor = DOT_COLORS[d.session];
+              const dotColor = getColor(d.session);
               return (
                 <TouchableOpacity
                   key={i}
@@ -435,10 +496,16 @@ export default function HomeScreen() {
           {/* ── This Week’s Plan row ── */}
           <View style={{ flexDirection: 'row', paddingHorizontal: 8, paddingTop: 10, borderTopWidth: 1, borderTopColor: bord, marginTop: 8 }}>
             {weekDays.map((d, i) => {
-              const short: Record<string, string> = {
+              const defaultShort: Record<string, string> = {
                 'upper-a': 'UA', 'lower-a': 'LA', 'upper-b': 'UB', 'lower-b': 'LB', 'rest': '—',
               };
-              const color = d.session === 'rest' ? mut : DOT_COLORS[d.session];
+              // Generate abbreviation from session name if not in defaults
+              const short: Record<string, string> = { ...defaultShort };
+              if (!short[d.session]) {
+                // Take first letter of each word, uppercase, max 3 chars
+                short[d.session] = d.session.split(/[-_ ]+/).map(w => w[0]?.toUpperCase() ?? '').join('').slice(0, 3) || d.session.slice(0, 2).toUpperCase();
+              }
+              const color = d.session === 'rest' ? mut : getColor(d.session);
               return (
                 <View key={i} style={{ flex: 1, alignItems: 'center' }}>
                   <Text style={{ fontSize: 10, fontWeight: d.isToday ? '800' : '500', color, letterSpacing: 0.3 }}>
@@ -457,8 +524,8 @@ export default function HomeScreen() {
               {previewDay && (
                 <>
                   <Text style={{ color: fg, fontSize: 20, fontWeight: '700', marginBottom: 4 }}>{previewDay.label}</Text>
-                  <Text style={{ color: mut, fontSize: 14, marginBottom: 16 }}>{SESSION_NAMES[previewDay.session]}</Text>
-                  <Text style={{ color: mut, fontSize: 13 }}>{SESSION_SUBTITLE[previewDay.session]}</Text>
+                  <Text style={{ color: mut, fontSize: 14, marginBottom: 16 }}>{getName(previewDay.session)}</Text>
+                  <Text style={{ color: mut, fontSize: 13 }}>{getSubtitle(previewDay.session)}</Text>
                   <TouchableOpacity
                     style={{ marginTop: 20, backgroundColor: pri, borderRadius: 12, paddingVertical: 10, alignItems: 'center' }}
                     onPress={() => {
@@ -486,7 +553,7 @@ export default function HomeScreen() {
           >
             <Text style={s.warningIcon}>⏱️</Text>
             <View style={{ flex: 1 }}>
-              <Text style={[s.warningTitle, { color: '#3B82F6' }]}>In-Progress: {SESSION_NAMES[resumableWorkout.sessionType]}</Text>
+              <Text style={[s.warningTitle, { color: '#3B82F6' }]}>In-Progress: {getName(resumableWorkout.sessionType)}</Text>
               <Text style={[s.warningSub, { color: mut }]}>
                 {resumableWorkout.exerciseLogs.filter(e => e.sets.length > 0).length} exercises started · {Math.round(resumableWorkout.elapsed / 60)}min elapsed
               </Text>
@@ -499,20 +566,20 @@ export default function HomeScreen() {
 
         {/* ── Today's Session Hero ── */}
         <TouchableOpacity
-          style={[s.heroCard, { backgroundColor: surf, borderColor: SESSION_COLORS[todaySession] + '40' }]}
+          style={[s.heroCard, { backgroundColor: surf, borderColor: getColor(todaySession) + '40' }]}
           onPress={handleStartWorkout}
           activeOpacity={0.85}
         >
           <View style={s.heroRow}>
-            <Text style={s.heroEmoji}>{SESSION_EMOJI[todaySession]}</Text>
+            <Text style={s.heroEmoji}>{getEmoji(todaySession)}</Text>
             <View style={{ flex: 1 }}>
-              <Text style={[s.heroTitle, { color: fg }]}>{SESSION_NAMES[todaySession]}</Text>
-              <Text style={[s.heroSub, { color: mut }]}>{SESSION_SUBTITLE[todaySession]}</Text>
+              <Text style={[s.heroTitle, { color: fg }]}>{getName(todaySession)}</Text>
+              <Text style={[s.heroSub, { color: mut }]}>{getSubtitle(todaySession)}</Text>
             </View>
           </View>
           {!isRest && (
             <TouchableOpacity
-              style={[s.startBtn, { backgroundColor: todayDone ? '#22C55E' : SESSION_COLORS[todaySession] }]}
+              style={[s.startBtn, { backgroundColor: todayDone ? '#22C55E' : getColor(todaySession) }]}
               onPress={handleStartWorkout}
             >
               <Text style={s.startBtnText}>{todayDone ? '✓ Completed — Start Again' : 'Start Workout'}</Text>
@@ -801,12 +868,12 @@ export default function HomeScreen() {
           <View style={[s.card, { backgroundColor: surf, borderColor: bord, paddingBottom: 4 }]}>
             <Text style={[s.sectionLabel, { color: mut, marginBottom: 10 }]}>RECENT WORKOUTS</Text>
             {recentWorkouts.slice(0, 5).map((w, i) => {
-              const sColor = SESSION_COLORS[w.sessionType as SessionType] || pri;
+              const sColor = getColor(w.sessionType);
               return (
                 <View key={w.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderTopWidth: i > 0 ? 1 : 0, borderTopColor: bord }}>
                   <View style={{ width: 4, height: 28, borderRadius: 2, backgroundColor: sColor, marginRight: 10 }} />
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 13, fontWeight: '600', color: fg }}>{SESSION_NAMES[w.sessionType as SessionType] || w.sessionType}</Text>
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: fg }}>{getName(w.sessionType)}</Text>
                     <Text style={{ fontSize: 11, color: mut }}>
                       {new Date(w.date + 'T00:00:00').toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' })}
                       {w.durationMinutes ? ` · ${w.durationMinutes}m` : ''}

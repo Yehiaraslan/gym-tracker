@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { 
   Text, 
   View, 
@@ -15,6 +15,7 @@ import { useColors } from '@/hooks/use-colors';
 import { useGym } from '@/lib/gym-context';
 import { getSplitWorkouts, getSplitWeightHistory, type SplitWorkoutSession } from '@/lib/split-workout-store';
 import { SESSION_NAMES } from '@/lib/training-program';
+import { loadCustomProgram, type CustomProgram } from '@/lib/custom-program-store';
 import { BodyMeasurementsView } from '@/components/body-measurements';
 import * as Haptics from 'expo-haptics';
 
@@ -41,6 +42,8 @@ export default function HistoryScreen() {
   const [selectedExercise, setSelectedExercise] = useState<string | null>(null);
   const [splitWorkouts, setSplitWorkouts] = useState<SplitWorkoutSession[]>([]);
   const [workoutSearchQuery, setWorkoutSearchQuery] = useState('');
+  const [customProg, setCustomProg] = useState<CustomProgram | null>(null);
+  useEffect(() => { loadCustomProgram().then(setCustomProg); }, []);
 
   // Reload split workouts and exercise history every time this tab is focused
   useFocusEffect(
@@ -73,7 +76,7 @@ export default function HistoryScreen() {
     const q = workoutSearchQuery.toLowerCase();
     return (
       (w.notes ?? '').toLowerCase().includes(q) ||
-      (SESSION_NAMES[w.sessionType] ?? w.sessionType).toLowerCase().includes(q)
+      (customProg?.sessionNames?.[w.sessionType] ?? SESSION_NAMES[w.sessionType] ?? w.sessionType).toLowerCase().includes(q)
     );
   });
 
@@ -90,7 +93,7 @@ export default function HistoryScreen() {
 
   const renderWorkoutItem = ({ item }: { item: SplitWorkoutSession }) => {
     const isExpanded = expandedWorkout === item.id;
-    const sessionName = SESSION_NAMES[item.sessionType] ?? item.sessionType;
+    const sessionName = customProg?.sessionNames?.[item.sessionType] ?? SESSION_NAMES[item.sessionType] ?? item.sessionType;
     const workingSets = item.exercises.reduce((acc, ex) => acc + ex.sets.filter(s => !s.isWarmup).length, 0);
     const totalVolume = item.totalVolume ?? item.exercises.reduce((acc, ex) =>
       acc + ex.sets.reduce((s, set) => s + (set.weightKg * set.reps), 0), 0

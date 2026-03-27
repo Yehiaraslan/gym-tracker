@@ -13,6 +13,7 @@ import { getRecentSleep, getWeightEntries, type SleepEntry, type WeightEntry } f
 import { getWeeklyRecoveryData, getWeeklyAverageRecovery } from '@/lib/whoop-recovery-service';
 import { calculateVolumeLoad, epley1RM } from '@/lib/fitness-utils';
 import { SESSION_NAMES, SESSION_COLORS, type SessionType } from '@/lib/training-program';
+import { loadCustomProgram, type CustomProgram } from '@/lib/custom-program-store';
 
 interface WeeklyStats {
   workoutsCompleted: number;
@@ -82,6 +83,10 @@ export default function WeeklyReportScreen() {
   const colors = useColors();
   const router = useRouter();
   const [stats, setStats] = useState<WeeklyStats | null>(null);
+  const [customProg, setCustomProg] = useState<CustomProgram | null>(null);
+  useEffect(() => { loadCustomProgram().then(setCustomProg); }, []);
+  const resolveName = (st: string) => customProg?.sessionNames?.[st] || SESSION_NAMES[st as keyof typeof SESSION_NAMES] || st;
+  const resolveColor = (st: string) => customProg?.sessionColors?.[st] || SESSION_COLORS[st as keyof typeof SESSION_COLORS] || colors.primary;
 
   useEffect(() => {
     (async () => {
@@ -242,15 +247,15 @@ export default function WeeklyReportScreen() {
                 className="flex-row items-center rounded-xl p-3 mb-2"
                 style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
               >
-                <View className="w-2 h-8 rounded-full mr-3" style={{ backgroundColor: SESSION_COLORS[s.type] }} />
+                <View className="w-2 h-8 rounded-full mr-3" style={{ backgroundColor: resolveColor(s.type) }} />
                 <View className="flex-1">
-                  <Text className="text-sm font-medium text-foreground">{SESSION_NAMES[s.type]}</Text>
+                  <Text className="text-sm font-medium text-foreground">{resolveName(s.type)}</Text>
                   <Text className="text-xs text-muted">
                     {new Date(s.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                     {s.duration > 0 ? ` · ${s.duration}m` : ''}
                   </Text>
                 </View>
-                <Text className="text-sm font-semibold" style={{ color: SESSION_COLORS[s.type] }}>
+                <Text className="text-sm font-semibold" style={{ color: resolveColor(s.type) }}>
                   {s.volume > 0 ? `${(s.volume / 1000).toFixed(1)}t` : '—'}
                 </Text>
               </View>
