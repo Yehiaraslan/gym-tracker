@@ -18,7 +18,7 @@ import {
   PROGRAM_SESSIONS,
   type SessionType,
 } from '@/lib/training-program';
-import { loadCustomProgram, type CustomProgram } from '@/lib/custom-program-store';
+import { loadCustomProgram, getProgramProgress, suggestNextProgram, type CustomProgram } from '@/lib/custom-program-store';
 import {
   getTodaySessionFromSchedule,
   getWeekScheduleFromStore,
@@ -464,6 +464,56 @@ export default function HomeScreen() {
             </View>
           </View>
         )}
+
+        {/* ── Program Progression Banner ── */}
+        {(() => {
+          if (!customProgram) return null;
+          const progress = getProgramProgress(customProgram);
+          if (!progress.isComplete) {
+            // Show progress bar for active program
+            return (
+              <View style={[s.card, { backgroundColor: surf, borderColor: bord, padding: 14, marginBottom: 8 }]}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <Text style={{ color: fg, fontSize: 14, fontWeight: '600' }}>{customProgram.name}</Text>
+                  <Text style={{ color: mut, fontSize: 12 }}>Week {Math.min(progress.weeksElapsed + 1, progress.totalWeeks)}/{progress.totalWeeks}</Text>
+                </View>
+                <View style={{ height: 6, borderRadius: 3, backgroundColor: bord, overflow: 'hidden' }}>
+                  <View style={{ height: 6, borderRadius: 3, backgroundColor: pri, width: `${progress.percentComplete}%` }} />
+                </View>
+                <Text style={{ color: mut, fontSize: 11, marginTop: 6 }}>
+                  {progress.daysRemaining} days remaining
+                </Text>
+              </View>
+            );
+          }
+          // Program complete — show upgrade banner
+          const suggestion = suggestNextProgram(
+            customProgram,
+            userProfile?.fitnessGoal || 'muscle_gain',
+            userProfile?.experienceLevel || 'intermediate',
+            userProfile?.equipment || 'full_gym',
+          );
+          return (
+            <View style={[s.warningBanner, { backgroundColor: '#22C55E15', borderColor: '#22C55E', marginBottom: 8 }]}>
+              <Text style={s.warningIcon}>🌟</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={[s.warningTitle, { color: '#22C55E' }]}>Program Complete!</Text>
+                <Text style={[s.warningSub, { color: mut }]}>{suggestion.reason}</Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    router.push('/program-setup' as any);
+                  }}
+                  style={{ marginTop: 8 }}
+                >
+                  <Text style={{ color: '#22C55E', fontSize: 13, fontWeight: '700' }}>
+                    Switch to {suggestion.template.name} →
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          );
+        })()}
 
         {/* ── 7-Day Week Strip ── */}
         <View style={[s.card, { backgroundColor: surf, borderColor: bord, paddingVertical: 12 }]}>

@@ -34,6 +34,7 @@ import {
 import { useAuth } from '@/hooks/use-auth';
 import { loadPinSyncState, type PinSyncState } from '@/lib/pin-sync-store';
 import { persistImage } from '@/lib/image-store';
+import { loadCustomProgram, clearCustomProgram, type CustomProgram } from '@/lib/custom-program-store';
 
 const GOALS: { key: UserProfile['fitnessGoal']; label: string; emoji: string }[] = [
   { key: 'muscle_gain', label: 'Muscle Gain', emoji: '💪' },
@@ -81,6 +82,7 @@ export default function ProfileScreen() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [syncState, setSyncState] = useState<PinSyncState | null>(null);
+  const [customProg, setCustomProg] = useState<CustomProgram | null>(null);
 
   useEffect(() => {
     loadUserProfile().then(p => {
@@ -96,9 +98,10 @@ export default function ProfileScreen() {
     loadPinSyncState().then(setSyncState);
   }, [authUser]);
 
-  // Refresh sync state when returning from pin-sync screen
+  // Refresh sync state and custom program when returning
   useFocusEffect(useCallback(() => {
     loadPinSyncState().then(setSyncState);
+    loadCustomProgram().then(setCustomProg);
   }, []));
 
   const pickPhoto = async () => {
@@ -399,6 +402,40 @@ export default function ProfileScreen() {
             >
               <Text style={[styles.syncBtnText, { color: syncState?.linked ? '#22C55E' : colors.primary }]}>
                 {syncState?.linked ? 'Manage' : 'Set Up'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Training Program Card */}
+        <View style={[styles.syncCard, {
+          backgroundColor: colors.surface,
+          borderColor: customProg ? colors.primary + '40' : colors.border,
+          borderLeftColor: customProg ? colors.primary : colors.border,
+        }]}>
+          <View style={styles.syncRow}>
+            <View style={[styles.syncDot, { backgroundColor: customProg ? colors.primary : '#94A3B8' }]} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.syncTitle, { color: colors.foreground }]}>Training Program</Text>
+              <Text style={[styles.syncSubtitle, { color: colors.muted }]}>
+                {customProg
+                  ? `${customProg.name} · Since ${new Date(customProg.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`
+                  : 'Default Upper/Lower split'}
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => {
+                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push('/program-setup' as any);
+              }}
+              style={[styles.syncBtn, {
+                backgroundColor: colors.primary + '15',
+                borderColor: colors.primary,
+              }]}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.syncBtnText, { color: colors.primary }]}>
+                {customProg ? 'Change' : 'Set Up'}
               </Text>
             </TouchableOpacity>
           </View>

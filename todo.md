@@ -909,3 +909,11 @@
 - [x] Widen SessionType to accept custom program session IDs (e.g., 'full-a', 'push', 'circuit-a')
 - [x] Preview modal and hero card use custom program display names
 - [x] Week strip dot colors and plan row abbreviations adapt to custom programs
+
+## Batch 12 — E2E Flow Test + Change Program + Program Progression (Mar 28)
+- [x] Test onboarding → Zaki program generation → schedule → Home screen end-to-end (unit tests — 69 tests passing)
+- [x] Fix any issues found in the pipeline (no issues found — all tests pass)
+- [x] Add "Change Program" card in Profile screen with Browse All Programs
+- [x] Program progression logic — getProgramProgress + suggestNextProgram + archiveProgram + loadProgramHistory
+- [x] Show program progress bar (active) and completion banner (done) on Home screen
+- [ ] Push all changes to GitHub repository (pending)

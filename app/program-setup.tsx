@@ -21,6 +21,8 @@ import { loadUserProfile } from '@/lib/profile-store';
 import {
   findBestTemplate,
   applyProgramTemplate,
+  loadCustomProgram,
+  PROGRAM_TEMPLATES,
   type ProgramTemplate,
 } from '@/lib/custom-program-store';
 import { SESSION_NAMES, SESSION_COLORS } from '@/lib/training-program';
@@ -33,8 +35,12 @@ export default function ProgramSetupScreen() {
   const router = useRouter();
 
   const [template, setTemplate] = useState<ProgramTemplate | null>(null);
+  const [allTemplates, setAllTemplates] = useState<ProgramTemplate[]>([]);
+  const [showBrowse, setShowBrowse] = useState(false);
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState(false);
+  const [isChangeMode, setIsChangeMode] = useState(false);
+  const [currentProgramName, setCurrentProgramName] = useState<string | null>(null);
 
   const fg = colors.foreground;
   const mt = colors.muted;
@@ -46,12 +52,20 @@ export default function ProgramSetupScreen() {
 
   useEffect(() => {
     (async () => {
-      const profile = await loadUserProfile();
+      const [profile, existingProg] = await Promise.all([
+        loadUserProfile(),
+        loadCustomProgram(),
+      ]);
+      if (existingProg) {
+        setIsChangeMode(true);
+        setCurrentProgramName(existingProg.name);
+      }
       const goal = profile.fitnessGoal || 'muscle_gain';
       const exp = profile.experienceLevel || 'intermediate';
       const equip = profile.equipment || 'full_gym';
       const best = findBestTemplate(goal, exp, equip);
       setTemplate(best);
+      setAllTemplates(PROGRAM_TEMPLATES);
       setLoading(false);
     })();
   }, []);
@@ -70,8 +84,12 @@ export default function ProgramSetupScreen() {
   };
 
   const handleSkip = () => {
-    // Skip program setup — use default Upper/Lower
-    router.replace('/(tabs)');
+    // Skip / go back
+    if (isChangeMode) {
+      router.back();
+    } else {
+      router.replace('/(tabs)');
+    }
   };
 
   if (loading) {
@@ -115,9 +133,18 @@ export default function ProgramSetupScreen() {
       <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={s.header}>
-          <Text style={[s.headerTitle, { color: fg }]}>Your Program</Text>
+          {isChangeMode && (
+            <TouchableOpacity onPress={() => router.back()} style={{ marginBottom: 8 }} activeOpacity={0.7}>
+              <Text style={{ color: pr, fontSize: 15, fontWeight: '600' }}>‹ Back to Profile</Text>
+            </TouchableOpacity>
+          )}
+          <Text style={[s.headerTitle, { color: fg }]}>
+            {isChangeMode ? 'Change Program' : 'Your Program'}
+          </Text>
           <Text style={[s.headerSubtitle, { color: mt }]}>
-            Based on your goals and experience, here's what Zaki recommends
+            {isChangeMode
+              ? `Currently: ${currentProgramName || 'Default Upper/Lower'}. Pick a new program below.`
+              : "Based on your goals and experience, here's what Zaki recommends"}
           </Text>
         </View>
 
@@ -206,16 +233,63 @@ export default function ProgramSetupScreen() {
             {applying ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={s.applyBtnText}>Start This Program</Text>
+              <Text style={s.applyBtnText}>
+                {isChangeMode ? 'Switch to This Program' : 'Start This Program'}
+              </Text>
             )}
           </TouchableOpacity>
+
+          {/* Browse All Programs */}
+          <TouchableOpacity
+            style={[s.skipBtn, { borderColor: pr, marginBottom: 4 }]}
+            onPress={() => setShowBrowse(!showBrowse)}
+            activeOpacity={0.7}
+          >
+            <Text style={[s.skipBtnText, { color: pr }]}>
+              {showBrowse ? 'Hide Other Programs' : 'Browse All Programs'}
+            </Text>
+          </TouchableOpacity>
+
+          {showBrowse && allTemplates.filter(t => t.id !== template.id).map(t => {
+            const tDays = Object.values(t.weeklySchedule).filter(s => s !== 'rest').length;
+            const isCurrent = t.name === currentProgramName;
+            return (
+              <TouchableOpacity
+                key={t.id}
+                style={[s.sessionCard, {
+                  backgroundColor: isCurrent ? pr + '08' : surf,
+                  borderColor: isCurrent ? pr : bord,
+                  marginBottom: 8,
+                }]}
+                onPress={() => {
+                  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setTemplate(t);
+                  setShowBrowse(false);
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <Text style={[s.sessionName, { color: fg, marginBottom: 0, flex: 1 }]}>{t.name}</Text>
+                  <View style={[s.badge, { backgroundColor: pr + '20' }]}>
+                    <Text style={[s.badgeText, { color: pr }]}>{tDays}x/week</Text>
+                  </View>
+                </View>
+                <Text style={{ color: mt, fontSize: 13, lineHeight: 18 }}>{t.description}</Text>
+                {isCurrent && (
+                  <Text style={{ color: pr, fontSize: 11, fontWeight: '700', marginTop: 6 }}>CURRENT PROGRAM</Text>
+                )}
+              </TouchableOpacity>
+            );
+          })}
 
           <TouchableOpacity
             style={[s.skipBtn, { borderColor: bord }]}
             onPress={handleSkip}
             activeOpacity={0.7}
           >
-            <Text style={[s.skipBtnText, { color: mt }]}>Skip — I'll set up later</Text>
+            <Text style={[s.skipBtnText, { color: mt }]}>
+              {isChangeMode ? 'Keep Current Program' : "Skip — I'll set up later"}
+            </Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

@@ -35,6 +35,10 @@ export interface CustomProgram {
   createdAt: string;
   /** Whether Zaki generated this */
   generatedByZaki: boolean;
+  /** Duration of the program in weeks (default 4 for starter programs) */
+  durationWeeks?: number;
+  /** ISO timestamp when the program was completed (auto-set by progression logic) */
+  completedAt?: string;
 }
 
 // ── Storage API ──────────────────────────────────────────────
@@ -433,12 +437,121 @@ export function findBestTemplate(
   return bestTemplate;
 }
 
+// ── Program Progression & History ────────────────────────────
+
+const PROGRAM_HISTORY_KEY = '@program_history_v1';
+
+export interface ProgramHistoryEntry {
+  program: CustomProgram;
+  archivedAt: string;
+}
+
+/**
+ * Archive a completed program to history.
+ */
+export async function archiveProgram(program: CustomProgram): Promise<void> {
+  try {
+    const raw = await AsyncStorage.getItem(PROGRAM_HISTORY_KEY);
+    const history: ProgramHistoryEntry[] = raw ? JSON.parse(raw) : [];
+    history.unshift({
+      program: { ...program, completedAt: program.completedAt || new Date().toISOString() },
+      archivedAt: new Date().toISOString(),
+    });
+    // Keep last 20 programs
+    await AsyncStorage.setItem(PROGRAM_HISTORY_KEY, JSON.stringify(history.slice(0, 20)));
+  } catch {}
+}
+
+/**
+ * Load program history.
+ */
+export async function loadProgramHistory(): Promise<ProgramHistoryEntry[]> {
+  try {
+    const raw = await AsyncStorage.getItem(PROGRAM_HISTORY_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Check if the current program has expired (past its durationWeeks).
+ * Returns the number of weeks elapsed and whether the program is complete.
+ */
+export function getProgramProgress(program: CustomProgram): {
+  weeksElapsed: number;
+  totalWeeks: number;
+  isComplete: boolean;
+  daysRemaining: number;
+  percentComplete: number;
+} {
+  const totalWeeks = program.durationWeeks ?? 4;
+  const startDate = new Date(program.createdAt);
+  const now = new Date();
+  const msElapsed = now.getTime() - startDate.getTime();
+  const daysElapsed = Math.floor(msElapsed / (1000 * 60 * 60 * 24));
+  const weeksElapsed = Math.floor(daysElapsed / 7);
+  const totalDays = totalWeeks * 7;
+  const daysRemaining = Math.max(0, totalDays - daysElapsed);
+  const percentComplete = Math.min(100, Math.round((daysElapsed / totalDays) * 100));
+  const isComplete = daysElapsed >= totalDays;
+
+  return { weeksElapsed, totalWeeks, isComplete, daysRemaining, percentComplete };
+}
+
+/**
+ * Suggest the next program based on the completed program and user profile.
+ * Progression logic:
+ * - Beginner → Intermediate (after completing beginner program)
+ * - Intermediate → Advanced (if goal is muscle_gain)
+ * - Fat loss → Muscle gain intermediate (after fat loss phase)
+ * - Same level → Repeat with note to increase weights
+ */
+export function suggestNextProgram(
+  currentProgram: CustomProgram,
+  goal: string,
+  experience: string,
+  equipment: string,
+): { template: ProgramTemplate; reason: string } {
+  // Find current template
+  const currentTemplate = PROGRAM_TEMPLATES.find(t => t.name === currentProgram.name);
+  const currentExp = currentTemplate?.experience || experience;
+  const currentEquip = currentTemplate?.equipment || equipment;
+
+  // Progression rules
+  let nextExp = currentExp;
+  let nextGoal = goal;
+  let reason = '';
+
+  if (currentExp === 'beginner') {
+    nextExp = 'intermediate';
+    reason = 'You\'ve completed your beginner program. Time to level up with more volume and frequency.';
+  } else if (currentExp === 'intermediate' && goal === 'muscle_gain') {
+    nextExp = 'advanced';
+    reason = 'You\'re ready for higher frequency training. This PPL split maximises muscle growth.';
+  } else if (currentTemplate?.goal === 'fat_loss') {
+    nextGoal = 'muscle_gain';
+    reason = 'Great work on the fat loss phase. Now let\'s build muscle with a structured split.';
+  } else {
+    // Same level — suggest repeating with progression
+    reason = 'Repeat this mesocycle with 5-10% heavier weights. Progressive overload is the key.';
+    return { template: currentTemplate || PROGRAM_TEMPLATES[0], reason };
+  }
+
+  const nextTemplate = findBestTemplate(nextGoal, nextExp, currentEquip);
+  return { template: nextTemplate, reason };
+}
+
 /**
  * Convert a ProgramTemplate into a CustomProgram and save it.
  * Also updates the schedule store.
  */
 export async function applyProgramTemplate(template: ProgramTemplate): Promise<CustomProgram> {
-  // schedule-store imported at top level
+  // Archive current program before switching
+  const existing = await loadCustomProgram();
+  if (existing) {
+    await archiveProgram(existing);
+  }
 
   const program: CustomProgram = {
     name: template.name,
@@ -451,6 +564,7 @@ export async function applyProgramTemplate(template: ProgramTemplate): Promise<C
     weeklySchedule: template.weeklySchedule,
     createdAt: new Date().toISOString(),
     generatedByZaki: false,
+    durationWeeks: 4,
   };
 
   // Save the custom program
