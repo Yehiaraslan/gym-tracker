@@ -17,6 +17,7 @@ import {
   Dimensions,
   PanResponder,
   Animated,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -28,6 +29,7 @@ import { useColors } from '@/hooks/use-colors';
 import { persistImage, deletePersistedImage } from '@/lib/image-store';
 import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system/legacy';
+import { trpc } from '@/lib/trpc';
 
 const PICTURES_KEY = '@gym_progress_pictures';
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -421,6 +423,133 @@ const tlStyles = StyleSheet.create({
   saveBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' },
 });
 
+// ─── Zaki Body Analysis Result Types ────────────────────────
+interface BodyAnalysis {
+  overallAssessment: string;
+  postureFindings: string[];
+  muscleImbalances: { area: string; finding: string; severity: 'mild' | 'moderate' | 'significant' }[];
+  weakPoints: { muscle: string; recommendation: string }[];
+  strengths: string[];
+  priorityActions: string[];
+  estimatedBodyFatRange?: string | null;
+}
+
+// ─── Zaki Body Analysis Modal ────────────────────────────────
+function ZakiAnalysisModal({ analysis, onClose, colors }: {
+  analysis: BodyAnalysis;
+  onClose: () => void;
+  colors: ReturnType<typeof useColors>;
+}) {
+  const severityColor = (s: string) =>
+    s === 'significant' ? '#EF4444' : s === 'moderate' ? '#F59E0B' : '#10B981';
+
+  return (
+    <Modal visible animationType="slide" onRequestClose={onClose}>
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        {/* Header */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 56, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <Text style={{ fontSize: 22 }}>🤖</Text>
+            <View>
+              <Text style={{ fontSize: 17, fontWeight: '700', color: colors.foreground }}>Zaki Body Analysis</Text>
+              <Text style={{ fontSize: 12, color: colors.muted }}>AI-powered physique assessment</Text>
+            </View>
+          </View>
+          <TouchableOpacity onPress={onClose} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surface, justifyContent: 'center', alignItems: 'center' }}>
+            <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '700' }}>✕</Text>
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 60 }}>
+          {/* Overall Assessment */}
+          <View style={{ backgroundColor: '#6366F110', borderRadius: 14, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#6366F130' }}>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: '#6366F1', marginBottom: 8 }}>OVERALL ASSESSMENT</Text>
+            <Text style={{ fontSize: 14, color: colors.foreground, lineHeight: 22 }}>{analysis.overallAssessment}</Text>
+            {analysis.estimatedBodyFatRange && (
+              <View style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={{ fontSize: 12, color: colors.muted }}>Estimated body fat:</Text>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: '#6366F1' }}>{analysis.estimatedBodyFatRange}</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Strengths */}
+          {analysis.strengths.length > 0 && (
+            <View style={{ marginBottom: 16 }}>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.foreground, marginBottom: 10 }}>💪 STRENGTHS</Text>
+              {analysis.strengths.map((s, i) => (
+                <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
+                  <Text style={{ color: '#10B981', fontSize: 14, marginTop: 1 }}>✓</Text>
+                  <Text style={{ fontSize: 14, color: colors.foreground, flex: 1, lineHeight: 20 }}>{s}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Posture Findings */}
+          {analysis.postureFindings.length > 0 && (
+            <View style={{ marginBottom: 16 }}>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.foreground, marginBottom: 10 }}>🧍 POSTURE FINDINGS</Text>
+              {analysis.postureFindings.map((f, i) => (
+                <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
+                  <Text style={{ color: '#F59E0B', fontSize: 14, marginTop: 1 }}>→</Text>
+                  <Text style={{ fontSize: 14, color: colors.foreground, flex: 1, lineHeight: 20 }}>{f}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Muscle Imbalances */}
+          {analysis.muscleImbalances.length > 0 && (
+            <View style={{ marginBottom: 16 }}>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.foreground, marginBottom: 10 }}>⚖️ MUSCLE IMBALANCES</Text>
+              {analysis.muscleImbalances.map((m, i) => (
+                <View key={i} style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 12, marginBottom: 8, borderLeftWidth: 3, borderLeftColor: severityColor(m.severity) }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.foreground }}>{m.area}</Text>
+                    <View style={{ backgroundColor: severityColor(m.severity) + '20', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
+                      <Text style={{ fontSize: 10, fontWeight: '700', color: severityColor(m.severity), textTransform: 'uppercase' }}>{m.severity}</Text>
+                    </View>
+                  </View>
+                  <Text style={{ fontSize: 13, color: colors.muted, lineHeight: 18 }}>{m.finding}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Weak Points */}
+          {analysis.weakPoints.length > 0 && (
+            <View style={{ marginBottom: 16 }}>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.foreground, marginBottom: 10 }}>🎯 WEAK POINTS & RECOMMENDATIONS</Text>
+              {analysis.weakPoints.map((w, i) => (
+                <View key={i} style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 12, marginBottom: 8 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#EF4444', marginBottom: 4 }}>{w.muscle}</Text>
+                  <Text style={{ fontSize: 13, color: colors.foreground, lineHeight: 18 }}>{w.recommendation}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Priority Actions */}
+          {analysis.priorityActions.length > 0 && (
+            <View style={{ backgroundColor: '#10B98110', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#10B98130' }}>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: '#10B981', marginBottom: 10 }}>🚀 PRIORITY ACTIONS</Text>
+              {analysis.priorityActions.map((a, i) => (
+                <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
+                  <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#10B981', justifyContent: 'center', alignItems: 'center', marginTop: 1 }}>
+                    <Text style={{ color: '#fff', fontSize: 11, fontWeight: '800' }}>{i + 1}</Text>
+                  </View>
+                  <Text style={{ fontSize: 14, color: colors.foreground, flex: 1, lineHeight: 20 }}>{a}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </ScrollView>
+      </View>
+    </Modal>
+  );
+}
+
 // ─── Main Screen ─────────────────────────────────────────────
 export default function ProgressPicturesScreen() {
   const colors = useColors();
@@ -430,6 +559,10 @@ export default function ProgressPicturesScreen() {
   const [addLabel, setAddLabel] = useState<ProgressPicture['label']>('front');
   const [compareLabel, setCompareLabel] = useState<ProgressPicture['label'] | null>(null);
   const [timeLapseLabel, setTimeLapseLabel] = useState<ProgressPicture['label'] | null>(null);
+  const [zakiAnalysis, setZakiAnalysis] = useState<BodyAnalysis | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  const bodyAnalysisMutation = trpc.zaki.bodyAnalysis.useMutation();
 
   useEffect(() => {
     loadPictures().then(setPictures);
@@ -513,6 +646,50 @@ export default function ProgressPicturesScreen() {
       },
       { text: 'Cancel', style: 'cancel' },
     ]);
+  };
+
+  const handleAnalyzeWithZaki = async () => {
+    // Pick the most recent photo from each available label (front, back, side)
+    const photosToAnalyze: { label: ProgressPicture['label']; uri: string }[] = [];
+    for (const lbl of (['front', 'back', 'side'] as ProgressPicture['label'][])) {
+      const byLabel = pictures.filter(p => p.label === lbl).sort((a, b) => b.date.localeCompare(a.date));
+      if (byLabel.length > 0) photosToAnalyze.push({ label: lbl, uri: byLabel[0].uri });
+    }
+    // Fallback: if no front/back/side, use the 3 most recent photos of any label
+    if (photosToAnalyze.length === 0) {
+      const recent = [...pictures].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 3);
+      for (const p of recent) photosToAnalyze.push({ label: p.label, uri: p.uri });
+    }
+    if (photosToAnalyze.length === 0) {
+      Alert.alert('No Photos', 'Add at least one progress photo before running the analysis.');
+      return;
+    }
+
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setIsAnalyzing(true);
+    try {
+      // Read each image as base64
+      const photoPayload: { label: 'front' | 'back' | 'side' | 'other'; base64: string; mimeType: string }[] = [];
+      for (const p of photosToAnalyze) {
+        let uri = p.uri;
+        // Ensure we have a local file:// URI (not content://)
+        if (uri.startsWith('content://') || uri.startsWith('ph://')) {
+          const dest = `${FileSystem.cacheDirectory}zaki_analysis_${Date.now()}.jpg`;
+          await FileSystem.copyAsync({ from: uri, to: dest });
+          uri = dest;
+        }
+        const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+        photoPayload.push({ label: p.label, base64, mimeType: 'image/jpeg' });
+      }
+
+      const result = await bodyAnalysisMutation.mutateAsync({ photos: photoPayload });
+      setZakiAnalysis(result.analysis as unknown as BodyAnalysis);
+    } catch (err) {
+      console.error('[Zaki body analysis]', err);
+      Alert.alert('Analysis Failed', 'Zaki could not analyse your photos. Please try again.');
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -630,6 +807,30 @@ export default function ProgressPicturesScreen() {
         </View>
       )}
 
+      {/* Zaki Body Analysis button — shown when there are photos */}
+      {pictures.length > 0 && (
+        <TouchableOpacity
+          style={[styles.zakiBtn, { backgroundColor: '#6366F1', opacity: isAnalyzing ? 0.7 : 1 }]}
+          onPress={handleAnalyzeWithZaki}
+          disabled={isAnalyzing}
+        >
+          {isAnalyzing ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Text style={{ fontSize: 16 }}>🤖</Text>
+          )}
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>
+              {isAnalyzing ? 'Analysing your physique…' : 'Analyse with Zaki'}
+            </Text>
+            <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, marginTop: 1 }}>
+              {isAnalyzing ? 'This may take 15–30 seconds' : 'AI body composition & posture assessment'}
+            </Text>
+          </View>
+          {!isAnalyzing && <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 18 }}>›</Text>}
+        </TouchableOpacity>
+      )}
+
       {pictures.length === 0 ? (
         <View style={styles.empty}>
           <Text style={styles.emptyEmoji}>📸</Text>
@@ -731,6 +932,14 @@ export default function ProgressPicturesScreen() {
           />
         )}
       </Modal>
+      {/* Zaki Body Analysis modal */}
+      {zakiAnalysis && (
+        <ZakiAnalysisModal
+          analysis={zakiAnalysis}
+          onClose={() => setZakiAnalysis(null)}
+          colors={colors}
+        />
+      )}
     </ScreenContainer>
   );
 }
@@ -775,4 +984,5 @@ const styles = StyleSheet.create({
   viewerLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 13, textTransform: 'capitalize', marginBottom: 20 },
   deleteBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20, backgroundColor: 'rgba(239,68,68,0.2)', borderWidth: 1, borderColor: 'rgba(239,68,68,0.4)' },
   deleteBtnText: { color: '#EF4444', fontWeight: '600', fontSize: 14 },
+  zakiBtn: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 16, marginBottom: 12, paddingHorizontal: 16, paddingVertical: 14, borderRadius: 16 },
 });

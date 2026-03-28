@@ -80,12 +80,33 @@ export default function ProgressScreen() {
   const [deloadDates, setDeloadDates] = useState<string[]>([]);
 
   // Strength Progression Chart state
-  const [strengthExercise, setStrengthExercise] = useState<string | null>(null);
-  const [strengthHistory, setStrengthHistory] = useState<{ date: string; e1rm: number }[]>([]);
+  // Multi-exercise overlay state
+  const [pinnedExercises, setPinnedExercises] = useState<string[]>([]);
+  const [pinnedHistories, setPinnedHistories] = useState<Record<string, { date: string; e1rm: number }[]>>({});
   const [strengthRange, setStrengthRange] = useState<28 | 84 | 168 | 0>(0);
   const [strengthLoading, setStrengthLoading] = useState(false);
   const [strengthSearch, setStrengthSearch] = useState('');
   const [showExPicker, setShowExPicker] = useState(false);
+
+  const handlePinExercise = async (name: string) => {
+    if (pinnedExercises.includes(name)) {
+      // Unpin
+      setPinnedExercises(prev => prev.filter(e => e !== name));
+      setPinnedHistories(prev => { const n = { ...prev }; delete n[name]; return n; });
+      return;
+    }
+    if (pinnedExercises.length >= MAX_PINNED) return;
+    setStrengthLoading(true);
+    setShowExPicker(false);
+    setStrengthSearch('');
+    try {
+      const hist = await get1RMHistory(name);
+      setPinnedExercises(prev => [...prev, name]);
+      setPinnedHistories(prev => ({ ...prev, [name]: hist }));
+    } finally {
+      setStrengthLoading(false);
+    }
+  };
 
   const loadData = useCallback(async () => {
     try {
@@ -436,22 +457,12 @@ export default function ProgressScreen() {
           deloadDates={deloadDates}
         />
 
-        {/* Strength Progression Chart */}
+        {/* Strength Progression Chart — Multi-Exercise Overlay */}
         <StrengthProgressionChart
           trackedExercises={trackedExercises}
-          selectedExercise={strengthExercise}
-          onSelectExercise={async (name) => {
-            setStrengthExercise(name);
-            setShowExPicker(false);
-            setStrengthLoading(true);
-            try {
-              const hist = await get1RMHistory(name);
-              setStrengthHistory(hist);
-            } finally {
-              setStrengthLoading(false);
-            }
-          }}
-          history={strengthHistory}
+          pinnedExercises={pinnedExercises}
+          pinnedHistories={pinnedHistories}
+          onTogglePin={handlePinExercise}
           dateRange={strengthRange}
           onDateRangeChange={setStrengthRange}
           loading={strengthLoading}
@@ -916,7 +927,7 @@ function WeeklyVolumeChart({
   );
 }
 
-// ---- Strength Progression Chart ----
+// ---- Strength Progression Chart (Multi-Exercise Overlay) ----
 
 const STRENGTH_RANGE_LABELS: { label: string; value: 28 | 84 | 168 | 0 }[] = [
   { label: '4W', value: 28 },
@@ -926,12 +937,15 @@ const STRENGTH_RANGE_LABELS: { label: string; value: 28 | 84 | 168 | 0 }[] = [
 ];
 
 const CHART_ACCENT = '#6366F1';
+// Up to 3 pinned exercises — each gets a distinct color
+const OVERLAY_COLORS = ['#6366F1', '#10B981', '#F59E0B'];
+const MAX_PINNED = 3;
 
 function StrengthProgressionChart({
   trackedExercises,
-  selectedExercise,
-  onSelectExercise,
-  history,
+  pinnedExercises,
+  pinnedHistories,
+  onTogglePin,
   dateRange,
   onDateRangeChange,
   loading,
@@ -942,9 +956,9 @@ function StrengthProgressionChart({
   onSearchChange,
 }: {
   trackedExercises: string[];
-  selectedExercise: string | null;
-  onSelectExercise: (name: string) => void;
-  history: { date: string; e1rm: number }[];
+  pinnedExercises: string[];
+  pinnedHistories: Record<string, { date: string; e1rm: number }[]>;
+  onTogglePin: (name: string) => void;
   dateRange: 28 | 84 | 168 | 0;
   onDateRangeChange: (r: 28 | 84 | 168 | 0) => void;
   loading: boolean;
@@ -955,7 +969,7 @@ function StrengthProgressionChart({
   onSearchChange: (v: string) => void;
 }) {
   const CHART_W = SCREEN_WIDTH - 48;
-  const CHART_H = 160;
+  const CHART_H = 180;
   const PAD_L = 44;
   const PAD_R = 12;
   const PAD_T = 12;
@@ -963,27 +977,36 @@ function StrengthProgressionChart({
   const plotW = CHART_W - PAD_L - PAD_R;
   const plotH = CHART_H - PAD_T - PAD_B;
 
-  // Filter by date range
+  // Filter each pinned exercise by date range
   const cutoff = dateRange === 0
     ? null
     : new Date(Date.now() - dateRange * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  const filtered = cutoff
-    ? history.filter(p => p.date >= cutoff)
-    : history;
 
-  // Compute chart geometry
-  const hasData = filtered.length >= 2;
-  const minE1rm = hasData ? Math.min(...filtered.map(p => p.e1rm)) : 0;
-  const maxE1rm = hasData ? Math.max(...filtered.map(p => p.e1rm)) : 100;
-  const range = maxE1rm - minE1rm || 1;
-  const padded = { min: minE1rm - range * 0.1, max: maxE1rm + range * 0.1 };
+  const filteredSeries = pinnedExercises.map(name => {
+    const hist = pinnedHistories[name] ?? [];
+    return {
+      name,
+      data: cutoff ? hist.filter(p => p.date >= cutoff) : hist,
+    };
+  });
 
-  const toX = (i: number) => PAD_L + (i / (filtered.length - 1)) * plotW;
+  // Compute global Y range across all pinned exercises
+  const allPoints = filteredSeries.flatMap(s => s.data);
+  const hasData = allPoints.length >= 2;
+  const globalMin = hasData ? Math.min(...allPoints.map(p => p.e1rm)) : 0;
+  const globalMax = hasData ? Math.max(...allPoints.map(p => p.e1rm)) : 100;
+  const globalRange = globalMax - globalMin || 1;
+  const padded = { min: globalMin - globalRange * 0.1, max: globalMax + globalRange * 0.1 };
+
+  // Collect all unique dates across all series for X-axis
+  const allDates = Array.from(new Set(allPoints.map(p => p.date))).sort();
+  const toX = (date: string) => {
+    const idx = allDates.indexOf(date);
+    return allDates.length > 1
+      ? PAD_L + (idx / (allDates.length - 1)) * plotW
+      : PAD_L + plotW / 2;
+  };
   const toY = (v: number) => PAD_T + plotH - ((v - padded.min) / (padded.max - padded.min)) * plotH;
-
-  const points = hasData
-    ? filtered.map((p, i) => `${toX(i)},${toY(p.e1rm)}`).join(' ')
-    : '';
 
   // Y-axis ticks
   const yTicks = [0, 0.25, 0.5, 0.75, 1].map(t => ({
@@ -991,28 +1014,20 @@ function StrengthProgressionChart({
     label: `${Math.round(padded.min + (padded.max - padded.min) * t)}`,
   }));
 
-  // X-axis labels (first + last + middle)
+  // X-axis labels (first, middle, last)
   const xLabels: { x: number; label: string }[] = [];
-  if (filtered.length >= 2) {
+  if (allDates.length >= 2) {
     const fmt = (d: string) => {
       const dt = new Date(d + 'T00:00:00');
       return dt.toLocaleDateString('en', { month: 'short', day: 'numeric' });
     };
-    xLabels.push({ x: toX(0), label: fmt(filtered[0].date) });
-    if (filtered.length > 2) {
-      const mid = Math.floor(filtered.length / 2);
-      xLabels.push({ x: toX(mid), label: fmt(filtered[mid].date) });
+    xLabels.push({ x: toX(allDates[0]), label: fmt(allDates[0]) });
+    if (allDates.length > 2) {
+      const mid = allDates[Math.floor(allDates.length / 2)];
+      xLabels.push({ x: toX(mid), label: fmt(mid) });
     }
-    xLabels.push({ x: toX(filtered.length - 1), label: fmt(filtered[filtered.length - 1].date) });
+    xLabels.push({ x: toX(allDates[allDates.length - 1]), label: fmt(allDates[allDates.length - 1]) });
   }
-
-  // PR point (highest e1rm)
-  const prIdx = hasData ? filtered.reduce((best, p, i) => p.e1rm > filtered[best].e1rm ? i : best, 0) : -1;
-
-  // Improvement delta
-  const delta = filtered.length >= 2
-    ? filtered[filtered.length - 1].e1rm - filtered[0].e1rm
-    : 0;
 
   const filteredExList = exerciseSearch.trim()
     ? trackedExercises.filter(n => n.toLowerCase().includes(exerciseSearch.toLowerCase()))
@@ -1026,32 +1041,55 @@ function StrengthProgressionChart({
         <Text style={{ fontSize: 11, color: colors.muted }}>Estimated 1RM (Epley)</Text>
       </View>
 
-      {/* Exercise selector button */}
-      <TouchableOpacity
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          backgroundColor: colors.surface,
-          borderRadius: 12,
-          paddingHorizontal: 14,
-          paddingVertical: 11,
-          borderWidth: 1,
-          borderColor: showPicker ? CHART_ACCENT : colors.border,
-          marginBottom: 8,
-        }}
-        onPress={() => {
-          if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          onTogglePicker();
-        }}
-      >
-        <Text style={{ fontSize: 14, color: selectedExercise ? colors.foreground : colors.muted, flex: 1 }} numberOfLines={1}>
-          {selectedExercise ?? 'Select an exercise…'}
-        </Text>
-        <Text style={{ fontSize: 12, color: CHART_ACCENT, marginLeft: 8 }}>
-          {showPicker ? '▲' : '▼'}
-        </Text>
-      </TouchableOpacity>
+      {/* Pinned exercise chips */}
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+        {pinnedExercises.map((name, idx) => (
+          <TouchableOpacity
+            key={name}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: OVERLAY_COLORS[idx] + '22',
+              borderRadius: 20,
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              borderWidth: 1.5,
+              borderColor: OVERLAY_COLORS[idx],
+              gap: 6,
+            }}
+            onPress={() => {
+              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              onTogglePin(name);
+            }}
+          >
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: OVERLAY_COLORS[idx] }} />
+            <Text style={{ fontSize: 12, fontWeight: '600', color: OVERLAY_COLORS[idx] }} numberOfLines={1}>{name}</Text>
+            <Text style={{ fontSize: 12, color: OVERLAY_COLORS[idx] }}>×</Text>
+          </TouchableOpacity>
+        ))}
+        {pinnedExercises.length < MAX_PINNED && (
+          <TouchableOpacity
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: colors.surface,
+              borderRadius: 20,
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              borderWidth: 1,
+              borderColor: showPicker ? CHART_ACCENT : colors.border,
+              gap: 4,
+            }}
+            onPress={() => {
+              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              onTogglePicker();
+            }}
+          >
+            <Text style={{ fontSize: 14, color: CHART_ACCENT, fontWeight: '700' }}>+</Text>
+            <Text style={{ fontSize: 12, color: colors.muted }}>Add exercise</Text>
+          </TouchableOpacity>
+        )}
+      </View>
 
       {/* Exercise picker dropdown */}
       {showPicker && (
@@ -1096,29 +1134,35 @@ function StrengthProgressionChart({
               keyExtractor={item => item}
               style={{ maxHeight: 200 }}
               keyboardShouldPersistTaps="handled"
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={{
-                    paddingHorizontal: 16,
-                    paddingVertical: 12,
-                    borderBottomWidth: 0.5,
-                    borderBottomColor: colors.border,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                  }}
-                  onPress={() => {
-                    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    onSelectExercise(item);
-                    onSearchChange('');
-                  }}
-                >
-                  <Text style={{ fontSize: 14, color: colors.foreground, flex: 1 }} numberOfLines={1}>{item}</Text>
-                  {selectedExercise === item && (
-                    <Text style={{ color: CHART_ACCENT, fontSize: 14 }}>✓</Text>
-                  )}
-                </TouchableOpacity>
-              )}
+              renderItem={({ item }) => {
+                const pinIdx = pinnedExercises.indexOf(item);
+                const isPinned = pinIdx >= 0;
+                const isMaxed = pinnedExercises.length >= MAX_PINNED && !isPinned;
+                return (
+                  <TouchableOpacity
+                    style={{
+                      paddingHorizontal: 16,
+                      paddingVertical: 12,
+                      borderBottomWidth: 0.5,
+                      borderBottomColor: colors.border,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      opacity: isMaxed ? 0.4 : 1,
+                    }}
+                    onPress={() => {
+                      if (isMaxed) return;
+                      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      onTogglePin(item);
+                    }}
+                  >
+                    <Text style={{ fontSize: 14, color: colors.foreground, flex: 1 }} numberOfLines={1}>{item}</Text>
+                    {isPinned && (
+                      <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: OVERLAY_COLORS[pinIdx] }} />
+                    )}
+                  </TouchableOpacity>
+                );
+              }}
             />
           )}
         </View>
@@ -1162,29 +1206,29 @@ function StrengthProgressionChart({
           </View>
         )}
 
-        {/* Empty state — no exercise selected */}
-        {!loading && !selectedExercise && (
+        {/* Empty state — no exercises pinned */}
+        {!loading && pinnedExercises.length === 0 && (
           <View style={{ height: CHART_H, alignItems: 'center', justifyContent: 'center', gap: 6 }}>
             <Text style={{ fontSize: 28 }}>📈</Text>
-            <Text style={{ fontSize: 14, fontWeight: '600', color: colors.foreground }}>Select an exercise above</Text>
+            <Text style={{ fontSize: 14, fontWeight: '600', color: colors.foreground }}>Pin up to 3 exercises</Text>
             <Text style={{ fontSize: 12, color: colors.muted, textAlign: 'center' }}>
-              See how your estimated 1RM has evolved over time
+              Tap “+ Add exercise” to compare strength trends side by side
             </Text>
           </View>
         )}
 
-        {/* Empty state — exercise selected but no data */}
-        {!loading && selectedExercise && filtered.length < 2 && (
+        {/* Empty state — exercises pinned but no data */}
+        {!loading && pinnedExercises.length > 0 && !hasData && (
           <View style={{ height: CHART_H, alignItems: 'center', justifyContent: 'center', gap: 6 }}>
             <Text style={{ fontSize: 28 }}>🏋️</Text>
             <Text style={{ fontSize: 13, fontWeight: '600', color: colors.foreground }}>Not enough data yet</Text>
             <Text style={{ fontSize: 12, color: colors.muted, textAlign: 'center' }}>
-              Complete at least 2 sessions with {selectedExercise} to see the trend
+              Complete at least 2 sessions to see the trend
             </Text>
           </View>
         )}
 
-        {/* Line chart */}
+        {/* Multi-line chart */}
         {!loading && hasData && (
           <>
             <Svg width={CHART_W} height={CHART_H}>
@@ -1236,73 +1280,96 @@ function StrengthProgressionChart({
                 </SvgText>
               ))}
 
-              {/* Line */}
-              <Polyline
-                points={points}
-                fill="none"
-                stroke={CHART_ACCENT}
-                strokeWidth={2.5}
-                strokeLinejoin="round"
-                strokeLinecap="round"
-              />
-
-              {/* Data dots */}
-              {filtered.map((p, i) => (
-                <Circle
-                  key={i}
-                  cx={toX(i)}
-                  cy={toY(p.e1rm)}
-                  r={filtered.length > 30 ? 2 : 3.5}
-                  fill={i === prIdx ? '#F59E0B' : CHART_ACCENT}
-                  stroke={colors.surface}
-                  strokeWidth={1.5}
-                />
-              ))}
-
-              {/* PR label */}
-              {prIdx >= 0 && (
-                <SvgText
-                  x={toX(prIdx)}
-                  y={toY(filtered[prIdx].e1rm) - 8}
-                  fontSize={9}
-                  fill="#F59E0B"
-                  textAnchor="middle"
-                  fontWeight="bold"
-                >
-                  PR
-                </SvgText>
-              )}
+              {/* One line per pinned exercise */}
+              {filteredSeries.map((series, sIdx) => {
+                const color = OVERLAY_COLORS[sIdx];
+                const pts = series.data.length >= 2
+                  ? series.data.map(p => `${toX(p.date)},${toY(p.e1rm)}`).join(' ')
+                  : '';
+                const prPoint = series.data.length > 0
+                  ? series.data.reduce((best, p) => p.e1rm > best.e1rm ? p : best)
+                  : null;
+                return (
+                  <React.Fragment key={series.name}>
+                    {pts ? (
+                      <Polyline
+                        points={pts}
+                        fill="none"
+                        stroke={color}
+                        strokeWidth={2}
+                        strokeLinejoin="round"
+                        strokeLinecap="round"
+                      />
+                    ) : null}
+                    {series.data.map((p, i) => (
+                      <Circle
+                        key={i}
+                        cx={toX(p.date)}
+                        cy={toY(p.e1rm)}
+                        r={series.data.length > 30 ? 2 : 3}
+                        fill={prPoint && p.e1rm === prPoint.e1rm ? '#F59E0B' : color}
+                        stroke={colors.surface}
+                        strokeWidth={1}
+                      />
+                    ))}
+                    {prPoint && (
+                      <SvgText
+                        x={toX(prPoint.date)}
+                        y={toY(prPoint.e1rm) - 7}
+                        fontSize={8}
+                        fill="#F59E0B"
+                        textAnchor="middle"
+                        fontWeight="bold"
+                      >
+                        PR
+                      </SvgText>
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </Svg>
 
-            {/* Stats row below chart */}
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10, paddingTop: 10, borderTopWidth: 0.5, borderTopColor: colors.border }}>
-              <View style={{ alignItems: 'center' }}>
-                <Text style={{ fontSize: 16, fontWeight: '700', color: '#F59E0B' }}>
-                  {prIdx >= 0 ? `~${Math.round(filtered[prIdx].e1rm)}kg` : '—'}
-                </Text>
-                <Text style={{ fontSize: 10, color: colors.muted }}>Best 1RM</Text>
-              </View>
-              <View style={{ alignItems: 'center' }}>
-                <Text style={{ fontSize: 16, fontWeight: '700', color: colors.foreground }}>
-                  {`~${Math.round(filtered[filtered.length - 1].e1rm)}kg`}
-                </Text>
-                <Text style={{ fontSize: 10, color: colors.muted }}>Current 1RM</Text>
-              </View>
-              <View style={{ alignItems: 'center' }}>
-                <Text style={{ fontSize: 16, fontWeight: '700', color: delta >= 0 ? '#10B981' : '#EF4444' }}>
-                  {delta >= 0 ? '+' : ''}{Math.round(delta)}kg
-                </Text>
-                <Text style={{ fontSize: 10, color: colors.muted }}>
-                  {dateRange === 0 ? 'All time' : `${dateRange}d gain`}
-                </Text>
-              </View>
-              <View style={{ alignItems: 'center' }}>
-                <Text style={{ fontSize: 16, fontWeight: '700', color: colors.foreground }}>
-                  {filtered.length}
-                </Text>
-                <Text style={{ fontSize: 10, color: colors.muted }}>Sessions</Text>
-              </View>
-            </View>
+            {/* Per-exercise stats row */}
+            {filteredSeries.map((series, sIdx) => {
+              const color = OVERLAY_COLORS[sIdx];
+              const d = series.data;
+              if (d.length < 2) return null;
+              const best = d.reduce((b, p) => p.e1rm > b.e1rm ? p : b);
+              const delta = d[d.length - 1].e1rm - d[0].e1rm;
+              return (
+                <View
+                  key={series.name}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginTop: sIdx === 0 ? 10 : 6,
+                    paddingTop: sIdx === 0 ? 10 : 6,
+                    borderTopWidth: sIdx === 0 ? 0.5 : 0,
+                    borderTopColor: colors.border,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1.5 }}>
+                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: color }} />
+                    <Text style={{ fontSize: 11, color: colors.foreground, flex: 1 }} numberOfLines={1}>{series.name}</Text>
+                  </View>
+                  <View style={{ alignItems: 'center', flex: 1 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: '#F59E0B' }}>{`~${Math.round(best.e1rm)}kg`}</Text>
+                    <Text style={{ fontSize: 9, color: colors.muted }}>Best</Text>
+                  </View>
+                  <View style={{ alignItems: 'center', flex: 1 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.foreground }}>{`~${Math.round(d[d.length - 1].e1rm)}kg`}</Text>
+                    <Text style={{ fontSize: 9, color: colors.muted }}>Now</Text>
+                  </View>
+                  <View style={{ alignItems: 'center', flex: 1 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: delta >= 0 ? '#10B981' : '#EF4444' }}>
+                      {delta >= 0 ? '+' : ''}{Math.round(delta)}kg
+                    </Text>
+                    <Text style={{ fontSize: 9, color: colors.muted }}>Gain</Text>
+                  </View>
+                </View>
+              );
+            })}
           </>
         )}
       </View>

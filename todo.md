@@ -977,4 +977,15 @@
 - [x] Stats row: Best 1RM (gold), Current 1RM, delta gain, sessions count
 - [x] PR dot highlighted in gold with 'PR' label on chart
 - [x] All 305 tests pass
+- [x] Push to GitHub
+
+## Batch 20 — Multi-Exercise Overlay Chart + Zaki Body Analysis (Mar 28)
+- [ ] Multi-exercise overlay chart — pin up to 3 exercises on same SVG canvas, color-coded lines + legend
+- [ ] Exercise pin/unpin UI — "+ Add Exercise" chip below chart, each pinned exercise shows colored dot + remove button
+- [ ] Normalize Y-axis across all pinned exercises (% of best 1RM) so different exercises are comparable
+- [ ] Zaki body analysis — after adding a front/back/side progress photo, "Analyze with Zaki" button appears
+- [ ] Server: analyzeBodyPhoto tRPC procedure — sends image as base64 to multimodal LLM with structured prompt
+- [ ] LLM prompt: posture, muscle balance, visible weaknesses, recommended focus areas, form cues
+- [ ] Analysis result UI — expandable card below photo with sections: Posture, Muscle Balance, Weak Points, Recommendations
+- [ ] Store analysis result alongside photo in AsyncStorage (so it persists)
 - [ ] Push to GitHub

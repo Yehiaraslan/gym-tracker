@@ -10,6 +10,8 @@ import * as aiCoach from "./ai-coaching-service";
 import * as zaki from "./zakiService";
 import * as zakiProgram from "./zakiProgramService";
 import * as zakiDigest from "./zakiDailyDigest";
+import { invokeLLM } from "./_core/llm";
+import { storagePut } from "./storage";
 import { checkAndNotifyStagnation } from "./stagnationScheduler";
 import { ENV } from './_core/env';
 import * as dataSync from "./data-sync-service";
@@ -806,6 +808,107 @@ export const appRouter = router({
           stagnationDetected,
           stagnantExercises: stagnantExercises.slice(0, 5),
         };
+      }),
+
+    // ── Body Analysis from Progress Photos ────────────────────
+    // Accepts up to 3 base64-encoded images (front/back/side) and returns
+    // a structured analysis covering posture, muscle balance, and weak points.
+    bodyAnalysis: publicProcedure
+      .input(z.object({
+        // Each photo is { label: 'front'|'back'|'side'|'other', base64: string, mimeType: string }
+        photos: z.array(z.object({
+          label: z.enum(['front', 'back', 'side', 'other']),
+          base64: z.string(),
+          mimeType: z.string().default('image/jpeg'),
+        })).min(1).max(3),
+        // Optional context to personalise the analysis
+        userContext: z.object({
+          weightKg: z.number().optional(),
+          heightCm: z.number().optional(),
+          trainingAge: z.string().optional(), // e.g. '2 years'
+          currentProgram: z.string().optional(),
+          goals: z.string().optional(),
+        }).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        // 1. Upload each photo to S3 so the LLM can access a public URL
+        const uploadedPhotos: { label: string; url: string }[] = [];
+        for (const photo of input.photos) {
+          const buf = Buffer.from(photo.base64, 'base64');
+          const ext = photo.mimeType.split('/')[1] ?? 'jpg';
+          const key = `body-analysis/${Date.now()}-${photo.label}.${ext}`;
+          const { url } = await storagePut(key, buf, photo.mimeType);
+          uploadedPhotos.push({ label: photo.label, url });
+        }
+
+        // 2. Build multimodal LLM prompt
+        const ctx = input.userContext;
+        const contextLines: string[] = [];
+        if (ctx) {
+          if (ctx.weightKg) contextLines.push(`Weight: ${ctx.weightKg}kg`);
+          if (ctx.heightCm) contextLines.push(`Height: ${ctx.heightCm}cm`);
+          if (ctx.trainingAge) contextLines.push(`Training age: ${ctx.trainingAge}`);
+          if (ctx.currentProgram) contextLines.push(`Current program: ${ctx.currentProgram}`);
+          if (ctx.goals) contextLines.push(`Goals: ${ctx.goals}`);
+        }
+
+        const systemPrompt = [
+          'You are Zaki — an elite strength & conditioning coach with expertise in biomechanics, physique assessment, and corrective exercise.',
+          'You are analyzing progress photos to provide actionable, evidence-based feedback.',
+          'Be specific, data-driven, and constructive. Avoid generic advice.',
+          'Return your analysis as a JSON object with the exact schema specified.',
+        ].join(' ');
+
+        const userContent: Array<{ type: string; text?: string; image_url?: { url: string; detail: string } }> = [
+          {
+            type: 'text',
+            text: [
+              '**BODY COMPOSITION ANALYSIS REQUEST**',
+              '',
+              contextLines.length > 0 ? `**Athlete context:**\n${contextLines.join('\n')}` : '',
+              '',
+              `**Photos provided:** ${uploadedPhotos.map(p => p.label).join(', ')}`,
+              '',
+              'Analyze these progress photos and return a JSON object with this exact structure:',
+              '{',
+              '  "overallAssessment": "2-3 sentence summary of physique and training status",',
+              '  "postureFindings": ["finding 1", "finding 2"],',
+              '  "muscleImbalances": [{ "area": "string", "finding": "string", "severity": "mild|moderate|significant" }],',
+              '  "weakPoints": [{ "muscle": "string", "recommendation": "string" }],',
+              '  "strengths": ["strength 1", "strength 2"],',
+              '  "priorityActions": ["action 1", "action 2", "action 3"],',
+              '  "estimatedBodyFatRange": "e.g. 15-18%" or null if cannot assess',
+              '}',
+            ].filter(Boolean).join('\n'),
+          },
+          ...uploadedPhotos.map(p => ({
+            type: 'image_url',
+            image_url: { url: p.url, detail: 'high' },
+          })),
+        ];
+
+        const result = await invokeLLM({
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userContent as any },
+          ],
+          response_format: { type: 'json_object' },
+          max_tokens: 2048,
+        });
+
+        const raw = typeof result.choices[0].message.content === 'string'
+          ? result.choices[0].message.content
+          : JSON.stringify(result.choices[0].message.content);
+
+        let analysis: Record<string, unknown>;
+        try {
+          analysis = JSON.parse(raw);
+        } catch {
+          // Fallback: return raw text if JSON parse fails
+          analysis = { overallAssessment: raw, postureFindings: [], muscleImbalances: [], weakPoints: [], strengths: [], priorityActions: [] };
+        }
+
+        return { analysis, analyzedAt: new Date().toISOString() };
       }),
   }),
 
