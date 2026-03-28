@@ -115,11 +115,10 @@ export default function ProfileScreen() {
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
-      base64: true,
     });
     if (!result.canceled && result.assets[0]) {
       try {
-        const permanentUri = await persistImage(result.assets[0].uri, 'profile', 'profile.jpg', result.assets[0].base64 ?? undefined);
+        const permanentUri = await persistImage(result.assets[0].uri, 'profile', 'profile.jpg');
         const updated = { ...profile, profilePhotoUri: permanentUri };
         setProfile(updated);
         await saveUserProfile(updated);
@@ -139,11 +138,10 @@ export default function ProfileScreen() {
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
-      base64: true,
     });
     if (!result.canceled && result.assets[0]) {
       try {
-        const permanentUri = await persistImage(result.assets[0].uri, 'profile', 'profile.jpg', result.assets[0].base64 ?? undefined);
+        const permanentUri = await persistImage(result.assets[0].uri, 'profile', 'profile.jpg');
         const updated = { ...profile, profilePhotoUri: permanentUri };
         setProfile(updated);
         await saveUserProfile(updated);

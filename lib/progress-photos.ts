@@ -25,7 +25,6 @@ export async function addProgressPhoto(
   uri: string,
   notes?: string,
   category?: 'front' | 'side' | 'back' | 'other',
-  base64?: string,
 ): Promise<ProgressPhoto> {
   try {
     const photos = await getProgressPhotos();
@@ -33,7 +32,7 @@ export async function addProgressPhoto(
     // Persist image to permanent storage so it survives app restarts
     let permanentUri = uri;
     try {
-      permanentUri = await persistImage(uri, 'progress', undefined, base64);
+      permanentUri = await persistImage(uri, 'progress');
     } catch (e) {
       console.warn('[progress-photos] persistImage failed, using original URI:', e);
     }

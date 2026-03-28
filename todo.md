@@ -955,3 +955,9 @@
   - Fix: added base64:true to all ImagePicker calls + pass base64 data directly to persistImage
   - Rewrote image-store.ts with 4-path strategy (base64 direct, file://, content://, ph://)
   - Updated progress-gallery.tsx, progress-pictures.tsx, profile.tsx
+
+## Batch 17 — Android Photo Picker Fix (Mar 28)
+- [x] Fix Android photo picker: base64:true causes silent failure on Android (IPC buffer overflow) — removed base64:true from all ImagePicker calls
+- [x] Remove base64:true from all ImagePicker calls (progress-pictures, progress-gallery, profile)
+- [x] image-store.ts persistImage now uses: file://=copyAsync, content://=copyAsync→base64 fallback, ph://=MediaLibrary→base64 fallback
+- [x] All 305 tests pass
