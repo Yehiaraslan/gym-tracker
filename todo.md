@@ -961,3 +961,9 @@
 - [x] Remove base64:true from all ImagePicker calls (progress-pictures, progress-gallery, profile)
 - [x] image-store.ts persistImage now uses: file://=copyAsync, content://=copyAsync→base64 fallback, ph://=MediaLibrary→base64 fallback
 - [x] All 305 tests pass
+
+## Batch 18 — Android Photo Picker Root Cause Fix (Mar 28)
+- [x] Consulted Zaki (OpenClaw Bridge) — root cause: Alert.alert callback context blocks Android Activity-result pipeline for expo-image-picker, causing launchImageLibraryAsync promise to silently never resolve
+- [x] Fix: extracted openCamera/openLibrary functions and wrapped in setTimeout(300) in Alert.alert onPress handlers
+- [x] Applied fix to progress-pictures.tsx, progress-gallery.tsx, and profile.tsx
+- [x] All 305 tests pass

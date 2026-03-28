@@ -95,59 +95,67 @@ export default function ProgressGalleryScreen() {
     }
   };
 
+  // Step 1a: Open camera (extracted so setTimeout can escape Alert callback context on Android)
+  const openGalleryCamera = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please allow camera access to take a progress photo.');
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        quality: 0.85,
+        allowsEditing: true,
+        aspect: [3, 4],
+      });
+      if (!result.canceled && result.assets[0]) {
+        setPendingImageUri(result.assets[0].uri);
+        setSelectedCategory('front');
+        setCategoryModalVisible(true);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to take photo. Please try again.');
+    }
+  };
+
+  // Step 1b: Open library (extracted so setTimeout can escape Alert callback context on Android)
+  const openGalleryLibrary = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please allow access to your photo library.');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.85,
+        allowsEditing: true,
+        aspect: [3, 4],
+        allowsMultipleSelection: false,
+      });
+      if (!result.canceled && result.assets[0]) {
+        setPendingImageUri(result.assets[0].uri);
+        setSelectedCategory('front');
+        setCategoryModalVisible(true);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to add photo. Please try again.');
+    }
+  };
+
   // Step 1: Choose source
   const handlePickImage = () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Alert.alert('Add Progress Photo', 'Choose a photo source', [
       {
         text: '📷  Take Photo',
-        onPress: async () => {
-          try {
-            const { status } = await ImagePicker.requestCameraPermissionsAsync();
-            if (status !== 'granted') {
-              Alert.alert('Permission Required', 'Please allow camera access to take a progress photo.');
-              return;
-            }
-            const result = await ImagePicker.launchCameraAsync({
-              quality: 0.85,
-              allowsEditing: true,
-              aspect: [3, 4],
-            });
-            if (!result.canceled && result.assets[0]) {
-              setPendingImageUri(result.assets[0].uri);
-              setSelectedCategory('front');
-              setCategoryModalVisible(true);
-            }
-          } catch (error) {
-            Alert.alert('Error', 'Failed to take photo. Please try again.');
-          }
-        },
+        // setTimeout(300) required on Android: Alert.alert callback context blocks
+        // the Activity-result pipeline that expo-image-picker relies on.
+        onPress: () => setTimeout(openGalleryCamera, 300),
       },
       {
         text: '🖼  Choose from Library',
-        onPress: async () => {
-          try {
-            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-            if (status !== 'granted') {
-              Alert.alert('Permission Required', 'Please allow access to your photo library.');
-              return;
-            }
-            const result = await ImagePicker.launchImageLibraryAsync({
-              mediaTypes: ImagePicker.MediaTypeOptions.Images,
-              quality: 0.85,
-              allowsEditing: true,
-              aspect: [3, 4],
-              allowsMultipleSelection: false,
-            });
-            if (!result.canceled && result.assets[0]) {
-              setPendingImageUri(result.assets[0].uri);
-              setSelectedCategory('front');
-              setCategoryModalVisible(true);
-            }
-          } catch (error) {
-            Alert.alert('Error', 'Failed to add photo. Please try again.');
-          }
-        },
+        onPress: () => setTimeout(openGalleryLibrary, 300),
       },
       { text: 'Cancel', style: 'cancel' },
     ]);

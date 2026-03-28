@@ -154,8 +154,10 @@ export default function ProfileScreen() {
   const handlePhotoPress = () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Alert.alert('Profile Photo', 'Choose how to set your profile picture', [
-      { text: 'Take Photo', onPress: takePhoto },
-      { text: 'Choose from Library', onPress: pickPhoto },
+      // setTimeout(300) required on Android: Alert.alert callback context blocks
+      // the Activity-result pipeline that expo-image-picker relies on.
+      { text: 'Take Photo', onPress: () => setTimeout(takePhoto, 300) },
+      { text: 'Choose from Library', onPress: () => setTimeout(pickPhoto, 300) },
       { text: 'Cancel', style: 'cancel' },
     ]);
   };

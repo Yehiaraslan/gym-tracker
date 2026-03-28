@@ -483,26 +483,33 @@ export default function ProgressPicturesScreen() {
     }
   };
 
+  const openCamera = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') { Alert.alert('Camera permission required'); return; }
+    const result = await ImagePicker.launchCameraAsync({ quality: 0.85, allowsEditing: false });
+    if (!result.canceled && result.assets[0]) await addPicture(result.assets[0].uri);
+  };
+
+  const openLibrary = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') { Alert.alert('Photo library permission required'); return; }
+    const result = await ImagePicker.launchImageLibraryAsync({ quality: 0.85, allowsMultipleSelection: false });
+    if (!result.canceled && result.assets[0]) await addPicture(result.assets[0].uri);
+  };
+
   const handleAdd = () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Alert.alert('Add Progress Photo', 'Choose a photo source', [
       {
         text: 'Take Photo',
-        onPress: async () => {
-          const { status } = await ImagePicker.requestCameraPermissionsAsync();
-          if (status !== 'granted') { Alert.alert('Camera permission required'); return; }
-          const result = await ImagePicker.launchCameraAsync({ quality: 0.85, allowsEditing: false });
-          if (!result.canceled && result.assets[0]) await addPicture(result.assets[0].uri);
-        },
+        // setTimeout(300) is required on Android: Alert.alert callback context interferes
+        // with the Activity-result pipeline that expo-image-picker uses. Without the delay,
+        // launchCameraAsync's promise silently never resolves.
+        onPress: () => setTimeout(openCamera, 300),
       },
       {
         text: 'Choose from Library',
-        onPress: async () => {
-          const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-          if (status !== 'granted') { Alert.alert('Photo library permission required'); return; }
-          const result = await ImagePicker.launchImageLibraryAsync({ quality: 0.85, allowsMultipleSelection: false });
-          if (!result.canceled && result.assets[0]) await addPicture(result.assets[0].uri);
-        },
+        onPress: () => setTimeout(openLibrary, 300),
       },
       { text: 'Cancel', style: 'cancel' },
     ]);
