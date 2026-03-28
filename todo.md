@@ -967,3 +967,14 @@
 - [x] Fix: extracted openCamera/openLibrary functions and wrapped in setTimeout(300) in Alert.alert onPress handlers
 - [x] Applied fix to progress-pictures.tsx, progress-gallery.tsx, and profile.tsx
 - [x] All 305 tests pass
+
+## Batch 19 — 1RM Strength Progression Chart (Mar 28)
+- [x] Build 1RM data aggregator — get1RMHistory() already existed in split-workout-store using Epley formula (weight × (1 + reps/30))
+- [x] Build StrengthProgressionChart component with exercise picker (searchable dropdown), SVG line chart, date range pills (4W/12W/6M/All)
+- [x] Integrate chart into Analytics Overview tab between Weekly Volume Chart and Personal Records
+- [x] Support filtering by exercise, time range (4W/12W/6M/All)
+- [x] Show best set per session (highest estimated 1RM) as the data point
+- [x] Stats row: Best 1RM (gold), Current 1RM, delta gain, sessions count
+- [x] PR dot highlighted in gold with 'PR' label on chart
+- [x] All 305 tests pass
+- [ ] Push to GitHub
