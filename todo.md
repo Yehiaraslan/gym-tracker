@@ -948,3 +948,10 @@
 - [x] Added defensive ?? [] guards on server-side: data-sync-service.ts (session.exercises, ex.sets)
 - [x] Added defensive ?? [] guards across client-side: migration-service.ts, split-workout-store.ts (11 refs), ai-data-aggregator.ts (8 refs), coach-engine.ts (2 refs), difficulty-analytics.ts (2 refs)
 - [x] All 304 tests pass
+
+## Batch 16 — Bug Fixes (Mar 28)
+- [x] Fix photo picker: selecting or taking a picture does not store/display the image in the app
+  - Root cause: iOS ph:// URIs from ImagePicker not reliably persisted
+  - Fix: added base64:true to all ImagePicker calls + pass base64 data directly to persistImage
+  - Rewrote image-store.ts with 4-path strategy (base64 direct, file://, content://, ph://)
+  - Updated progress-gallery.tsx, progress-pictures.tsx, profile.tsx

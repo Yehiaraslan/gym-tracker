@@ -452,9 +452,9 @@ export default function ProgressPicturesScreen() {
     return count >= 2;
   });
 
-  const addPicture = async (uri: string) => {
+  const addPicture = async (uri: string, base64?: string) => {
     try {
-      const permanentUri = await persistImage(uri, 'progress');
+      const permanentUri = await persistImage(uri, 'progress', undefined, base64);
       const newPic: ProgressPicture = {
         id: Date.now().toString(),
         uri: permanentUri,
@@ -491,8 +491,8 @@ export default function ProgressPicturesScreen() {
         onPress: async () => {
           const { status } = await ImagePicker.requestCameraPermissionsAsync();
           if (status !== 'granted') { Alert.alert('Camera permission required'); return; }
-          const result = await ImagePicker.launchCameraAsync({ quality: 0.85, allowsEditing: false });
-          if (!result.canceled && result.assets[0]) await addPicture(result.assets[0].uri);
+          const result = await ImagePicker.launchCameraAsync({ quality: 0.85, allowsEditing: false, base64: true });
+          if (!result.canceled && result.assets[0]) await addPicture(result.assets[0].uri, result.assets[0].base64 ?? undefined);
         },
       },
       {
@@ -500,8 +500,8 @@ export default function ProgressPicturesScreen() {
         onPress: async () => {
           const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
           if (status !== 'granted') { Alert.alert('Photo library permission required'); return; }
-          const result = await ImagePicker.launchImageLibraryAsync({ quality: 0.85, allowsMultipleSelection: false });
-          if (!result.canceled && result.assets[0]) await addPicture(result.assets[0].uri);
+          const result = await ImagePicker.launchImageLibraryAsync({ quality: 0.85, allowsMultipleSelection: false, base64: true });
+          if (!result.canceled && result.assets[0]) await addPicture(result.assets[0].uri, result.assets[0].base64 ?? undefined);
         },
       },
       { text: 'Cancel', style: 'cancel' },

@@ -52,6 +52,7 @@ export default function ProgressGalleryScreen() {
   // Category picker state
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
   const [pendingImageUri, setPendingImageUri] = useState<string | null>(null);
+  const [pendingImageBase64, setPendingImageBase64] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<PhotoCategory>('front');
 
   // Comparison slider state
@@ -111,9 +112,11 @@ export default function ProgressGalleryScreen() {
               quality: 0.85,
               allowsEditing: true,
               aspect: [3, 4],
+              base64: true,
             });
             if (!result.canceled && result.assets[0]) {
               setPendingImageUri(result.assets[0].uri);
+              setPendingImageBase64(result.assets[0].base64 ?? null);
               setSelectedCategory('front');
               setCategoryModalVisible(true);
             }
@@ -137,9 +140,11 @@ export default function ProgressGalleryScreen() {
               allowsEditing: true,
               aspect: [3, 4],
               allowsMultipleSelection: false,
+              base64: true,
             });
             if (!result.canceled && result.assets[0]) {
               setPendingImageUri(result.assets[0].uri);
+              setPendingImageBase64(result.assets[0].base64 ?? null);
               setSelectedCategory('front');
               setCategoryModalVisible(true);
             }
@@ -158,10 +163,11 @@ export default function ProgressGalleryScreen() {
     try {
       setUploading(true);
       setCategoryModalVisible(false);
-      const photo = await addProgressPhoto(pendingImageUri, '', selectedCategory);
+      const photo = await addProgressPhoto(pendingImageUri, '', selectedCategory, pendingImageBase64 ?? undefined);
       setPhotos(prev => [photo, ...prev]);
       loadStats();
       setPendingImageUri(null);
+      setPendingImageBase64(null);
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
       Alert.alert('Error', 'Failed to save photo. Please try again.');
