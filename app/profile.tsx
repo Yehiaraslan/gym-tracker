@@ -14,6 +14,7 @@ import {
   Platform,
   StyleSheet,
   Image,
+  Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -80,6 +81,7 @@ export default function ProfileScreen() {
   const { user: authUser, logout } = useAuth();
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
   const [saving, setSaving] = useState(false);
+  const [photoPickerVisible, setPhotoPickerVisible] = useState(false);
   const [saved, setSaved] = useState(false);
   const [syncState, setSyncState] = useState<PinSyncState | null>(null);
   const [customProg, setCustomProg] = useState<CustomProgram | null>(null);
@@ -112,7 +114,7 @@ export default function ProfileScreen() {
     }
     const isWeb = Platform.OS === 'web';
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'] as any,
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
@@ -157,13 +159,8 @@ export default function ProfileScreen() {
 
   const handlePhotoPress = () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Alert.alert('Profile Photo', 'Choose how to set your profile picture', [
-      // setTimeout(300) required on Android: Alert.alert callback context blocks
-      // the Activity-result pipeline that expo-image-picker relies on.
-      { text: 'Take Photo', onPress: () => setTimeout(takePhoto, 300) },
-      { text: 'Choose from Library', onPress: () => setTimeout(pickPhoto, 300) },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
+    // Use modal instead of Alert.alert — Alert.alert buttons don't work on web
+    setPhotoPickerVisible(true);
   };
 
   const handleSave = async () => {
@@ -514,6 +511,36 @@ export default function ProfileScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* Photo source picker modal — replaces Alert.alert (broken on web) */}
+      <Modal visible={photoPickerVisible} transparent animationType="fade" onRequestClose={() => setPhotoPickerVisible(false)}>
+        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' }}>
+          <View style={{ borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40, backgroundColor: colors.surface }}>
+            <View style={{ width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 20, backgroundColor: colors.border }} />
+            <Text style={{ fontSize: 18, fontWeight: '700', textAlign: 'center', marginBottom: 16, color: colors.foreground }}>Profile Photo</Text>
+            <TouchableOpacity
+              onPress={() => { setPhotoPickerVisible(false); setTimeout(takePhoto, 300); }}
+              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 16, borderRadius: 14, marginBottom: 10, backgroundColor: colors.primary }}
+            >
+              <Text style={{ fontSize: 18 }}>📷</Text>
+              <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>Take Photo</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => { setPhotoPickerVisible(false); setTimeout(pickPhoto, 300); }}
+              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 16, borderRadius: 14, marginBottom: 10, backgroundColor: colors.primary }}
+            >
+              <Text style={{ fontSize: 18 }}>🖼</Text>
+              <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>Choose from Library</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setPhotoPickerVisible(false)}
+              style={{ paddingVertical: 14, borderRadius: 12, alignItems: 'center', backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, marginTop: 4 }}
+            >
+              <Text style={{ color: colors.foreground, fontWeight: '600' }}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </ScreenContainer>
   );
 }

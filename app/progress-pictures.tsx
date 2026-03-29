@@ -561,6 +561,7 @@ export default function ProgressPicturesScreen() {
   const [timeLapseLabel, setTimeLapseLabel] = useState<ProgressPicture['label'] | null>(null);
   const [zakiAnalysis, setZakiAnalysis] = useState<BodyAnalysis | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [sourcePickerVisible, setSourcePickerVisible] = useState(false);
 
   const bodyAnalysisMutation = trpc.zaki.bodyAnalysis.useMutation();
 
@@ -646,20 +647,9 @@ export default function ProgressPicturesScreen() {
 
   const handleAdd = () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Alert.alert('Add Progress Photo', 'Choose a photo source', [
-      {
-        text: 'Take Photo',
-        // setTimeout(300) is required on Android: Alert.alert callback context interferes
-        // with the Activity-result pipeline that expo-image-picker uses. Without the delay,
-        // launchCameraAsync's promise silently never resolves.
-        onPress: () => setTimeout(openCamera, 300),
-      },
-      {
-        text: 'Choose from Library',
-        onPress: () => setTimeout(openLibrary, 300),
-      },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
+    // Use a Modal instead of Alert.alert — Alert.alert with custom buttons
+    // is broken on web (buttons don't render). The modal works everywhere.
+    setSourcePickerVisible(true);
   };
 
   const handleAnalyzeWithZaki = async () => {
@@ -914,6 +904,38 @@ export default function ProgressPicturesScreen() {
               </View>
             </>
           )}
+        </View>
+      </Modal>
+
+
+      {/* Photo source picker modal — replaces Alert.alert which is broken on web */}
+      <Modal visible={sourcePickerVisible} transparent animationType="fade" onRequestClose={() => setSourcePickerVisible(false)}>
+        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' }}>
+          <View style={{ borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40, backgroundColor: colors.surface }}>
+            <View style={{ width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 20, backgroundColor: colors.border }} />
+            <Text style={{ fontSize: 20, fontWeight: '800', textAlign: 'center', marginBottom: 6, color: colors.foreground }}>Add Progress Photo</Text>
+            <Text style={{ color: colors.muted, fontSize: 14, marginBottom: 20, textAlign: 'center' }}>Choose a photo source</Text>
+            <TouchableOpacity
+              onPress={() => { setSourcePickerVisible(false); setTimeout(openCamera, 300); }}
+              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 16, borderRadius: 14, marginBottom: 10, backgroundColor: colors.primary }}
+            >
+              <Text style={{ fontSize: 18 }}>📷</Text>
+              <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>Take Photo</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => { setSourcePickerVisible(false); setTimeout(openLibrary, 300); }}
+              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 16, borderRadius: 14, marginBottom: 10, backgroundColor: colors.primary }}
+            >
+              <Text style={{ fontSize: 18 }}>🖼</Text>
+              <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>Choose from Library</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setSourcePickerVisible(false)}
+              style={{ paddingVertical: 14, borderRadius: 12, alignItems: 'center', backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, marginTop: 4 }}
+            >
+              <Text style={{ color: colors.foreground, fontWeight: '600' }}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </Modal>
 

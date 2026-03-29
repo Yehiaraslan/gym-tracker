@@ -3,7 +3,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  FlatList,
   Alert,
   ActivityIndicator,
   Image,
@@ -56,6 +55,9 @@ export default function ProgressGalleryScreen() {
 
   const [selectedCategory, setSelectedCategory] = useState<PhotoCategory>('front');
 
+  // Photo source picker state (replaces Alert.alert which doesn't work on web)
+  const [sourcePickerVisible, setSourcePickerVisible] = useState(false);
+
   // Comparison slider state
   const [compareModalVisible, setCompareModalVisible] = useState(false);
   const [compareCategory, setCompareCategory] = useState<PhotoCategory>('front');
@@ -96,7 +98,7 @@ export default function ProgressGalleryScreen() {
     }
   };
 
-  // Step 1a: Open camera (extracted so setTimeout can escape Alert callback context on Android)
+  // Step 1a: Open camera
   const openGalleryCamera = async () => {
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -118,11 +120,12 @@ export default function ProgressGalleryScreen() {
         setCategoryModalVisible(true);
       }
     } catch (error) {
+      console.error('[progress-gallery] openGalleryCamera error:', error);
       Alert.alert('Error', 'Failed to take photo. Please try again.');
     }
   };
 
-  // Step 1b: Open library (extracted so setTimeout can escape Alert callback context on Android)
+  // Step 1b: Open library
   const openGalleryLibrary = async () => {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -132,7 +135,8 @@ export default function ProgressGalleryScreen() {
       }
       const isWeb = Platform.OS === 'web';
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        // Use array syntax — MediaTypeOptions enum is deprecated in expo-image-picker SDK 15+
+        mediaTypes: ['images'] as any,
         quality: 0.85,
         allowsEditing: true,
         aspect: [3, 4],
@@ -146,41 +150,36 @@ export default function ProgressGalleryScreen() {
         setCategoryModalVisible(true);
       }
     } catch (error) {
+      console.error('[progress-gallery] openGalleryLibrary error:', error);
       Alert.alert('Error', 'Failed to add photo. Please try again.');
     }
   };
 
-  // Step 1: Choose source
+  // Step 1: Choose source — uses a Modal instead of Alert.alert (which is broken on web)
   const handlePickImage = () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Alert.alert('Add Progress Photo', 'Choose a photo source', [
-      {
-        text: '📷  Take Photo',
-        // setTimeout(300) required on Android: Alert.alert callback context blocks
-        // the Activity-result pipeline that expo-image-picker relies on.
-        onPress: () => setTimeout(openGalleryCamera, 300),
-      },
-      {
-        text: '🖼  Choose from Library',
-        onPress: () => setTimeout(openGalleryLibrary, 300),
-      },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
+    setSourcePickerVisible(true);
   };
 
   // Step 2: Confirm category and save
   const handleConfirmCategory = async () => {
     if (!pendingImageUri) return;
+    const uri = pendingImageUri;
+    const b64 = pendingBase64;
+    const cat = selectedCategory;
+
+    setUploading(true);
     try {
-      setUploading(true);
-      setCategoryModalVisible(false);
-      const photo = await addProgressPhoto(pendingImageUri, '', selectedCategory, pendingBase64);
+      const photo = await addProgressPhoto(uri, '', cat, b64);
       setPhotos(prev => [photo, ...prev]);
       loadStats();
+      // Only dismiss modal + clear state after successful save
+      setCategoryModalVisible(false);
       setPendingImageUri(null);
       setPendingBase64(null);
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
+      console.error('[progress-gallery] handleConfirmCategory error:', error);
       Alert.alert('Error', 'Failed to save photo. Please try again.');
     } finally {
       setUploading(false);
@@ -214,13 +213,15 @@ export default function ProgressGalleryScreen() {
   const oldestForCategory = getPhotosForCategory(compareCategory)[0];
   const newestForCategory = getPhotosForCategory(compareCategory).slice(-1)[0];
 
-  const renderPhoto = ({ item }: { item: ProgressPhoto }) => (
+  // Render a single photo tile (used in the manual grid below)
+  const renderPhotoTile = (item: ProgressPhoto) => (
     <TouchableOpacity
+      key={item.id}
       onPress={() => {
         setSelectedPhoto(item);
         setModalVisible(true);
       }}
-      style={{ flex: 1, margin: 4 }}
+      style={{ width: '48%', marginBottom: 8 }}
     >
       <View style={{ borderRadius: 12, overflow: 'hidden', aspectRatio: 3 / 4 }}>
         <Image source={{ uri: item.uri }} style={{ width: '100%', height: '100%' }} />
@@ -304,17 +305,16 @@ export default function ProgressGalleryScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Photos Grid */}
+        {/* Photos Grid — using View + map instead of FlatList to avoid
+            FlatList-in-ScrollView rendering bugs (zero-height virtualisation) */}
         {photos.length > 0 ? (
-          <View style={{ paddingHorizontal: 8 }}>
-            <FlatList
-              data={photos}
-              keyExtractor={item => item.id}
-              renderItem={renderPhoto}
-              numColumns={2}
-              scrollEnabled={false}
-              columnWrapperStyle={{ justifyContent: 'space-between' }}
-            />
+          <View style={{
+            paddingHorizontal: 8,
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            justifyContent: 'space-between',
+          }}>
+            {photos.map(renderPhotoTile)}
           </View>
         ) : (
           <View style={{ alignItems: 'center', paddingVertical: 48, paddingHorizontal: 16 }}>
@@ -327,6 +327,48 @@ export default function ProgressGalleryScreen() {
         )}
       </ScrollView>
 
+      {/* ── Photo Source Picker Modal ── */}
+      {/* Replaces Alert.alert which doesn't show custom buttons on web */}
+      <Modal visible={sourcePickerVisible} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.bottomSheet, { backgroundColor: colors.surface }]}>
+            <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
+            <Text style={[styles.sheetTitle, { color: colors.foreground }]}>Add Progress Photo</Text>
+            <Text style={{ color: colors.muted, fontSize: 14, marginBottom: 20, textAlign: 'center' }}>
+              Choose a photo source
+            </Text>
+            <TouchableOpacity
+              onPress={() => {
+                setSourcePickerVisible(false);
+                // setTimeout(300) required on Android: Alert callback context blocks
+                // the Activity-result pipeline that expo-image-picker relies on.
+                setTimeout(openGalleryCamera, 300);
+              }}
+              style={[styles.sourceBtn, { backgroundColor: colors.primary }]}
+            >
+              <Text style={{ fontSize: 18 }}>📷</Text>
+              <Text style={[styles.sourceBtnText, { color: '#fff' }]}>Take Photo</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => {
+                setSourcePickerVisible(false);
+                setTimeout(openGalleryLibrary, 300);
+              }}
+              style={[styles.sourceBtn, { backgroundColor: colors.primary }]}
+            >
+              <Text style={{ fontSize: 18 }}>🖼</Text>
+              <Text style={[styles.sourceBtnText, { color: '#fff' }]}>Choose from Library</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setSourcePickerVisible(false)}
+              style={[styles.sheetBtn, { backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, marginTop: 8 }]}
+            >
+              <Text style={{ color: colors.foreground, fontWeight: '600' }}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {/* ── Category Picker Modal ── */}
       <Modal visible={categoryModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
@@ -338,7 +380,7 @@ export default function ProgressGalleryScreen() {
             </Text>
             {pendingImageUri && (
               <Image
-                source={{ uri: pendingImageUri }}
+                source={{ uri: pendingBase64 ? `data:image/jpeg;base64,${pendingBase64}` : pendingImageUri }}
                 style={{ width: 120, height: 160, borderRadius: 10, alignSelf: 'center', marginBottom: 20 }}
               />
             )}
@@ -376,9 +418,14 @@ export default function ProgressGalleryScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleConfirmCategory}
-                style={[styles.sheetBtn, { backgroundColor: colors.primary, flex: 1 }]}
+                disabled={uploading}
+                style={[styles.sheetBtn, { backgroundColor: colors.primary, flex: 1, opacity: uploading ? 0.7 : 1 }]}
               >
-                <Text style={{ color: 'white', fontWeight: '700' }}>Save Photo</Text>
+                {uploading ? (
+                  <ActivityIndicator color="white" size="small" />
+                ) : (
+                  <Text style={{ color: 'white', fontWeight: '700' }}>Save Photo</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -561,6 +608,8 @@ const styles = StyleSheet.create({
   categoryChip: { width: 80, height: 80, borderRadius: 16, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   categoryChipSmall: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20 },
   sheetBtn: { paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
+  sourceBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 16, borderRadius: 14, marginBottom: 10 },
+  sourceBtnText: { fontWeight: '700', fontSize: 16 },
   dragHandle: { position: 'absolute', top: '45%', width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.7)', borderWidth: 2, borderColor: 'white', alignItems: 'center', justifyContent: 'center' },
   compareLabel: { position: 'absolute', top: 12, backgroundColor: 'rgba(0,0,0,0.65)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
   compareLabelText: { color: 'white', fontSize: 11, fontWeight: '800', letterSpacing: 1 },
