@@ -131,9 +131,6 @@ export default function FormCoachTrackingScreen() {
     cameraViewLayoutChangeHandler,
     cameraOrientationChangedHandler,
     fps: detectionFps,
-    cameraAllowed,
-    detectorReady,
-    debugState: pipelineDebug,
   } = usePoseCamera({
     position: cameraFacing,
     active: isActive,
@@ -629,19 +626,13 @@ export default function FormCoachTrackingScreen() {
                 // Only attach frameProcessor after cameraAllowed delay (2s).
                 // This prevents the Kotlin ClassCastException from detectorHandle
                 // being undefined on the first frames before createDetector() resolves.
-                frameProcessor={cameraAllowed ? frameProcessor : undefined}
+                frameProcessor={frameProcessor}
                 pixelFormat="rgb"
                 outputOrientation="preview"
                 onLayout={cameraViewLayoutChangeHandler}
                 onOutputOrientationChanged={cameraOrientationChangedHandler}
                 onStarted={() => setCameraReady(true)}
               />
-              {!cameraAllowed && (
-                <View style={[styles.camera, styles.initOverlay]}>
-                  <ActivityIndicator size="large" color={colors.primary} />
-                  <Text style={[styles.initText, { color: colors.foreground }]}>Initializing detector...</Text>
-                </View>
-              )}
             </>
           ) : (
             <View style={[styles.camera, { backgroundColor: colors.surface }]}>
@@ -775,36 +766,14 @@ export default function FormCoachTrackingScreen() {
             </View>
           )}
 
-          {/* Pipeline Debug Panel — always visible when showDebug is true */}
-          {showDebug && (
-            <View style={styles.pipelineDebug}>
-              <Text style={styles.debugTitle}>🔬 Pipeline Debug</Text>
-              {[
-                { label: '1. Camera device', ok: pipelineDebug?.deviceFound },
-                { label: '2. Permission', ok: pipelineDebug?.permissionGranted },
-                { label: '3. Hook init', ok: pipelineDebug?.hookInitialized },
-                { label: '4. Delay passed', ok: pipelineDebug?.cameraAllowed },
-                { label: '5. onResults fired', ok: pipelineDebug?.onResultsFired },
-                { label: '6. Landmarks received', ok: pipelineDebug?.landmarksReceived },
-              ].map((item, i) => (
-                <Text key={i} style={styles.debugRow}>
-                  {item.ok ? '✅' : '❌'} {item.label}
-                </Text>
-              ))}
-              <Text style={styles.debugStage}>
-                Stage {pipelineDebug?.stage ?? 0}/7: {pipelineDebug?.stageLabel}
-              </Text>
-              <Text style={styles.debugRow}>
-                Frames: {pipelineDebug?.totalFrames ?? 0} | FPS: {pipelineDebug?.fps ?? 0}
-              </Text>
-              {pipelineDebug?.errorMessage && (
-                <Text style={styles.debugError}>⚠️ {pipelineDebug.errorMessage}</Text>
-              )}
-              {currentPose && (
-                <Text style={styles.debugRow}>
-                  Pose: {currentPose.keypoints.length} kpts | Conf: {Math.round(confidence * 100)}%
-                </Text>
-              )}
+          {/* Debug Overlay */}
+          {showDebug && currentPose && (
+            <View style={[styles.pipelineDebug, { backgroundColor: 'rgba(0,0,0,0.7)' }]}>
+              <Text style={styles.debugRow}>Keypoints: {currentPose.keypoints.length}</Text>
+              <Text style={styles.debugRow}>Confidence: {Math.round(confidence * 100)}%</Text>
+              <Text style={styles.debugRow}>State: {trackingState}</Text>
+              <Text style={styles.debugRow}>Reps: {currentRep}</Text>
+              <Text style={styles.debugRow}>FPS: {detectionFps}</Text>
             </View>
           )}
         </View>
@@ -1089,22 +1058,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
   },
-  initOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 12,
-  },
-  initText: {
-    fontSize: 14,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
   pipelineDebug: {
     position: 'absolute',
     top: 60,
@@ -1116,27 +1069,9 @@ const styles = StyleSheet.create({
     gap: 3,
     zIndex: 100,
   },
-  debugTitle: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
   debugRow: {
     color: '#e2e8f0',
     fontSize: 11,
     fontFamily: 'monospace',
-  },
-  debugStage: {
-    color: '#fbbf24',
-    fontSize: 11,
-    fontWeight: '600',
-    marginTop: 4,
-  },
-  debugError: {
-    color: '#f87171',
-    fontSize: 11,
-    fontWeight: '600',
-    marginTop: 2,
   },
 });
