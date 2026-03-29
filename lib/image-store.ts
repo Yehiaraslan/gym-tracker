@@ -1,12 +1,18 @@
 // ============================================================
-// IMAGE STORE — Persist images to permanent app document directory
+// IMAGE STORE — Persist images to permanent app storage
 //
-// Strategy (most reliable across iOS + Android):
+// Native (iOS + Android) strategy:
 //   1. If the picker returned base64 data directly → write it straight to disk
 //   2. If the URI is a file:// → copyAsync (fast, always works)
 //   3. If the URI is content:// (Android) → base64 read → write
 //   4. If the URI is ph:// (iOS photo library) → resolve via MediaLibrary
 //      getAssetInfoAsync to get a real file:// localUri, then copyAsync
+//
+// Web strategy:
+//   expo-file-system's documentDirectory is null on web, so we convert the
+//   blob/file URI to a base64 data-URL and return that directly. The caller
+//   stores it in AsyncStorage as a data:image/…;base64,… string, which
+//   survives page refreshes and is a valid <Image> source on web.
 //
 // IMPORTANT: Always request MEDIA_LIBRARY permission before calling this
 // when dealing with ph:// URIs. The callers (profile.tsx, progress-gallery.tsx,
@@ -14,12 +20,71 @@
 // ============================================================
 import * as FileSystem from 'expo-file-system/legacy';
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const WEB_IMAGE_PREFIX = '@img_store_';
+
+// ── Web helpers ─────────────────────────────────────────────
+
+/**
+ * Convert a blob:// or object URL to a base64 data-URL string.
+ * Works in the browser by fetching the blob and reading it with FileReader.
+ */
+async function blobUrlToDataUrl(blobUrl: string): Promise<string> {
+  const response = await fetch(blobUrl);
+  const blob = await response.blob();
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (typeof reader.result === 'string') resolve(reader.result);
+      else reject(new Error('FileReader did not return a string'));
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
+
+/**
+ * On web, persist the image by converting it to a base64 data-URL.
+ * If the caller already provided a base64 string, we wrap it in a data-URL.
+ * Returns a data:image/…;base64,… URI that works as an <Image> source.
+ */
+async function persistImageWeb(
+  tempUri: string,
+  folder: 'profile' | 'progress',
+  filename?: string,
+  base64?: string | null,
+): Promise<string> {
+  const name = filename ?? `${Date.now()}.jpg`;
+  const key = `${WEB_IMAGE_PREFIX}${folder}_${name}`;
+
+  let dataUrl: string;
+
+  if (base64) {
+    // Caller provided raw base64 — wrap it as a data URL
+    const mime = guessMimeFromExtension(tempUri);
+    dataUrl = `data:${mime};base64,${base64}`;
+  } else if (tempUri.startsWith('data:')) {
+    // Already a data URL
+    dataUrl = tempUri;
+  } else {
+    // blob:// or http:// URL from the picker — convert via fetch
+    dataUrl = await blobUrlToDataUrl(tempUri);
+  }
+
+  // Store in AsyncStorage so it survives page refreshes
+  await AsyncStorage.setItem(key, dataUrl);
+
+  return dataUrl;
+}
+
+// ── Public API ──────────────────────────────────────────────
 
 /**
  * Copy a temporary image URI (from ImagePicker) to the app's permanent
  * document directory and return the permanent URI.
  *
- * @param tempUri  The temporary URI from ImagePicker (file://, ph://, content://)
+ * @param tempUri  The temporary URI from ImagePicker (file://, ph://, content://, blob://)
  * @param folder   Sub-folder name, e.g. 'profile' or 'progress'
  * @param filename Optional filename; defaults to a timestamp-based name
  * @param base64   Optional base64 string (from ImagePicker base64 option) — fastest path
@@ -30,6 +95,12 @@ export async function persistImage(
   filename?: string,
   base64?: string | null,
 ): Promise<string> {
+  // ── Web: use data-URL persistence ────────────────────────────────────────
+  if (Platform.OS === 'web') {
+    return persistImageWeb(tempUri, folder, filename, base64);
+  }
+
+  // ── Native: use file system ──────────────────────────────────────────────
   const dir = `${FileSystem.documentDirectory}images/${folder}/`;
 
   // Ensure directory exists
@@ -142,7 +213,21 @@ export async function persistImage(
  */
 export async function deletePersistedImage(uri: string): Promise<void> {
   try {
-    // Only delete local file:// URIs — don't attempt to delete ph:// or content://
+    if (Platform.OS === 'web') {
+      // On web, data URLs stored in AsyncStorage — find and remove the matching key
+      const allKeys = await AsyncStorage.getAllKeys();
+      const imageKeys = allKeys.filter(k => k.startsWith(WEB_IMAGE_PREFIX));
+      for (const key of imageKeys) {
+        const stored = await AsyncStorage.getItem(key);
+        if (stored === uri) {
+          await AsyncStorage.removeItem(key);
+          break;
+        }
+      }
+      return;
+    }
+
+    // Native: only delete local file:// URIs — don't attempt to delete ph:// or content://
     if (!uri.startsWith('file://') && !uri.startsWith('/')) return;
     const info = await FileSystem.getInfoAsync(uri);
     if (info.exists) {
@@ -165,4 +250,20 @@ function getExtension(uri: string): string {
     }
   }
   return 'jpg';
+}
+
+/** Guess MIME type from a URI's extension */
+function guessMimeFromExtension(uri: string): string {
+  const ext = getExtension(uri);
+  const map: Record<string, string> = {
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+    webp: 'image/webp',
+    gif: 'image/gif',
+    heic: 'image/heic',
+    heif: 'image/heif',
+    bmp: 'image/bmp',
+  };
+  return map[ext] ?? 'image/jpeg';
 }

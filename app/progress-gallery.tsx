@@ -52,6 +52,7 @@ export default function ProgressGalleryScreen() {
   // Category picker state
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
   const [pendingImageUri, setPendingImageUri] = useState<string | null>(null);
+  const [pendingBase64, setPendingBase64] = useState<string | null>(null);
 
   const [selectedCategory, setSelectedCategory] = useState<PhotoCategory>('front');
 
@@ -103,13 +104,16 @@ export default function ProgressGalleryScreen() {
         Alert.alert('Permission Required', 'Please allow camera access to take a progress photo.');
         return;
       }
+      const isWeb = Platform.OS === 'web';
       const result = await ImagePicker.launchCameraAsync({
         quality: 0.85,
         allowsEditing: true,
         aspect: [3, 4],
+        base64: isWeb,
       });
       if (!result.canceled && result.assets[0]) {
         setPendingImageUri(result.assets[0].uri);
+        setPendingBase64(result.assets[0].base64 ?? null);
         setSelectedCategory('front');
         setCategoryModalVisible(true);
       }
@@ -126,15 +130,18 @@ export default function ProgressGalleryScreen() {
         Alert.alert('Permission Required', 'Please allow access to your photo library.');
         return;
       }
+      const isWeb = Platform.OS === 'web';
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         quality: 0.85,
         allowsEditing: true,
         aspect: [3, 4],
         allowsMultipleSelection: false,
+        base64: isWeb,
       });
       if (!result.canceled && result.assets[0]) {
         setPendingImageUri(result.assets[0].uri);
+        setPendingBase64(result.assets[0].base64 ?? null);
         setSelectedCategory('front');
         setCategoryModalVisible(true);
       }
@@ -167,10 +174,11 @@ export default function ProgressGalleryScreen() {
     try {
       setUploading(true);
       setCategoryModalVisible(false);
-      const photo = await addProgressPhoto(pendingImageUri, '', selectedCategory);
+      const photo = await addProgressPhoto(pendingImageUri, '', selectedCategory, pendingBase64);
       setPhotos(prev => [photo, ...prev]);
       loadStats();
       setPendingImageUri(null);
+      setPendingBase64(null);
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
       Alert.alert('Error', 'Failed to save photo. Please try again.');
@@ -361,7 +369,7 @@ export default function ProgressGalleryScreen() {
             </View>
             <View style={{ flexDirection: 'row', gap: 10 }}>
               <TouchableOpacity
-                onPress={() => { setCategoryModalVisible(false); setPendingImageUri(null); }}
+                onPress={() => { setCategoryModalVisible(false); setPendingImageUri(null); setPendingBase64(null); }}
                 style={[styles.sheetBtn, { backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, flex: 1 }]}
               >
                 <Text style={{ color: colors.foreground, fontWeight: '600' }}>Cancel</Text>

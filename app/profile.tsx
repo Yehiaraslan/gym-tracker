@@ -110,15 +110,17 @@ export default function ProfileScreen() {
       Alert.alert('Permission Required', 'Please allow access to your photo library to set a profile picture.');
       return;
     }
+    const isWeb = Platform.OS === 'web';
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
+      base64: isWeb,
     });
     if (!result.canceled && result.assets[0]) {
       try {
-        const permanentUri = await persistImage(result.assets[0].uri, 'profile', 'profile.jpg');
+        const permanentUri = await persistImage(result.assets[0].uri, 'profile', 'profile.jpg', result.assets[0].base64);
         const updated = { ...profile, profilePhotoUri: permanentUri };
         setProfile(updated);
         await saveUserProfile(updated);
@@ -134,14 +136,16 @@ export default function ProfileScreen() {
       Alert.alert('Permission Required', 'Please allow camera access to take a profile picture.');
       return;
     }
+    const isWeb = Platform.OS === 'web';
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
+      base64: isWeb,
     });
     if (!result.canceled && result.assets[0]) {
       try {
-        const permanentUri = await persistImage(result.assets[0].uri, 'profile', 'profile.jpg');
+        const permanentUri = await persistImage(result.assets[0].uri, 'profile', 'profile.jpg', result.assets[0].base64);
         const updated = { ...profile, profilePhotoUri: permanentUri };
         setProfile(updated);
         await saveUserProfile(updated);
