@@ -562,6 +562,10 @@ export default function ProgressPicturesScreen() {
   const [zakiAnalysis, setZakiAnalysis] = useState<BodyAnalysis | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [sourcePickerVisible, setSourcePickerVisible] = useState(false);
+  const [previewUri, setPreviewUri] = useState<string | null>(null);
+  const [previewBase64, setPreviewBase64] = useState<string | null>(null);
+  const [previewSource, setPreviewSource] = useState<'camera' | 'library'>('camera');
+  const [isSavingPreview, setIsSavingPreview] = useState(false);
 
   const bodyAnalysisMutation = trpc.zaki.bodyAnalysis.useMutation();
 
@@ -627,7 +631,9 @@ export default function ProgressPicturesScreen() {
       base64: isWeb,  // Request base64 on web so we can persist as data-URL
     });
     if (!result.canceled && result.assets[0]) {
-      await addPicture(result.assets[0].uri, result.assets[0].base64);
+      setPreviewUri(result.assets[0].uri);
+      setPreviewBase64(result.assets[0].base64 ?? null);
+      setPreviewSource('camera');
     }
   };
 
@@ -641,8 +647,44 @@ export default function ProgressPicturesScreen() {
       base64: isWeb,  // Request base64 on web so we can persist as data-URL
     });
     if (!result.canceled && result.assets[0]) {
-      await addPicture(result.assets[0].uri, result.assets[0].base64);
+      setPreviewUri(result.assets[0].uri);
+      setPreviewBase64(result.assets[0].base64 ?? null);
+      setPreviewSource('library');
     }
+  };
+
+  const getSaveLocationDisplay = (): string => {
+    if (Platform.OS === 'web') return 'Browser Storage (IndexedDB)';
+    return `App Storage / images / progress /`;
+  };
+
+  const handlePreviewConfirm = async () => {
+    if (!previewUri) return;
+    setIsSavingPreview(true);
+    try {
+      await addPicture(previewUri, previewBase64);
+      setPreviewUri(null);
+      setPreviewBase64(null);
+    } catch (err) {
+      console.error('[preview] save failed:', err);
+    } finally {
+      setIsSavingPreview(false);
+    }
+  };
+
+  const handlePreviewDiscard = () => {
+    setPreviewUri(null);
+    setPreviewBase64(null);
+  };
+
+  const handlePreviewRetake = () => {
+    setPreviewUri(null);
+    setPreviewBase64(null);
+    // Re-open the same source after a short delay (let modal dismiss)
+    setTimeout(() => {
+      if (previewSource === 'camera') openCamera();
+      else openLibrary();
+    }, 300);
   };
 
   const handleAdd = () => {
@@ -939,6 +981,79 @@ export default function ProgressPicturesScreen() {
         </View>
       </Modal>
 
+      {/* Photo preview modal — shown after capture, before saving */}
+      <Modal
+        visible={previewUri != null}
+        animationType="slide"
+        onRequestClose={handlePreviewDiscard}
+      >
+        <View style={pvStyles.container}>
+          {/* Close / Discard */}
+          <TouchableOpacity style={pvStyles.closeBtn} onPress={handlePreviewDiscard}>
+            <Text style={pvStyles.closeTxt}>✕</Text>
+          </TouchableOpacity>
+
+          {/* Title */}
+          <View style={pvStyles.titleRow}>
+            <Text style={pvStyles.title}>📸 Photo Preview</Text>
+            <Text style={pvStyles.subtitle}>
+              {LABELS.find(l => l.key === addLabel)?.emoji} {addLabel} · {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+            </Text>
+          </View>
+
+          {/* Image preview */}
+          {previewUri && (
+            <View style={pvStyles.imageArea}>
+              <Image
+                source={{ uri: previewUri }}
+                style={pvStyles.previewImage}
+                resizeMode="contain"
+              />
+            </View>
+          )}
+
+          {/* Save location info */}
+          <View style={pvStyles.locationCard}>
+            <View style={pvStyles.locationIconRow}>
+              <Text style={{ fontSize: 16 }}>📂</Text>
+              <Text style={pvStyles.locationLabel}>Save Location</Text>
+            </View>
+            <Text style={pvStyles.locationPath}>{getSaveLocationDisplay()}</Text>
+            <Text style={pvStyles.locationHint}>
+              {Platform.OS === 'web'
+                ? 'Photo will be stored as a base64 data URL in browser storage.'
+                : 'Photo will be copied to the app\'s permanent document directory.'}
+            </Text>
+          </View>
+
+          {/* Action buttons */}
+          <View style={pvStyles.actions}>
+            <TouchableOpacity
+              onPress={handlePreviewConfirm}
+              disabled={isSavingPreview}
+              style={[pvStyles.saveBtn, isSavingPreview && { opacity: 0.6 }]}
+            >
+              {isSavingPreview ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={pvStyles.saveBtnText}>✓ Save Photo</Text>
+              )}
+            </TouchableOpacity>
+
+            <View style={pvStyles.secondaryRow}>
+              {previewSource === 'camera' && (
+                <TouchableOpacity onPress={handlePreviewRetake} style={pvStyles.retakeBtn}>
+                  <Text style={pvStyles.retakeBtnText}>📷 Retake</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity onPress={handlePreviewDiscard} style={pvStyles.discardBtn}>
+                <Text style={pvStyles.discardBtnText}>Discard</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* Comparison slider modal */}
       <Modal
         visible={compareLabel != null}
@@ -1021,4 +1136,29 @@ const styles = StyleSheet.create({
   deleteBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20, backgroundColor: 'rgba(239,68,68,0.2)', borderWidth: 1, borderColor: 'rgba(239,68,68,0.4)' },
   deleteBtnText: { color: '#EF4444', fontWeight: '600', fontSize: 14 },
   zakiBtn: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 16, marginBottom: 12, paddingHorizontal: 16, paddingVertical: 14, borderRadius: 16 },
+});
+
+// ─── Photo Preview Modal Styles ─────────────────────────────
+const pvStyles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#000' },
+  closeBtn: { position: 'absolute', top: 56, right: 20, zIndex: 20, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center' },
+  closeTxt: { color: '#fff', fontSize: 18, fontWeight: '700' },
+  titleRow: { paddingTop: 60, paddingBottom: 12, alignItems: 'center' },
+  title: { color: '#fff', fontSize: 18, fontWeight: '700' },
+  subtitle: { color: 'rgba(255,255,255,0.5)', fontSize: 13, marginTop: 3 },
+  imageArea: { flex: 1, maxHeight: SCREEN_HEIGHT * 0.48, marginHorizontal: 12, borderRadius: 16, overflow: 'hidden', backgroundColor: '#111' },
+  previewImage: { width: '100%', height: '100%' },
+  locationCard: { marginHorizontal: 20, marginTop: 16, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
+  locationIconRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+  locationLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  locationPath: { color: '#fff', fontSize: 13, fontWeight: '600', fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', marginBottom: 4 },
+  locationHint: { color: 'rgba(255,255,255,0.4)', fontSize: 11, lineHeight: 16 },
+  actions: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 40 },
+  saveBtn: { backgroundColor: '#10B981', paddingVertical: 16, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '800' },
+  secondaryRow: { flexDirection: 'row', justifyContent: 'center', gap: 16, marginTop: 12 },
+  retakeBtn: { paddingHorizontal: 20, paddingVertical: 12, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
+  retakeBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  discardBtn: { paddingHorizontal: 20, paddingVertical: 12, borderRadius: 14, backgroundColor: 'rgba(239,68,68,0.15)', borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)' },
+  discardBtnText: { color: '#EF4444', fontSize: 14, fontWeight: '600' },
 });
