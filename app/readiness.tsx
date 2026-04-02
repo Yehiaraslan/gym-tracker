@@ -18,7 +18,7 @@ import {
   type ReadinessInput,
   type ReadinessResult,
 } from '@/lib/readiness-score';
-import { loadStore } from '@/lib/store';
+import { useGym } from '@/lib/gym-context';
 import { getStreakData } from '@/lib/streak-tracker';
 import { getDailyNutrition } from '@/lib/nutrition-store';
 import { getTodayRecoveryData } from '@/lib/whoop-recovery-service';
@@ -34,6 +34,7 @@ interface ReadinessHistoryEntry {
 export default function ReadinessScreen() {
   const router = useRouter();
   const colors = useColors();
+  const { store } = useGym();
   const [loading, setLoading] = useState(true);
   const [readinessResult, setReadinessResult] = useState<ReadinessResult | null>(
     null
@@ -49,14 +50,14 @@ export default function ReadinessScreen() {
       setLoading(true);
 
       // Load all required data
-      const store = await loadStore();
       const streakData = await getStreakData();
       const today = new Date().toLocaleDateString('en-CA');
       const nutrition = await getDailyNutrition(today);
       const whoopData = await getTodayRecoveryData();
 
-      // Get sleep data for today
-      const sleepEntry = store.sleepEntries.find(s => s.date === today);
+      // Get the most recent sleep entry (today or the last logged entry)
+      const sortedSleep = [...store.sleepEntries].sort((a, b) => b.date.localeCompare(a.date));
+      const sleepEntry = sortedSleep[0] ?? null;
 
       // Calculate totals for last 7 days
       const last7DaysStart = new Date();

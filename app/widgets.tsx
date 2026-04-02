@@ -27,7 +27,11 @@ export default function WidgetsScreen() {
 
   const loadWidgetData = async () => {
     try {
-      const data = await getWidgetData();
+      let data = await getWidgetData();
+      // Auto-generate widget data on first load if cache is empty
+      if (!data) {
+        data = await updateWidgetData();
+      }
       setWidgetData(data);
       if (data?.updatedAt) {
         const date = new Date(data.updatedAt);
