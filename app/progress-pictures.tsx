@@ -654,8 +654,9 @@ export default function ProgressPicturesScreen() {
       }
       const isWeb = Platform.OS === 'web';
       const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'] as any,
         quality: 0.85,
-        allowsEditing: false,
+        allowsEditing: true,
         base64: isWeb,  // Request base64 on web so we can persist as data-URL
       });
       if (!result.canceled && result.assets[0]) {
@@ -678,8 +679,10 @@ export default function ProgressPicturesScreen() {
       }
       const isWeb = Platform.OS === 'web';
       const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'] as any,
         quality: 0.85,
         allowsMultipleSelection: false,
+        allowsEditing: true,
         base64: isWeb,  // Request base64 on web so we can persist as data-URL
       });
       if (!result.canceled && result.assets[0]) {

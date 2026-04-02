@@ -132,8 +132,9 @@ export default function ProgressGalleryScreen() {
       }
       const isWeb = Platform.OS === 'web';
       const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'] as any,
         quality: 0.85,
-        allowsEditing: Platform.OS === 'ios',
+        allowsEditing: true,
         aspect: [3, 4],
         base64: isWeb,
       });
@@ -162,7 +163,7 @@ export default function ProgressGalleryScreen() {
         // Use array syntax — MediaTypeOptions enum is deprecated in expo-image-picker SDK 15+
         mediaTypes: ['images'] as any,
         quality: 0.85,
-        allowsEditing: Platform.OS === 'ios',
+        allowsEditing: true,
         aspect: [3, 4],
         allowsMultipleSelection: false,
         base64: isWeb,
