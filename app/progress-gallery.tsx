@@ -12,6 +12,7 @@ import {
   PanResponder,
   Dimensions,
   StyleSheet,
+  InteractionManager,
 } from 'react-native';
 import { ScreenContainer } from '@/components/screen-container';
 import { useColors } from '@/hooks/use-colors';
@@ -58,6 +59,11 @@ export default function ProgressGalleryScreen() {
   // Photo source picker state (replaces Alert.alert which doesn't work on web)
   const [sourcePickerVisible, setSourcePickerVisible] = useState(false);
 
+  // Pending action after source picker modal closes — avoids the race condition
+  // where setTimeout(fn, 300) fires before the Modal animation finishes,
+  // causing expo-image-picker to silently fail to present its UI.
+  const pendingSourceAction = useRef<'camera' | 'library' | null>(null);
+
   // Comparison slider state
   const [compareModalVisible, setCompareModalVisible] = useState(false);
   const [compareCategory, setCompareCategory] = useState<PhotoCategory>('front');
@@ -77,6 +83,24 @@ export default function ProgressGalleryScreen() {
     loadPhotos();
     loadStats();
   }, []);
+
+  // Fire the pending image-picker action once the source-picker modal has closed.
+  // InteractionManager.runAfterInteractions waits for the Modal dismiss animation
+  // to truly finish, then an extra 300ms buffer ensures expo-image-picker can
+  // present its own UI without silently failing.
+  useEffect(() => {
+    if (!sourcePickerVisible && pendingSourceAction.current) {
+      const action = pendingSourceAction.current;
+      pendingSourceAction.current = null;
+      const handle = InteractionManager.runAfterInteractions(() => {
+        setTimeout(() => {
+          if (action === 'camera') openGalleryCamera();
+          else openGalleryLibrary();
+        }, 300);
+      });
+      return () => handle.cancel();
+    }
+  }, [sourcePickerVisible]);
 
   const loadPhotos = async () => {
     try {
@@ -109,7 +133,7 @@ export default function ProgressGalleryScreen() {
       const isWeb = Platform.OS === 'web';
       const result = await ImagePicker.launchCameraAsync({
         quality: 0.85,
-        allowsEditing: true,
+        allowsEditing: Platform.OS === 'ios',
         aspect: [3, 4],
         base64: isWeb,
       });
@@ -138,7 +162,7 @@ export default function ProgressGalleryScreen() {
         // Use array syntax — MediaTypeOptions enum is deprecated in expo-image-picker SDK 15+
         mediaTypes: ['images'] as any,
         quality: 0.85,
-        allowsEditing: true,
+        allowsEditing: Platform.OS === 'ios',
         aspect: [3, 4],
         allowsMultipleSelection: false,
         base64: isWeb,
@@ -339,10 +363,8 @@ export default function ProgressGalleryScreen() {
             </Text>
             <TouchableOpacity
               onPress={() => {
+                pendingSourceAction.current = 'camera';
                 setSourcePickerVisible(false);
-                // setTimeout(300) required on Android: Alert callback context blocks
-                // the Activity-result pipeline that expo-image-picker relies on.
-                setTimeout(openGalleryCamera, 300);
               }}
               style={[styles.sourceBtn, { backgroundColor: colors.primary }]}
             >
@@ -351,8 +373,8 @@ export default function ProgressGalleryScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => {
+                pendingSourceAction.current = 'library';
                 setSourcePickerVisible(false);
-                setTimeout(openGalleryLibrary, 300);
               }}
               style={[styles.sourceBtn, { backgroundColor: colors.primary }]}
             >

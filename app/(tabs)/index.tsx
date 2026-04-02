@@ -951,6 +951,61 @@ export default function HomeScreen() {
             })}
           </View>
         )}
+
+        {/* ── Quick Tools ── */}
+        <View style={[s.card, { backgroundColor: surf, borderColor: bord }]}>
+          <Text style={[s.sectionLabel, { color: mut, marginBottom: 10 }]}>TOOLS & INSIGHTS</Text>
+          <View style={{ gap: 8 }}>
+            <TouchableOpacity
+              style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10 }}
+              onPress={() => router.push('/muscle-heatmap' as any)}
+              activeOpacity={0.7}
+            >
+              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#EF444420', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                <Text style={{ fontSize: 18 }}>🔥</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: fg }}>Muscle Heatmap</Text>
+                <Text style={{ fontSize: 11, color: mut }}>See which muscles need attention</Text>
+              </View>
+              <Text style={{ fontSize: 18, color: mut }}>›</Text>
+            </TouchableOpacity>
+
+            <View style={{ height: 1, backgroundColor: bord }} />
+
+            <TouchableOpacity
+              style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10 }}
+              onPress={() => router.push('/readiness' as any)}
+              activeOpacity={0.7}
+            >
+              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#22C55E20', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                <Text style={{ fontSize: 18 }}>⚡</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: fg }}>Readiness Score</Text>
+                <Text style={{ fontSize: 11, color: mut }}>Sleep + recovery + nutrition + load</Text>
+              </View>
+              <Text style={{ fontSize: 18, color: mut }}>›</Text>
+            </TouchableOpacity>
+
+            <View style={{ height: 1, backgroundColor: bord }} />
+
+            <TouchableOpacity
+              style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10 }}
+              onPress={() => router.push('/widgets' as any)}
+              activeOpacity={0.7}
+            >
+              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#3B82F620', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                <Text style={{ fontSize: 18 }}>📱</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: fg }}>Home Screen Widget</Text>
+                <Text style={{ fontSize: 11, color: mut }}>Quick glance at streak & workout</Text>
+              </View>
+              <Text style={{ fontSize: 18, color: mut }}>›</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </ScrollView>
     </ScreenContainer>
   );

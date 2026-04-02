@@ -18,6 +18,7 @@ import {
   PanResponder,
   Animated,
   ActivityIndicator,
+  InteractionManager,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -567,11 +568,34 @@ export default function ProgressPicturesScreen() {
   const [previewSource, setPreviewSource] = useState<'camera' | 'library'>('camera');
   const [isSavingPreview, setIsSavingPreview] = useState(false);
 
+  // Pending action after source picker modal closes — avoids the race condition
+  // where setTimeout(fn, 300) fires before the Modal animation finishes,
+  // causing expo-image-picker to silently fail to present its UI.
+  const pendingSourceAction = useRef<'camera' | 'library' | null>(null);
+
   const bodyAnalysisMutation = trpc.zaki.bodyAnalysis.useMutation();
 
   useEffect(() => {
     loadPictures().then(setPictures);
   }, []);
+
+  // Fire the pending image-picker action once the source-picker modal has closed.
+  // InteractionManager.runAfterInteractions waits for the Modal dismiss animation
+  // to truly finish, then an extra 300ms buffer ensures expo-image-picker can
+  // present its own UI without silently failing.
+  useEffect(() => {
+    if (!sourcePickerVisible && pendingSourceAction.current) {
+      const action = pendingSourceAction.current;
+      pendingSourceAction.current = null;
+      const handle = InteractionManager.runAfterInteractions(() => {
+        setTimeout(() => {
+          if (action === 'camera') openCamera();
+          else openLibrary();
+        }, 300);
+      });
+      return () => handle.cancel();
+    }
+  }, [sourcePickerVisible]);
 
   // Find oldest & newest for each label (for comparison)
   const comparisonPairs: Partial<Record<ProgressPicture['label'], { before: ProgressPicture; after: ProgressPicture } | null>> = {};
@@ -622,34 +646,50 @@ export default function ProgressPicturesScreen() {
   };
 
   const openCamera = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') { Alert.alert('Camera permission required'); return; }
-    const isWeb = Platform.OS === 'web';
-    const result = await ImagePicker.launchCameraAsync({
-      quality: 0.85,
-      allowsEditing: false,
-      base64: isWeb,  // Request base64 on web so we can persist as data-URL
-    });
-    if (!result.canceled && result.assets[0]) {
-      setPreviewUri(result.assets[0].uri);
-      setPreviewBase64(result.assets[0].base64 ?? null);
-      setPreviewSource('camera');
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please allow camera access to take a progress photo.');
+        return;
+      }
+      const isWeb = Platform.OS === 'web';
+      const result = await ImagePicker.launchCameraAsync({
+        quality: 0.85,
+        allowsEditing: false,
+        base64: isWeb,  // Request base64 on web so we can persist as data-URL
+      });
+      if (!result.canceled && result.assets[0]) {
+        setPreviewUri(result.assets[0].uri);
+        setPreviewBase64(result.assets[0].base64 ?? null);
+        setPreviewSource('camera');
+      }
+    } catch (error) {
+      console.error('[progress-pictures] openCamera error:', error);
+      Alert.alert('Error', 'Failed to open camera. Please try again.');
     }
   };
 
   const openLibrary = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') { Alert.alert('Photo library permission required'); return; }
-    const isWeb = Platform.OS === 'web';
-    const result = await ImagePicker.launchImageLibraryAsync({
-      quality: 0.85,
-      allowsMultipleSelection: false,
-      base64: isWeb,  // Request base64 on web so we can persist as data-URL
-    });
-    if (!result.canceled && result.assets[0]) {
-      setPreviewUri(result.assets[0].uri);
-      setPreviewBase64(result.assets[0].base64 ?? null);
-      setPreviewSource('library');
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please allow access to your photo library.');
+        return;
+      }
+      const isWeb = Platform.OS === 'web';
+      const result = await ImagePicker.launchImageLibraryAsync({
+        quality: 0.85,
+        allowsMultipleSelection: false,
+        base64: isWeb,  // Request base64 on web so we can persist as data-URL
+      });
+      if (!result.canceled && result.assets[0]) {
+        setPreviewUri(result.assets[0].uri);
+        setPreviewBase64(result.assets[0].base64 ?? null);
+        setPreviewSource('library');
+      }
+    } catch (error) {
+      console.error('[progress-pictures] openLibrary error:', error);
+      Alert.alert('Error', 'Failed to open photo library. Please try again.');
     }
   };
 
@@ -958,14 +998,20 @@ export default function ProgressPicturesScreen() {
             <Text style={{ fontSize: 20, fontWeight: '800', textAlign: 'center', marginBottom: 6, color: colors.foreground }}>Add Progress Photo</Text>
             <Text style={{ color: colors.muted, fontSize: 14, marginBottom: 20, textAlign: 'center' }}>Choose a photo source</Text>
             <TouchableOpacity
-              onPress={() => { setSourcePickerVisible(false); setTimeout(openCamera, 300); }}
+              onPress={() => {
+                pendingSourceAction.current = 'camera';
+                setSourcePickerVisible(false);
+              }}
               style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 16, borderRadius: 14, marginBottom: 10, backgroundColor: colors.primary }}
             >
               <Text style={{ fontSize: 18 }}>📷</Text>
               <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>Take Photo</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={() => { setSourcePickerVisible(false); setTimeout(openLibrary, 300); }}
+              onPress={() => {
+                pendingSourceAction.current = 'library';
+                setSourcePickerVisible(false);
+              }}
               style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 16, borderRadius: 14, marginBottom: 10, backgroundColor: colors.primary }}
             >
               <Text style={{ fontSize: 18 }}>🖼</Text>
