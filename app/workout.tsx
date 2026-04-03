@@ -32,6 +32,7 @@ import { getRandomTip, FormTip, getCategoryEmoji, getCategoryLabel } from '@/lib
 import { toggleFavoriteTip, getFavoriteTips } from '@/lib/favorite-tips';
 import { recordWorkout } from '@/lib/streak-tracker';
 import { awardWorkoutXP } from '@/lib/xp-system';
+import { XPLevelUpOverlay } from '@/components/xp-levelup-overlay';
 import { loadStore, saveStore } from '@/lib/store';
 import { HeartRateChart } from '@/components/heart-rate-chart';
 import { getDemoHeartRateData } from '@/lib/whoop-service';
@@ -80,6 +81,9 @@ export default function WorkoutScreen() {
   const [displayedTips, setDisplayedTips] = useState<Array<{ tip: FormTip; exerciseName: string; timestamp: number }>>([]); 
   const [favoritedTipIds, setFavoritedTipIds] = useState<Set<string>>(new Set());
   const [heartRateData, setHeartRateData] = useState<WhoopHeartRateData | null>(null);
+  const [showLevelUp, setShowLevelUp] = useState(false);
+  const [levelUpLevel, setLevelUpLevel] = useState<import('@/lib/types').PlayerLevel>('Novice');
+  const [levelUpXP, setLevelUpXP] = useState(0);
   const workoutStartTimeRef = useRef<Date>(new Date());
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const warmupTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -401,8 +405,15 @@ export default function WorkoutScreen() {
     // Award XP for workout completion
     try {
       const currentStore = await loadStore();
+      const oldLevel = currentStore.xpState.level;
       const updatedXP = awardWorkoutXP(currentStore.xpState);
+      const xpGained = updatedXP.totalXP - currentStore.xpState.totalXP;
       await saveStore({ ...currentStore, xpState: updatedXP });
+      if (updatedXP.level !== oldLevel) {
+        setLevelUpLevel(updatedXP.level);
+        setLevelUpXP(xpGained);
+        setShowLevelUp(true);
+      }
     } catch (e) {
       console.warn('[workout] XP award failed:', e);
     }
@@ -1165,6 +1176,14 @@ export default function WorkoutScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* XP Level-Up Celebration */}
+      <XPLevelUpOverlay
+        visible={showLevelUp}
+        newLevel={levelUpLevel}
+        xpGained={levelUpXP}
+        onDismiss={() => setShowLevelUp(false)}
+      />
     </ScreenContainer>
   );
 }

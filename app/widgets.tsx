@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
 import { WidgetPreview } from '@/components/widget-preview';
 import { useColors } from '@/hooks/use-colors';
@@ -14,6 +15,7 @@ import { updateWidgetData, getWidgetData, type WidgetData } from '@/lib/widget-d
 
 export default function WidgetsScreen() {
   const colors = useColors();
+  const router = useRouter();
   const [widgetData, setWidgetData] = useState<WidgetData | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
@@ -78,6 +80,27 @@ export default function WidgetsScreen() {
             stats
           </Text>
         </View>
+
+        {/* Configure Widget Stats */}
+        <TouchableOpacity
+          onPress={() => router.push('/widget-config')}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            backgroundColor: colors.surface,
+            borderRadius: 14,
+            padding: 16,
+            borderWidth: 1.5,
+            borderColor: colors.primary,
+          }}
+        >
+          <View style={{ gap: 2 }}>
+            <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '700' }}>⚙️  Configure Widget Stats</Text>
+            <Text style={{ color: colors.muted, fontSize: 13 }}>Choose which stats appear on your home screen</Text>
+          </View>
+          <Text style={{ color: colors.primary, fontSize: 20 }}>›</Text>
+        </TouchableOpacity>
 
         {/* iOS Instructions */}
         <View className="gap-3">

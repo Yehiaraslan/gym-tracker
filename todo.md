@@ -989,3 +989,8 @@
 - [ ] Analysis result UI — expandable card below photo with sections: Posture, Muscle Balance, Weak Points, Recommendations
 - [ ] Store analysis result alongside photo in AsyncStorage (so it persists)
 - [ ] Push to GitHub
+
+## New Feature Requests (Apr 3 2026)
+- [x] Widget Configuration Screen — in-app screen to choose which stats appear on Android home screen widget
+- [x] XP Level-Up celebration overlay — full-screen animation when user crosses an XP threshold
+- [ ] Zaki token fix — pull updated MCP_TOKEN from GitHub and publish (pending GitHub commit from user)

@@ -56,6 +56,7 @@ import { checkProgressiveOverload, saveRecommendation } from '@/lib/coach-engine
 import { recordWorkout } from '@/lib/streak-tracker';
 import { generateId } from '@/lib/types';
 import { awardWorkoutXP, awardPRXP } from '@/lib/xp-system';
+import { XPLevelUpOverlay } from '@/components/xp-levelup-overlay';
 import { loadStore, saveStore } from '@/lib/store';
 import { getExerciseByName } from '@/lib/data/exercise-library';
 import { getTodayRecoveryData, type RecoveryData } from '@/lib/whoop-recovery-service';
@@ -170,6 +171,10 @@ export default function SplitWorkoutScreen() {
     previousVolume?: number;
   } | null>(null);
 
+  // XP Level-Up overlay
+  const [showLevelUp, setShowLevelUp] = useState(false);
+  const [levelUpLevel, setLevelUpLevel] = useState<import('@/lib/types').PlayerLevel>('Novice');
+  const [levelUpXP, setLevelUpXP] = useState(0);
   // PR Celebration overlay
   const [showPRCelebration, setShowPRCelebration] = useState(false);
   const [celebrationPRs, setCelebrationPRs] = useState<{ exercise: string; weight: number; reps: number; e1rm: number }[]>([]);
@@ -609,11 +614,19 @@ export default function SplitWorkoutScreen() {
     // Award XP for workout completion and PRs
     try {
       const currentStore = await loadStore();
+      const oldLevel = currentStore.xpState.level;
       let updatedXP = awardWorkoutXP(currentStore.xpState);
+      const xpGained = updatedXP.totalXP - currentStore.xpState.totalXP;
       for (let i = 0; i < prs.length; i++) {
         updatedXP = awardPRXP(updatedXP);
       }
       await saveStore({ ...currentStore, xpState: updatedXP });
+      // Trigger level-up overlay if the level changed
+      if (updatedXP.level !== oldLevel) {
+        setLevelUpLevel(updatedXP.level);
+        setLevelUpXP(xpGained);
+        setShowLevelUp(true);
+      }
     } catch (e) {
       console.warn('[split-workout] XP award failed:', e);
     }
@@ -1789,11 +1802,18 @@ export default function SplitWorkoutScreen() {
             </TouchableOpacity>
           </View>
         </View>
-      </Modal>
+       </Modal>
+
+      {/* XP Level-Up Celebration */}
+      <XPLevelUpOverlay
+        visible={showLevelUp}
+        newLevel={levelUpLevel}
+        xpGained={levelUpXP}
+        onDismiss={() => setShowLevelUp(false)}
+      />
     </ScreenContainer>
   );
 }
-
 // ---- Video Modal Component ----
 function VideoModal({
   visible,
