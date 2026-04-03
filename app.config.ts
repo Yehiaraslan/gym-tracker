@@ -133,6 +133,24 @@ const config: ExpoConfig = {
     // Without this, findProject(":react-native-worklets-core") returns null and
     // frame processors are disabled at compile time (Frames: 0 / FPS: 0 on device).
     "./plugins/withWorkletsCore",
+    // Android home screen widget
+    [
+      "react-native-android-widget",
+      {
+        widgets: [
+          {
+            name: "GymStats",
+            label: "Banana Pro Gym",
+            description: "View your streak, today's session, and readiness score",
+            minWidth: "180dp",
+            minHeight: "110dp",
+            targetCellWidth: 2,
+            targetCellHeight: 2,
+            updatePeriodMillis: 1800000, // 30 minutes
+          },
+        ],
+      },
+    ],
   ],
   experiments: {
     typedRoutes: true,

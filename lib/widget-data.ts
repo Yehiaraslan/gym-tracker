@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import { loadStore } from './store';
 import { getStreakData } from './streak-tracker';
 import { getActiveSchedule } from './schedule-store';
@@ -247,17 +248,19 @@ export async function updateWidgetData(): Promise<WidgetData> {
     // Save to AsyncStorage (accessible by both app and widget on same device)
     await AsyncStorage.setItem(WIDGET_DATA_KEY, JSON.stringify(widgetData));
 
-    // Try to save to shared preferences if available (for wider widget compatibility)
-    try {
-      const ExpoSharedPreferences = require('expo-shared-preferences');
-      if (ExpoSharedPreferences?.setString) {
-        await ExpoSharedPreferences.setString(
-          'gym_widget_data',
-          JSON.stringify(widgetData)
-        );
+    // Push update to the native Android home screen widget
+    if (Platform.OS === 'android') {
+      try {
+        const { requestWidgetUpdate } = require('react-native-android-widget');
+        const { GymStatsWidget } = require('@/widgets/gym-stats-widget');
+        const React = require('react');
+        await requestWidgetUpdate({
+          widgetName: 'GymStats',
+          renderWidget: () => React.createElement(GymStatsWidget, { data: widgetData }),
+        });
+      } catch {
+        // Silently fail if widget update fails (e.g., no widget placed yet)
       }
-    } catch {
-      // Silently fail if expo-shared-preferences not available
     }
 
     return widgetData;
