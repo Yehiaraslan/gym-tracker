@@ -23,6 +23,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Linking } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ScreenContainer } from '@/components/screen-container';
@@ -34,6 +35,8 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { trpc } from '@/lib/trpc';
 
 const PICTURES_KEY = '@gym_progress_pictures';
+// In-app camera ref type
+type CameraRef = { takePictureAsync: (opts?: object) => Promise<{ uri: string }> };
 const PERM_ONBOARDING_KEY = '@gym_tracker_photo_perm_onboarded';
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const THUMB_SIZE = (SCREEN_WIDTH - 48 - 8) / 3;
@@ -575,7 +578,12 @@ export default function ProgressPicturesScreen() {
   // where setTimeout(fn, 300) fires before the Modal animation finishes,
   // causing expo-image-picker to silently fail to present its UI.
   const pendingSourceAction = useRef<'camera' | 'library' | null>(null);
-
+  // In-app camera (Android) — avoids the external Activity hand-off that crashes on foldables
+  const [inAppCameraVisible, setInAppCameraVisible] = useState(false);
+  const [inAppCameraFacing, setInAppCameraFacing] = useState<'front' | 'back'>('back');
+  const [isTakingPicture, setIsTakingPicture] = useState(false);
+  const inAppCameraRef = useRef<CameraRef | null>(null);
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const bodyAnalysisMutation = trpc.zaki.bodyAnalysis.useMutation();
 
   useEffect(() => {
@@ -651,13 +659,38 @@ export default function ProgressPicturesScreen() {
   };
 
   const openCamera = async () => {
+    // On Android, use the in-app CameraView to avoid the external Activity
+    // hand-off that crashes on foldables (Pixel Fold 9 and similar).
+    if (Platform.OS === 'android') {
+      if (!cameraPermission?.granted) {
+        const result = await requestCameraPermission();
+        if (!result.granted) {
+          if (!result.canAskAgain) {
+            Alert.alert(
+              'Camera Permission Blocked',
+              'Camera access was permanently denied. Open Settings and enable Camera permission.',
+              [
+                { text: 'Not Now', style: 'cancel' },
+                { text: 'Open Settings', onPress: () => Linking.openSettings() },
+              ]
+            );
+          } else {
+            Alert.alert('Permission Required', 'Please allow camera access to take a progress photo.');
+          }
+          return;
+        }
+      }
+      setInAppCameraVisible(true);
+      return;
+    }
+    // iOS / web: use expo-image-picker as before
     try {
       const { status, canAskAgain } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
         if (!canAskAgain) {
           Alert.alert(
             'Camera Permission Blocked',
-            'Camera access was permanently denied. Open Settings and enable Camera permission for Banana Pro Gym.',
+            'Camera access was permanently denied. Open Settings and enable Camera permission.',
             [
               { text: 'Not Now', style: 'cancel' },
               { text: 'Open Settings', onPress: () => Linking.openSettings() },
@@ -668,20 +701,15 @@ export default function ProgressPicturesScreen() {
         }
         return;
       }
-      const isWeb = Platform.OS === 'web';
-      // Use MediaTypeOptions enum — compatible with all native binary versions.
-      // The ['images'] array syntax requires an SDK 55 native build to work on Android.
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         quality: 0.85,
-        // allowsEditing launches a separate crop Activity on Android which crashes
-        // on some Android 13+ devices (including foldables). Disabled on Android.
-        allowsEditing: Platform.OS !== 'android',
-        base64: isWeb,
+        allowsEditing: true,
+        base64: false,
       });
       if (!result.canceled && result.assets[0]) {
         setPreviewUri(result.assets[0].uri);
-        setPreviewBase64(result.assets[0].base64 ?? null);
+        setPreviewBase64(null);
         setPreviewSource('camera');
       }
     } catch (error) {
@@ -694,6 +722,23 @@ export default function ProgressPicturesScreen() {
           { text: 'Open Settings', onPress: () => Linking.openSettings() },
         ]
       );
+    }
+  };
+
+  const handleInAppCapture = async () => {
+    if (!inAppCameraRef.current || isTakingPicture) return;
+    setIsTakingPicture(true);
+    try {
+      const photo = await inAppCameraRef.current.takePictureAsync({ quality: 0.85, skipProcessing: true });
+      setInAppCameraVisible(false);
+      setPreviewUri(photo.uri);
+      setPreviewBase64(null);
+      setPreviewSource('camera');
+    } catch (err) {
+      console.error('[progress-pictures] in-app capture error:', err);
+      Alert.alert('Capture Error', 'Could not capture the photo. Please try again.');
+    } finally {
+      setIsTakingPicture(false);
     }
   };
 
@@ -1272,11 +1317,88 @@ export default function ProgressPicturesScreen() {
           onClose={() => setZakiAnalysis(null)}
           colors={colors}
         />
-      )}
+       )}
+      {/* In-app camera modal — Android only, avoids external Activity crash on foldables */}
+      <Modal
+        visible={inAppCameraVisible}
+        animationType="slide"
+        onRequestClose={() => setInAppCameraVisible(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: '#000' }}>
+          <CameraView
+            ref={inAppCameraRef as any}
+            style={{ flex: 1 }}
+            facing={inAppCameraFacing}
+          />
+          {/* Controls overlay */}
+          <View style={camStyles.controls}>
+            {/* Close */}
+            <TouchableOpacity style={camStyles.sideBtn} onPress={() => setInAppCameraVisible(false)}>
+              <Text style={camStyles.sideBtnTxt}>✕</Text>
+            </TouchableOpacity>
+            {/* Shutter */}
+            <TouchableOpacity
+              style={[camStyles.shutter, isTakingPicture && { opacity: 0.5 }]}
+              onPress={handleInAppCapture}
+              disabled={isTakingPicture}
+            >
+              {isTakingPicture
+                ? <ActivityIndicator size="small" color="#000" />
+                : <View style={camStyles.shutterInner} />}
+            </TouchableOpacity>
+            {/* Flip */}
+            <TouchableOpacity
+              style={camStyles.sideBtn}
+              onPress={() => setInAppCameraFacing(f => f === 'back' ? 'front' : 'back')}
+            >
+              <Text style={camStyles.sideBtnTxt}>🔄</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </ScreenContainer>
   );
 }
-
+const camStyles = StyleSheet.create({
+  controls: {
+    position: 'absolute',
+    bottom: 48,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingHorizontal: 32,
+  },
+  shutter: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 4,
+    borderColor: 'rgba(255,255,255,0.5)',
+  },
+  shutterInner: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#fff',
+  },
+  sideBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sideBtnTxt: {
+    fontSize: 20,
+    color: '#fff',
+  },
+});
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 16, paddingBottom: 12 },
   backBtn: { width: 40, height: 40, justifyContent: 'center' },

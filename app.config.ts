@@ -78,6 +78,14 @@ const config: ExpoConfig = {
   plugins: [
     "expo-router",
     [
+      "expo-camera",
+      {
+        "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera to take progress photos.",
+        "microphonePermission": false,
+        "recordAudioAndroid": false
+      }
+    ],
+    [
       "expo-media-library",
       {
         "photosPermission": "Allow Banana Pro Gym to access your photos.",
