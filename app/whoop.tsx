@@ -161,7 +161,7 @@ export default function WhoopScreen() {
     return (
       <ScreenContainer className="flex-1 items-center justify-center">
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text className="text-muted mt-4">Checking WHOOP connection...</Text>
+        <Text className="text-cardMuted mt-4">Checking WHOOP connection...</Text>
       </ScreenContainer>
     );
   }
@@ -171,9 +171,9 @@ export default function WhoopScreen() {
       {/* Header */}
       <View className="flex-row items-center px-4 py-3">
         <TouchableOpacity onPress={() => router.back()} style={{ padding: 8, marginRight: 8 }}>
-          <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
+          <IconSymbol name="chevron.left" size={24} color={colors.cardForeground} />
         </TouchableOpacity>
-        <Text className="text-xl font-bold text-foreground">WHOOP Integration</Text>
+        <Text className="text-xl font-bold text-cardForeground">WHOOP Integration</Text>
       </View>
 
       <ScrollView 
@@ -187,7 +187,7 @@ export default function WhoopScreen() {
           className="bg-surface rounded-2xl p-6 mb-4"
           style={{
             borderWidth: 1.5,
-            borderColor: needsReconnect ? '#F59E0B60' : isConnected ? colors.success + '40' : colors.border,
+            borderColor: needsReconnect ? '#F59E0B60' : isConnected ? colors.success + '40' : colors.cardBorder,
             backgroundColor: needsReconnect ? '#F59E0B08' : undefined,
           }}
         >
@@ -197,7 +197,7 @@ export default function WhoopScreen() {
                 width: 56,
                 height: 56,
                 borderRadius: 28,
-                backgroundColor: needsReconnect ? '#F59E0B25' : isConnected ? colors.success + '20' : colors.muted + '20',
+                backgroundColor: needsReconnect ? '#F59E0B25' : isConnected ? colors.success + '20' : colors.cardMuted + '20',
                 justifyContent: 'center',
                 alignItems: 'center',
               }}
@@ -205,10 +205,10 @@ export default function WhoopScreen() {
               <Text style={{ fontSize: 28 }}>{needsReconnect ? '⚠️' : '⌚'}</Text>
             </View>
             <View className="ml-4 flex-1">
-              <Text className="text-lg font-semibold text-foreground">
+              <Text className="text-lg font-semibold text-cardForeground">
                 {needsReconnect ? 'Session Expired' : isConnected ? 'Connected' : 'Not Connected'}
               </Text>
-              <Text className="text-sm text-muted">
+              <Text className="text-sm text-cardMuted">
                 {needsReconnect
                   ? 'Your WHOOP token has expired — tap Reconnect below'
                   : isConnected 
@@ -223,7 +223,7 @@ export default function WhoopScreen() {
                 width: 12,
                 height: 12,
                 borderRadius: 6,
-                backgroundColor: needsReconnect ? '#F59E0B' : isConnected ? colors.success : colors.muted,
+                backgroundColor: needsReconnect ? '#F59E0B' : isConnected ? colors.success : colors.cardMuted,
               }}
             />
           </View>
@@ -302,25 +302,25 @@ export default function WhoopScreen() {
         {/* Recovery Data */}
         {isConnected && (
           <>
-            <Text className="text-sm font-medium text-muted mb-3">Today's Metrics</Text>
+            <Text className="text-sm font-medium text-cardMuted mb-3">Today's Metrics</Text>
             
             {/* Recovery Score */}
             <View 
               className="bg-surface rounded-2xl p-5 mb-3"
-              style={{ borderWidth: 1, borderColor: colors.border }}
+              style={{ borderWidth: 1, borderColor: colors.cardBorder }}
             >
               <View className="flex-row items-center justify-between">
                 <View>
-                  <Text className="text-sm text-muted">Recovery Score</Text>
+                  <Text className="text-sm text-cardMuted">Recovery Score</Text>
                   {recoveryQuery.isLoading ? (
                     <ActivityIndicator size="small" color={colors.primary} />
                   ) : recoveryScoreState === 'PENDING_SCORE' && latestRecovery == null ? (
                     <View>
-                      <Text className="text-2xl font-bold text-foreground">Pending</Text>
-                      <Text className="text-xs text-muted mt-0.5">WHOOP is calculating...</Text>
+                      <Text className="text-2xl font-bold text-cardForeground">Pending</Text>
+                      <Text className="text-xs text-cardMuted mt-0.5">WHOOP is calculating...</Text>
                     </View>
                   ) : (
-                    <Text className="text-3xl font-bold text-foreground">
+                    <Text className="text-3xl font-bold text-cardForeground">
                       {latestRecovery?.recovery_score != null 
                         ? `${Math.round(latestRecovery.recovery_score)}%`
                         : '--'}
@@ -342,27 +342,27 @@ export default function WhoopScreen() {
               </View>
               {latestRecovery && (
                 <>
-                  <Text className="text-sm text-muted mt-2">
+                  <Text className="text-sm text-cardMuted mt-2">
                     {getRecoveryMessage(latestRecovery.recovery_score ?? 0)}
                   </Text>
                   <View className="flex-row mt-3" style={{ gap: 16 }}>
                     <View>
-                      <Text className="text-xs text-muted">HRV</Text>
-                      <Text className="text-sm font-semibold text-foreground">
+                      <Text className="text-xs text-cardMuted">HRV</Text>
+                      <Text className="text-sm font-semibold text-cardForeground">
                         {latestRecovery.hrv_rmssd_milli != null 
                           ? `${Math.round(latestRecovery.hrv_rmssd_milli)} ms` : '--'}
                       </Text>
                     </View>
                     <View>
-                      <Text className="text-xs text-muted">RHR</Text>
-                      <Text className="text-sm font-semibold text-foreground">
+                      <Text className="text-xs text-cardMuted">RHR</Text>
+                      <Text className="text-sm font-semibold text-cardForeground">
                         {latestRecovery.resting_heart_rate != null 
                           ? `${Math.round(latestRecovery.resting_heart_rate)} bpm` : '--'}
                       </Text>
                     </View>
                     <View>
-                      <Text className="text-xs text-muted">SpO2</Text>
-                      <Text className="text-sm font-semibold text-foreground">
+                      <Text className="text-xs text-cardMuted">SpO2</Text>
+                      <Text className="text-sm font-semibold text-cardForeground">
                         {latestRecovery.spo2_percentage != null 
                           ? `${Math.round(latestRecovery.spo2_percentage)}%` : '--'}
                       </Text>
@@ -375,15 +375,15 @@ export default function WhoopScreen() {
             {/* Strain */}
             <View 
               className="bg-surface rounded-2xl p-5 mb-3"
-              style={{ borderWidth: 1, borderColor: colors.border }}
+              style={{ borderWidth: 1, borderColor: colors.cardBorder }}
             >
               <View className="flex-row items-center justify-between">
                 <View>
-                  <Text className="text-sm text-muted">Day Strain</Text>
+                  <Text className="text-sm text-cardMuted">Day Strain</Text>
                   {cyclesQuery.isLoading ? (
                     <ActivityIndicator size="small" color={colors.primary} />
                   ) : (
-                    <Text className="text-3xl font-bold text-foreground">
+                    <Text className="text-3xl font-bold text-cardForeground">
                       {latestCycle?.strain != null ? latestCycle.strain.toFixed(1) : '--'}
                     </Text>
                   )}
@@ -394,13 +394,13 @@ export default function WhoopScreen() {
               </View>
               {latestCycle?.strain != null && (
                 <View className="mt-3">
-                  <View className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: colors.border }}>
+                  <View className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: colors.cardBorder }}>
                     <View 
                       className="h-full rounded-full"
                       style={{ width: `${Math.min((latestCycle.strain / 21) * 100, 100)}%`, backgroundColor: colors.warning }}
                     />
                   </View>
-                  <Text className="text-xs text-muted mt-1">Target: 10-14 for optimal training</Text>
+                  <Text className="text-xs text-cardMuted mt-1">Target: 10-14 for optimal training</Text>
                 </View>
               )}
             </View>
@@ -408,20 +408,20 @@ export default function WhoopScreen() {
             {/* Sleep */}
             <View 
               className="bg-surface rounded-2xl p-5 mb-6"
-              style={{ borderWidth: 1, borderColor: colors.border }}
+              style={{ borderWidth: 1, borderColor: colors.cardBorder }}
             >
               <View className="flex-row items-center justify-between">
                 <View>
-                  <Text className="text-sm text-muted">Sleep Performance</Text>
+                  <Text className="text-sm text-cardMuted">Sleep Performance</Text>
                   {sleepQuery.isLoading ? (
                     <ActivityIndicator size="small" color={colors.primary} />
                   ) : sleepScoreState === 'PENDING_SCORE' && latestSleep == null ? (
                     <View>
-                      <Text className="text-2xl font-bold text-foreground">Pending</Text>
-                      <Text className="text-xs text-muted mt-0.5">WHOOP is calculating...</Text>
+                      <Text className="text-2xl font-bold text-cardForeground">Pending</Text>
+                      <Text className="text-xs text-cardMuted mt-0.5">WHOOP is calculating...</Text>
                     </View>
                   ) : (
-                    <Text className="text-3xl font-bold text-foreground">
+                    <Text className="text-3xl font-bold text-cardForeground">
                       {latestSleep?.sleep_performance_percentage != null 
                         ? `${Math.round(latestSleep.sleep_performance_percentage)}%` : '--'}
                     </Text>
@@ -434,15 +434,15 @@ export default function WhoopScreen() {
               {latestSleep && (
                 <View className="flex-row mt-3" style={{ gap: 16 }}>
                   <View>
-                    <Text className="text-xs text-muted">Efficiency</Text>
-                    <Text className="text-sm font-semibold text-foreground">
+                    <Text className="text-xs text-cardMuted">Efficiency</Text>
+                    <Text className="text-sm font-semibold text-cardForeground">
                       {latestSleep.sleep_efficiency_percentage != null 
                         ? `${Math.round(latestSleep.sleep_efficiency_percentage)}%` : '--'}
                     </Text>
                   </View>
                   <View>
-                    <Text className="text-xs text-muted">Consistency</Text>
-                    <Text className="text-sm font-semibold text-foreground">
+                    <Text className="text-xs text-cardMuted">Consistency</Text>
+                    <Text className="text-sm font-semibold text-cardForeground">
                       {latestSleep.sleep_consistency_percentage != null 
                         ? `${Math.round(latestSleep.sleep_consistency_percentage)}%` : '--'}
                     </Text>
@@ -456,16 +456,16 @@ export default function WhoopScreen() {
         {/* Info Section */}
         <View 
           className="bg-surface rounded-2xl p-5 mb-8"
-          style={{ borderWidth: 1, borderColor: colors.border }}
+          style={{ borderWidth: 1, borderColor: colors.cardBorder }}
         >
-          <Text className="text-sm font-medium text-foreground mb-3">About WHOOP Integration</Text>
-          <Text className="text-sm text-muted leading-5">
+          <Text className="text-sm font-medium text-cardForeground mb-3">About WHOOP Integration</Text>
+          <Text className="text-sm text-cardMuted leading-5">
             Connect your WHOOP device to see your recovery score, strain, and sleep data 
             directly in the app. This helps you make informed decisions about your workout 
             intensity based on how recovered you are.
           </Text>
-          <View className="mt-4 pt-4 border-t" style={{ borderTopColor: colors.border }}>
-            <Text className="text-xs text-muted">
+          <View className="mt-4 pt-4 border-t" style={{ borderTopColor: colors.cardBorder }}>
+            <Text className="text-xs text-cardMuted">
               {isConnected 
                 ? 'Pull down to refresh your WHOOP data. Data is cached for offline access.'
                 : 'Tap "Connect with WHOOP" to link your WHOOP account. The OAuth flow will open in your browser.'}

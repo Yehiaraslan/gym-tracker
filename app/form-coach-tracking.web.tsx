@@ -13,10 +13,10 @@ export default function FormCoachTrackingWeb() {
   return (
     <ScreenContainer className="items-center justify-center p-8">
       <Text style={{ fontSize: 48, marginBottom: 16 }}>📱</Text>
-      <Text className="text-xl font-bold text-foreground text-center mb-3">
+      <Text className="text-xl font-bold text-cardForeground text-center mb-3">
         AI Form Coach
       </Text>
-      <Text className="text-sm text-muted text-center mb-6 leading-relaxed">
+      <Text className="text-sm text-cardMuted text-center mb-6 leading-relaxed">
         The AI Form Coach uses your camera with MediaPipe pose detection.
         This feature requires the native Android or iOS app — it is not available in the web preview.
       </Text>

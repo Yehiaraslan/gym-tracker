@@ -38,19 +38,26 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     applyScheme(colorScheme);
   }, [applyScheme, colorScheme]);
 
+  const c = SchemeColors[colorScheme];
+
   const themeVariables = useMemo(
     () =>
       vars({
-        "color-primary": SchemeColors[colorScheme].primary,
-        "color-background": SchemeColors[colorScheme].background,
-        "color-surface": SchemeColors[colorScheme].surface,
-        "color-foreground": SchemeColors[colorScheme].foreground,
-        "color-muted": SchemeColors[colorScheme].muted,
-        "color-border": SchemeColors[colorScheme].border,
-        "color-success": SchemeColors[colorScheme].success,
-        "color-warning": SchemeColors[colorScheme].warning,
-        "color-error": SchemeColors[colorScheme].error,
+        "color-primary":        c.primary,
+        "color-background":     c.background,
+        "color-surface":        c.surface,
+        "color-foreground":     c.foreground,
+        "color-muted":          c.muted,
+        "color-cardForeground": c.cardForeground,
+        "color-cardMuted":      c.cardMuted,
+        "color-border":         c.border,
+        "color-cardBorder":     c.cardBorder,
+        "color-tint":           c.tint,
+        "color-success":        c.success,
+        "color-warning":        c.warning,
+        "color-error":          c.error,
       }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [colorScheme],
   );
 
@@ -61,7 +68,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }),
     [colorScheme, setColorScheme],
   );
-  console.log(value, themeVariables)
 
   return (
     <ThemeContext.Provider value={value}>

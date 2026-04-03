@@ -190,9 +190,9 @@ export default function ProfileScreen() {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <IconSymbol name="chevron.left" size={24} color={colors.muted} />
+            <IconSymbol name="chevron.left" size={24} color={colors.cardMuted} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.foreground }]}>Profile</Text>
+          <Text style={[styles.headerTitle, { color: colors.cardForeground }]}>Profile</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -205,7 +205,7 @@ export default function ProfileScreen() {
                 style={[styles.photo, { borderColor: colors.primary }]}
               />
             ) : (
-              <View style={[styles.photoPlaceholder, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <View style={[styles.photoPlaceholder, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
                 <Text style={styles.photoEmoji}>👤</Text>
               </View>
             )}
@@ -214,10 +214,10 @@ export default function ProfileScreen() {
             </View>
           </TouchableOpacity>
           {profile.name ? (
-            <Text style={[styles.photoName, { color: colors.foreground }]}>{profile.name}</Text>
+            <Text style={[styles.photoName, { color: colors.cardForeground }]}>{profile.name}</Text>
           ) : null}
           {age !== null ? (
-            <Text style={[styles.photoAge, { color: colors.muted }]}>{age} years old</Text>
+            <Text style={[styles.photoAge, { color: colors.cardMuted }]}>{age} years old</Text>
           ) : null}
         </View>
 
@@ -225,26 +225,26 @@ export default function ProfileScreen() {
         <View style={styles.form}>
           {/* Name */}
           <View style={styles.fieldGroup}>
-            <Text style={[styles.label, { color: colors.muted }]}>FULL NAME</Text>
+            <Text style={[styles.label, { color: colors.cardMuted }]}>FULL NAME</Text>
             <TextInput
               value={profile.name}
               onChangeText={v => setProfile(p => ({ ...p, name: v }))}
               placeholder="Your name"
-              placeholderTextColor={colors.muted}
-              style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.foreground }]}
+              placeholderTextColor={colors.cardMuted}
+              style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.cardBorder, color: colors.cardForeground }]}
               returnKeyType="done"
             />
           </View>
 
           {/* Date of Birth */}
           <View style={styles.fieldGroup}>
-            <Text style={[styles.label, { color: colors.muted }]}>DATE OF BIRTH</Text>
+            <Text style={[styles.label, { color: colors.cardMuted }]}>DATE OF BIRTH</Text>
             <TextInput
               value={profile.dateOfBirth}
               onChangeText={v => setProfile(p => ({ ...p, dateOfBirth: v }))}
               placeholder="YYYY-MM-DD"
-              placeholderTextColor={colors.muted}
-              style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.foreground }]}
+              placeholderTextColor={colors.cardMuted}
+              style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.cardBorder, color: colors.cardForeground }]}
               keyboardType="numeric"
               maxLength={10}
               returnKeyType="done"
@@ -256,7 +256,7 @@ export default function ProfileScreen() {
 
           {/* Gender */}
           <View style={styles.fieldGroup}>
-            <Text style={[styles.label, { color: colors.muted }]}>GENDER</Text>
+            <Text style={[styles.label, { color: colors.cardMuted }]}>GENDER</Text>
             <View style={styles.chipRow}>
               {GENDERS.map(g => (
                 <TouchableOpacity
@@ -266,11 +266,11 @@ export default function ProfileScreen() {
                     styles.chip,
                     {
                       backgroundColor: profile.gender === g.key ? colors.primary : colors.surface,
-                      borderColor: profile.gender === g.key ? colors.primary : colors.border,
+                      borderColor: profile.gender === g.key ? colors.primary : colors.cardBorder,
                     },
                   ]}
                 >
-                  <Text style={[styles.chipText, { color: profile.gender === g.key ? '#FFFFFF' : colors.foreground }]}>
+                  <Text style={[styles.chipText, { color: profile.gender === g.key ? '#FFFFFF' : colors.cardForeground }]}>
                     {g.label}
                   </Text>
                 </TouchableOpacity>
@@ -281,25 +281,25 @@ export default function ProfileScreen() {
           {/* Height & Weight */}
           <View style={styles.row}>
             <View style={[styles.fieldGroup, { flex: 1, marginRight: 8 }]}>
-              <Text style={[styles.label, { color: colors.muted }]}>HEIGHT (CM)</Text>
+              <Text style={[styles.label, { color: colors.cardMuted }]}>HEIGHT (CM)</Text>
               <TextInput
                 value={profile.heightCm}
                 onChangeText={v => setProfile(p => ({ ...p, heightCm: v }))}
                 placeholder="175"
-                placeholderTextColor={colors.muted}
-                style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.foreground }]}
+                placeholderTextColor={colors.cardMuted}
+                style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.cardBorder, color: colors.cardForeground }]}
                 keyboardType="numeric"
                 returnKeyType="done"
               />
             </View>
             <View style={[styles.fieldGroup, { flex: 1, marginLeft: 8 }]}>
-              <Text style={[styles.label, { color: colors.muted }]}>WEIGHT (KG)</Text>
+              <Text style={[styles.label, { color: colors.cardMuted }]}>WEIGHT (KG)</Text>
               <TextInput
                 value={profile.weightKg}
                 onChangeText={v => setProfile(p => ({ ...p, weightKg: v }))}
                 placeholder="80"
-                placeholderTextColor={colors.muted}
-                style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.foreground }]}
+                placeholderTextColor={colors.cardMuted}
+                style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.cardBorder, color: colors.cardForeground }]}
                 keyboardType="numeric"
                 returnKeyType="done"
               />
@@ -308,7 +308,7 @@ export default function ProfileScreen() {
 
           {/* Fitness Goal */}
           <View style={styles.fieldGroup}>
-            <Text style={[styles.label, { color: colors.muted }]}>FITNESS GOAL</Text>
+            <Text style={[styles.label, { color: colors.cardMuted }]}>FITNESS GOAL</Text>
             <View style={styles.chipRow}>
               {GOALS.map(g => (
                 <TouchableOpacity
@@ -318,12 +318,12 @@ export default function ProfileScreen() {
                     styles.goalChip,
                     {
                       backgroundColor: profile.fitnessGoal === g.key ? colors.primary + '20' : colors.surface,
-                      borderColor: profile.fitnessGoal === g.key ? colors.primary : colors.border,
+                      borderColor: profile.fitnessGoal === g.key ? colors.primary : colors.cardBorder,
                     },
                   ]}
                 >
                   <Text style={styles.goalEmoji}>{g.emoji}</Text>
-                  <Text style={[styles.goalLabel, { color: profile.fitnessGoal === g.key ? colors.primary : colors.foreground }]}>
+                  <Text style={[styles.goalLabel, { color: profile.fitnessGoal === g.key ? colors.primary : colors.cardForeground }]}>
                     {g.label}
                   </Text>
                 </TouchableOpacity>
@@ -333,7 +333,7 @@ export default function ProfileScreen() {
 
           {/* Experience Level */}
           <View style={styles.fieldGroup}>
-            <Text style={[styles.label, { color: colors.muted }]}>EXPERIENCE LEVEL</Text>
+            <Text style={[styles.label, { color: colors.cardMuted }]}>EXPERIENCE LEVEL</Text>
             <View style={styles.chipRow}>
               {EXPERIENCE_LEVELS.map(e => (
                 <TouchableOpacity
@@ -343,11 +343,11 @@ export default function ProfileScreen() {
                     styles.goalChip,
                     {
                       backgroundColor: profile.experienceLevel === e.key ? colors.primary + '20' : colors.surface,
-                      borderColor: profile.experienceLevel === e.key ? colors.primary : colors.border,
+                      borderColor: profile.experienceLevel === e.key ? colors.primary : colors.cardBorder,
                     },
                   ]}
                 >
-                  <Text style={[styles.goalLabel, { color: profile.experienceLevel === e.key ? colors.primary : colors.foreground }]}>
+                  <Text style={[styles.goalLabel, { color: profile.experienceLevel === e.key ? colors.primary : colors.cardForeground }]}>
                     {e.label}
                   </Text>
                 </TouchableOpacity>
@@ -357,7 +357,7 @@ export default function ProfileScreen() {
 
           {/* Equipment */}
           <View style={styles.fieldGroup}>
-            <Text style={[styles.label, { color: colors.muted }]}>AVAILABLE EQUIPMENT</Text>
+            <Text style={[styles.label, { color: colors.cardMuted }]}>AVAILABLE EQUIPMENT</Text>
             <View style={styles.chipRow}>
               {EQUIPMENT_OPTIONS.map(eq => (
                 <TouchableOpacity
@@ -367,11 +367,11 @@ export default function ProfileScreen() {
                     styles.goalChip,
                     {
                       backgroundColor: profile.equipment === eq.key ? colors.primary + '20' : colors.surface,
-                      borderColor: profile.equipment === eq.key ? colors.primary : colors.border,
+                      borderColor: profile.equipment === eq.key ? colors.primary : colors.cardBorder,
                     },
                   ]}
                 >
-                  <Text style={[styles.goalLabel, { color: profile.equipment === eq.key ? colors.primary : colors.foreground }]}>
+                  <Text style={[styles.goalLabel, { color: profile.equipment === eq.key ? colors.primary : colors.cardForeground }]}>
                     {eq.label}
                   </Text>
                 </TouchableOpacity>
@@ -382,14 +382,14 @@ export default function ProfileScreen() {
         {/* Cloud Sync Card */}
         <View style={[styles.syncCard, {
           backgroundColor: colors.surface,
-          borderColor: syncState?.linked ? '#22C55E40' : colors.border,
-          borderLeftColor: syncState?.linked ? '#22C55E' : colors.border,
+          borderColor: syncState?.linked ? '#22C55E40' : colors.cardBorder,
+          borderLeftColor: syncState?.linked ? '#22C55E' : colors.cardBorder,
         }]}>
           <View style={styles.syncRow}>
             <View style={[styles.syncDot, { backgroundColor: syncState?.linked ? '#22C55E' : '#94A3B8' }]} />
             <View style={{ flex: 1 }}>
-              <Text style={[styles.syncTitle, { color: colors.foreground }]}>Cloud Sync</Text>
-              <Text style={[styles.syncSubtitle, { color: colors.muted }]}>
+              <Text style={[styles.syncTitle, { color: colors.cardForeground }]}>Cloud Sync</Text>
+              <Text style={[styles.syncSubtitle, { color: colors.cardMuted }]}>
                 {syncState?.linked
                   ? `Linked · Last sync: ${formatSyncDate(syncState.lastSyncAt)}`
                   : 'Tap to set up cross-device sync'}
@@ -413,14 +413,14 @@ export default function ProfileScreen() {
         {/* Training Program Card */}
         <View style={[styles.syncCard, {
           backgroundColor: colors.surface,
-          borderColor: customProg ? colors.primary + '40' : colors.border,
-          borderLeftColor: customProg ? colors.primary : colors.border,
+          borderColor: customProg ? colors.primary + '40' : colors.cardBorder,
+          borderLeftColor: customProg ? colors.primary : colors.cardBorder,
         }]}>
           <View style={styles.syncRow}>
             <View style={[styles.syncDot, { backgroundColor: customProg ? colors.primary : '#94A3B8' }]} />
             <View style={{ flex: 1 }}>
-              <Text style={[styles.syncTitle, { color: colors.foreground }]}>Training Program</Text>
-              <Text style={[styles.syncSubtitle, { color: colors.muted }]}>
+              <Text style={[styles.syncTitle, { color: colors.cardForeground }]}>Training Program</Text>
+              <Text style={[styles.syncSubtitle, { color: colors.cardMuted }]}>
                 {customProg
                   ? `${customProg.name} · Since ${new Date(customProg.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`
                   : 'Default Upper/Lower split'}
@@ -452,7 +452,7 @@ export default function ProfileScreen() {
           }}
           style={[styles.syncCard, {
             backgroundColor: colors.surface,
-            borderColor: colors.border,
+            borderColor: colors.cardBorder,
             flexDirection: 'row',
             alignItems: 'center',
             paddingHorizontal: 16,
@@ -462,12 +462,12 @@ export default function ProfileScreen() {
         >
           <View style={[styles.syncDot, { backgroundColor: '#F59E0B' }]} />
           <View style={{ flex: 1 }}>
-            <Text style={[styles.syncTitle, { color: colors.foreground }]}>Program History</Text>
-            <Text style={[styles.syncSubtitle, { color: colors.muted }]}>
+            <Text style={[styles.syncTitle, { color: colors.cardForeground }]}>Program History</Text>
+            <Text style={[styles.syncSubtitle, { color: colors.cardMuted }]}>
               View past programs, PRs hit, and volume
             </Text>
           </View>
-          <Text style={{ color: colors.muted, fontSize: 18 }}>›</Text>
+          <Text style={{ color: colors.cardMuted, fontSize: 18 }}>›</Text>
         </TouchableOpacity>
 
         {/* Save Button */}
@@ -486,7 +486,7 @@ export default function ProfileScreen() {
         {/* Account section */}
         {authUser && (
           <View style={styles.accountSection}>
-            <Text style={[styles.accountEmail, { color: colors.muted }]}>
+            <Text style={[styles.accountEmail, { color: colors.cardMuted }]}>
               Signed in as {authUser.email || authUser.name || 'User'}
             </Text>
             <TouchableOpacity
@@ -516,8 +516,8 @@ export default function ProfileScreen() {
       <Modal visible={photoPickerVisible} transparent animationType="fade" onRequestClose={() => setPhotoPickerVisible(false)}>
         <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' }}>
           <View style={{ borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40, backgroundColor: colors.surface }}>
-            <View style={{ width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 20, backgroundColor: colors.border }} />
-            <Text style={{ fontSize: 18, fontWeight: '700', textAlign: 'center', marginBottom: 16, color: colors.foreground }}>Profile Photo</Text>
+            <View style={{ width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 20, backgroundColor: colors.cardBorder }} />
+            <Text style={{ fontSize: 18, fontWeight: '700', textAlign: 'center', marginBottom: 16, color: colors.cardForeground }}>Profile Photo</Text>
             <TouchableOpacity
               onPress={() => { setPhotoPickerVisible(false); setTimeout(takePhoto, 300); }}
               style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 16, borderRadius: 14, marginBottom: 10, backgroundColor: colors.primary }}
@@ -534,9 +534,9 @@ export default function ProfileScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => setPhotoPickerVisible(false)}
-              style={{ paddingVertical: 14, borderRadius: 12, alignItems: 'center', backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, marginTop: 4 }}
+              style={{ paddingVertical: 14, borderRadius: 12, alignItems: 'center', backgroundColor: colors.background, borderWidth: 1, borderColor: colors.cardBorder, marginTop: 4 }}
             >
-              <Text style={{ color: colors.foreground, fontWeight: '600' }}>Cancel</Text>
+              <Text style={{ color: colors.cardForeground, fontWeight: '600' }}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </View>

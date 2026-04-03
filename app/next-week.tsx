@@ -115,9 +115,9 @@ export default function NextWeekScreen() {
           <TouchableOpacity onPress={() => router.back()} className="mb-4">
             <IconSymbol name="chevron.left" size={24} color={colors.muted} />
           </TouchableOpacity>
-          <Text className="text-2xl font-bold text-foreground">Week Preview</Text>
+          <Text className="text-2xl font-bold text-cardForeground">Week Preview</Text>
           {mesoInfo && (
-            <Text className="text-sm text-muted mt-1">
+            <Text className="text-sm text-cardMuted mt-1">
               Mesocycle Week {mesoInfo.currentWeek}/5
               {mesoInfo.isDeload ? ' — DELOAD' : ''}
             </Text>
@@ -133,7 +133,7 @@ export default function NextWeekScreen() {
             >
               <IconSymbol name="chevron.left" size={20} color={colors.primary} />
             </TouchableOpacity>
-            <Text className="text-base font-semibold text-foreground">{weekLabel}</Text>
+            <Text className="text-base font-semibold text-cardForeground">{weekLabel}</Text>
             <TouchableOpacity
               onPress={() => { setWeekOffset(o => o + 1); if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
               className="p-2"
@@ -175,8 +175,8 @@ export default function NextWeekScreen() {
                     />
                     <View>
                       <View className="flex-row items-center" style={{ gap: 6 }}>
-                        <Text className="text-base font-semibold text-foreground">{day.dayName}</Text>
-                        <Text className="text-xs text-muted">{dateStr}</Text>
+                        <Text className="text-base font-semibold text-cardForeground">{day.dayName}</Text>
+                        <Text className="text-xs text-cardMuted">{dateStr}</Text>
                         {today && (
                           <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: colors.primary + '20' }}>
                             <Text className="text-xs font-medium" style={{ color: colors.primary }}>TODAY</Text>
@@ -190,7 +190,7 @@ export default function NextWeekScreen() {
                   </View>
                   {!isRest && (
                     <View className="flex-row items-center">
-                      <Text className="text-xs text-muted mr-1">{day.exercises.length} exercises</Text>
+                      <Text className="text-xs text-cardMuted mr-1">{day.exercises.length} exercises</Text>
                       <IconSymbol name={isExpanded ? 'chevron.up' : 'chevron.down'} size={14} color={colors.muted} />
                     </View>
                   )}
@@ -211,8 +211,8 @@ export default function NextWeekScreen() {
                             <Text className="text-xs" style={{ color: sessionColor }}>{ei + 1}</Text>
                           </View>
                           <View className="flex-1">
-                            <Text className="text-sm text-foreground">{ex.name}</Text>
-                            <Text className="text-xs text-muted">
+                            <Text className="text-sm text-cardForeground">{ex.name}</Text>
+                            <Text className="text-xs text-cardMuted">
                               {displaySets} × {ex.repsMin === 0 ? 'max' : `${ex.repsMin}-${ex.repsMax}`}
                             </Text>
                           </View>
@@ -221,7 +221,7 @@ export default function NextWeekScreen() {
                               <Text className="text-sm font-semibold" style={{ color: colors.primary }}>
                                 {ex.suggestedWeight}kg
                               </Text>
-                              <Text className="text-xs text-muted" numberOfLines={1} style={{ maxWidth: 100 }}>
+                              <Text className="text-xs text-cardMuted" numberOfLines={1} style={{ maxWidth: 100 }}>
                                 {ex.suggestedReason?.split('→')[0]?.trim() || ''}
                               </Text>
                             </View>

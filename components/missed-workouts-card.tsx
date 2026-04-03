@@ -88,18 +88,18 @@ export function MissedWorkoutsCard() {
   const renderMissedDay = ({ item }: { item: MissedDay }) => (
     <View
       className="bg-surface rounded-lg p-4 mb-3"
-      style={{ borderWidth: 1, borderColor: colors.border }}
+      style={{ borderWidth: 1, borderColor: colors.cardBorder }}
     >
       <View className="flex-row items-center justify-between mb-3">
         <View className="flex-1">
-          <Text className="text-base font-semibold text-foreground">
+          <Text className="text-base font-semibold text-cardForeground">
             {getDayName(item.dayNumber)}
           </Text>
-          <Text className="text-sm text-muted mt-1">
+          <Text className="text-sm text-cardMuted mt-1">
             Missed on {new Date(item.date).toLocaleDateString()}
           </Text>
           {item.reason && (
-            <Text className="text-sm text-muted mt-1">Reason: {item.reason}</Text>
+            <Text className="text-sm text-cardMuted mt-1">Reason: {item.reason}</Text>
           )}
         </View>
         <View
@@ -125,9 +125,9 @@ export function MissedWorkoutsCard() {
         <TouchableOpacity
           onPress={() => handlePermanentlySkip(item)}
           className="flex-1 py-2 rounded-lg"
-          style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+          style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.cardBorder }}
         >
-          <Text className="text-center font-semibold text-foreground text-sm">
+          <Text className="text-center font-semibold text-cardForeground text-sm">
             Skip
           </Text>
         </TouchableOpacity>
@@ -143,7 +143,7 @@ export function MissedWorkoutsCard() {
       <View className="flex-row items-center justify-between mb-4">
         <View className="flex-row items-center gap-2">
           <Text className="text-2xl">⚠️</Text>
-          <Text className="text-lg font-bold text-foreground">
+          <Text className="text-lg font-bold text-cardForeground">
             {missedDays.length} Missed Workout{missedDays.length !== 1 ? 's' : ''}
           </Text>
         </View>

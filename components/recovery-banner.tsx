@@ -63,7 +63,7 @@ export function RecoveryBanner({ onSuggestDeload }: RecoveryBannerProps) {
             WHOOP Recovery
           </Text>
         </View>
-        <Text className="text-xs text-muted">{zone.label} Zone</Text>
+        <Text className="text-xs text-cardMuted">{zone.label} Zone</Text>
       </View>
 
       <View className="flex-row items-center">
@@ -71,7 +71,7 @@ export function RecoveryBanner({ onSuggestDeload }: RecoveryBannerProps) {
           {Math.round(score)}%
         </Text>
         <View className="ml-3 flex-1">
-          <Text className="text-sm text-foreground">{zone.message}</Text>
+          <Text className="text-sm text-cardForeground">{zone.message}</Text>
         </View>
       </View>
 
@@ -79,14 +79,14 @@ export function RecoveryBanner({ onSuggestDeload }: RecoveryBannerProps) {
       <View className="flex-row mt-3 pt-3" style={{ borderTopWidth: 1, borderTopColor: zone.color + '20', gap: 16 }}>
         {recovery.strain > 0 && (
           <View>
-            <Text className="text-xs text-muted">Strain</Text>
-            <Text className="text-sm font-semibold text-foreground">{recovery.strain.toFixed(1)}</Text>
+            <Text className="text-xs text-cardMuted">Strain</Text>
+            <Text className="text-sm font-semibold text-cardForeground">{recovery.strain.toFixed(1)}</Text>
           </View>
         )}
         {recovery.sleepScore > 0 && (
           <View>
-            <Text className="text-xs text-muted">Sleep</Text>
-            <Text className="text-sm font-semibold text-foreground">{recovery.sleepScore}%</Text>
+            <Text className="text-xs text-cardMuted">Sleep</Text>
+            <Text className="text-sm font-semibold text-cardForeground">{recovery.sleepScore}%</Text>
           </View>
         )}
       </View>

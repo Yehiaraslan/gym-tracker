@@ -35,7 +35,7 @@ function WeeklyProgressCircle({
           style={{
             backgroundColor: colors.surface,
             borderWidth: 3,
-            borderColor: colors.border,
+            borderColor: colors.cardBorder,
           }}
         />
         {/* Progress circle (simplified with visual indicator) */}
@@ -45,7 +45,7 @@ function WeeklyProgressCircle({
           </Text>
         </View>
       </View>
-      <Text className="text-xs" style={{ color: colors.muted }}>
+      <Text className="text-xs" style={{ color: colors.cardMuted }}>
         This Week
       </Text>
     </View>
@@ -62,7 +62,7 @@ function SmallWidget({ data, colors }: { data: WidgetData; colors: ReturnType<ty
       className="p-4 rounded-2xl gap-3"
       style={{
         backgroundColor: colors.surface,
-        borderColor: colors.border,
+        borderColor: colors.cardBorder,
         borderWidth: 1,
         minHeight: 160,
       }}
@@ -72,31 +72,31 @@ function SmallWidget({ data, colors }: { data: WidgetData; colors: ReturnType<ty
         <Text className="text-2xl">{data.streakEmoji}</Text>
         <Text
           className="text-xl font-bold"
-          style={{ color: colors.foreground }}
+          style={{ color: colors.cardForeground }}
         >
           {data.currentStreak}
         </Text>
-        <Text className="text-xs" style={{ color: colors.muted }}>
+        <Text className="text-xs" style={{ color: colors.cardMuted }}>
           Day Streak
         </Text>
       </View>
 
       {/* Today's Workout */}
-      <View className="gap-1 border-t pt-3" style={{ borderColor: colors.border }}>
+      <View className="gap-1 border-t pt-3" style={{ borderColor: colors.cardBorder }}>
         <Text className="text-lg">{data.todayEmoji}</Text>
-        <Text className="text-sm font-semibold" style={{ color: colors.foreground }}>
+        <Text className="text-sm font-semibold" style={{ color: colors.cardForeground }}>
           {data.todaySession}
         </Text>
       </View>
 
       {/* Readiness */}
       {data.readinessScore !== null && (
-        <View className="gap-1 border-t pt-3" style={{ borderColor: colors.border }}>
+        <View className="gap-1 border-t pt-3" style={{ borderColor: colors.cardBorder }}>
           <Text className="text-lg">{data.readinessEmoji}</Text>
-          <Text className="text-xs font-semibold" style={{ color: colors.muted }}>
+          <Text className="text-xs font-semibold" style={{ color: colors.cardMuted }}>
             {data.readinessLabel}
           </Text>
-          <Text className="text-xs" style={{ color: colors.muted }}>
+          <Text className="text-xs" style={{ color: colors.cardMuted }}>
             Score: {data.readinessScore}
           </Text>
         </View>
@@ -115,7 +115,7 @@ function MediumWidget({ data, colors }: { data: WidgetData; colors: ReturnType<t
       className="p-4 rounded-2xl"
       style={{
         backgroundColor: colors.surface,
-        borderColor: colors.border,
+        borderColor: colors.cardBorder,
         borderWidth: 1,
         minHeight: 180,
         flexDirection: 'row',
@@ -129,23 +129,23 @@ function MediumWidget({ data, colors }: { data: WidgetData; colors: ReturnType<t
           <Text className="text-3xl">{data.streakEmoji}</Text>
           <Text
             className="text-2xl font-bold"
-            style={{ color: colors.foreground }}
+            style={{ color: colors.cardForeground }}
           >
             {data.currentStreak}
           </Text>
-          <Text className="text-xs" style={{ color: colors.muted }}>
+          <Text className="text-xs" style={{ color: colors.cardMuted }}>
             Day Streak
           </Text>
         </View>
 
         {/* Readiness */}
         {data.readinessScore !== null && (
-          <View className="gap-2 border-t pt-3" style={{ borderColor: colors.border }}>
+          <View className="gap-2 border-t pt-3" style={{ borderColor: colors.cardBorder }}>
             <Text className="text-xl">{data.readinessEmoji}</Text>
-            <Text className="text-sm font-semibold" style={{ color: colors.foreground }}>
+            <Text className="text-sm font-semibold" style={{ color: colors.cardForeground }}>
               {data.readinessScore}
             </Text>
-            <Text className="text-xs" style={{ color: colors.muted }}>
+            <Text className="text-xs" style={{ color: colors.cardMuted }}>
               Ready
             </Text>
           </View>
@@ -157,23 +157,23 @@ function MediumWidget({ data, colors }: { data: WidgetData; colors: ReturnType<t
         {/* Today's Workout */}
         <View className="gap-2 items-end">
           <Text className="text-3xl">{data.todayEmoji}</Text>
-          <Text className="text-sm font-semibold" style={{ color: colors.foreground }}>
+          <Text className="text-sm font-semibold" style={{ color: colors.cardForeground }}>
             {data.todaySession}
           </Text>
-          <Text className="text-xs" style={{ color: colors.muted }}>
+          <Text className="text-xs" style={{ color: colors.cardMuted }}>
             Today
           </Text>
         </View>
 
         {/* Weekly Progress */}
-        <View className="items-end border-t pt-3" style={{ borderColor: colors.border }}>
+        <View className="items-end border-t pt-3" style={{ borderColor: colors.cardBorder }}>
           <Text
             className="text-lg font-bold"
             style={{ color: colors.primary }}
           >
             {data.workoutsThisWeek}/{data.weeklyTarget}
           </Text>
-          <Text className="text-xs" style={{ color: colors.muted }}>
+          <Text className="text-xs" style={{ color: colors.cardMuted }}>
             This Week
           </Text>
         </View>
@@ -192,7 +192,7 @@ function LargeWidget({ data, colors }: { data: WidgetData; colors: ReturnType<ty
       className="p-5 rounded-2xl gap-5"
       style={{
         backgroundColor: colors.surface,
-        borderColor: colors.border,
+        borderColor: colors.cardBorder,
         borderWidth: 1,
         minHeight: 320,
       }}
@@ -209,11 +209,11 @@ function LargeWidget({ data, colors }: { data: WidgetData; colors: ReturnType<ty
           <Text className="text-4xl">{data.streakEmoji}</Text>
           <Text
             className="text-3xl font-bold"
-            style={{ color: colors.foreground }}
+            style={{ color: colors.cardForeground }}
           >
             {data.currentStreak}
           </Text>
-          <Text className="text-xs" style={{ color: colors.muted }}>
+          <Text className="text-xs" style={{ color: colors.cardMuted }}>
             Day Streak
           </Text>
         </View>
@@ -237,7 +237,7 @@ function LargeWidget({ data, colors }: { data: WidgetData; colors: ReturnType<ty
                 >
                   {data.readinessScore}
                 </Text>
-                <Text className="text-xs" style={{ color: colors.muted }}>
+                <Text className="text-xs" style={{ color: colors.cardMuted }}>
                   Ready
                 </Text>
               </View>
@@ -247,7 +247,7 @@ function LargeWidget({ data, colors }: { data: WidgetData; colors: ReturnType<ty
         )}
       </View>
 
-      <View style={{ borderColor: colors.border, borderBottomWidth: 1 }} />
+      <View style={{ borderColor: colors.cardBorder, borderBottomWidth: 1 }} />
 
       {/* Middle Row: Today & Weekly Progress */}
       <View
@@ -261,12 +261,12 @@ function LargeWidget({ data, colors }: { data: WidgetData; colors: ReturnType<ty
         <View className="gap-3">
           <Text className="text-3xl">{data.todayEmoji}</Text>
           <View>
-            <Text className="text-xs" style={{ color: colors.muted }}>
+            <Text className="text-xs" style={{ color: colors.cardMuted }}>
               Today
             </Text>
             <Text
               className="text-lg font-bold"
-              style={{ color: colors.foreground }}
+              style={{ color: colors.cardForeground }}
             >
               {data.todaySession}
             </Text>
@@ -281,17 +281,17 @@ function LargeWidget({ data, colors }: { data: WidgetData; colors: ReturnType<ty
         />
       </View>
 
-      <View style={{ borderColor: colors.border, borderBottomWidth: 1 }} />
+      <View style={{ borderColor: colors.cardBorder, borderBottomWidth: 1 }} />
 
       {/* Next Workout Info */}
       <View className="gap-2">
-        <Text className="text-xs font-semibold" style={{ color: colors.muted }}>
+        <Text className="text-xs font-semibold" style={{ color: colors.cardMuted }}>
           NEXT WORKOUT
         </Text>
         <View className="gap-1">
           <Text
             className="text-sm font-semibold"
-            style={{ color: colors.foreground }}
+            style={{ color: colors.cardForeground }}
           >
             {data.nextWorkoutDay}
           </Text>
@@ -335,13 +335,13 @@ export function WidgetPreview({ size, data: providedData, loading }: WidgetPrevi
         className="rounded-2xl items-center justify-center"
         style={{
           backgroundColor: colors.surface,
-          borderColor: colors.border,
+          borderColor: colors.cardBorder,
           borderWidth: 1,
           minHeight: size === 'small' ? 160 : size === 'medium' ? 180 : 320,
           opacity: 0.5,
         }}
       >
-        <Text style={{ color: colors.muted }}>Loading...</Text>
+        <Text style={{ color: colors.cardMuted }}>Loading...</Text>
       </View>
     );
   }

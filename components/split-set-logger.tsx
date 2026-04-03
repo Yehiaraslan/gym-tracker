@@ -88,13 +88,13 @@ export function SplitSetLogger({
         className="flex-row items-center rounded-xl p-3"
         style={{
           backgroundColor: isWarmup
-            ? colors.border + '30'
+            ? colors.cardBorder + '30'
             : isPR
               ? '#F59E0B15'
               : '#10B98115',
           borderWidth: 1,
           borderColor: isWarmup
-            ? colors.border
+            ? colors.cardBorder
             : isPR
               ? '#F59E0B40'
               : '#10B98130',
@@ -103,7 +103,7 @@ export function SplitSetLogger({
         <View
           className="w-8 h-8 rounded-full items-center justify-center mr-3"
           style={{
-            backgroundColor: isWarmup ? colors.border : isPR ? '#F59E0B25' : '#10B98125',
+            backgroundColor: isWarmup ? colors.cardBorder : isPR ? '#F59E0B25' : '#10B98125',
           }}
         >
           {isWarmup ? (
@@ -116,11 +116,11 @@ export function SplitSetLogger({
         </View>
 
         <View className="flex-1">
-          <Text className="text-xs text-muted">
+          <Text className="text-xs text-cardMuted">
             {isWarmup ? `Warm-up ${setNumber}` : `Set ${setNumber}`}
           </Text>
           <View className="flex-row items-center flex-wrap mt-0.5" style={{ gap: 6 }}>
-            <Text className="text-sm font-semibold text-foreground">
+            <Text className="text-sm font-semibold text-cardForeground">
               {completedSet.weightKg}kg × {completedSet.reps}
             </Text>
             {hitTop && !isWarmup && (
@@ -129,8 +129,8 @@ export function SplitSetLogger({
               </View>
             )}
             {!isWarmup && (
-              <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: isPR ? '#F59E0B20' : colors.border }}>
-                <Text className="text-xs" style={{ color: isPR ? '#F59E0B' : colors.muted }}>
+              <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: isPR ? '#F59E0B20' : colors.cardBorder }}>
+                <Text className="text-xs" style={{ color: isPR ? '#F59E0B' : colors.cardMuted }}>
                   ~{completedE1RM}kg 1RM{isPR ? ' 🏆' : ''}
                 </Text>
               </View>
@@ -145,8 +145,8 @@ export function SplitSetLogger({
 
         {previousSet && !isWarmup && (
           <View className="items-end ml-2">
-            <Text className="text-xs text-muted">Prev</Text>
-            <Text className="text-xs text-muted">{previousSet.weightKg}×{previousSet.reps}</Text>
+            <Text className="text-xs text-cardMuted">Prev</Text>
+            <Text className="text-xs text-cardMuted">{previousSet.weightKg}×{previousSet.reps}</Text>
           </View>
         )}
       </View>
@@ -160,7 +160,7 @@ export function SplitSetLogger({
       style={{
         backgroundColor: colors.surface,
         borderWidth: 1,
-        borderColor: isWarmup ? colors.border + '80' : colors.border,
+        borderColor: isWarmup ? colors.cardBorder + '80' : colors.cardBorder,
       }}
     >
       {/* Header (tap to expand) */}
@@ -190,7 +190,7 @@ export function SplitSetLogger({
                 Warm-up · {weightNum}kg × {repsNum}
               </Text>
             ) : (
-              <Text className="text-xs text-muted">
+              <Text className="text-xs text-cardMuted">
                 Target: {targetRepsMin === 0 ? 'Max hold' : `${targetRepsMin}–${targetRepsMax} reps`}
                 {isDeload ? '  DELOAD' : ''}
               </Text>
@@ -203,15 +203,15 @@ export function SplitSetLogger({
             <Text className="text-xs font-medium" style={{ color: '#10B981' }}>+2.5kg?</Text>
           )}
           {previousSet && !isWarmup && (
-            <Text className="text-xs text-muted">Prev: {previousSet.weightKg}×{previousSet.reps}</Text>
+            <Text className="text-xs text-cardMuted">Prev: {previousSet.weightKg}×{previousSet.reps}</Text>
           )}
-          <IconSymbol name={expanded ? 'chevron.up' : 'chevron.down'} size={14} color={colors.muted} />
+          <IconSymbol name={expanded ? 'chevron.up' : 'chevron.down'} size={14} color={colors.cardMuted} />
         </View>
       </TouchableOpacity>
 
       {/* Expanded input */}
       {expanded && (
-        <View className="px-4 pb-4" style={{ borderTopWidth: 1, borderTopColor: colors.border }}>
+        <View className="px-4 pb-4" style={{ borderTopWidth: 1, borderTopColor: colors.cardBorder }}>
 
           {/* Auto-progression hint */}
           {showProgressionHint && (
@@ -244,33 +244,33 @@ export function SplitSetLogger({
           )}
 
           {/* Weight input */}
-          <Text className="text-xs font-medium text-muted mt-4 mb-2" style={{ textTransform: 'uppercase', letterSpacing: 1 }}>
+          <Text className="text-xs font-medium text-cardMuted mt-4 mb-2" style={{ textTransform: 'uppercase', letterSpacing: 1 }}>
             Weight (kg)
           </Text>
           <View className="flex-row items-center" style={{ gap: 12 }}>
             <TouchableOpacity
               onPress={() => adjustWeight(-2.5)}
               className="w-14 h-14 rounded-xl items-center justify-center"
-              style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border }}
+              style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.cardBorder }}
             >
-              <Text className="text-lg font-bold text-foreground">−</Text>
+              <Text className="text-lg font-bold text-cardForeground">−</Text>
             </TouchableOpacity>
             <View className="flex-1">
               <TextInput
                 value={weight}
                 onChangeText={setWeight}
                 keyboardType="decimal-pad"
-                className="h-14 rounded-xl text-center text-xl font-bold text-foreground"
-                style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border }}
-                placeholderTextColor={colors.muted}
+                className="h-14 rounded-xl text-center text-xl font-bold text-cardForeground"
+                style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.cardBorder }}
+                placeholderTextColor={colors.cardMuted}
               />
             </View>
             <TouchableOpacity
               onPress={() => adjustWeight(2.5)}
               className="w-14 h-14 rounded-xl items-center justify-center"
-              style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border }}
+              style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.cardBorder }}
             >
-              <Text className="text-lg font-bold text-foreground">+</Text>
+              <Text className="text-lg font-bold text-cardForeground">+</Text>
             </TouchableOpacity>
           </View>
 
@@ -281,41 +281,41 @@ export function SplitSetLogger({
                 key={delta}
                 onPress={() => adjustWeight(delta)}
                 className="flex-1 py-2 rounded-lg items-center"
-                style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border }}
+                style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.cardBorder }}
               >
-                <Text className="text-xs text-muted">{delta > 0 ? '+' : ''}{delta}</Text>
+                <Text className="text-xs text-cardMuted">{delta > 0 ? '+' : ''}{delta}</Text>
               </TouchableOpacity>
             ))}
           </View>
 
           {/* Reps input */}
-          <Text className="text-xs font-medium text-muted mt-4 mb-2" style={{ textTransform: 'uppercase', letterSpacing: 1 }}>
+          <Text className="text-xs font-medium text-cardMuted mt-4 mb-2" style={{ textTransform: 'uppercase', letterSpacing: 1 }}>
             {targetRepsMin === 0 ? 'Hold Time (sec)' : 'Reps Completed'}
           </Text>
           <View className="flex-row items-center" style={{ gap: 12 }}>
             <TouchableOpacity
               onPress={() => adjustReps(-1)}
               className="w-14 h-14 rounded-xl items-center justify-center"
-              style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border }}
+              style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.cardBorder }}
             >
-              <Text className="text-lg font-bold text-foreground">−</Text>
+              <Text className="text-lg font-bold text-cardForeground">−</Text>
             </TouchableOpacity>
             <View className="flex-1">
               <TextInput
                 value={reps}
                 onChangeText={setReps}
                 keyboardType="number-pad"
-                className="h-14 rounded-xl text-center text-xl font-bold text-foreground"
-                style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border }}
-                placeholderTextColor={colors.muted}
+                className="h-14 rounded-xl text-center text-xl font-bold text-cardForeground"
+                style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.cardBorder }}
+                placeholderTextColor={colors.cardMuted}
               />
             </View>
             <TouchableOpacity
               onPress={() => adjustReps(1)}
               className="w-14 h-14 rounded-xl items-center justify-center"
-              style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border }}
+              style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.cardBorder }}
             >
-              <Text className="text-lg font-bold text-foreground">+</Text>
+              <Text className="text-lg font-bold text-cardForeground">+</Text>
             </TouchableOpacity>
           </View>
 
@@ -332,10 +332,10 @@ export function SplitSetLogger({
                     style={{
                       backgroundColor: repsNum === r ? colors.primary + '20' : colors.background,
                       borderWidth: 1,
-                      borderColor: repsNum === r ? colors.primary + '40' : colors.border,
+                      borderColor: repsNum === r ? colors.primary + '40' : colors.cardBorder,
                     }}
                   >
-                    <Text className="text-xs font-medium" style={{ color: repsNum === r ? colors.primary : colors.muted }}>
+                    <Text className="text-xs font-medium" style={{ color: repsNum === r ? colors.primary : colors.cardMuted }}>
                       {r}
                     </Text>
                   </TouchableOpacity>

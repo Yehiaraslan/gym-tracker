@@ -55,7 +55,7 @@ function MiniChart({
 
   return (
     <View style={{ marginBottom: 4 }}>
-      <Text style={[s.chartLabel, { color: colors.muted }]}>{label}</Text>
+      <Text style={[s.chartLabel, { color: colors.cardMuted }]}>{label}</Text>
       <View style={[s.chartContainer, { backgroundColor: colors.surface }]}>
         {/* Grid lines */}
         {[0.25, 0.5, 0.75].map(pct => (
@@ -65,7 +65,7 @@ function MiniChart({
               s.gridLine,
               {
                 top: CHART_HEIGHT * (1 - pct),
-                borderColor: colors.border,
+                borderColor: colors.cardBorder,
               },
             ]}
           />
@@ -112,8 +112,8 @@ function MiniChart({
         ))}
 
         {/* Y-axis labels */}
-        <Text style={[s.yMax, { color: colors.muted }]}>{max.toFixed(1)}</Text>
-        <Text style={[s.yMin, { color: colors.muted }]}>{min.toFixed(1)}</Text>
+        <Text style={[s.yMax, { color: colors.cardMuted }]}>{max.toFixed(1)}</Text>
+        <Text style={[s.yMin, { color: colors.cardMuted }]}>{min.toFixed(1)}</Text>
       </View>
     </View>
   );
@@ -160,7 +160,7 @@ function WorkoutSessionCard({
 
   return (
     <TouchableOpacity
-      style={[s.sessionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+      style={[s.sessionCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
       onPress={() => {
         setExpanded(e => !e);
         if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -171,7 +171,7 @@ function WorkoutSessionCard({
       <View style={s.sessionHeader}>
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Text style={[s.sessionDate, { color: colors.foreground }]}>
+            <Text style={[s.sessionDate, { color: colors.cardForeground }]}>
               {formatDisplayDate(entry.date)}
             </Text>
             {isPR && (
@@ -180,7 +180,7 @@ function WorkoutSessionCard({
               </View>
             )}
           </View>
-          <Text style={[s.sessionType, { color: colors.muted }]}>
+          <Text style={[s.sessionType, { color: colors.cardMuted }]}>
             {sessionLabel[entry.sessionType] ?? entry.sessionType}
           </Text>
         </View>
@@ -191,30 +191,30 @@ function WorkoutSessionCard({
             <Text style={[s.statValue, { color: colors.primary }]}>
               {entry.bestWeightKg} kg
             </Text>
-            <Text style={[s.statLabel, { color: colors.muted }]}>Best</Text>
+            <Text style={[s.statLabel, { color: colors.cardMuted }]}>Best</Text>
           </View>
           <View style={s.statPill}>
-            <Text style={[s.statValue, { color: colors.foreground }]}>
+            <Text style={[s.statValue, { color: colors.cardForeground }]}>
               {entry.totalReps}
             </Text>
-            <Text style={[s.statLabel, { color: colors.muted }]}>Reps</Text>
+            <Text style={[s.statLabel, { color: colors.cardMuted }]}>Reps</Text>
           </View>
           <View style={s.statPill}>
             <Text style={[s.statValue, { color: '#A78BFA' }]}>
               {entry.e1rm}
             </Text>
-            <Text style={[s.statLabel, { color: colors.muted }]}>e1RM</Text>
+            <Text style={[s.statLabel, { color: colors.cardMuted }]}>e1RM</Text>
           </View>
         </View>
 
-        <Text style={[s.chevron, { color: colors.muted }]}>{expanded ? '▼' : '›'}</Text>
+        <Text style={[s.chevron, { color: colors.cardMuted }]}>{expanded ? '▼' : '›'}</Text>
       </View>
 
       {/* Expanded set breakdown */}
       {expanded && (
-        <View style={[s.setBreakdown, { borderTopColor: colors.border }]}>
+        <View style={[s.setBreakdown, { borderTopColor: colors.cardBorder }]}>
           {warmupSets.length > 0 && (
-            <Text style={[s.warmupLabel, { color: colors.muted }]}>
+            <Text style={[s.warmupLabel, { color: colors.cardMuted }]}>
               Warm-up: {warmupSets.map(s => `${s.weightKg}×${s.reps}`).join('  ')}
             </Text>
           )}
@@ -224,22 +224,22 @@ function WorkoutSessionCard({
               : '—';
             return (
               <View key={i} style={s.setRow}>
-                <Text style={[s.setNum, { color: colors.muted }]}>Set {set.setNumber}</Text>
-                <Text style={[s.setWeight, { color: colors.foreground }]}>
+                <Text style={[s.setNum, { color: colors.cardMuted }]}>Set {set.setNumber}</Text>
+                <Text style={[s.setWeight, { color: colors.cardForeground }]}>
                   {set.weightKg} kg × {set.reps} reps
                 </Text>
                 <Text style={[s.setE1rm, { color: '#A78BFA' }]}>
                   ~{e1rm} kg 1RM
                 </Text>
                 {set.rpe != null && (
-                  <Text style={[s.setRpe, { color: colors.muted }]}>RPE {set.rpe}</Text>
+                  <Text style={[s.setRpe, { color: colors.cardMuted }]}>RPE {set.rpe}</Text>
                 )}
               </View>
             );
           })}
           <View style={s.volumeRow}>
-            <Text style={[s.volumeLabel, { color: colors.muted }]}>Session volume</Text>
-            <Text style={[s.volumeValue, { color: colors.foreground }]}>
+            <Text style={[s.volumeLabel, { color: colors.cardMuted }]}>Session volume</Text>
+            <Text style={[s.volumeValue, { color: colors.cardForeground }]}>
               {entry.totalVolume.toLocaleString()} kg
             </Text>
           </View>
@@ -253,24 +253,24 @@ function WorkoutSessionCard({
 function FormCoachCard({ session }: { session: FormCoachSession }) {
   const colors = useColors();
   return (
-    <View style={[s.formCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <View style={[s.formCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
       <View style={s.formCardHeader}>
         <View style={{ flex: 1 }}>
-          <Text style={[s.sessionDate, { color: colors.foreground }]}>
+          <Text style={[s.sessionDate, { color: colors.cardForeground }]}>
             {formatDisplayDate(session.date)}
           </Text>
-          <Text style={[s.sessionType, { color: colors.muted }]}>AI Form Coach</Text>
+          <Text style={[s.sessionType, { color: colors.cardMuted }]}>AI Form Coach</Text>
         </View>
         <GradeBadge grade={session.grade} score={session.formScore} />
         <View style={s.statPill}>
-          <Text style={[s.statValue, { color: colors.foreground }]}>{session.reps}</Text>
-          <Text style={[s.statLabel, { color: colors.muted }]}>Reps</Text>
+          <Text style={[s.statValue, { color: colors.cardForeground }]}>{session.reps}</Text>
+          <Text style={[s.statLabel, { color: colors.cardMuted }]}>Reps</Text>
         </View>
       </View>
       {session.topIssues.length > 0 && (
         <View style={s.issueList}>
           {session.topIssues.slice(0, 2).map((issue, i) => (
-            <Text key={i} style={[s.issueText, { color: colors.muted }]}>• {issue}</Text>
+            <Text key={i} style={[s.issueText, { color: colors.cardMuted }]}>• {issue}</Text>
           ))}
         </View>
       )}
@@ -367,7 +367,7 @@ export default function RepHistoryScreen() {
   return (
     <ScreenContainer containerClassName="bg-background">
       {/* Nav header */}
-      <View style={[s.navHeader, { borderBottomColor: colors.border }]}>
+      <View style={[s.navHeader, { borderBottomColor: colors.cardBorder }]}>
         <TouchableOpacity
           onPress={() => router.back()}
           style={s.backBtn}
@@ -376,10 +376,10 @@ export default function RepHistoryScreen() {
           <Text style={[s.backArrow, { color: colors.primary }]}>‹</Text>
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={[s.navTitle, { color: colors.foreground }]} numberOfLines={1}>
+          <Text style={[s.navTitle, { color: colors.cardForeground }]} numberOfLines={1}>
             {exerciseName}
           </Text>
-          <Text style={[s.navSubtitle, { color: colors.muted }]}>Rep History</Text>
+          <Text style={[s.navSubtitle, { color: colors.cardMuted }]}>Rep History</Text>
         </View>
       </View>
 
@@ -391,46 +391,46 @@ export default function RepHistoryScreen() {
         {loading ? (
           <View style={s.loadingContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={[s.loadingText, { color: colors.muted }]}>Loading history…</Text>
+            <Text style={[s.loadingText, { color: colors.cardMuted }]}>Loading history…</Text>
           </View>
         ) : (
           <>
             {/* Summary stats row */}
             {(hasWeightData || hasFormData) && (
-              <View style={[s.summaryRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <View style={[s.summaryRow, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
                 {hasWeightData && (
                   <>
                     <View style={s.summaryItem}>
                       <Text style={[s.summaryValue, { color: colors.primary }]}>
                         {bestWeight} kg
                       </Text>
-                      <Text style={[s.summaryLabel, { color: colors.muted }]}>Best Weight</Text>
+                      <Text style={[s.summaryLabel, { color: colors.cardMuted }]}>Best Weight</Text>
                     </View>
-                    <View style={[s.summaryDivider, { backgroundColor: colors.border }]} />
+                    <View style={[s.summaryDivider, { backgroundColor: colors.cardBorder }]} />
                     <View style={s.summaryItem}>
                       <Text style={[s.summaryValue, { color: '#A78BFA' }]}>
                         {bestE1RM} kg
                       </Text>
-                      <Text style={[s.summaryLabel, { color: colors.muted }]}>Best e1RM</Text>
+                      <Text style={[s.summaryLabel, { color: colors.cardMuted }]}>Best e1RM</Text>
                     </View>
-                    <View style={[s.summaryDivider, { backgroundColor: colors.border }]} />
+                    <View style={[s.summaryDivider, { backgroundColor: colors.cardBorder }]} />
                     <View style={s.summaryItem}>
-                      <Text style={[s.summaryValue, { color: colors.foreground }]}>
+                      <Text style={[s.summaryValue, { color: colors.cardForeground }]}>
                         {weightHistory.length}
                       </Text>
-                      <Text style={[s.summaryLabel, { color: colors.muted }]}>Sessions</Text>
+                      <Text style={[s.summaryLabel, { color: colors.cardMuted }]}>Sessions</Text>
                     </View>
                   </>
                 )}
                 {hasFormData && hasWeightData && (
-                  <View style={[s.summaryDivider, { backgroundColor: colors.border }]} />
+                  <View style={[s.summaryDivider, { backgroundColor: colors.cardBorder }]} />
                 )}
                 {hasFormData && (
                   <View style={s.summaryItem}>
                     <Text style={[s.summaryValue, { color: '#4ADE80' }]}>
                       {avgFormScore}
                     </Text>
-                    <Text style={[s.summaryLabel, { color: colors.muted }]}>Avg Form</Text>
+                    <Text style={[s.summaryLabel, { color: colors.cardMuted }]}>Avg Form</Text>
                   </View>
                 )}
               </View>
@@ -454,7 +454,7 @@ export default function RepHistoryScreen() {
                     <Text
                       style={[
                         s.tabText,
-                        { color: activeTab === tab ? '#fff' : colors.muted },
+                        { color: activeTab === tab ? '#fff' : colors.cardMuted },
                       ]}
                     >
                       {tab === 'weight' ? '🏋️ Weight & Reps' : '🤖 Form Scores'}
@@ -491,7 +491,7 @@ export default function RepHistoryScreen() {
                 {/* Session list */}
                 {hasWeightData ? (
                   <>
-                    <Text style={[s.sectionTitle, { color: colors.muted }]}>
+                    <Text style={[s.sectionTitle, { color: colors.cardMuted }]}>
                       SESSION HISTORY ({weightHistory.length})
                     </Text>
                     {weightHistory.map((entry, i) => (
@@ -503,8 +503,8 @@ export default function RepHistoryScreen() {
                     icon="🏋️"
                     title="No weight history yet"
                     subtitle={`Complete a workout that includes ${exerciseName} to start tracking progress.`}
-                    color={colors.muted}
-                    fg={colors.foreground}
+                    color={colors.cardMuted}
+                    fg={colors.cardForeground}
                   />
                 )}
               </>
@@ -525,7 +525,7 @@ export default function RepHistoryScreen() {
 
                 {hasFormData ? (
                   <>
-                    <Text style={[s.sectionTitle, { color: colors.muted }]}>
+                    <Text style={[s.sectionTitle, { color: colors.cardMuted }]}>
                       COACHING SESSIONS ({formHistory.length})
                     </Text>
                     {formHistory.map((session, i) => (
@@ -537,8 +537,8 @@ export default function RepHistoryScreen() {
                     icon="🤖"
                     title="No form sessions yet"
                     subtitle="Use the AI Form Coach to track your form score over time."
-                    color={colors.muted}
-                    fg={colors.foreground}
+                    color={colors.cardMuted}
+                    fg={colors.cardForeground}
                   />
                 )}
               </>
@@ -550,8 +550,8 @@ export default function RepHistoryScreen() {
                 icon="📊"
                 title="No history yet"
                 subtitle={`Log a workout with ${exerciseName} to start building your history.`}
-                color={colors.muted}
-                fg={colors.foreground}
+                color={colors.cardMuted}
+                fg={colors.cardForeground}
               />
             )}
           </>

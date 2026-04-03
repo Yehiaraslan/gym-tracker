@@ -52,19 +52,19 @@ export function ExerciseForm({ onSubmit, onCancel, initialData }: ExerciseFormPr
   return (
     <ScrollView className="flex-1 p-4" style={{ backgroundColor: colors.background }}>
       <View className="mb-4">
-        <Text className="text-lg font-semibold text-foreground mb-2">Exercise Name</Text>
+        <Text className="text-lg font-semibold text-cardForeground mb-2">Exercise Name</Text>
         <TextInput
           value={name}
           onChangeText={setName}
           placeholder="e.g., Barbell Squat"
-          placeholderTextColor={colors.muted}
-          className="bg-surface rounded-lg p-3 text-foreground"
-          style={{ borderWidth: 1, borderColor: colors.border }}
+          placeholderTextColor={colors.cardMuted}
+          className="bg-surface rounded-lg p-3 text-cardForeground"
+          style={{ borderWidth: 1, borderColor: colors.cardBorder }}
         />
       </View>
 
       <View className="mb-4">
-        <Text className="text-lg font-semibold text-foreground mb-2">Body Part</Text>
+        <Text className="text-lg font-semibold text-cardForeground mb-2">Body Part</Text>
         <View className="flex-row flex-wrap gap-2">
           {BODY_PARTS.map(part => (
             <TouchableOpacity
@@ -74,12 +74,12 @@ export function ExerciseForm({ onSubmit, onCancel, initialData }: ExerciseFormPr
               style={{
                 backgroundColor: bodyPart === part ? colors.primary : colors.surface,
                 borderWidth: 1,
-                borderColor: colors.border,
+                borderColor: colors.cardBorder,
               }}
             >
               <Text
                 style={{
-                  color: bodyPart === part ? 'white' : colors.foreground,
+                  color: bodyPart === part ? 'white' : colors.cardForeground,
                   fontWeight: bodyPart === part ? '600' : '400',
                 }}
               >
@@ -91,7 +91,7 @@ export function ExerciseForm({ onSubmit, onCancel, initialData }: ExerciseFormPr
       </View>
 
       <View className="mb-4">
-        <Text className="text-lg font-semibold text-foreground mb-2">Exercise Type</Text>
+        <Text className="text-lg font-semibold text-cardForeground mb-2">Exercise Type</Text>
         <View className="flex-row gap-2">
           {(['reps', 'duration'] as ExerciseType[]).map(type => (
             <TouchableOpacity
@@ -101,13 +101,13 @@ export function ExerciseForm({ onSubmit, onCancel, initialData }: ExerciseFormPr
               style={{
                 backgroundColor: exerciseType === type ? colors.primary : colors.surface,
                 borderWidth: 1,
-                borderColor: colors.border,
+                borderColor: colors.cardBorder,
               }}
             >
               <Text
                 className="text-center font-semibold"
                 style={{
-                  color: exerciseType === type ? 'white' : colors.foreground,
+                  color: exerciseType === type ? 'white' : colors.cardForeground,
                 }}
               >
                 {type === 'reps' ? 'Reps' : 'Duration'}
@@ -119,55 +119,55 @@ export function ExerciseForm({ onSubmit, onCancel, initialData }: ExerciseFormPr
 
       {exerciseType === 'reps' ? (
         <View className="mb-4">
-          <Text className="text-lg font-semibold text-foreground mb-2">Default Reps</Text>
+          <Text className="text-lg font-semibold text-cardForeground mb-2">Default Reps</Text>
           <TextInput
             value={reps}
             onChangeText={setReps}
             placeholder="e.g., 8-12 or 10"
-            placeholderTextColor={colors.muted}
-            className="bg-surface rounded-lg p-3 text-foreground"
-            style={{ borderWidth: 1, borderColor: colors.border }}
+            placeholderTextColor={colors.cardMuted}
+            className="bg-surface rounded-lg p-3 text-cardForeground"
+            style={{ borderWidth: 1, borderColor: colors.cardBorder }}
           />
         </View>
       ) : (
         <View className="mb-4">
-          <Text className="text-lg font-semibold text-foreground mb-2">Default Duration (seconds)</Text>
+          <Text className="text-lg font-semibold text-cardForeground mb-2">Default Duration (seconds)</Text>
           <TextInput
             value={duration}
             onChangeText={setDuration}
             placeholder="e.g., 60"
-            placeholderTextColor={colors.muted}
+            placeholderTextColor={colors.cardMuted}
             keyboardType="numeric"
-            className="bg-surface rounded-lg p-3 text-foreground"
-            style={{ borderWidth: 1, borderColor: colors.border }}
+            className="bg-surface rounded-lg p-3 text-cardForeground"
+            style={{ borderWidth: 1, borderColor: colors.cardBorder }}
           />
         </View>
       )}
 
       <View className="mb-4">
-        <Text className="text-lg font-semibold text-foreground mb-2">Rest Between Sets (seconds)</Text>
+        <Text className="text-lg font-semibold text-cardForeground mb-2">Rest Between Sets (seconds)</Text>
         <TextInput
           value={restSeconds}
           onChangeText={setRestSeconds}
           placeholder="90"
-          placeholderTextColor={colors.muted}
+          placeholderTextColor={colors.cardMuted}
           keyboardType="numeric"
-          className="bg-surface rounded-lg p-3 text-foreground"
-          style={{ borderWidth: 1, borderColor: colors.border }}
+          className="bg-surface rounded-lg p-3 text-cardForeground"
+          style={{ borderWidth: 1, borderColor: colors.cardBorder }}
         />
       </View>
 
       <View className="mb-6">
-        <Text className="text-lg font-semibold text-foreground mb-2">Notes</Text>
+        <Text className="text-lg font-semibold text-cardForeground mb-2">Notes</Text>
         <TextInput
           value={notes}
           onChangeText={setNotes}
           placeholder="e.g., Keep chest up, pause 2 sec"
-          placeholderTextColor={colors.muted}
+          placeholderTextColor={colors.cardMuted}
           multiline
           numberOfLines={3}
-          className="bg-surface rounded-lg p-3 text-foreground"
-          style={{ borderWidth: 1, borderColor: colors.border }}
+          className="bg-surface rounded-lg p-3 text-cardForeground"
+          style={{ borderWidth: 1, borderColor: colors.cardBorder }}
         />
       </View>
 
@@ -182,9 +182,9 @@ export function ExerciseForm({ onSubmit, onCancel, initialData }: ExerciseFormPr
         <TouchableOpacity
           onPress={onCancel}
           className="flex-1 py-3 rounded-lg"
-          style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+          style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.cardBorder }}
         >
-          <Text className="text-center font-semibold text-foreground">Cancel</Text>
+          <Text className="text-center font-semibold text-cardForeground">Cancel</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>

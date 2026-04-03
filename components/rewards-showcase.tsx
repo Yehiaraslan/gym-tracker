@@ -13,16 +13,16 @@ export function RewardsShowcase({ unlockedRewards, onRewardPress }: RewardsShowc
 
   if (unlockedRewards.length === 0) {
     return (
-      <View className="bg-surface rounded-2xl p-6" style={{ borderWidth: 1, borderColor: colors.border }}>
-        <Text className="text-sm font-medium text-muted mb-2">Unlocked Rewards</Text>
-        <Text className="text-sm text-muted">Keep your streak going to unlock rewards!</Text>
+      <View className="bg-surface rounded-2xl p-6" style={{ borderWidth: 1, borderColor: colors.cardBorder }}>
+        <Text className="text-sm font-medium text-cardMuted mb-2">Unlocked Rewards</Text>
+        <Text className="text-sm text-cardMuted">Keep your streak going to unlock rewards!</Text>
       </View>
     );
   }
 
   return (
-    <View className="bg-surface rounded-2xl p-4" style={{ borderWidth: 1, borderColor: colors.border }}>
-      <Text className="text-sm font-medium text-foreground mb-3">
+    <View className="bg-surface rounded-2xl p-4" style={{ borderWidth: 1, borderColor: colors.cardBorder }}>
+      <Text className="text-sm font-medium text-cardForeground mb-3">
         Unlocked Rewards ({unlockedRewards.length})
       </Text>
       
@@ -40,8 +40,8 @@ export function RewardsShowcase({ unlockedRewards, onRewardPress }: RewardsShowc
             }}
           >
             <Text style={{ fontSize: 32, marginBottom: 4 }}>{reward.icon}</Text>
-            <Text className="text-xs font-semibold text-foreground text-center">{reward.name}</Text>
-            <Text className="text-xs text-muted text-center mt-1">
+            <Text className="text-xs font-semibold text-cardForeground text-center">{reward.name}</Text>
+            <Text className="text-xs text-cardMuted text-center mt-1">
               {reward.type === 'theme' && 'Theme'}
               {reward.type === 'exercise_pack' && 'Exercises'}
               {reward.type === 'feature' && 'Feature'}

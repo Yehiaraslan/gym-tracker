@@ -146,7 +146,7 @@ export default function NutritionScreen() {
           >
             <Text style={{ color: colors.primary, fontSize: 16 }}>← Back</Text>
           </TouchableOpacity>
-          <Text style={{ color: colors.foreground, fontSize: 24, fontWeight: '700', flex: 1 }}>
+          <Text style={{ color: colors.cardForeground, fontSize: 24, fontWeight: '700', flex: 1 }}>
             Nutrition
           </Text>
         </View>
@@ -169,15 +169,15 @@ export default function NutritionScreen() {
                 alignItems: 'center',
               }}
             >
-              <Text style={{ color: colors.muted, fontSize: 11, marginBottom: 4 }}>{macro.label}</Text>
-              <Text style={{ color: colors.foreground, fontSize: 18, fontWeight: '700' }}>
+              <Text style={{ color: colors.cardMuted, fontSize: 11, marginBottom: 4 }}>{macro.label}</Text>
+              <Text style={{ color: colors.cardForeground, fontSize: 18, fontWeight: '700' }}>
                 {Math.round(macro.value)}
               </Text>
-              <Text style={{ color: colors.muted, fontSize: 10 }}>/ {macro.target}{macro.unit}</Text>
+              <Text style={{ color: colors.cardMuted, fontSize: 10 }}>/ {macro.target}{macro.unit}</Text>
               <View style={{
                 width: '100%',
                 height: 4,
-                backgroundColor: colors.border,
+                backgroundColor: colors.cardBorder,
                 borderRadius: 2,
                 marginTop: 6,
                 overflow: 'hidden',
@@ -206,12 +206,12 @@ export default function NutritionScreen() {
                 alignItems: 'center',
                 marginBottom: 6,
               }}>
-                <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '600' }}>
+                <Text style={{ color: colors.cardForeground, fontSize: 16, fontWeight: '600' }}>
                   {MEAL_NAMES[mealNum]}
                 </Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                   {mealCals > 0 && (
-                    <Text style={{ color: colors.muted, fontSize: 13 }}>{mealCals} cal</Text>
+                    <Text style={{ color: colors.cardMuted, fontSize: 13 }}>{mealCals} cal</Text>
                   )}
                   <TouchableOpacity
                     onPress={() => {
@@ -244,14 +244,14 @@ export default function NutritionScreen() {
                   }}
                 >
                   <View style={{ flex: 1 }}>
-                    <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '500' }}>
+                    <Text style={{ color: colors.cardForeground, fontSize: 14, fontWeight: '500' }}>
                       {food.foodName}
                     </Text>
-                    <Text style={{ color: colors.muted, fontSize: 11 }}>
+                    <Text style={{ color: colors.cardMuted, fontSize: 11 }}>
                       {food.servingGrams}g · P:{food.protein}g · C:{food.carbs}g · F:{food.fat}g
                     </Text>
                   </View>
-                  <Text style={{ color: colors.muted, fontSize: 14, marginRight: 8 }}>
+                  <Text style={{ color: colors.cardMuted, fontSize: 14, marginRight: 8 }}>
                     {food.calories} cal
                   </Text>
                   <TouchableOpacity onPress={() => removeFood(food.id)}>
@@ -268,7 +268,7 @@ export default function NutritionScreen() {
                   alignItems: 'center',
                   opacity: 0.5,
                 }}>
-                  <Text style={{ color: colors.muted, fontSize: 13 }}>No foods logged</Text>
+                  <Text style={{ color: colors.cardMuted, fontSize: 13 }}>No foods logged</Text>
                 </View>
               )}
             </View>
@@ -277,7 +277,7 @@ export default function NutritionScreen() {
 
         {/* Supplements Checklist */}
         <View style={{ marginHorizontal: 16, marginTop: 8, marginBottom: 16 }}>
-          <Text style={{ color: colors.foreground, fontSize: 18, fontWeight: '700', marginBottom: 8 }}>
+          <Text style={{ color: colors.cardForeground, fontSize: 18, fontWeight: '700', marginBottom: 8 }}>
             Supplements
           </Text>
           {todayLog.supplementsChecked.map((supp, index) => (
@@ -299,7 +299,7 @@ export default function NutritionScreen() {
                 height: 24,
                 borderRadius: 6,
                 borderWidth: 2,
-                borderColor: supp.taken ? colors.primary : colors.border,
+                borderColor: supp.taken ? colors.primary : colors.cardBorder,
                 backgroundColor: supp.taken ? colors.primary : 'transparent',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -308,7 +308,7 @@ export default function NutritionScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{
-                  color: colors.foreground,
+                  color: colors.cardForeground,
                   fontSize: 14,
                   fontWeight: '500',
                   textDecorationLine: supp.taken ? 'line-through' : 'none',
@@ -316,7 +316,7 @@ export default function NutritionScreen() {
                 }}>
                   {supp.name} — {supp.dose}
                 </Text>
-                <Text style={{ color: colors.muted, fontSize: 11 }}>{supp.timing}</Text>
+                <Text style={{ color: colors.cardMuted, fontSize: 11 }}>{supp.timing}</Text>
               </View>
             </TouchableOpacity>
           ))}
@@ -330,7 +330,7 @@ export default function NutritionScreen() {
             <TouchableOpacity onPress={() => { setShowFoodSearch(false); setSearchQuery(''); }}>
               <Text style={{ color: colors.primary, fontSize: 16 }}>Cancel</Text>
             </TouchableOpacity>
-            <Text style={{ color: colors.foreground, fontSize: 18, fontWeight: '700', flex: 1, textAlign: 'center' }}>
+            <Text style={{ color: colors.cardForeground, fontSize: 18, fontWeight: '700', flex: 1, textAlign: 'center' }}>
               Add to {MEAL_NAMES[selectedMeal]}
             </Text>
             <View style={{ width: 50 }} />
@@ -341,12 +341,12 @@ export default function NutritionScreen() {
               value={searchQuery}
               onChangeText={setSearchQuery}
               placeholder="Search UAE foods..."
-              placeholderTextColor={colors.muted}
+              placeholderTextColor={colors.cardMuted}
               style={{
                 backgroundColor: colors.surface,
                 borderRadius: 12,
                 padding: 14,
-                color: colors.foreground,
+                color: colors.cardForeground,
                 fontSize: 16,
               }}
               autoFocus
@@ -354,7 +354,7 @@ export default function NutritionScreen() {
           </View>
 
           <View style={{ paddingHorizontal: 16, marginBottom: 8 }}>
-            <Text style={{ color: colors.muted, fontSize: 12 }}>Serving size (grams):</Text>
+            <Text style={{ color: colors.cardMuted, fontSize: 12 }}>Serving size (grams):</Text>
             <TextInput
               value={servingGrams}
               onChangeText={setServingGrams}
@@ -363,7 +363,7 @@ export default function NutritionScreen() {
                 backgroundColor: colors.surface,
                 borderRadius: 8,
                 padding: 10,
-                color: colors.foreground,
+                color: colors.cardForeground,
                 fontSize: 14,
                 marginTop: 4,
                 width: 100,
@@ -388,10 +388,10 @@ export default function NutritionScreen() {
                     marginBottom: 6,
                   }}
                 >
-                  <Text style={{ color: colors.foreground, fontSize: 15, fontWeight: '600' }}>
+                  <Text style={{ color: colors.cardForeground, fontSize: 15, fontWeight: '600' }}>
                     {item.name}
                   </Text>
-                  <Text style={{ color: colors.muted, fontSize: 12, marginTop: 2 }}>
+                  <Text style={{ color: colors.cardMuted, fontSize: 12, marginTop: 2 }}>
                     {item.category} · {grams}g
                   </Text>
                   <View style={{ flexDirection: 'row', gap: 12, marginTop: 4 }}>
@@ -417,13 +417,13 @@ export default function NutritionScreen() {
                             setServingGrams(String(s.grams));
                           }}
                           style={{
-                            backgroundColor: colors.border,
+                            backgroundColor: colors.cardBorder,
                             paddingHorizontal: 8,
                             paddingVertical: 3,
                             borderRadius: 6,
                           }}
                         >
-                          <Text style={{ color: colors.foreground, fontSize: 11 }}>{s.label}</Text>
+                          <Text style={{ color: colors.cardForeground, fontSize: 11 }}>{s.label}</Text>
                         </TouchableOpacity>
                       ))}
                     </View>
@@ -433,11 +433,11 @@ export default function NutritionScreen() {
             }}
             ListEmptyComponent={
               searchQuery.length > 1 ? (
-                <Text style={{ color: colors.muted, textAlign: 'center', marginTop: 40 }}>
+                <Text style={{ color: colors.cardMuted, textAlign: 'center', marginTop: 40 }}>
                   No foods found for "{searchQuery}"
                 </Text>
               ) : (
-                <Text style={{ color: colors.muted, textAlign: 'center', marginTop: 40 }}>
+                <Text style={{ color: colors.cardMuted, textAlign: 'center', marginTop: 40 }}>
                   Search 150+ UAE foods and restaurants
                 </Text>
               )

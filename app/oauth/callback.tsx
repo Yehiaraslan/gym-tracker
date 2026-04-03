@@ -240,17 +240,17 @@ export default function OAuthCallback() {
         {status === "processing" && (
           <>
             <ActivityIndicator size="large" />
-            <Text className="mt-4 text-base leading-6 text-center text-foreground">
+            <Text className="mt-4 text-base leading-6 text-center text-cardForeground">
               Completing authentication...
             </Text>
           </>
         )}
         {status === "success" && (
           <>
-            <Text className="text-base leading-6 text-center text-foreground">
+            <Text className="text-base leading-6 text-center text-cardForeground">
               Authentication successful!
             </Text>
-            <Text className="text-base leading-6 text-center text-foreground">
+            <Text className="text-base leading-6 text-center text-cardForeground">
               Redirecting...
             </Text>
           </>
@@ -260,7 +260,7 @@ export default function OAuthCallback() {
             <Text className="mb-2 text-xl font-bold leading-7 text-error">
               Authentication failed
             </Text>
-            <Text className="text-base leading-6 text-center text-foreground">
+            <Text className="text-base leading-6 text-center text-cardForeground">
               {errorMessage}
             </Text>
           </>

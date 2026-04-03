@@ -46,10 +46,10 @@ export function ExerciseTimer({ duration, onComplete, exerciseName }: ExerciseTi
   const progress = ((duration - timeLeft) / duration) * 100;
 
   return (
-    <View className="items-center justify-center p-6 bg-surface rounded-2xl" style={{ borderWidth: 1, borderColor: colors.border }}>
-      <Text className="text-lg font-semibold text-muted mb-2">{exerciseName}</Text>
+    <View className="items-center justify-center p-6 bg-surface rounded-2xl" style={{ borderWidth: 1, borderColor: colors.cardBorder }}>
+      <Text className="text-lg font-semibold text-cardMuted mb-2">{exerciseName}</Text>
       
-      <View className="w-full h-2 bg-background rounded-full mb-6" style={{ borderWidth: 1, borderColor: colors.border }}>
+      <View className="w-full h-2 bg-background rounded-full mb-6" style={{ borderWidth: 1, borderColor: colors.cardBorder }}>
         <View
           className="h-full bg-primary rounded-full"
           style={{ width: `${progress}%` }}
@@ -77,9 +77,9 @@ export function ExerciseTimer({ duration, onComplete, exerciseName }: ExerciseTi
             setIsRunning(false);
           }}
           className="flex-1 py-4 rounded-lg"
-          style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+          style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.cardBorder }}
         >
-          <Text className="text-center font-semibold text-foreground text-lg">Reset</Text>
+          <Text className="text-center font-semibold text-cardForeground text-lg">Reset</Text>
         </TouchableOpacity>
 
         <TouchableOpacity

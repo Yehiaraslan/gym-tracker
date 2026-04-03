@@ -69,7 +69,7 @@ export function VideoPlayer({ videoUrl, exerciseName }: VideoPlayerProps) {
           overflow: 'hidden',
           backgroundColor: colors.surface,
           borderWidth: 1,
-          borderColor: colors.border,
+          borderColor: colors.cardBorder,
         }}
       >
         <View style={{ position: 'relative' }}>
@@ -111,10 +111,10 @@ export function VideoPlayer({ videoUrl, exerciseName }: VideoPlayerProps) {
           </View>
         </View>
         <View style={{ padding: 12 }}>
-          <Text style={{ color: colors.foreground, fontWeight: '600' }}>
+          <Text style={{ color: colors.cardForeground, fontWeight: '600' }}>
             Watch Exercise Guide
           </Text>
-          <Text style={{ color: colors.muted, fontSize: 12, marginTop: 2 }}>
+          <Text style={{ color: colors.cardMuted, fontSize: 12, marginTop: 2 }}>
             Tap to play video
           </Text>
         </View>

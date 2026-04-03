@@ -293,10 +293,10 @@ export default function NutritionTab() {
 
   const bg = colors.background;
   const surf = colors.surface;
-  const fg = colors.foreground;
-  const mut = colors.muted;
+  const fg = colors.cardForeground;
+  const mut = colors.cardMuted;
   const pri = colors.primary;
-  const bord = colors.border;
+  const bord = colors.cardBorder;
 
   // ── Copy yesterday's meals ──────────────────────────────
   const copyYesterday = useCallback(async () => {

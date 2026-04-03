@@ -22,7 +22,7 @@ export function RPESelector({ value, onChange }: RPESelectorProps) {
 
   return (
     <View>
-      <Text className="text-xs font-medium text-muted mb-2" style={{ textTransform: 'uppercase', letterSpacing: 1 }}>
+      <Text className="text-xs font-medium text-cardMuted mb-2" style={{ textTransform: 'uppercase', letterSpacing: 1 }}>
         RPE — Rate of Perceived Exertion
       </Text>
       <View className="flex-row" style={{ gap: 8 }}>
@@ -37,12 +37,12 @@ export function RPESelector({ value, onChange }: RPESelectorProps) {
               style={{
                 backgroundColor: isSelected ? info.color + '25' : colors.surface,
                 borderWidth: 1.5,
-                borderColor: isSelected ? info.color + '60' : colors.border,
+                borderColor: isSelected ? info.color + '60' : colors.cardBorder,
               }}
             >
               <Text
                 className="text-base font-bold"
-                style={{ color: isSelected ? info.color : colors.muted }}
+                style={{ color: isSelected ? info.color : colors.cardMuted }}
               >
                 {rpe}
               </Text>

@@ -59,7 +59,7 @@ export function ConfidenceLegend({
 
   return (
     <View style={[styles.container, { backgroundColor: 'rgba(0,0,0,0.7)' }]}>
-      <Text style={[styles.title, { color: colors.foreground }]}>
+      <Text style={[styles.title, { color: colors.cardForeground }]}>
         Joint Tracking Quality
       </Text>
       <View style={styles.itemsContainer}>

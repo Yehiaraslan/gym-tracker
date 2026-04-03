@@ -81,7 +81,7 @@ export default function SleepScreen() {
           <TouchableOpacity onPress={() => router.back()} style={{ padding: 8, marginRight: 8 }}>
             <Text style={{ color: colors.primary, fontSize: 16 }}>← Back</Text>
           </TouchableOpacity>
-          <Text style={{ color: colors.foreground, fontSize: 24, fontWeight: '700', flex: 1 }}>
+          <Text style={{ color: colors.cardForeground, fontSize: 24, fontWeight: '700', flex: 1 }}>
             Sleep Tracker
           </Text>
         </View>
@@ -89,8 +89,8 @@ export default function SleepScreen() {
         {/* Summary Cards */}
         <View style={{ flexDirection: 'row', paddingHorizontal: 16, gap: 8, marginBottom: 16 }}>
           <View style={{ flex: 1, backgroundColor: colors.surface, borderRadius: 12, padding: 16, alignItems: 'center' }}>
-            <Text style={{ color: colors.muted, fontSize: 12 }}>Avg Duration</Text>
-            <Text style={{ color: colors.foreground, fontSize: 28, fontWeight: '700' }}>
+            <Text style={{ color: colors.cardMuted, fontSize: 12 }}>Avg Duration</Text>
+            <Text style={{ color: colors.cardForeground, fontSize: 28, fontWeight: '700' }}>
               {avgDuration.toFixed(1)}h
             </Text>
             <Text style={{ color: avgDuration >= 7 ? '#22C55E' : '#F59E0B', fontSize: 12 }}>
@@ -98,8 +98,8 @@ export default function SleepScreen() {
             </Text>
           </View>
           <View style={{ flex: 1, backgroundColor: colors.surface, borderRadius: 12, padding: 16, alignItems: 'center' }}>
-            <Text style={{ color: colors.muted, fontSize: 12 }}>Avg Quality</Text>
-            <Text style={{ color: colors.foreground, fontSize: 28, fontWeight: '700' }}>
+            <Text style={{ color: colors.cardMuted, fontSize: 12 }}>Avg Quality</Text>
+            <Text style={{ color: colors.cardForeground, fontSize: 28, fontWeight: '700' }}>
               {avgQuality.toFixed(1)}/5
             </Text>
             <Text style={{ color: avgQuality >= 3.5 ? '#22C55E' : '#F59E0B', fontSize: 12 }}>
@@ -110,23 +110,23 @@ export default function SleepScreen() {
 
         {/* Log Today's Sleep */}
         <View style={{ marginHorizontal: 16, backgroundColor: colors.surface, borderRadius: 16, padding: 20, marginBottom: 16 }}>
-          <Text style={{ color: colors.foreground, fontSize: 18, fontWeight: '700', marginBottom: 16 }}>
+          <Text style={{ color: colors.cardForeground, fontSize: 18, fontWeight: '700', marginBottom: 16 }}>
             {todayEntry ? 'Update Today' : 'Log Last Night'}
           </Text>
 
           <View style={{ flexDirection: 'row', gap: 12, marginBottom: 16 }}>
             <View style={{ flex: 1 }}>
-              <Text style={{ color: colors.muted, fontSize: 12, marginBottom: 4 }}>Bedtime</Text>
+              <Text style={{ color: colors.cardMuted, fontSize: 12, marginBottom: 4 }}>Bedtime</Text>
               <TextInput
                 value={bedtime}
                 onChangeText={setBedtime}
                 placeholder="23:00"
-                placeholderTextColor={colors.muted}
+                placeholderTextColor={colors.cardMuted}
                 style={{
                   backgroundColor: colors.background,
                   borderRadius: 10,
                   padding: 14,
-                  color: colors.foreground,
+                  color: colors.cardForeground,
                   fontSize: 18,
                   fontWeight: '600',
                   textAlign: 'center',
@@ -134,17 +134,17 @@ export default function SleepScreen() {
               />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ color: colors.muted, fontSize: 12, marginBottom: 4 }}>Wake Time</Text>
+              <Text style={{ color: colors.cardMuted, fontSize: 12, marginBottom: 4 }}>Wake Time</Text>
               <TextInput
                 value={wakeTime}
                 onChangeText={setWakeTime}
                 placeholder="07:00"
-                placeholderTextColor={colors.muted}
+                placeholderTextColor={colors.cardMuted}
                 style={{
                   backgroundColor: colors.background,
                   borderRadius: 10,
                   padding: 14,
-                  color: colors.foreground,
+                  color: colors.cardForeground,
                   fontSize: 18,
                   fontWeight: '600',
                   textAlign: 'center',
@@ -153,12 +153,12 @@ export default function SleepScreen() {
             </View>
           </View>
 
-          <Text style={{ color: colors.foreground, fontSize: 16, textAlign: 'center', marginBottom: 16 }}>
+          <Text style={{ color: colors.cardForeground, fontSize: 16, textAlign: 'center', marginBottom: 16 }}>
             Duration: <Text style={{ fontWeight: '700', color: duration >= 7 ? '#22C55E' : '#F59E0B' }}>{duration}h</Text>
           </Text>
 
           {/* Quality Rating */}
-          <Text style={{ color: colors.muted, fontSize: 12, marginBottom: 8 }}>Sleep Quality</Text>
+          <Text style={{ color: colors.cardMuted, fontSize: 12, marginBottom: 8 }}>Sleep Quality</Text>
           <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
             {([1, 2, 3, 4, 5] as const).map((q) => (
               <TouchableOpacity
@@ -176,14 +176,14 @@ export default function SleepScreen() {
                 }}
               >
                 <Text style={{
-                  color: quality === q ? '#fff' : colors.muted,
+                  color: quality === q ? '#fff' : colors.cardMuted,
                   fontSize: 12,
                   fontWeight: quality === q ? '700' : '400',
                 }}>
                   {q}
                 </Text>
                 <Text style={{
-                  color: quality === q ? '#fff' : colors.muted,
+                  color: quality === q ? '#fff' : colors.cardMuted,
                   fontSize: 9,
                   marginTop: 2,
                 }}>
@@ -198,13 +198,13 @@ export default function SleepScreen() {
             value={notes}
             onChangeText={setNotes}
             placeholder="Notes (optional)..."
-            placeholderTextColor={colors.muted}
+            placeholderTextColor={colors.cardMuted}
             multiline
             style={{
               backgroundColor: colors.background,
               borderRadius: 10,
               padding: 12,
-              color: colors.foreground,
+              color: colors.cardForeground,
               fontSize: 14,
               minHeight: 60,
               marginBottom: 16,
@@ -228,7 +228,7 @@ export default function SleepScreen() {
 
         {/* Recent History */}
         <View style={{ marginHorizontal: 16 }}>
-          <Text style={{ color: colors.foreground, fontSize: 18, fontWeight: '700', marginBottom: 12 }}>
+          <Text style={{ color: colors.cardForeground, fontSize: 18, fontWeight: '700', marginBottom: 12 }}>
             Recent History
           </Text>
           {recentEntries.map((entry) => (
@@ -244,10 +244,10 @@ export default function SleepScreen() {
               }}
             >
               <View style={{ flex: 1 }}>
-                <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '500' }}>
+                <Text style={{ color: colors.cardForeground, fontSize: 14, fontWeight: '500' }}>
                   {new Date(entry.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                 </Text>
-                <Text style={{ color: colors.muted, fontSize: 12 }}>
+                <Text style={{ color: colors.cardMuted, fontSize: 12 }}>
                   {entry.bedtime} → {entry.wakeTime}
                 </Text>
               </View>
@@ -266,7 +266,7 @@ export default function SleepScreen() {
             </View>
           ))}
           {recentEntries.length === 0 && (
-            <Text style={{ color: colors.muted, textAlign: 'center', marginTop: 20 }}>
+            <Text style={{ color: colors.cardMuted, textAlign: 'center', marginTop: 20 }}>
               No sleep data yet. Start logging above!
             </Text>
           )}

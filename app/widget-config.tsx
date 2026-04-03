@@ -113,7 +113,7 @@ export default function WidgetConfigScreen() {
         <View style={s.card}>
           <Text style={s.sectionLabel}>Active Rows (in order)</Text>
           {config.enabledStats.length === 0 ? (
-            <Text style={{ color: colors.muted, fontSize: 13, marginTop: 8 }}>
+            <Text style={{ color: colors.cardMuted, fontSize: 13, marginTop: 8 }}>
               No stats selected — tap below to add some.
             </Text>
           ) : (
@@ -145,7 +145,7 @@ export default function WidgetConfigScreen() {
               );
             })
           )}
-          <Text style={[s.countBadge, { color: config.enabledStats.length >= MAX_STATS ? colors.warning : colors.muted }]}>
+          <Text style={[s.countBadge, { color: config.enabledStats.length >= MAX_STATS ? colors.warning : colors.cardMuted }]}>
             {config.enabledStats.length}/{MAX_STATS} slots used
           </Text>
         </View>
@@ -174,8 +174,8 @@ export default function WidgetConfigScreen() {
                   value={isEnabled}
                   onValueChange={() => toggleStat(opt.id)}
                   disabled={isDisabled}
-                  trackColor={{ false: colors.border, true: colors.primary }}
-                  thumbColor={isEnabled ? '#fff' : colors.muted}
+                  trackColor={{ false: colors.cardBorder, true: colors.primary }}
+                  thumbColor={isEnabled ? '#fff' : colors.cardMuted}
                 />
               </View>
             );
@@ -221,15 +221,15 @@ export default function WidgetConfigScreen() {
 
 const styles = (colors: ReturnType<typeof useColors>) =>
   StyleSheet.create({
-    title: { fontSize: 26, fontWeight: '700', color: colors.foreground },
-    subtitle: { fontSize: 14, color: colors.muted, lineHeight: 20 },
-    sectionLabel: { fontSize: 12, fontWeight: '600', color: colors.muted, textTransform: 'uppercase', letterSpacing: 0.8 },
+    title: { fontSize: 26, fontWeight: '700', color: colors.cardForeground },
+    subtitle: { fontSize: 14, color: colors.cardMuted, lineHeight: 20 },
+    sectionLabel: { fontSize: 12, fontWeight: '600', color: colors.cardMuted, textTransform: 'uppercase', letterSpacing: 0.8 },
     card: {
       backgroundColor: colors.surface,
       borderRadius: 14,
       padding: 16,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: colors.cardBorder,
       gap: 4,
     },
     activeRow: {
@@ -237,16 +237,16 @@ const styles = (colors: ReturnType<typeof useColors>) =>
       alignItems: 'center',
       paddingVertical: 10,
       borderBottomWidth: 1,
-      borderBottomColor: colors.border,
+      borderBottomColor: colors.cardBorder,
       gap: 10,
     },
-    activeLabel: { fontSize: 15, fontWeight: '600', color: colors.foreground },
+    activeLabel: { fontSize: 15, fontWeight: '600', color: colors.cardForeground },
     arrowBtn: {
       width: 30,
       height: 30,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: colors.border,
+      backgroundColor: colors.cardBorder,
       borderRadius: 8,
     },
     countBadge: { fontSize: 12, marginTop: 8, textAlign: 'right' },
@@ -258,17 +258,17 @@ const styles = (colors: ReturnType<typeof useColors>) =>
       padding: 14,
       gap: 12,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: colors.cardBorder,
     },
-    optLabel: { fontSize: 15, fontWeight: '600', color: colors.foreground },
-    optDesc: { fontSize: 12, color: colors.muted },
+    optLabel: { fontSize: 15, fontWeight: '600', color: colors.cardForeground },
+    optDesc: { fontSize: 12, color: colors.cardMuted },
     themeBtn: {
       flex: 1,
       padding: 14,
       borderRadius: 12,
       alignItems: 'center',
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: colors.cardBorder,
     },
     saveBtn: {
       padding: 16,

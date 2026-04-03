@@ -138,21 +138,21 @@ export function FoodSearch({ onAdd, onClose, mealNumber }: FoodSearchProps) {
   return (
     <View className="flex-1" style={{ backgroundColor: colors.background }}>
       {/* Header */}
-      <View className="flex-row items-center px-4 py-3" style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}>
+      <View className="flex-row items-center px-4 py-3" style={{ borderBottomWidth: 1, borderBottomColor: colors.cardBorder }}>
         <View className="flex-1 flex-row items-center rounded-xl px-3 py-2.5" style={{ backgroundColor: colors.surface }}>
-          <IconSymbol name="magnifyingglass" size={16} color={colors.muted} />
+          <IconSymbol name="magnifyingglass" size={16} color={colors.cardMuted} />
           <TextInput
             ref={inputRef}
             value={query}
             onChangeText={setQuery}
             placeholder="Search 280+ UAE foods..."
-            placeholderTextColor={colors.muted}
-            className="flex-1 ml-2 text-sm text-foreground"
+            placeholderTextColor={colors.cardMuted}
+            className="flex-1 ml-2 text-sm text-cardForeground"
             returnKeyType="search"
           />
           {query !== '' && (
             <TouchableOpacity onPress={() => setQuery('')}>
-              <IconSymbol name="xmark.circle.fill" size={16} color={colors.muted} />
+              <IconSymbol name="xmark.circle.fill" size={16} color={colors.cardMuted} />
             </TouchableOpacity>
           )}
         </View>
@@ -166,7 +166,7 @@ export function FoodSearch({ onAdd, onClose, mealNumber }: FoodSearchProps) {
         horizontal
         showsHorizontalScrollIndicator={false}
         className="py-2 px-4"
-        style={{ borderBottomWidth: 1, borderBottomColor: colors.border, maxHeight: 68 }}
+        style={{ borderBottomWidth: 1, borderBottomColor: colors.cardBorder, maxHeight: 68 }}
       >
         {CATEGORIES.map(cat => (
           <TouchableOpacity
@@ -179,7 +179,7 @@ export function FoodSearch({ onAdd, onClose, mealNumber }: FoodSearchProps) {
           >
             <Text
               className="text-xs font-medium"
-              style={{ color: category === cat ? '#FFFFFF' : colors.muted }}
+              style={{ color: category === cat ? '#FFFFFF' : colors.cardMuted }}
             >
               {cat}
             </Text>
@@ -191,7 +191,7 @@ export function FoodSearch({ onAdd, onClose, mealNumber }: FoodSearchProps) {
         {/* Quick Add */}
         {!query && !selectedFood && category === 'All' && (
           <View className="px-4 pt-4 pb-2">
-            <Text className="text-xs font-medium text-muted mb-3" style={{ textTransform: 'uppercase', letterSpacing: 1 }}>
+            <Text className="text-xs font-medium text-cardMuted mb-3" style={{ textTransform: 'uppercase', letterSpacing: 1 }}>
               Quick Add
             </Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -202,12 +202,12 @@ export function FoodSearch({ onAdd, onClose, mealNumber }: FoodSearchProps) {
                     key={food.id}
                     onPress={() => handleQuickAdd(food)}
                     className="mr-2 rounded-xl p-3"
-                    style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, width: 130 }}
+                    style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.cardBorder, width: 130 }}
                   >
-                    <Text className="text-xs font-medium text-foreground" numberOfLines={2}>{food.name}</Text>
-                    <Text className="text-xs text-muted mt-0.5">{food.servingSizes[0].label}</Text>
+                    <Text className="text-xs font-medium text-cardForeground" numberOfLines={2}>{food.name}</Text>
+                    <Text className="text-xs text-cardMuted mt-0.5">{food.servingSizes[0].label}</Text>
                     <Text className="text-xs font-semibold mt-1" style={{ color: colors.primary }}>{macros.calories} kcal</Text>
-                    <Text className="text-xs text-muted">P:{macros.protein}g</Text>
+                    <Text className="text-xs text-cardMuted">P:{macros.protein}g</Text>
                   </TouchableOpacity>
                 );
               })}
@@ -218,19 +218,19 @@ export function FoodSearch({ onAdd, onClose, mealNumber }: FoodSearchProps) {
         {/* Selected food detail */}
         {selectedFood && (
           <View className="px-4 pt-4">
-            <View className="rounded-2xl p-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+            <View className="rounded-2xl p-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.cardBorder }}>
               <View className="flex-row items-start justify-between mb-3">
                 <View className="flex-1">
-                  <Text className="text-base font-semibold text-foreground">{selectedFood.name}</Text>
-                  <Text className="text-xs text-muted mt-0.5">{selectedFood.category}</Text>
+                  <Text className="text-base font-semibold text-cardForeground">{selectedFood.name}</Text>
+                  <Text className="text-xs text-cardMuted mt-0.5">{selectedFood.category}</Text>
                 </View>
                 <TouchableOpacity onPress={() => setSelectedFood(null)}>
-                  <IconSymbol name="xmark.circle.fill" size={20} color={colors.muted} />
+                  <IconSymbol name="xmark.circle.fill" size={20} color={colors.cardMuted} />
                 </TouchableOpacity>
               </View>
 
               {/* Serving sizes */}
-              <Text className="text-xs text-muted mb-2">Serving size</Text>
+              <Text className="text-xs text-cardMuted mb-2">Serving size</Text>
               <View className="flex-row flex-wrap" style={{ gap: 6 }}>
                 {selectedFood.servingSizes.map((s, i) => (
                   <TouchableOpacity
@@ -240,28 +240,28 @@ export function FoodSearch({ onAdd, onClose, mealNumber }: FoodSearchProps) {
                     style={{
                       backgroundColor: selectedServing === i && !customGrams ? colors.primary : colors.background,
                       borderWidth: 1,
-                      borderColor: selectedServing === i && !customGrams ? colors.primary : colors.border,
+                      borderColor: selectedServing === i && !customGrams ? colors.primary : colors.cardBorder,
                     }}
                   >
                     <Text
                       className="text-xs font-medium"
-                      style={{ color: selectedServing === i && !customGrams ? '#FFFFFF' : colors.muted }}
+                      style={{ color: selectedServing === i && !customGrams ? '#FFFFFF' : colors.cardMuted }}
                     >
                       {s.label}
                     </Text>
                   </TouchableOpacity>
                 ))}
-                <View className="flex-row items-center rounded-lg px-2" style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border }}>
+                <View className="flex-row items-center rounded-lg px-2" style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.cardBorder }}>
                   <TextInput
                     value={customGrams}
                     onChangeText={setCustomGrams}
                     placeholder="Custom"
-                    placeholderTextColor={colors.muted}
+                    placeholderTextColor={colors.cardMuted}
                     keyboardType="decimal-pad"
-                    className="text-xs py-1.5 text-foreground"
+                    className="text-xs py-1.5 text-cardForeground"
                     style={{ width: 60 }}
                   />
-                  <Text className="text-xs text-muted">g</Text>
+                  <Text className="text-xs text-cardMuted">g</Text>
                 </View>
               </View>
 
@@ -269,14 +269,14 @@ export function FoodSearch({ onAdd, onClose, mealNumber }: FoodSearchProps) {
               {preview && effectiveGrams > 0 && (
                 <View className="flex-row mt-4" style={{ gap: 8 }}>
                   {[
-                    { label: 'Cal', value: preview.calories, unit: '', color: colors.foreground },
+                    { label: 'Cal', value: preview.calories, unit: '', color: colors.cardForeground },
                     { label: 'Protein', value: preview.protein, unit: 'g', color: '#3B82F6' },
                     { label: 'Carbs', value: preview.carbs, unit: 'g', color: '#F59E0B' },
                     { label: 'Fat', value: preview.fat, unit: 'g', color: '#8B5CF6' },
                   ].map(m => (
                     <View key={m.label} className="flex-1 rounded-xl p-2 items-center" style={{ backgroundColor: colors.background }}>
                       <Text className="text-base font-bold" style={{ color: m.color }}>{m.value}{m.unit}</Text>
-                      <Text className="text-xs text-muted">{m.label}</Text>
+                      <Text className="text-xs text-cardMuted">{m.label}</Text>
                     </View>
                   ))}
                 </View>
@@ -286,7 +286,7 @@ export function FoodSearch({ onAdd, onClose, mealNumber }: FoodSearchProps) {
                 onPress={handleAdd}
                 disabled={effectiveGrams <= 0}
                 className="mt-4 py-3 rounded-xl flex-row items-center justify-center"
-                style={{ backgroundColor: effectiveGrams > 0 ? colors.primary : colors.border }}
+                style={{ backgroundColor: effectiveGrams > 0 ? colors.primary : colors.cardBorder }}
               >
                 <IconSymbol name="plus.circle.fill" size={18} color="#FFFFFF" />
                 <Text className="text-white font-semibold ml-2">Add to Log</Text>
@@ -299,11 +299,11 @@ export function FoodSearch({ onAdd, onClose, mealNumber }: FoodSearchProps) {
         {!selectedFood && (
           <View className="px-4 pt-2 pb-6">
             {query !== '' && (
-              <Text className="text-xs text-muted mb-3">{filtered.length} results</Text>
+              <Text className="text-xs text-cardMuted mb-3">{filtered.length} results</Text>
             )}
             {filtered.length === 0 ? (
               <View className="items-center py-12">
-                <Text className="text-sm text-muted">No foods found for "{query}"</Text>
+                <Text className="text-sm text-cardMuted">No foods found for "{query}"</Text>
               </View>
             ) : (
               filtered.map(food => {
@@ -313,15 +313,15 @@ export function FoodSearch({ onAdd, onClose, mealNumber }: FoodSearchProps) {
                     key={food.id}
                     onPress={() => { setSelectedFood(food); setSelectedServing(0); setCustomGrams(''); }}
                     className="flex-row items-center justify-between rounded-xl p-3 mb-2"
-                    style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+                    style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.cardBorder }}
                   >
                     <View className="flex-1 mr-3">
-                      <Text className="text-sm font-medium text-foreground" numberOfLines={1}>{food.name}</Text>
-                      <Text className="text-xs text-muted mt-0.5">{food.servingSizes[0].label} · {food.category}</Text>
+                      <Text className="text-sm font-medium text-cardForeground" numberOfLines={1}>{food.name}</Text>
+                      <Text className="text-xs text-cardMuted mt-0.5">{food.servingSizes[0].label} · {food.category}</Text>
                     </View>
                     <View className="items-end">
-                      <Text className="text-sm font-semibold text-foreground">{macros.calories}</Text>
-                      <Text className="text-xs text-muted">kcal</Text>
+                      <Text className="text-sm font-semibold text-cardForeground">{macros.calories}</Text>
+                      <Text className="text-xs text-cardMuted">kcal</Text>
                     </View>
                   </TouchableOpacity>
                 );
@@ -335,7 +335,7 @@ export function FoodSearch({ onAdd, onClose, mealNumber }: FoodSearchProps) {
             <TouchableOpacity
               onPress={() => setShowManualEntry(!showManualEntry)}
               className="flex-row items-center justify-center py-3 rounded-xl mb-3"
-              style={{ borderWidth: 1, borderColor: colors.border, borderStyle: "dashed" }}
+              style={{ borderWidth: 1, borderColor: colors.cardBorder, borderStyle: "dashed" }}
             >
               <IconSymbol name="plus.circle" size={16} color={colors.primary} />
               <Text className="text-sm font-medium ml-2" style={{ color: colors.primary }}>
@@ -343,21 +343,21 @@ export function FoodSearch({ onAdd, onClose, mealNumber }: FoodSearchProps) {
               </Text>
             </TouchableOpacity>
             {showManualEntry && (
-              <View className="rounded-2xl p-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
-                <TextInput value={manualName} onChangeText={setManualName} placeholder="Food name" placeholderTextColor={colors.muted} className="h-12 px-4 rounded-xl text-foreground mb-3" style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border }} />
+              <View className="rounded-2xl p-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.cardBorder }}>
+                <TextInput value={manualName} onChangeText={setManualName} placeholder="Food name" placeholderTextColor={colors.cardMuted} className="h-12 px-4 rounded-xl text-cardForeground mb-3" style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.cardBorder }} />
                 <View className="flex-row mb-3" style={{ gap: 8 }}>
-                  <View className="flex-1"><Text className="text-xs text-muted mb-1">Protein (g)</Text><TextInput value={manualProtein} onChangeText={setManualProtein} placeholder="0" placeholderTextColor={colors.muted} keyboardType="decimal-pad" className="h-10 px-3 rounded-xl text-center text-foreground" style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: "#3B82F640" }} /></View>
-                  <View className="flex-1"><Text className="text-xs text-muted mb-1">Carbs (g)</Text><TextInput value={manualCarbs} onChangeText={setManualCarbs} placeholder="0" placeholderTextColor={colors.muted} keyboardType="decimal-pad" className="h-10 px-3 rounded-xl text-center text-foreground" style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: "#F59E0B40" }} /></View>
-                  <View className="flex-1"><Text className="text-xs text-muted mb-1">Fat (g)</Text><TextInput value={manualFat} onChangeText={setManualFat} placeholder="0" placeholderTextColor={colors.muted} keyboardType="decimal-pad" className="h-10 px-3 rounded-xl text-center text-foreground" style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: "#EF444440" }} /></View>
+                  <View className="flex-1"><Text className="text-xs text-cardMuted mb-1">Protein (g)</Text><TextInput value={manualProtein} onChangeText={setManualProtein} placeholder="0" placeholderTextColor={colors.cardMuted} keyboardType="decimal-pad" className="h-10 px-3 rounded-xl text-center text-cardForeground" style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: "#3B82F640" }} /></View>
+                  <View className="flex-1"><Text className="text-xs text-cardMuted mb-1">Carbs (g)</Text><TextInput value={manualCarbs} onChangeText={setManualCarbs} placeholder="0" placeholderTextColor={colors.cardMuted} keyboardType="decimal-pad" className="h-10 px-3 rounded-xl text-center text-cardForeground" style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: "#F59E0B40" }} /></View>
+                  <View className="flex-1"><Text className="text-xs text-cardMuted mb-1">Fat (g)</Text><TextInput value={manualFat} onChangeText={setManualFat} placeholder="0" placeholderTextColor={colors.cardMuted} keyboardType="decimal-pad" className="h-10 px-3 rounded-xl text-center text-cardForeground" style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: "#EF444440" }} /></View>
                 </View>
                 <View className="flex-row items-center mb-3" style={{ gap: 8 }}>
-                  <View className="flex-1"><Text className="text-xs text-muted mb-1">Serving (g)</Text><TextInput value={manualGrams} onChangeText={setManualGrams} placeholder="100" placeholderTextColor={colors.muted} keyboardType="decimal-pad" className="h-10 px-3 rounded-xl text-center text-foreground" style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border }} /></View>
+                  <View className="flex-1"><Text className="text-xs text-cardMuted mb-1">Serving (g)</Text><TextInput value={manualGrams} onChangeText={setManualGrams} placeholder="100" placeholderTextColor={colors.cardMuted} keyboardType="decimal-pad" className="h-10 px-3 rounded-xl text-center text-cardForeground" style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.cardBorder }} /></View>
                   <View className="flex-1 rounded-xl p-2 items-center" style={{ backgroundColor: colors.background }}>
-                    <Text className="text-lg font-bold text-foreground">{Math.round((parseFloat(manualProtein)||0)*4 + (parseFloat(manualCarbs)||0)*4 + (parseFloat(manualFat)||0)*9)}</Text>
-                    <Text className="text-xs text-muted">kcal</Text>
+                    <Text className="text-lg font-bold text-cardForeground">{Math.round((parseFloat(manualProtein)||0)*4 + (parseFloat(manualCarbs)||0)*4 + (parseFloat(manualFat)||0)*9)}</Text>
+                    <Text className="text-xs text-cardMuted">kcal</Text>
                   </View>
                 </View>
-                <TouchableOpacity onPress={handleManualAdd} disabled={!manualName.trim()} className="py-3 rounded-xl flex-row items-center justify-center" style={{ backgroundColor: manualName.trim() ? colors.primary : colors.border }}>
+                <TouchableOpacity onPress={handleManualAdd} disabled={!manualName.trim()} className="py-3 rounded-xl flex-row items-center justify-center" style={{ backgroundColor: manualName.trim() ? colors.primary : colors.cardBorder }}>
                   <IconSymbol name="plus.circle.fill" size={18} color="#FFFFFF" />
                   <Text className="text-white font-semibold ml-2">Add to Log</Text>
                 </TouchableOpacity>

@@ -69,12 +69,12 @@ export default function OnboardingScreen() {
 
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
-  const fg = colors.foreground;
-  const mt = colors.muted;
+  const fg = colors.cardForeground;
+  const mt = colors.cardMuted;
   const pr = colors.primary;
   const bg = colors.background;
   const surf = colors.surface;
-  const bord = colors.border;
+  const bord = colors.cardBorder;
   const succ = colors.success;
 
   // ── Animations ──────────────────────────────────────────────

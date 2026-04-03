@@ -53,7 +53,7 @@ export function ProgressPhotoSlider({ beforePhoto, afterPhoto }: ProgressPhotoSl
     <View className="mb-6">
       <View
         className="bg-surface rounded-xl p-4 overflow-hidden"
-        style={{ borderWidth: 1, borderColor: colors.border }}
+        style={{ borderWidth: 1, borderColor: colors.cardBorder }}
       >
         {/* Comparison Slider */}
         <View
@@ -159,22 +159,22 @@ export function ProgressPhotoSlider({ beforePhoto, afterPhoto }: ProgressPhotoSl
         {/* Photo Info */}
         <View className="mt-4 flex-row justify-between items-center">
           <View className="flex-1">
-            <Text className="text-xs text-muted">Before</Text>
-            <Text className="text-sm font-semibold text-foreground">
+            <Text className="text-xs text-cardMuted">Before</Text>
+            <Text className="text-sm font-semibold text-cardForeground">
               {formatDate(beforePhoto.date)}
             </Text>
           </View>
 
           <View className="items-center">
-            <Text className="text-xs text-muted">Progress</Text>
+            <Text className="text-xs text-cardMuted">Progress</Text>
             <Text className="text-sm font-bold" style={{ color: colors.success }}>
               {daysDifference} days
             </Text>
           </View>
 
           <View className="flex-1 items-end">
-            <Text className="text-xs text-muted">After</Text>
-            <Text className="text-sm font-semibold text-foreground">
+            <Text className="text-xs text-cardMuted">After</Text>
+            <Text className="text-sm font-semibold text-cardForeground">
               {formatDate(afterPhoto.date)}
             </Text>
           </View>
@@ -195,8 +195,8 @@ export function ProgressPhotoSlider({ beforePhoto, afterPhoto }: ProgressPhotoSl
 
       {/* Instructions */}
       <View className="mt-3 flex-row items-center gap-2 px-2">
-        <IconSymbol name="info.circle.fill" size={16} color={colors.muted} />
-        <Text className="text-xs text-muted flex-1">Drag the slider to compare photos</Text>
+        <IconSymbol name="info.circle.fill" size={16} color={colors.cardMuted} />
+        <Text className="text-xs text-cardMuted flex-1">Drag the slider to compare photos</Text>
       </View>
     </View>
   );

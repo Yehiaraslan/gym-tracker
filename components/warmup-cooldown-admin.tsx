@@ -157,7 +157,7 @@ export function WarmupCooldownAdmin() {
             style={{ 
               textAlign: 'center', 
               fontWeight: '600',
-              color: activeTab === 'warmup' ? '#FFFFFF' : colors.foreground,
+              color: activeTab === 'warmup' ? '#FFFFFF' : colors.cardForeground,
             }}
           >
             🔥 Warm-up
@@ -177,7 +177,7 @@ export function WarmupCooldownAdmin() {
             style={{ 
               textAlign: 'center', 
               fontWeight: '600',
-              color: activeTab === 'cooldown' ? '#FFFFFF' : colors.foreground,
+              color: activeTab === 'cooldown' ? '#FFFFFF' : colors.cardForeground,
             }}
           >
             ❄️ Cool-down
@@ -190,7 +190,7 @@ export function WarmupCooldownAdmin() {
         className="mx-4 mb-4 p-4 rounded-xl"
         style={{ backgroundColor: activeTab === 'warmup' ? colors.warning + '15' : colors.primary + '15' }}
       >
-        <Text className="text-foreground font-medium">
+        <Text className="text-cardForeground font-medium">
           {exercises.length} exercise{exercises.length !== 1 ? 's' : ''} • Total: {formatDuration(totalDuration)}
         </Text>
       </View>
@@ -202,12 +202,12 @@ export function WarmupCooldownAdmin() {
             <IconSymbol 
               name={activeTab === 'warmup' ? 'flame.fill' : 'snowflake'} 
               size={48} 
-              color={colors.muted} 
+              color={colors.cardMuted} 
             />
-            <Text className="text-foreground font-medium mt-4">
+            <Text className="text-cardForeground font-medium mt-4">
               No {activeTab === 'warmup' ? 'Warm-up' : 'Cool-down'} Exercises
             </Text>
-            <Text className="text-muted text-center mt-1">
+            <Text className="text-cardMuted text-center mt-1">
               Add exercises to {activeTab === 'warmup' ? 'prepare your body before training' : 'recover after your workout'}
             </Text>
           </View>
@@ -218,7 +218,7 @@ export function WarmupCooldownAdmin() {
               <View
                 key={exercise.id}
                 className="bg-surface rounded-xl mb-3 overflow-hidden"
-                style={{ borderWidth: 1, borderColor: colors.border }}
+                style={{ borderWidth: 1, borderColor: colors.cardBorder }}
               >
                 <View className="p-4">
                   <View className="flex-row items-center justify-between">
@@ -235,8 +235,8 @@ export function WarmupCooldownAdmin() {
                         </Text>
                       </View>
                       <View className="flex-1">
-                        <Text className="font-semibold text-foreground">{exercise.name}</Text>
-                        <Text className="text-sm text-muted">{formatDuration(exercise.duration)}</Text>
+                        <Text className="font-semibold text-cardForeground">{exercise.name}</Text>
+                        <Text className="text-sm text-cardMuted">{formatDuration(exercise.duration)}</Text>
                       </View>
                     </View>
                     <View className="flex-row items-center">
@@ -247,7 +247,7 @@ export function WarmupCooldownAdmin() {
                         onPress={() => openEditModal(exercise)}
                         className="p-2"
                       >
-                        <IconSymbol name="pencil" size={18} color={colors.muted} />
+                        <IconSymbol name="pencil" size={18} color={colors.cardMuted} />
                       </TouchableOpacity>
                       <TouchableOpacity
                         onPress={() => handleDelete(exercise)}
@@ -262,7 +262,7 @@ export function WarmupCooldownAdmin() {
                       className="mt-3 p-3 rounded-lg"
                       style={{ backgroundColor: colors.background }}
                     >
-                      <Text className="text-sm text-muted">{exercise.notes}</Text>
+                      <Text className="text-sm text-cardMuted">{exercise.notes}</Text>
                     </View>
                   )}
                 </View>
@@ -305,11 +305,11 @@ export function WarmupCooldownAdmin() {
         <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
           <View className="bg-background rounded-t-3xl">
             {/* Modal Header */}
-            <View className="flex-row items-center justify-between p-4 border-b" style={{ borderBottomColor: colors.border }}>
+            <View className="flex-row items-center justify-between p-4 border-b" style={{ borderBottomColor: colors.cardBorder }}>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Text style={{ color: colors.muted }}>Cancel</Text>
+                <Text style={{ color: colors.cardMuted }}>Cancel</Text>
               </TouchableOpacity>
-              <Text className="text-lg font-semibold text-foreground">
+              <Text className="text-lg font-semibold text-cardForeground">
                 {editingExercise ? 'Edit' : 'Add'} {activeTab === 'warmup' ? 'Warm-up' : 'Cool-down'}
               </Text>
               <TouchableOpacity onPress={handleSave}>
@@ -319,51 +319,51 @@ export function WarmupCooldownAdmin() {
 
             <ScrollView className="p-4">
               {/* Name */}
-              <Text className="text-sm font-medium text-muted mb-2">Exercise Name *</Text>
+              <Text className="text-sm font-medium text-cardMuted mb-2">Exercise Name *</Text>
               <TextInput
                 value={formData.name}
                 onChangeText={(text) => setFormData(prev => ({ ...prev, name: text }))}
                 placeholder="e.g., Jumping Jacks, Stretching"
-                placeholderTextColor={colors.muted}
-                className="bg-surface rounded-xl p-4 text-foreground mb-4"
-                style={{ borderWidth: 1, borderColor: colors.border }}
+                placeholderTextColor={colors.cardMuted}
+                className="bg-surface rounded-xl p-4 text-cardForeground mb-4"
+                style={{ borderWidth: 1, borderColor: colors.cardBorder }}
               />
 
               {/* Duration */}
-              <Text className="text-sm font-medium text-muted mb-2">Duration (seconds)</Text>
+              <Text className="text-sm font-medium text-cardMuted mb-2">Duration (seconds)</Text>
               <TextInput
                 value={formData.duration}
                 onChangeText={(text) => setFormData(prev => ({ ...prev, duration: text }))}
                 placeholder="30"
-                placeholderTextColor={colors.muted}
+                placeholderTextColor={colors.cardMuted}
                 keyboardType="number-pad"
-                className="bg-surface rounded-xl p-4 text-foreground mb-4"
-                style={{ borderWidth: 1, borderColor: colors.border }}
+                className="bg-surface rounded-xl p-4 text-cardForeground mb-4"
+                style={{ borderWidth: 1, borderColor: colors.cardBorder }}
               />
 
               {/* Video URL */}
-              <Text className="text-sm font-medium text-muted mb-2">Video URL (optional)</Text>
+              <Text className="text-sm font-medium text-cardMuted mb-2">Video URL (optional)</Text>
               <TextInput
                 value={formData.videoUrl}
                 onChangeText={(text) => setFormData(prev => ({ ...prev, videoUrl: text }))}
                 placeholder="https://youtube.com/..."
-                placeholderTextColor={colors.muted}
+                placeholderTextColor={colors.cardMuted}
                 autoCapitalize="none"
-                className="bg-surface rounded-xl p-4 text-foreground mb-4"
-                style={{ borderWidth: 1, borderColor: colors.border }}
+                className="bg-surface rounded-xl p-4 text-cardForeground mb-4"
+                style={{ borderWidth: 1, borderColor: colors.cardBorder }}
               />
 
               {/* Notes */}
-              <Text className="text-sm font-medium text-muted mb-2">Notes (optional)</Text>
+              <Text className="text-sm font-medium text-cardMuted mb-2">Notes (optional)</Text>
               <TextInput
                 value={formData.notes}
                 onChangeText={(text) => setFormData(prev => ({ ...prev, notes: text }))}
                 placeholder="Instructions or tips"
-                placeholderTextColor={colors.muted}
+                placeholderTextColor={colors.cardMuted}
                 multiline
                 numberOfLines={3}
-                className="bg-surface rounded-xl p-4 text-foreground mb-8"
-                style={{ borderWidth: 1, borderColor: colors.border, minHeight: 80 }}
+                className="bg-surface rounded-xl p-4 text-cardForeground mb-8"
+                style={{ borderWidth: 1, borderColor: colors.cardBorder, minHeight: 80 }}
               />
             </ScrollView>
           </View>

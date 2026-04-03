@@ -165,7 +165,7 @@ export function VolumeAlertsBanner({ alerts, onDismiss, onPress }: VolumeAlertsB
           style={[
             styles.moreCount,
             {
-              color: colors.muted,
+              color: colors.cardMuted,
             },
           ]}
         >

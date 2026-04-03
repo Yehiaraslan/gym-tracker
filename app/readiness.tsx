@@ -207,7 +207,7 @@ export default function ReadinessScreen() {
   return (
     <ScreenContainer>
       {/* Header */}
-      <View style={[styles.header, { borderBottomColor: colors.muted }]}>
+      <View style={[styles.header, { borderBottomColor: colors.cardMuted }]}>
         <TouchableOpacity
           onPress={() => router.back()}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -216,7 +216,7 @@ export default function ReadinessScreen() {
             ← Back
           </Text>
         </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.foreground }]}>
+        <Text style={[styles.title, { color: colors.cardForeground }]}>
           Readiness Score
         </Text>
         <View style={{ width: 60 }} />
@@ -225,7 +225,7 @@ export default function ReadinessScreen() {
       {loading ? (
         <View style={[styles.loadingContainer, { backgroundColor: colors.surface }]}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.loadingText, { color: colors.foreground }]}>
+          <Text style={[styles.loadingText, { color: colors.cardForeground }]}>
             Computing readiness...
           </Text>
         </View>
@@ -242,7 +242,7 @@ export default function ReadinessScreen() {
               {history.length > 0 && (
                 <View style={styles.trendSection}>
                   <Text
-                    style={[styles.trendTitle, { color: colors.foreground }]}
+                    style={[styles.trendTitle, { color: colors.cardForeground }]}
                   >
                     7-Day Trend
                   </Text>
@@ -278,7 +278,7 @@ export default function ReadinessScreen() {
                             <Text
                               style={[
                                 styles.trendDate,
-                                { color: colors.muted },
+                                { color: colors.cardMuted },
                               ]}
                             >
                               {new Date(item.date).toLocaleDateString('en-US', {
@@ -288,7 +288,7 @@ export default function ReadinessScreen() {
                             <Text
                               style={[
                                 styles.trendScore,
-                                { color: colors.foreground },
+                                { color: colors.cardForeground },
                               ]}
                             >
                               {item.score}
@@ -308,36 +308,36 @@ export default function ReadinessScreen() {
               <View
                 style={[
                   styles.infoSection,
-                  { backgroundColor: colors.surface, borderColor: colors.border },
+                  { backgroundColor: colors.surface, borderColor: colors.cardBorder },
                 ]}
               >
                 <Text
-                  style={[styles.infoTitle, { color: colors.foreground }]}
+                  style={[styles.infoTitle, { color: colors.cardForeground }]}
                 >
                   How It Works
                 </Text>
                 <Text
-                  style={[styles.infoText, { color: colors.muted }]}
+                  style={[styles.infoText, { color: colors.cardMuted }]}
                 >
                   Your readiness score combines four key factors:
                 </Text>
                 <Text
-                  style={[styles.infoText, { color: colors.muted }]}
+                  style={[styles.infoText, { color: colors.cardMuted }]}
                 >
                   • <Text style={{ fontWeight: '600' }}>Sleep (25%)</Text> - Duration and quality of sleep
                 </Text>
                 <Text
-                  style={[styles.infoText, { color: colors.muted }]}
+                  style={[styles.infoText, { color: colors.cardMuted }]}
                 >
                   • <Text style={{ fontWeight: '600' }}>Recovery (30%)</Text> - WHOOP recovery score and HRV
                 </Text>
                 <Text
-                  style={[styles.infoText, { color: colors.muted }]}
+                  style={[styles.infoText, { color: colors.cardMuted }]}
                 >
                   • <Text style={{ fontWeight: '600' }}>Nutrition (20%)</Text> - Calorie and protein targets
                 </Text>
                 <Text
-                  style={[styles.infoText, { color: colors.muted }]}
+                  style={[styles.infoText, { color: colors.cardMuted }]}
                 >
                   • <Text style={{ fontWeight: '600' }}>Training Load (25%)</Text> - Volume and frequency
                 </Text>

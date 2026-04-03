@@ -37,10 +37,10 @@ export function SetupGuidanceScreen({ exerciseType, onContinue, onBack }: SetupG
             onPress={onBack} 
             style={({ pressed }) => [styles.backButton, pressed && { opacity: 0.7 }]}
           >
-            <IconSymbol name="chevron.left.forwardslash.chevron.right" size={24} color={colors.foreground} />
+            <IconSymbol name="chevron.left.forwardslash.chevron.right" size={24} color={colors.cardForeground} />
           </Pressable>
         )}
-        <Text style={[styles.title, { color: colors.foreground }]}>
+        <Text style={[styles.title, { color: colors.cardForeground }]}>
           Setup for {exerciseNames[exerciseType]}
         </Text>
       </View>
@@ -79,21 +79,21 @@ export function SetupGuidanceScreen({ exerciseType, onContinue, onBack }: SetupG
         />
 
         {/* Tips */}
-        <View style={[styles.tipsContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={[styles.tipsTitle, { color: colors.foreground }]}>
+        <View style={[styles.tipsContainer, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+          <Text style={[styles.tipsTitle, { color: colors.cardForeground }]}>
             💪 Tips for Best Results
           </Text>
           {guidance.tips.map((tip, index) => (
             <View key={index} style={styles.tipRow}>
               <Text style={[styles.tipBullet, { color: colors.primary }]}>•</Text>
-              <Text style={[styles.tipText, { color: colors.muted }]}>{tip}</Text>
+              <Text style={[styles.tipText, { color: colors.cardMuted }]}>{tip}</Text>
             </View>
           ))}
         </View>
 
         {/* Checklist */}
-        <View style={[styles.checklistContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={[styles.checklistTitle, { color: colors.foreground }]}>
+        <View style={[styles.checklistContainer, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+          <Text style={[styles.checklistTitle, { color: colors.cardForeground }]}>
             ✅ Before You Start
           </Text>
           <ChecklistItem text="Phone is stable (tripod or propped)" colors={colors} />
@@ -132,12 +132,12 @@ interface GuidanceCardProps {
 
 function GuidanceCard({ icon, title, description, colors }: GuidanceCardProps) {
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
       <View style={styles.cardHeader}>
         <Text style={styles.cardIcon}>{icon}</Text>
-        <Text style={[styles.cardTitle, { color: colors.foreground }]}>{title}</Text>
+        <Text style={[styles.cardTitle, { color: colors.cardForeground }]}>{title}</Text>
       </View>
-      <Text style={[styles.cardDescription, { color: colors.muted }]}>{description}</Text>
+      <Text style={[styles.cardDescription, { color: colors.cardMuted }]}>{description}</Text>
     </View>
   );
 }
@@ -153,7 +153,7 @@ function ChecklistItem({ text, colors }: ChecklistItemProps) {
       <View style={[styles.checkbox, { borderColor: colors.success, backgroundColor: colors.success + '20' }]}>
         <Text style={{ color: colors.success, fontSize: 12 }}>✓</Text>
       </View>
-      <Text style={[styles.checklistText, { color: colors.muted }]}>{text}</Text>
+      <Text style={[styles.checklistText, { color: colors.cardMuted }]}>{text}</Text>
     </View>
   );
 }
@@ -175,11 +175,11 @@ export function SetupReminder({ message, onDismiss }: SetupReminderProps) {
     <View style={[styles.reminderContainer, { backgroundColor: colors.warning + '20', borderColor: colors.warning }]}>
       <View style={styles.reminderContent}>
         <Text style={[styles.reminderIcon]}>⚠️</Text>
-        <Text style={[styles.reminderText, { color: colors.foreground }]}>{message}</Text>
+        <Text style={[styles.reminderText, { color: colors.cardForeground }]}>{message}</Text>
       </View>
       {onDismiss && (
         <Pressable onPress={onDismiss} style={styles.reminderDismiss}>
-          <Text style={{ color: colors.muted }}>✕</Text>
+          <Text style={{ color: colors.cardMuted }}>✕</Text>
         </Pressable>
       )}
     </View>
@@ -223,7 +223,7 @@ export function ConfidenceIndicator({ quality, confidence, showDetails = false }
         Tracking: {getQualityLabel()}
       </Text>
       {showDetails && (
-        <Text style={[styles.confidenceValue, { color: colors.muted }]}>
+        <Text style={[styles.confidenceValue, { color: colors.cardMuted }]}>
           {Math.round(confidence * 100)}%
         </Text>
       )}

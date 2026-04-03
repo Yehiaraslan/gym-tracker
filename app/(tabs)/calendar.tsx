@@ -107,8 +107,8 @@ export default function CalendarScreen() {
     <ScreenContainer className="flex-1">
       {/* Header */}
       <View className="px-4 pt-2 pb-4">
-        <Text className="text-2xl font-bold text-foreground">8-Week Schedule</Text>
-        <Text className="text-sm text-muted mt-1">
+        <Text className="text-2xl font-bold text-cardForeground">8-Week Schedule</Text>
+        <Text className="text-sm text-cardMuted mt-1">
           Cycle {currentCycleInfo.cycle} • Currently Week {currentCycleInfo.week}, {getDayName(currentCycleInfo.day)}
         </Text>
       </View>
@@ -117,23 +117,23 @@ export default function CalendarScreen() {
       <View className="flex-row px-4 mb-4">
         <View 
           className="flex-1 bg-surface rounded-xl p-4 mr-2"
-          style={{ borderWidth: 1, borderColor: colors.border }}
+          style={{ borderWidth: 1, borderColor: colors.cardBorder }}
         >
-          <Text className="text-2xl font-bold text-foreground">{cycleStats.totalWorkouts}</Text>
-          <Text className="text-sm text-muted">Workout Days</Text>
+          <Text className="text-2xl font-bold text-cardForeground">{cycleStats.totalWorkouts}</Text>
+          <Text className="text-sm text-cardMuted">Workout Days</Text>
         </View>
         <View 
           className="flex-1 bg-surface rounded-xl p-4 ml-2"
-          style={{ borderWidth: 1, borderColor: colors.border }}
+          style={{ borderWidth: 1, borderColor: colors.cardBorder }}
         >
-          <Text className="text-2xl font-bold text-foreground">{cycleStats.totalExercises}</Text>
-          <Text className="text-sm text-muted">Total Exercises</Text>
+          <Text className="text-2xl font-bold text-cardForeground">{cycleStats.totalExercises}</Text>
+          <Text className="text-sm text-cardMuted">Total Exercises</Text>
         </View>
       </View>
 
       {/* Week Selector */}
       <View className="px-4 mb-4">
-        <Text className="text-sm font-medium text-muted mb-2">Select Week</Text>
+        <Text className="text-sm font-medium text-cardMuted mb-2">Select Week</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           {[1, 2, 3, 4, 5, 6, 7, 8].map(week => {
             const isCurrentWeek = week === currentCycleInfo.week;
@@ -161,20 +161,20 @@ export default function CalendarScreen() {
                   backgroundColor: isSelected ? colors.primary : colors.surface,
                   marginRight: 8,
                   borderWidth: isCurrentWeek && !isSelected ? 2 : 1,
-                  borderColor: isCurrentWeek && !isSelected ? colors.success : isSelected ? colors.primary : colors.border,
+                  borderColor: isCurrentWeek && !isSelected ? colors.success : isSelected ? colors.primary : colors.cardBorder,
                   minWidth: 70,
                   alignItems: 'center',
                 }}
               >
                 <Text style={{ 
-                  color: isSelected ? '#FFFFFF' : colors.foreground,
+                  color: isSelected ? '#FFFFFF' : colors.cardForeground,
                   fontWeight: '700',
                   fontSize: 16,
                 }}>
                   W{week}
                 </Text>
                 <Text style={{ 
-                  color: isSelected ? 'rgba(255,255,255,0.8)' : colors.muted,
+                  color: isSelected ? 'rgba(255,255,255,0.8)' : colors.cardMuted,
                   fontSize: 11,
                   marginTop: 2,
                 }}>
@@ -199,13 +199,13 @@ export default function CalendarScreen() {
 
       {/* Week Calendar Grid */}
       <View className="px-4 mb-4">
-        <Text className="text-sm font-medium text-muted mb-2">Week {selectedWeek} Schedule</Text>
+        <Text className="text-sm font-medium text-cardMuted mb-2">Week {selectedWeek} Schedule</Text>
         <View 
           className="bg-surface rounded-xl overflow-hidden"
-          style={{ borderWidth: 1, borderColor: colors.border }}
+          style={{ borderWidth: 1, borderColor: colors.cardBorder }}
         >
           {/* Day Headers */}
-          <View className="flex-row border-b" style={{ borderBottomColor: colors.border }}>
+          <View className="flex-row border-b" style={{ borderBottomColor: colors.cardBorder }}>
             {DAYS_SHORT.map((day, index) => {
               const isToday = selectedWeek === currentCycleInfo.week && (index + 1) === currentCycleInfo.day;
               return (
@@ -218,7 +218,7 @@ export default function CalendarScreen() {
                 >
                   <Text 
                     className="text-center text-xs font-medium"
-                    style={{ color: isToday ? colors.primary : colors.muted }}
+                    style={{ color: isToday ? colors.primary : colors.cardMuted }}
                   >
                     {day}
                   </Text>
@@ -248,7 +248,7 @@ export default function CalendarScreen() {
                     alignItems: 'center',
                     backgroundColor: isSelected ? colors.primary + '10' : isToday ? colors.primary + '05' : 'transparent',
                     borderLeftWidth: day.dayNumber > 1 ? 1 : 0,
-                    borderLeftColor: colors.border,
+                    borderLeftColor: colors.cardBorder,
                   }}
                 >
                   {day.hasWorkout ? (
@@ -280,17 +280,17 @@ export default function CalendarScreen() {
                         width: 32,
                         height: 32,
                         borderRadius: 16,
-                        backgroundColor: colors.border,
+                        backgroundColor: colors.cardBorder,
                         justifyContent: 'center',
                         alignItems: 'center',
                       }}
                     >
-                      <Text style={{ color: colors.muted, fontSize: 14 }}>😴</Text>
+                      <Text style={{ color: colors.cardMuted, fontSize: 14 }}>😴</Text>
                     </View>
                   )}
                   <Text 
                     className="text-xs mt-1"
-                    style={{ color: isCompleted ? colors.success : day.hasWorkout ? colors.foreground : colors.muted }}
+                    style={{ color: isCompleted ? colors.success : day.hasWorkout ? colors.cardForeground : colors.cardMuted }}
                   >
                     {isCompleted ? 'Done' : day.exerciseCount > 0 ? `${day.exerciseCount} ex` : '—'}
                   </Text>
@@ -306,14 +306,14 @@ export default function CalendarScreen() {
         {selectedDayProgram ? (
           <View 
             className="bg-surface rounded-xl p-4 mb-4"
-            style={{ borderWidth: 1, borderColor: colors.border }}
+            style={{ borderWidth: 1, borderColor: colors.cardBorder }}
           >
             <View className="flex-row items-center justify-between mb-4">
               <View>
-                <Text className="text-lg font-semibold text-foreground">
+                <Text className="text-lg font-semibold text-cardForeground">
                   {selectedDayProgram.dayName}
                 </Text>
-                <Text className="text-sm text-muted">
+                <Text className="text-sm text-cardMuted">
                   Week {selectedWeek}
                 </Text>
               </View>
@@ -337,12 +337,12 @@ export default function CalendarScreen() {
                     <View 
                       key={index}
                       className="py-3 border-b"
-                      style={{ borderBottomColor: colors.border }}
+                      style={{ borderBottomColor: colors.cardBorder }}
                     >
-                      <Text className="font-medium text-foreground">
+                      <Text className="font-medium text-cardForeground">
                         {index + 1}. {exercise?.name || 'Unknown'}
                       </Text>
-                      <Text className="text-sm text-muted mt-1">
+                      <Text className="text-sm text-cardMuted mt-1">
                         {ex.sets} sets × {ex.reps} reps • Rest: {ex.restSeconds}s
                       </Text>
                       {exercise?.notes ? (
@@ -356,20 +356,20 @@ export default function CalendarScreen() {
               </View>
             ) : (
               <View className="items-center py-6">
-                <IconSymbol name="calendar" size={32} color={colors.muted} />
-                <Text className="text-muted mt-2">Rest Day</Text>
-                <Text className="text-sm text-muted">No workout scheduled</Text>
+                <IconSymbol name="calendar" size={32} color={colors.cardMuted} />
+                <Text className="text-cardMuted mt-2">Rest Day</Text>
+                <Text className="text-sm text-cardMuted">No workout scheduled</Text>
               </View>
             )}
           </View>
         ) : (
           <View 
             className="bg-surface rounded-xl p-6 items-center mb-4"
-            style={{ borderWidth: 1, borderColor: colors.border }}
+            style={{ borderWidth: 1, borderColor: colors.cardBorder }}
           >
-            <IconSymbol name="calendar" size={48} color={colors.muted} />
-            <Text className="text-foreground font-medium mt-4">Select a Day</Text>
-            <Text className="text-sm text-muted text-center mt-1">
+            <IconSymbol name="calendar" size={48} color={colors.cardMuted} />
+            <Text className="text-cardForeground font-medium mt-4">Select a Day</Text>
+            <Text className="text-sm text-cardMuted text-center mt-1">
               Tap on a day above to see the workout details
             </Text>
           </View>
@@ -378,9 +378,9 @@ export default function CalendarScreen() {
         {/* Week Summary */}
         <View 
           className="bg-surface rounded-xl p-4 mb-8"
-          style={{ borderWidth: 1, borderColor: colors.border }}
+          style={{ borderWidth: 1, borderColor: colors.cardBorder }}
         >
-          <Text className="text-sm font-medium text-muted mb-3">Week {selectedWeek} Summary</Text>
+          <Text className="text-sm font-medium text-cardMuted mb-3">Week {selectedWeek} Summary</Text>
           <View className="flex-row flex-wrap">
             {weekProgram.filter(d => d.hasWorkout).map((day) => (
               <View 
@@ -388,16 +388,16 @@ export default function CalendarScreen() {
                 className="mr-2 mb-2 px-3 py-2 rounded-lg"
                 style={{ backgroundColor: colors.background }}
               >
-                <Text className="text-sm font-medium text-foreground">
+                <Text className="text-sm font-medium text-cardForeground">
                   {day.dayName.substring(0, 3)}
                 </Text>
-                <Text className="text-xs text-muted">
+                <Text className="text-xs text-cardMuted">
                   {day.exerciseCount} exercises
                 </Text>
               </View>
             ))}
             {weekProgram.filter(d => d.hasWorkout).length === 0 && (
-              <Text className="text-muted">No workouts configured for this week</Text>
+              <Text className="text-cardMuted">No workouts configured for this week</Text>
             )}
           </View>
         </View>

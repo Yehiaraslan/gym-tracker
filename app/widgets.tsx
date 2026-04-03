@@ -71,11 +71,11 @@ export default function WidgetsScreen() {
         <View className="gap-2">
           <Text
             className="text-3xl font-bold"
-            style={{ color: colors.foreground }}
+            style={{ color: colors.cardForeground }}
           >
             Home Screen Widgets
           </Text>
-          <Text style={{ color: colors.muted }}>
+          <Text style={{ color: colors.cardMuted }}>
             Add Banana Pro Gym to your home screen for quick access to your
             stats
           </Text>
@@ -96,8 +96,8 @@ export default function WidgetsScreen() {
           }}
         >
           <View style={{ gap: 2 }}>
-            <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '700' }}>⚙️  Configure Widget Stats</Text>
-            <Text style={{ color: colors.muted, fontSize: 13 }}>Choose which stats appear on your home screen</Text>
+            <Text style={{ color: colors.cardForeground, fontSize: 16, fontWeight: '700' }}>⚙️  Configure Widget Stats</Text>
+            <Text style={{ color: colors.cardMuted, fontSize: 13 }}>Choose which stats appear on your home screen</Text>
           </View>
           <Text style={{ color: colors.primary, fontSize: 20 }}>›</Text>
         </TouchableOpacity>
@@ -106,7 +106,7 @@ export default function WidgetsScreen() {
         <View className="gap-3">
           <Text
             className="text-lg font-semibold"
-            style={{ color: colors.foreground }}
+            style={{ color: colors.cardForeground }}
           >
             📱 iOS Setup
           </Text>
@@ -114,11 +114,11 @@ export default function WidgetsScreen() {
             className="p-4 rounded-xl gap-2"
             style={{
               backgroundColor: colors.surface,
-              borderColor: colors.border,
+              borderColor: colors.cardBorder,
               borderWidth: 1,
             }}
           >
-            <Text style={{ color: colors.muted, fontSize: 14, lineHeight: 20 }}>
+            <Text style={{ color: colors.cardMuted, fontSize: 14, lineHeight: 20 }}>
               1. Long press your home screen{'\n'}
               2. Tap the + button to add a widget{'\n'}
               3. Search for "Banana Pro Gym"{'\n'}
@@ -131,7 +131,7 @@ export default function WidgetsScreen() {
         <View className="gap-3">
           <Text
             className="text-lg font-semibold"
-            style={{ color: colors.foreground }}
+            style={{ color: colors.cardForeground }}
           >
             🤖 Android Setup
           </Text>
@@ -139,11 +139,11 @@ export default function WidgetsScreen() {
             className="p-4 rounded-xl gap-2"
             style={{
               backgroundColor: colors.surface,
-              borderColor: colors.border,
+              borderColor: colors.cardBorder,
               borderWidth: 1,
             }}
           >
-            <Text style={{ color: colors.muted, fontSize: 14, lineHeight: 20 }}>
+            <Text style={{ color: colors.cardMuted, fontSize: 14, lineHeight: 20 }}>
               1. Long press your home screen{'\n'}
               2. Tap "Widgets"{'\n'}
               3. Find and tap "Banana Pro Gym"{'\n'}
@@ -157,11 +157,11 @@ export default function WidgetsScreen() {
           <View className="gap-2">
             <Text
               className="text-lg font-semibold"
-              style={{ color: colors.foreground }}
+              style={{ color: colors.cardForeground }}
             >
               Widget Previews
             </Text>
-            <Text style={{ color: colors.muted, fontSize: 12 }}>
+            <Text style={{ color: colors.cardMuted, fontSize: 12 }}>
               These show what your widgets will look like
             </Text>
           </View>
@@ -170,7 +170,7 @@ export default function WidgetsScreen() {
           <View className="gap-2">
             <Text
               className="text-sm font-semibold"
-              style={{ color: colors.foreground }}
+              style={{ color: colors.cardForeground }}
             >
               Small (2x2)
             </Text>
@@ -181,7 +181,7 @@ export default function WidgetsScreen() {
           <View className="gap-2">
             <Text
               className="text-sm font-semibold"
-              style={{ color: colors.foreground }}
+              style={{ color: colors.cardForeground }}
             >
               Medium (4x2)
             </Text>
@@ -192,7 +192,7 @@ export default function WidgetsScreen() {
           <View className="gap-2">
             <Text
               className="text-sm font-semibold"
-              style={{ color: colors.foreground }}
+              style={{ color: colors.cardForeground }}
             >
               Large (4x4)
             </Text>
@@ -225,16 +225,16 @@ export default function WidgetsScreen() {
             className="p-3 rounded-lg gap-1"
             style={{
               backgroundColor: colors.surface,
-              borderColor: colors.border,
+              borderColor: colors.cardBorder,
               borderWidth: 1,
             }}
           >
-            <Text className="text-xs" style={{ color: colors.muted }}>
+            <Text className="text-xs" style={{ color: colors.cardMuted }}>
               Last Updated
             </Text>
             <Text
               className="text-sm font-semibold"
-              style={{ color: colors.foreground }}
+              style={{ color: colors.cardForeground }}
             >
               {lastUpdated}
             </Text>
@@ -269,27 +269,27 @@ export default function WidgetsScreen() {
           className="p-4 rounded-lg gap-3"
           style={{
             backgroundColor: colors.surface,
-            borderColor: colors.border,
+            borderColor: colors.cardBorder,
             borderWidth: 1,
           }}
         >
           <Text
             className="text-sm font-semibold"
-            style={{ color: colors.foreground }}
+            style={{ color: colors.cardForeground }}
           >
             Technical Details
           </Text>
           <View className="gap-2">
-            <Text style={{ color: colors.muted, fontSize: 12 }}>
+            <Text style={{ color: colors.cardMuted, fontSize: 12 }}>
               • Widget data is stored in device storage and updated automatically
             </Text>
-            <Text style={{ color: colors.muted, fontSize: 12 }}>
+            <Text style={{ color: colors.cardMuted, fontSize: 12 }}>
               • Shows current streak, today's workout, weekly progress, and readiness
             </Text>
-            <Text style={{ color: colors.muted, fontSize: 12 }}>
+            <Text style={{ color: colors.cardMuted, fontSize: 12 }}>
               • Displays next scheduled workout and last updated timestamp
             </Text>
-            <Text style={{ color: colors.muted, fontSize: 12 }}>
+            <Text style={{ color: colors.cardMuted, fontSize: 12 }}>
               • Real-time updates sync across the app and widget extensions
             </Text>
           </View>

@@ -32,7 +32,7 @@ export interface ScreenContainerProps extends ViewProps {
  * Usage:
  * ```tsx
  * <ScreenContainer className="p-4">
- *   <Text className="text-2xl font-bold text-foreground">
+ *   <Text className="text-2xl font-bold text-cardForeground">
  *     Welcome
  *   </Text>
  * </ScreenContainer>

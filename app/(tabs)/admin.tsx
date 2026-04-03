@@ -45,7 +45,7 @@ export default function AdminScreen() {
     <ScreenContainer className="flex-1">
       {/* Header */}
       <View className="px-4 pt-2 pb-4">
-        <Text className="text-2xl font-bold text-foreground">Admin Panel</Text>
+        <Text className="text-2xl font-bold text-cardForeground">Admin Panel</Text>
       </View>
 
       {/* Tab Bar */}
@@ -274,8 +274,8 @@ function ExercisesTab() {
     >
       <View className="flex-row items-center justify-between">
         <View className="flex-1">
-          <Text className="text-lg font-semibold text-foreground">{item.name}</Text>
-          <Text className="text-sm text-muted mt-1">
+          <Text className="text-lg font-semibold text-cardForeground">{item.name}</Text>
+          <Text className="text-sm text-cardMuted mt-1">
             {item.defaultReps || '8-12'} reps • Rest: {item.defaultRestSeconds}s
           </Text>
           {item.notes ? (
@@ -325,8 +325,8 @@ function ExercisesTab() {
         ListEmptyComponent={
           <View className="items-center py-12">
             <IconSymbol name="dumbbell.fill" size={48} color={colors.muted} />
-            <Text className="text-muted mt-4">No exercises yet</Text>
-            <Text className="text-muted text-sm">Tap + to add your first exercise</Text>
+            <Text className="text-cardMuted mt-4">No exercises yet</Text>
+            <Text className="text-cardMuted text-sm">Tap + to add your first exercise</Text>
           </View>
         }
         contentContainerStyle={{ paddingBottom: 100 }}
@@ -368,31 +368,31 @@ function ExercisesTab() {
             style={{ maxHeight: '90%' }}
             contentContainerStyle={{ padding: 24 }}
           >
-            <Text className="text-xl font-bold text-foreground mb-6">
+            <Text className="text-xl font-bold text-cardForeground mb-6">
               {editingExercise ? 'Edit Exercise' : 'Add Exercise'}
             </Text>
 
-            <Text className="text-sm font-medium text-muted mb-2">Exercise Name *</Text>
+            <Text className="text-sm font-medium text-cardMuted mb-2">Exercise Name *</Text>
             <TextInput
               value={name}
               onChangeText={setName}
               placeholder="e.g., Bench Press"
               placeholderTextColor={colors.muted}
-              className="bg-surface rounded-xl p-4 text-foreground mb-4"
+              className="bg-surface rounded-xl p-4 text-cardForeground mb-4"
               style={{ borderWidth: 1, borderColor: colors.border }}
             />
 
-            <Text className="text-sm font-medium text-muted mb-2">Default Reps</Text>
+            <Text className="text-sm font-medium text-cardMuted mb-2">Default Reps</Text>
             <TextInput
               value={defaultReps}
               onChangeText={setDefaultReps}
               placeholder="e.g., 8-12 or 10"
               placeholderTextColor={colors.muted}
-              className="bg-surface rounded-xl p-4 text-foreground mb-4"
+              className="bg-surface rounded-xl p-4 text-cardForeground mb-4"
               style={{ borderWidth: 1, borderColor: colors.border }}
             />
 
-            <Text className="text-sm font-medium text-muted mb-2">Form Video</Text>
+            <Text className="text-sm font-medium text-cardMuted mb-2">Form Video</Text>
             
             {/* Auto-search button */}
             <TouchableOpacity
@@ -425,8 +425,8 @@ function ExercisesTab() {
                   contentFit="cover"
                 />
                 <View className="p-3 bg-surface">
-                  <Text className="text-foreground font-medium">{selectedVideo.exerciseName}</Text>
-                  <Text className="text-muted text-sm">{selectedVideo.equipment} • {selectedVideo.target}</Text>
+                  <Text className="text-cardForeground font-medium">{selectedVideo.exerciseName}</Text>
+                  <Text className="text-cardMuted text-sm">{selectedVideo.equipment} • {selectedVideo.target}</Text>
                 </View>
               </View>
             )}
@@ -434,7 +434,7 @@ function ExercisesTab() {
             {/* Video suggestions */}
             {showVideoSuggestions && videoSuggestions.length > 0 && (
               <View className="mb-4">
-                <Text className="text-sm text-muted mb-2">Select a form video:</Text>
+                <Text className="text-sm text-cardMuted mb-2">Select a form video:</Text>
                 {videoSuggestions.map((video, index) => (
                   <TouchableOpacity
                     key={video.exerciseId}
@@ -454,8 +454,8 @@ function ExercisesTab() {
                       />
                     </View>
                     <View className="flex-1">
-                      <Text className="text-foreground font-medium">{video.exerciseName}</Text>
-                      <Text className="text-muted text-xs">{video.equipment}</Text>
+                      <Text className="text-cardForeground font-medium">{video.exerciseName}</Text>
+                      <Text className="text-cardMuted text-xs">{video.equipment}</Text>
                     </View>
                     {selectedVideo?.exerciseId === video.exerciseId && (
                       <Text className="text-primary">✓</Text>
@@ -470,7 +470,7 @@ function ExercisesTab() {
               onPress={() => setShowVideoSuggestions(false)}
               className="mb-2"
             >
-              <Text className="text-sm text-muted underline">Or enter URL manually</Text>
+              <Text className="text-sm text-cardMuted underline">Or enter URL manually</Text>
             </TouchableOpacity>
             {!showVideoSuggestions && !selectedVideo && (
               <TextInput
@@ -478,31 +478,31 @@ function ExercisesTab() {
                 onChangeText={setVideoUrl}
                 placeholder="https://youtube.com/..."
                 placeholderTextColor={colors.muted}
-                className="bg-surface rounded-xl p-4 text-foreground mb-4"
+                className="bg-surface rounded-xl p-4 text-cardForeground mb-4"
                 style={{ borderWidth: 1, borderColor: colors.border }}
                 autoCapitalize="none"
                 keyboardType="url"
               />
             )}
 
-            <Text className="text-sm font-medium text-muted mb-2">Default Rest Time (seconds)</Text>
+            <Text className="text-sm font-medium text-cardMuted mb-2">Default Rest Time (seconds)</Text>
             <TextInput
               value={restSeconds}
               onChangeText={setRestSeconds}
               placeholder="90"
               placeholderTextColor={colors.muted}
-              className="bg-surface rounded-xl p-4 text-foreground mb-4"
+              className="bg-surface rounded-xl p-4 text-cardForeground mb-4"
               style={{ borderWidth: 1, borderColor: colors.border }}
               keyboardType="numeric"
             />
 
-            <Text className="text-sm font-medium text-muted mb-2">Personal Notes (optional)</Text>
+            <Text className="text-sm font-medium text-cardMuted mb-2">Personal Notes (optional)</Text>
             <TextInput
               value={notes}
               onChangeText={setNotes}
               placeholder="e.g., Pause 2 sec at bottom, lift heavy, slow eccentric..."
               placeholderTextColor={colors.muted}
-              className="bg-surface rounded-xl p-4 text-foreground mb-6"
+              className="bg-surface rounded-xl p-4 text-cardForeground mb-6"
               style={{ borderWidth: 1, borderColor: colors.border, minHeight: 80 }}
               multiline
               numberOfLines={3}
@@ -515,7 +515,7 @@ function ExercisesTab() {
                 className="flex-1 py-4 rounded-xl mr-2"
                 style={{ backgroundColor: colors.surface }}
               >
-                <Text className="text-center font-semibold text-foreground">Cancel</Text>
+                <Text className="text-center font-semibold text-cardForeground">Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleSave}
@@ -588,7 +588,7 @@ function ProgramTab() {
   return (
     <View className="flex-1 px-4">
       {/* Week Selector */}
-      <Text className="text-sm font-medium text-muted mb-2">Select Week</Text>
+      <Text className="text-sm font-medium text-cardMuted mb-2">Select Week</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
         {[1, 2, 3, 4, 5, 6, 7, 8].map(week => (
           <TouchableOpacity
@@ -617,7 +617,7 @@ function ProgramTab() {
       </ScrollView>
 
       {/* Day Selector */}
-      <Text className="text-sm font-medium text-muted mb-2">Select Day</Text>
+      <Text className="text-sm font-medium text-cardMuted mb-2">Select Day</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
         {[1, 2, 3, 4, 5, 6, 7].map(day => {
           const hasProgram = getProgramDay(selectedWeek, day);
@@ -665,7 +665,7 @@ function ProgramTab() {
         style={{ borderWidth: 1, borderColor: colors.border }}
       >
         <View className="flex-row justify-between items-center mb-4">
-          <Text className="text-lg font-semibold text-foreground">
+          <Text className="text-lg font-semibold text-cardForeground">
             Week {selectedWeek}, {getDayName(selectedDay)}
           </Text>
           <TouchableOpacity
@@ -691,10 +691,10 @@ function ProgramTab() {
                   className="py-3 border-b"
                   style={{ borderBottomColor: colors.border }}
                 >
-                  <Text className="font-medium text-foreground">
+                  <Text className="font-medium text-cardForeground">
                     {index + 1}. {exercise?.name || 'Unknown'}
                   </Text>
-                  <Text className="text-sm text-muted mt-1">
+                  <Text className="text-sm text-cardMuted mt-1">
                     {ex.sets} sets × {ex.reps} reps • Rest: {ex.restSeconds}s
                   </Text>
                   {exercise?.notes ? (
@@ -708,8 +708,8 @@ function ProgramTab() {
           </ScrollView>
         ) : (
           <View className="flex-1 items-center justify-center">
-            <Text className="text-muted">No exercises for this day</Text>
-            <Text className="text-sm text-muted">Tap Edit to add exercises</Text>
+            <Text className="text-cardMuted">No exercises for this day</Text>
+            <Text className="text-sm text-cardMuted">Tap Edit to add exercises</Text>
           </View>
         )}
       </View>
@@ -726,12 +726,12 @@ function ProgramTab() {
             className="bg-background rounded-t-3xl p-6"
             style={{ maxHeight: '90%' }}
           >
-            <Text className="text-xl font-bold text-foreground mb-4">
+            <Text className="text-xl font-bold text-cardForeground mb-4">
               Edit Week {selectedWeek}, {getDayName(selectedDay)}
             </Text>
 
             {/* Add Exercise Dropdown */}
-            <Text className="text-sm font-medium text-muted mb-2">Add Exercise</Text>
+            <Text className="text-sm font-medium text-cardMuted mb-2">Add Exercise</Text>
             <ScrollView 
               horizontal 
               showsHorizontalScrollIndicator={false} 
@@ -753,7 +753,7 @@ function ProgramTab() {
                       borderColor: colors.border,
                     }}
                   >
-                    <Text className="text-foreground">{exercise.name}</Text>
+                    <Text className="text-cardForeground">{exercise.name}</Text>
                   </TouchableOpacity>
                 ))}
             </ScrollView>
@@ -769,7 +769,7 @@ function ProgramTab() {
                     style={{ borderWidth: 1, borderColor: colors.border }}
                   >
                     <View className="flex-row justify-between items-center mb-3">
-                      <Text className="font-semibold text-foreground">
+                      <Text className="font-semibold text-cardForeground">
                         {index + 1}. {exercise?.name}
                       </Text>
                       <TouchableOpacity onPress={() => removeDayExercise(index)}>
@@ -779,31 +779,31 @@ function ProgramTab() {
                     
                     <View className="flex-row">
                       <View className="flex-1 mr-2">
-                        <Text className="text-xs text-muted mb-1">Sets</Text>
+                        <Text className="text-xs text-cardMuted mb-1">Sets</Text>
                         <TextInput
                           value={dayEx.sets.toString()}
                           onChangeText={(v) => updateDayExercise(index, { sets: parseInt(v) || 1 })}
                           keyboardType="numeric"
-                          className="bg-background rounded-lg p-2 text-foreground text-center"
+                          className="bg-background rounded-lg p-2 text-cardForeground text-center"
                           style={{ borderWidth: 1, borderColor: colors.border }}
                         />
                       </View>
                       <View className="flex-1 mr-2">
-                        <Text className="text-xs text-muted mb-1">Reps</Text>
+                        <Text className="text-xs text-cardMuted mb-1">Reps</Text>
                         <TextInput
                           value={dayEx.reps}
                           onChangeText={(v) => updateDayExercise(index, { reps: v })}
-                          className="bg-background rounded-lg p-2 text-foreground text-center"
+                          className="bg-background rounded-lg p-2 text-cardForeground text-center"
                           style={{ borderWidth: 1, borderColor: colors.border }}
                         />
                       </View>
                       <View className="flex-1">
-                        <Text className="text-xs text-muted mb-1">Rest (s)</Text>
+                        <Text className="text-xs text-cardMuted mb-1">Rest (s)</Text>
                         <TextInput
                           value={dayEx.restSeconds.toString()}
                           onChangeText={(v) => updateDayExercise(index, { restSeconds: parseInt(v) || 60 })}
                           keyboardType="numeric"
-                          className="bg-background rounded-lg p-2 text-foreground text-center"
+                          className="bg-background rounded-lg p-2 text-cardForeground text-center"
                           style={{ borderWidth: 1, borderColor: colors.border }}
                         />
                       </View>
@@ -814,8 +814,8 @@ function ProgramTab() {
               
               {dayExercises.length === 0 && (
                 <View className="items-center py-8">
-                  <Text className="text-muted">No exercises added</Text>
-                  <Text className="text-sm text-muted">Select exercises above to add</Text>
+                  <Text className="text-cardMuted">No exercises added</Text>
+                  <Text className="text-sm text-cardMuted">Select exercises above to add</Text>
                 </View>
               )}
             </ScrollView>
@@ -826,7 +826,7 @@ function ProgramTab() {
                 className="flex-1 py-4 rounded-xl mr-2"
                 style={{ backgroundColor: colors.surface }}
               >
-                <Text className="text-center font-semibold text-foreground">Cancel</Text>
+                <Text className="text-center font-semibold text-cardForeground">Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={saveDayProgram}
@@ -980,9 +980,9 @@ function SettingsTab() {
         className="bg-surface rounded-xl p-4 mb-4"
         style={{ borderWidth: 1, borderColor: colors.border }}
       >
-        <Text className="text-lg font-semibold text-foreground mb-4">Cycle Settings</Text>
+        <Text className="text-lg font-semibold text-cardForeground mb-4">Cycle Settings</Text>
         
-        <Text className="text-sm font-medium text-muted mb-2">
+        <Text className="text-sm font-medium text-cardMuted mb-2">
           Cycle Start Date (YYYY-MM-DD)
         </Text>
         <TextInput
@@ -990,7 +990,7 @@ function SettingsTab() {
           onChangeText={setStartDate}
           placeholder="2024-01-01"
           placeholderTextColor={colors.muted}
-          className="bg-background rounded-xl p-4 text-foreground mb-4"
+          className="bg-background rounded-xl p-4 text-cardForeground mb-4"
           style={{ borderWidth: 1, borderColor: colors.border }}
         />
         
@@ -1009,7 +1009,7 @@ function SettingsTab() {
         style={{ borderWidth: 1, borderColor: colors.border }}
       >
         <View className="flex-row items-center justify-between mb-4">
-          <Text className="text-lg font-semibold text-foreground">ExerciseDB API</Text>
+          <Text className="text-lg font-semibold text-cardForeground">ExerciseDB API</Text>
           <View 
             className="px-2 py-1 rounded-full"
             style={{ 
@@ -1029,11 +1029,11 @@ function SettingsTab() {
           </View>
         </View>
         
-        <Text className="text-sm text-muted mb-3">
+        <Text className="text-sm text-cardMuted mb-3">
           Enter your RapidAPI key to fetch real exercise demonstration GIFs from ExerciseDB.
         </Text>
         
-        <Text className="text-sm font-medium text-muted mb-2">RapidAPI Key</Text>
+        <Text className="text-sm font-medium text-cardMuted mb-2">RapidAPI Key</Text>
         <View className="flex-row items-center mb-4">
           <TextInput
             value={rapidApiKey}
@@ -1041,7 +1041,7 @@ function SettingsTab() {
             placeholder="Enter your RapidAPI key"
             placeholderTextColor={colors.muted}
             secureTextEntry={!showApiKey}
-            className="flex-1 bg-background rounded-xl p-4 text-foreground"
+            className="flex-1 bg-background rounded-xl p-4 text-cardForeground"
             style={{ borderWidth: 1, borderColor: colors.border }}
             autoCapitalize="none"
             autoCorrect={false}
@@ -1087,7 +1087,7 @@ function SettingsTab() {
         style={{ borderWidth: 1, borderColor: colors.border }}
       >
         <View className="flex-row items-center justify-between mb-4">
-          <Text className="text-lg font-semibold text-foreground">OpenAI API</Text>
+          <Text className="text-lg font-semibold text-cardForeground">OpenAI API</Text>
           <View 
             className="px-2 py-1 rounded-full"
             style={{ 
@@ -1104,11 +1104,11 @@ function SettingsTab() {
           </View>
         </View>
         
-        <Text className="text-sm text-muted mb-3">
+        <Text className="text-sm text-cardMuted mb-3">
           Enter your OpenAI API key to enable ChatGPT integration for personalized fitness insights.
         </Text>
         
-        <Text className="text-sm font-medium text-muted mb-2">OpenAI API Key</Text>
+        <Text className="text-sm font-medium text-cardMuted mb-2">OpenAI API Key</Text>
         <View className="flex-row items-center mb-4">
           <TextInput
             value={store.settings.openAiKey || ''}
@@ -1116,7 +1116,7 @@ function SettingsTab() {
             placeholder="sk-..."
             placeholderTextColor={colors.muted}
             secureTextEntry={true}
-            className="flex-1 bg-background rounded-xl p-4 text-foreground"
+            className="flex-1 bg-background rounded-xl p-4 text-cardForeground"
             style={{ borderWidth: 1, borderColor: colors.border }}
             autoCapitalize="none"
             autoCorrect={false}
@@ -1148,23 +1148,23 @@ function SettingsTab() {
         className="bg-surface rounded-xl p-4"
         style={{ borderWidth: 1, borderColor: colors.border }}
       >
-        <Text className="text-lg font-semibold text-foreground mb-4">Statistics</Text>
+        <Text className="text-lg font-semibold text-cardForeground mb-4">Statistics</Text>
         
         <View className="flex-row justify-between py-2 border-b" style={{ borderBottomColor: colors.border }}>
-          <Text className="text-muted">Total Exercises</Text>
-          <Text className="font-semibold text-foreground">{store.exercises.length}</Text>
+          <Text className="text-cardMuted">Total Exercises</Text>
+          <Text className="font-semibold text-cardForeground">{store.exercises.length}</Text>
         </View>
         
         <View className="flex-row justify-between py-2 border-b" style={{ borderBottomColor: colors.border }}>
-          <Text className="text-muted">Program Days Configured</Text>
-          <Text className="font-semibold text-foreground">
+          <Text className="text-cardMuted">Program Days Configured</Text>
+          <Text className="font-semibold text-cardForeground">
             {store.programDays.filter(d => d.exercises.length > 0).length}
           </Text>
         </View>
         
         <View className="flex-row justify-between py-2">
-          <Text className="text-muted">Total Workouts Logged</Text>
-          <Text className="font-semibold text-foreground">
+          <Text className="text-cardMuted">Total Workouts Logged</Text>
+          <Text className="font-semibold text-cardForeground">
             {store.workoutLogs.filter(l => l.isCompleted).length}
           </Text>
         </View>
@@ -1175,28 +1175,28 @@ function SettingsTab() {
         className="bg-surface rounded-xl p-4"
         style={{ borderWidth: 1, borderColor: colors.border }}
       >
-        <Text className="text-lg font-semibold text-foreground mb-2">Exercise Cache</Text>
-        <Text className="text-sm text-muted mb-4">
+        <Text className="text-lg font-semibold text-cardForeground mb-2">Exercise Cache</Text>
+        <Text className="text-sm text-cardMuted mb-4">
           Cached exercise GIFs and instructions are available offline.
         </Text>
         
         <View className="flex-row justify-between py-2 border-b" style={{ borderBottomColor: colors.border }}>
-          <Text className="text-muted">Cached Exercises</Text>
-          <Text className="font-semibold text-foreground">
+          <Text className="text-cardMuted">Cached Exercises</Text>
+          <Text className="font-semibold text-cardForeground">
             {cacheMetadata?.itemCount ?? 0}
           </Text>
         </View>
         
         <View className="flex-row justify-between py-2 border-b" style={{ borderBottomColor: colors.border }}>
-          <Text className="text-muted">Cache Size</Text>
-          <Text className="font-semibold text-foreground">
+          <Text className="text-cardMuted">Cache Size</Text>
+          <Text className="font-semibold text-cardForeground">
             {cacheMetadata ? formatCacheSize(cacheMetadata.totalSize) : '0 B'}
           </Text>
         </View>
         
         <View className="flex-row justify-between py-2 mb-3" style={{ borderBottomColor: colors.border }}>
-          <Text className="text-muted">Last Updated</Text>
-          <Text className="font-semibold text-foreground">
+          <Text className="text-cardMuted">Last Updated</Text>
+          <Text className="font-semibold text-cardForeground">
             {cacheMetadata?.lastUpdated 
               ? new Date(cacheMetadata.lastUpdated).toLocaleDateString()
               : 'Never'}
@@ -1228,12 +1228,12 @@ function SettingsTab() {
         className="bg-surface rounded-xl p-4 mb-4"
         style={{ borderWidth: 1, borderColor: colors.border }}
       >
-        <Text className="text-lg font-semibold text-foreground mb-4">Notifications</Text>
+        <Text className="text-lg font-semibold text-cardForeground mb-4">Notifications</Text>
         
         <View className="flex-row items-center justify-between py-3 border-b" style={{ borderBottomColor: colors.border }}>
           <View className="flex-1">
-            <Text className="text-foreground font-medium">Recovery Alerts</Text>
-            <Text className="text-sm text-muted">Get notified when recovery drops below 50%</Text>
+            <Text className="text-cardForeground font-medium">Recovery Alerts</Text>
+            <Text className="text-sm text-cardMuted">Get notified when recovery drops below 50%</Text>
           </View>
           <TouchableOpacity
             onPress={() => handleToggleNotification('recoveryAlertsEnabled')}
@@ -1248,8 +1248,8 @@ function SettingsTab() {
         
         <View className="flex-row items-center justify-between py-3">
           <View className="flex-1">
-            <Text className="text-foreground font-medium">Milestone Notifications</Text>
-            <Text className="text-sm text-muted">Celebrate when you unlock new badges</Text>
+            <Text className="text-cardForeground font-medium">Milestone Notifications</Text>
+            <Text className="text-sm text-cardMuted">Celebrate when you unlock new badges</Text>
           </View>
           <TouchableOpacity
             onPress={() => handleToggleNotification('milestoneNotificationsEnabled')}
@@ -1284,8 +1284,8 @@ function SettingsTab() {
               <Text style={{ fontSize: 20 }}>⌚</Text>
             </View>
             <View>
-              <Text className="text-lg font-semibold text-foreground">Whoop Integration</Text>
-              <Text className="text-sm text-muted">Connect your Whoop device</Text>
+              <Text className="text-lg font-semibold text-cardForeground">Whoop Integration</Text>
+              <Text className="text-sm text-cardMuted">Connect your Whoop device</Text>
             </View>
           </View>
           <IconSymbol name="chevron.right" size={20} color={colors.muted} />

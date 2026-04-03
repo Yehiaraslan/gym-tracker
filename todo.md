@@ -998,3 +998,14 @@
 ## Permission UX Improvements (Apr 3 2026)
 - [x] First-time permission onboarding bottom sheet before camera/library access
 - [x] Linking.openSettings() retry button when permission is permanently denied
+
+## BodBot-Inspired Visual Redesign (Apr 3 2026)
+- [x] Update theme.config.js — navy background (#0D2B6B), white cards (#FFFFFF), orange accent (#E8600A)
+- [x] Add cardForeground, cardMuted, cardBorder tokens for two-surface contrast model
+- [x] Update lib/_core/theme.ts to expose cardForeground/cardMuted/cardBorder in RuntimePalette
+- [x] Update lib/theme-provider.tsx to expose new card tokens as CSS variables
+- [x] Update home screen (index.tsx) — screenFg/screenMut for navy-level text, fg/mut for card text
+- [x] Update tab bar — navy background, orange active icon, blue-white inactive icons
+- [x] Global replacement: colors.foreground→cardForeground, colors.muted→cardMuted, colors.border→cardBorder across all screens and components
+- [x] Global replacement: text-foreground→text-cardForeground, text-muted→text-cardMuted in Tailwind classes
+- [x] TypeScript check — 0 errors

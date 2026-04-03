@@ -58,21 +58,21 @@ export function VolumeTracker({ exercises, previousSessionVolume }: VolumeTracke
   return (
     <View
       className="rounded-2xl p-4"
-      style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+      style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.cardBorder }}
     >
       {/* Volume header */}
       <View className="flex-row items-center justify-between mb-4">
         <View className="flex-row items-center">
-          <Text className="text-sm font-semibold text-foreground">📊 Session Volume</Text>
+          <Text className="text-sm font-semibold text-cardForeground">📊 Session Volume</Text>
         </View>
         <View className="items-end">
-          <Text className="text-lg font-bold text-foreground">
-            {totalVolume.toLocaleString()} <Text className="text-xs text-muted font-normal">kg</Text>
+          <Text className="text-lg font-bold text-cardForeground">
+            {totalVolume.toLocaleString()} <Text className="text-xs text-cardMuted font-normal">kg</Text>
           </Text>
           {volumeDelta !== null && (
             <Text
               className="text-xs font-medium"
-              style={{ color: volumeDelta > 0 ? '#10B981' : volumeDelta < 0 ? '#EF4444' : colors.muted }}
+              style={{ color: volumeDelta > 0 ? '#10B981' : volumeDelta < 0 ? '#EF4444' : colors.cardMuted }}
             >
               {volumeDelta > 0 ? '+' : ''}{volumeDelta.toFixed(1)}% vs last
             </Text>
@@ -83,10 +83,10 @@ export function VolumeTracker({ exercises, previousSessionVolume }: VolumeTracke
       {/* Sets progress bar */}
       <View className="mb-4">
         <View className="flex-row items-center justify-between mb-1.5">
-          <Text className="text-xs text-muted">Sets completed</Text>
-          <Text className="text-xs font-medium text-foreground">{totalSetsCompleted} / {totalSetsTarget}</Text>
+          <Text className="text-xs text-cardMuted">Sets completed</Text>
+          <Text className="text-xs font-medium text-cardForeground">{totalSetsCompleted} / {totalSetsTarget}</Text>
         </View>
-        <View className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: colors.border }}>
+        <View className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: colors.cardBorder }}>
           <View
             className="h-full rounded-full"
             style={{
@@ -98,7 +98,7 @@ export function VolumeTracker({ exercises, previousSessionVolume }: VolumeTracke
       </View>
 
       {/* Muscle group status */}
-      <Text className="text-xs text-muted mb-2" style={{ textTransform: 'uppercase', letterSpacing: 1 }}>
+      <Text className="text-xs text-cardMuted mb-2" style={{ textTransform: 'uppercase', letterSpacing: 1 }}>
         Muscle Status
       </Text>
       <View className="flex-row flex-wrap" style={{ gap: 8 }}>
@@ -114,7 +114,7 @@ export function VolumeTracker({ exercises, previousSessionVolume }: VolumeTracke
               <Text className="text-xs font-medium ml-1.5" style={{ color: status.color }}>
                 {muscle}
               </Text>
-              <Text className="text-xs ml-1.5" style={{ color: colors.muted }}>
+              <Text className="text-xs ml-1.5" style={{ color: colors.cardMuted }}>
                 {completed}/{target}
               </Text>
             </View>
@@ -127,7 +127,7 @@ export function VolumeTracker({ exercises, previousSessionVolume }: VolumeTracke
         className="flex-row items-center rounded-xl px-3 py-2 mt-4"
         style={{ backgroundColor: colors.primary + '08', borderWidth: 1, borderColor: colors.primary + '15' }}
       >
-        <Text className="text-xs" style={{ color: colors.muted }}>
+        <Text className="text-xs" style={{ color: colors.cardMuted }}>
           {totalVolume >= 10000
             ? <Text style={{ color: '#10B981', fontWeight: '600' }}>💪 10,000kg+ — elite volume!</Text>
             : totalVolume >= 5000

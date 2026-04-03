@@ -453,16 +453,16 @@ function ZakiAnalysisModal({ analysis, onClose, colors }: {
     <Modal visible animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: colors.background }}>
         {/* Header */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 56, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 56, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: colors.cardBorder }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <Text style={{ fontSize: 22 }}>🤖</Text>
             <View>
-              <Text style={{ fontSize: 17, fontWeight: '700', color: colors.foreground }}>Zaki Body Analysis</Text>
-              <Text style={{ fontSize: 12, color: colors.muted }}>AI-powered physique assessment</Text>
+              <Text style={{ fontSize: 17, fontWeight: '700', color: colors.cardForeground }}>Zaki Body Analysis</Text>
+              <Text style={{ fontSize: 12, color: colors.cardMuted }}>AI-powered physique assessment</Text>
             </View>
           </View>
           <TouchableOpacity onPress={onClose} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surface, justifyContent: 'center', alignItems: 'center' }}>
-            <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '700' }}>✕</Text>
+            <Text style={{ color: colors.cardForeground, fontSize: 16, fontWeight: '700' }}>✕</Text>
           </TouchableOpacity>
         </View>
 
@@ -470,10 +470,10 @@ function ZakiAnalysisModal({ analysis, onClose, colors }: {
           {/* Overall Assessment */}
           <View style={{ backgroundColor: '#6366F110', borderRadius: 14, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#6366F130' }}>
             <Text style={{ fontSize: 13, fontWeight: '700', color: '#6366F1', marginBottom: 8 }}>OVERALL ASSESSMENT</Text>
-            <Text style={{ fontSize: 14, color: colors.foreground, lineHeight: 22 }}>{analysis.overallAssessment}</Text>
+            <Text style={{ fontSize: 14, color: colors.cardForeground, lineHeight: 22 }}>{analysis.overallAssessment}</Text>
             {analysis.estimatedBodyFatRange && (
               <View style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={{ fontSize: 12, color: colors.muted }}>Estimated body fat:</Text>
+                <Text style={{ fontSize: 12, color: colors.cardMuted }}>Estimated body fat:</Text>
                 <Text style={{ fontSize: 13, fontWeight: '700', color: '#6366F1' }}>{analysis.estimatedBodyFatRange}</Text>
               </View>
             )}
@@ -482,11 +482,11 @@ function ZakiAnalysisModal({ analysis, onClose, colors }: {
           {/* Strengths */}
           {analysis.strengths.length > 0 && (
             <View style={{ marginBottom: 16 }}>
-              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.foreground, marginBottom: 10 }}>💪 STRENGTHS</Text>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.cardForeground, marginBottom: 10 }}>💪 STRENGTHS</Text>
               {analysis.strengths.map((s, i) => (
                 <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
                   <Text style={{ color: '#10B981', fontSize: 14, marginTop: 1 }}>✓</Text>
-                  <Text style={{ fontSize: 14, color: colors.foreground, flex: 1, lineHeight: 20 }}>{s}</Text>
+                  <Text style={{ fontSize: 14, color: colors.cardForeground, flex: 1, lineHeight: 20 }}>{s}</Text>
                 </View>
               ))}
             </View>
@@ -495,11 +495,11 @@ function ZakiAnalysisModal({ analysis, onClose, colors }: {
           {/* Posture Findings */}
           {analysis.postureFindings.length > 0 && (
             <View style={{ marginBottom: 16 }}>
-              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.foreground, marginBottom: 10 }}>🧍 POSTURE FINDINGS</Text>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.cardForeground, marginBottom: 10 }}>🧍 POSTURE FINDINGS</Text>
               {analysis.postureFindings.map((f, i) => (
                 <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
                   <Text style={{ color: '#F59E0B', fontSize: 14, marginTop: 1 }}>→</Text>
-                  <Text style={{ fontSize: 14, color: colors.foreground, flex: 1, lineHeight: 20 }}>{f}</Text>
+                  <Text style={{ fontSize: 14, color: colors.cardForeground, flex: 1, lineHeight: 20 }}>{f}</Text>
                 </View>
               ))}
             </View>
@@ -508,16 +508,16 @@ function ZakiAnalysisModal({ analysis, onClose, colors }: {
           {/* Muscle Imbalances */}
           {analysis.muscleImbalances.length > 0 && (
             <View style={{ marginBottom: 16 }}>
-              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.foreground, marginBottom: 10 }}>⚖️ MUSCLE IMBALANCES</Text>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.cardForeground, marginBottom: 10 }}>⚖️ MUSCLE IMBALANCES</Text>
               {analysis.muscleImbalances.map((m, i) => (
                 <View key={i} style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 12, marginBottom: 8, borderLeftWidth: 3, borderLeftColor: severityColor(m.severity) }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.foreground }}>{m.area}</Text>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.cardForeground }}>{m.area}</Text>
                     <View style={{ backgroundColor: severityColor(m.severity) + '20', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
                       <Text style={{ fontSize: 10, fontWeight: '700', color: severityColor(m.severity), textTransform: 'uppercase' }}>{m.severity}</Text>
                     </View>
                   </View>
-                  <Text style={{ fontSize: 13, color: colors.muted, lineHeight: 18 }}>{m.finding}</Text>
+                  <Text style={{ fontSize: 13, color: colors.cardMuted, lineHeight: 18 }}>{m.finding}</Text>
                 </View>
               ))}
             </View>
@@ -526,11 +526,11 @@ function ZakiAnalysisModal({ analysis, onClose, colors }: {
           {/* Weak Points */}
           {analysis.weakPoints.length > 0 && (
             <View style={{ marginBottom: 16 }}>
-              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.foreground, marginBottom: 10 }}>🎯 WEAK POINTS & RECOMMENDATIONS</Text>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.cardForeground, marginBottom: 10 }}>🎯 WEAK POINTS & RECOMMENDATIONS</Text>
               {analysis.weakPoints.map((w, i) => (
                 <View key={i} style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 12, marginBottom: 8 }}>
                   <Text style={{ fontSize: 13, fontWeight: '700', color: '#EF4444', marginBottom: 4 }}>{w.muscle}</Text>
-                  <Text style={{ fontSize: 13, color: colors.foreground, lineHeight: 18 }}>{w.recommendation}</Text>
+                  <Text style={{ fontSize: 13, color: colors.cardForeground, lineHeight: 18 }}>{w.recommendation}</Text>
                 </View>
               ))}
             </View>
@@ -545,7 +545,7 @@ function ZakiAnalysisModal({ analysis, onClose, colors }: {
                   <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#10B981', justifyContent: 'center', alignItems: 'center', marginTop: 1 }}>
                     <Text style={{ color: '#fff', fontSize: 11, fontWeight: '800' }}>{i + 1}</Text>
                   </View>
-                  <Text style={{ fontSize: 14, color: colors.foreground, flex: 1, lineHeight: 20 }}>{a}</Text>
+                  <Text style={{ fontSize: 14, color: colors.cardForeground, flex: 1, lineHeight: 20 }}>{a}</Text>
                 </View>
               ))}
             </View>
@@ -920,9 +920,9 @@ export default function ProgressPicturesScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <IconSymbol name="chevron.left" size={24} color={colors.muted} />
+          <IconSymbol name="chevron.left" size={24} color={colors.cardMuted} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.foreground }]}>Progress Photos</Text>
+        <Text style={[styles.headerTitle, { color: colors.cardForeground }]}>Progress Photos</Text>
         <TouchableOpacity
           onPress={handleAdd}
           style={[styles.addBtn, { backgroundColor: colors.primary }]}
@@ -939,20 +939,20 @@ export default function ProgressPicturesScreen() {
             onPress={() => setAddLabel(l.key)}
             style={[
               styles.labelChip,
-              { backgroundColor: addLabel === l.key ? colors.primary : colors.surface, borderColor: addLabel === l.key ? colors.primary : colors.border },
+              { backgroundColor: addLabel === l.key ? colors.primary : colors.surface, borderColor: addLabel === l.key ? colors.primary : colors.cardBorder },
             ]}
           >
             <Text style={styles.labelEmoji}>{l.emoji}</Text>
-            <Text style={[styles.labelText, { color: addLabel === l.key ? '#FFFFFF' : colors.foreground }]}>{l.label}</Text>
+            <Text style={[styles.labelText, { color: addLabel === l.key ? '#FFFFFF' : colors.cardForeground }]}>{l.label}</Text>
           </TouchableOpacity>
         ))}
       </View>
 
       {/* Comparison + Time-lapse banner — shown when 2+ photos of same label exist */}
       {hasAnyComparison && (
-        <View style={[styles.compareBanner, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={[styles.compareBanner, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
           {/* Before vs After row */}
-          <Text style={[styles.compareBannerTitle, { color: colors.foreground }]}>📊 Before vs After</Text>
+          <Text style={[styles.compareBannerTitle, { color: colors.cardForeground }]}>📊 Before vs After</Text>
           <View style={styles.compareBannerRow}>
             {LABELS.filter(l => comparisonPairs[l.key] != null).map(l => (
               <TouchableOpacity
@@ -971,8 +971,8 @@ export default function ProgressPicturesScreen() {
           {/* Time-lapse row */}
           {timeLapseLabels.length > 0 && (
             <>
-              <View style={[styles.divider, { backgroundColor: colors.border }]} />
-              <Text style={[styles.compareBannerTitle, { color: colors.foreground, marginTop: 4 }]}>📽 Time-lapse</Text>
+              <View style={[styles.divider, { backgroundColor: colors.cardBorder }]} />
+              <Text style={[styles.compareBannerTitle, { color: colors.cardForeground, marginTop: 4 }]}>📽 Time-lapse</Text>
               <View style={styles.compareBannerRow}>
                 {timeLapseLabels.map(l => {
                   const count = pictures.filter(p => p.label === l.key).length;
@@ -1022,8 +1022,8 @@ export default function ProgressPicturesScreen() {
       {pictures.length === 0 ? (
         <View style={styles.empty}>
           <Text style={styles.emptyEmoji}>📸</Text>
-          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>No Progress Photos Yet</Text>
-          <Text style={[styles.emptySubtitle, { color: colors.muted }]}>
+          <Text style={[styles.emptyTitle, { color: colors.cardForeground }]}>No Progress Photos Yet</Text>
+          <Text style={[styles.emptySubtitle, { color: colors.cardMuted }]}>
             Start documenting your transformation. Add your first photo today.
           </Text>
           <TouchableOpacity
@@ -1038,8 +1038,8 @@ export default function ProgressPicturesScreen() {
           {grouped.map(group => (
             <View key={group.month} style={styles.monthSection}>
               <View style={styles.monthHeader}>
-                <Text style={[styles.monthTitle, { color: colors.foreground }]}>{formatMonth(group.month)}</Text>
-                <Text style={[styles.monthCount, { color: colors.muted }]}>{group.pics.length} photo{group.pics.length !== 1 ? 's' : ''}</Text>
+                <Text style={[styles.monthTitle, { color: colors.cardForeground }]}>{formatMonth(group.month)}</Text>
+                <Text style={[styles.monthCount, { color: colors.cardMuted }]}>{group.pics.length} photo{group.pics.length !== 1 ? 's' : ''}</Text>
               </View>
               <View style={styles.grid}>
                 {group.pics.map(pic => (
@@ -1047,7 +1047,7 @@ export default function ProgressPicturesScreen() {
                     key={pic.id}
                     onPress={() => setViewPic(pic)}
                     activeOpacity={0.85}
-                    style={[styles.thumb, { borderColor: colors.border }]}
+                    style={[styles.thumb, { borderColor: colors.cardBorder }]}
                   >
                     <Image source={{ uri: pic.uri }} style={styles.thumbImg} />
                     <View style={[styles.thumbLabel, { backgroundColor: 'rgba(0,0,0,0.55)' }]}>
@@ -1096,9 +1096,9 @@ export default function ProgressPicturesScreen() {
       <Modal visible={sourcePickerVisible} transparent animationType="fade" onRequestClose={() => setSourcePickerVisible(false)}>
         <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' }}>
           <View style={{ borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40, backgroundColor: colors.surface }}>
-            <View style={{ width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 20, backgroundColor: colors.border }} />
-            <Text style={{ fontSize: 20, fontWeight: '800', textAlign: 'center', marginBottom: 6, color: colors.foreground }}>Add Progress Photo</Text>
-            <Text style={{ color: colors.muted, fontSize: 14, marginBottom: 20, textAlign: 'center' }}>Choose a photo source</Text>
+            <View style={{ width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 20, backgroundColor: colors.cardBorder }} />
+            <Text style={{ fontSize: 20, fontWeight: '800', textAlign: 'center', marginBottom: 6, color: colors.cardForeground }}>Add Progress Photo</Text>
+            <Text style={{ color: colors.cardMuted, fontSize: 14, marginBottom: 20, textAlign: 'center' }}>Choose a photo source</Text>
             <TouchableOpacity
               onPress={() => {
                 pendingSourceAction.current = 'camera';
@@ -1121,9 +1121,9 @@ export default function ProgressPicturesScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => setSourcePickerVisible(false)}
-              style={{ paddingVertical: 14, borderRadius: 12, alignItems: 'center', backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, marginTop: 4 }}
+              style={{ paddingVertical: 14, borderRadius: 12, alignItems: 'center', backgroundColor: colors.background, borderWidth: 1, borderColor: colors.cardBorder, marginTop: 4 }}
             >
-              <Text style={{ color: colors.foreground, fontWeight: '600' }}>Cancel</Text>
+              <Text style={{ color: colors.cardForeground, fontWeight: '600' }}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1247,7 +1247,7 @@ export default function ProgressPicturesScreen() {
             backgroundColor: colors.surface,
           }}>
             {/* Drag handle */}
-            <View style={{ width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 24, backgroundColor: colors.border }} />
+            <View style={{ width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 24, backgroundColor: colors.cardBorder }} />
 
             {/* Icon row */}
             <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 16, marginBottom: 20 }}>
@@ -1259,15 +1259,15 @@ export default function ProgressPicturesScreen() {
               </View>
             </View>
 
-            <Text style={{ fontSize: 22, fontWeight: '800', textAlign: 'center', color: colors.foreground, marginBottom: 10 }}>
+            <Text style={{ fontSize: 22, fontWeight: '800', textAlign: 'center', color: colors.cardForeground, marginBottom: 10 }}>
               Track Your Transformation
             </Text>
-            <Text style={{ fontSize: 15, color: colors.muted, textAlign: 'center', lineHeight: 22, marginBottom: 28 }}>
+            <Text style={{ fontSize: 15, color: colors.cardMuted, textAlign: 'center', lineHeight: 22, marginBottom: 28 }}>
               Banana Pro Gym needs access to your{' '}
-              <Text style={{ fontWeight: '700', color: colors.foreground }}>Camera</Text> and{' '}
-              <Text style={{ fontWeight: '700', color: colors.foreground }}>Photo Library</Text>{' '}
+              <Text style={{ fontWeight: '700', color: colors.cardForeground }}>Camera</Text> and{' '}
+              <Text style={{ fontWeight: '700', color: colors.cardForeground }}>Photo Library</Text>{' '}
               to let you log progress photos.{`\n\n`}Photos are stored{' '}
-              <Text style={{ fontWeight: '700', color: colors.foreground }}>only on your device</Text>{' '}
+              <Text style={{ fontWeight: '700', color: colors.cardForeground }}>only on your device</Text>{' '}
               — never uploaded without your permission.
             </Text>
 
@@ -1280,8 +1280,8 @@ export default function ProgressPicturesScreen() {
                 <View key={item.title} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, borderRadius: 14, backgroundColor: colors.background }}>
                   <Text style={{ fontSize: 22 }}>{item.icon}</Text>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontWeight: '700', color: colors.foreground, fontSize: 14 }}>{item.title}</Text>
-                    <Text style={{ color: colors.muted, fontSize: 13, marginTop: 2 }}>{item.desc}</Text>
+                    <Text style={{ fontWeight: '700', color: colors.cardForeground, fontSize: 14 }}>{item.title}</Text>
+                    <Text style={{ color: colors.cardMuted, fontSize: 13, marginTop: 2 }}>{item.desc}</Text>
                   </View>
                 </View>
               ))}
@@ -1304,7 +1304,7 @@ export default function ProgressPicturesScreen() {
               onPress={() => setPermOnboardingVisible(false)}
               style={{ paddingVertical: 12, alignItems: 'center', marginTop: 8 }}
             >
-              <Text style={{ color: colors.muted, fontSize: 14 }}>Not now</Text>
+              <Text style={{ color: colors.cardMuted, fontSize: 14 }}>Not now</Text>
             </TouchableOpacity>
           </View>
         </View>

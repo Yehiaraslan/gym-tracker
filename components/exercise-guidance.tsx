@@ -87,7 +87,7 @@ export function ExerciseGuidance({
       style={{ 
         backgroundColor: colors.surface,
         borderWidth: 1, 
-        borderColor: colors.border 
+        borderColor: colors.cardBorder 
       }}
     >
       {/* Header - Always visible */}
@@ -103,7 +103,7 @@ export function ExerciseGuidance({
       >
         <View className="flex-row items-center">
           <Text style={{ fontSize: 18, marginRight: 8 }}>📖</Text>
-          <Text className="font-semibold" style={{ color: colors.foreground }}>
+          <Text className="font-semibold" style={{ color: colors.cardForeground }}>
             Form Guide
           </Text>
         </View>
@@ -114,7 +114,7 @@ export function ExerciseGuidance({
           <IconSymbol 
             name={isExpanded ? "chevron.up" : "chevron.down"} 
             size={20} 
-            color={colors.muted} 
+            color={colors.cardMuted} 
           />
         </View>
       </TouchableOpacity>
@@ -131,12 +131,12 @@ export function ExerciseGuidance({
                   width: '100%',
                   height: 200,
                   borderRadius: 12,
-                  backgroundColor: colors.border,
+                  backgroundColor: colors.cardBorder,
                 }}
                 contentFit="contain"
                 transition={300}
               />
-              <Text className="text-xs text-center mt-2" style={{ color: colors.muted }}>
+              <Text className="text-xs text-center mt-2" style={{ color: colors.cardMuted }}>
                 Watch the movement pattern above
               </Text>
             </View>
@@ -155,12 +155,12 @@ export function ExerciseGuidance({
                       paddingVertical: 8,
                       borderRadius: 8,
                       marginRight: 4,
-                      backgroundColor: !showInstructions ? colors.primary : colors.border,
+                      backgroundColor: !showInstructions ? colors.primary : colors.cardBorder,
                     }}
                   >
                     <Text 
                       className="text-center text-sm font-medium"
-                      style={{ color: !showInstructions ? '#FFFFFF' : colors.muted }}
+                      style={{ color: !showInstructions ? '#FFFFFF' : colors.cardMuted }}
                     >
                       Your Notes
                     </Text>
@@ -172,12 +172,12 @@ export function ExerciseGuidance({
                       paddingVertical: 8,
                       borderRadius: 8,
                       marginLeft: 4,
-                      backgroundColor: showInstructions ? colors.primary : colors.border,
+                      backgroundColor: showInstructions ? colors.primary : colors.cardBorder,
                     }}
                   >
                     <Text 
                       className="text-center text-sm font-medium"
-                      style={{ color: showInstructions ? '#FFFFFF' : colors.muted }}
+                      style={{ color: showInstructions ? '#FFFFFF' : colors.cardMuted }}
                     >
                       Instructions
                     </Text>
@@ -197,7 +197,7 @@ export function ExerciseGuidance({
                       <Text className="text-sm font-medium mb-1" style={{ color: colors.warning }}>
                         Coach Notes
                       </Text>
-                      <Text className="text-sm" style={{ color: colors.foreground }}>
+                      <Text className="text-sm" style={{ color: colors.cardForeground }}>
                         {notes}
                       </Text>
                     </View>
@@ -242,7 +242,7 @@ export function ExerciseGuidance({
                         </View>
                         <Text 
                           className="flex-1 text-sm" 
-                          style={{ color: colors.foreground, lineHeight: 20 }}
+                          style={{ color: colors.cardForeground, lineHeight: 20 }}
                         >
                           {instruction}
                         </Text>

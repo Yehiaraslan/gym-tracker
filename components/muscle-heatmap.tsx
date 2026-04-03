@@ -36,7 +36,7 @@ export function MuscleHeatmap({ heatmapData, neglectedMuscles }: MuscleHeatmapPr
   return (
     <ScrollView style={[styles.container, { backgroundColor: colors.surface }]}>
       {/* Title */}
-      <Text style={[styles.title, { color: colors.foreground }]}>Muscle Activity Map</Text>
+      <Text style={[styles.title, { color: colors.cardForeground }]}>Muscle Activity Map</Text>
 
       {/* Body visualization with muscle groups arranged as badges */}
       <View style={styles.bodyContainer}>
@@ -131,8 +131,8 @@ export function MuscleHeatmap({ heatmapData, neglectedMuscles }: MuscleHeatmapPr
       </View>
 
       {/* Legend */}
-      <View style={[styles.legend, { borderTopColor: colors.muted }]}>
-        <Text style={[styles.legendTitle, { color: colors.foreground }]}>Intensity Legend</Text>
+      <View style={[styles.legend, { borderTopColor: colors.cardMuted }]}>
+        <Text style={[styles.legendTitle, { color: colors.cardForeground }]}>Intensity Legend</Text>
         <View style={styles.legendGrid}>
           {(Object.keys(INTENSITY_COLORS) as IntensityLevel[]).map((intensity) => (
             <View key={intensity} style={styles.legendItem}>
@@ -142,7 +142,7 @@ export function MuscleHeatmap({ heatmapData, neglectedMuscles }: MuscleHeatmapPr
                   { backgroundColor: INTENSITY_COLORS[intensity] },
                 ]}
               />
-              <Text style={[styles.legendLabel, { color: colors.foreground }]}>
+              <Text style={[styles.legendLabel, { color: colors.cardForeground }]}>
                 {INTENSITY_LABELS[intensity]}
               </Text>
             </View>
@@ -152,21 +152,21 @@ export function MuscleHeatmap({ heatmapData, neglectedMuscles }: MuscleHeatmapPr
 
       {/* Neglected muscles section */}
       {neglectedMuscles.length > 0 && (
-        <View style={[styles.neglectedSection, { borderTopColor: colors.muted }]}>
-          <Text style={[styles.neglectedTitle, { color: colors.foreground }]}>
+        <View style={[styles.neglectedSection, { borderTopColor: colors.cardMuted }]}>
+          <Text style={[styles.neglectedTitle, { color: colors.cardForeground }]}>
             Neglected Muscles
           </Text>
           <View style={styles.neglectedList}>
             {neglectedMuscles.map((muscle) => (
               <Text
                 key={muscle}
-                style={[styles.neglectedItem, { color: colors.muted }]}
+                style={[styles.neglectedItem, { color: colors.cardMuted }]}
               >
                 • {MUSCLE_GROUPS[muscle].label}
               </Text>
             ))}
           </View>
-          <Text style={[styles.neglectedHint, { color: colors.muted }]}>
+          <Text style={[styles.neglectedHint, { color: colors.cardMuted }]}>
             Consider adding exercises for these muscle groups
           </Text>
         </View>
@@ -194,7 +194,7 @@ function MuscleBadge({ muscle, data }: MuscleBadgeProps) {
         styles.badge,
         {
           backgroundColor: bgColor,
-          borderColor: colors.foreground,
+          borderColor: colors.cardForeground,
         },
       ]}
     >

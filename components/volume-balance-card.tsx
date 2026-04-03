@@ -21,7 +21,7 @@ export function VolumeBalanceCard({ result, compact = false }: VolumeBalanceCard
   const hasWarnings = result.alerts.some((a) => a.severity === 'warning' || a.severity === 'critical');
   const hasCritical = result.alerts.some((a) => a.severity === 'critical');
 
-  const borderColor = hasCritical ? '#EF4444' : hasWarnings ? '#FBBF24' : colors.border;
+  const borderColor = hasCritical ? '#EF4444' : hasWarnings ? '#FBBF24' : colors.cardBorder;
   const borderWidth = hasCritical || hasWarnings ? 2 : 1;
 
   return (
@@ -37,7 +37,7 @@ export function VolumeBalanceCard({ result, compact = false }: VolumeBalanceCard
       ]}
     >
       <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.foreground }]}>Volume Balance</Text>
+        <Text style={[styles.title, { color: colors.cardForeground }]}>Volume Balance</Text>
         {result.alerts.length > 0 && (
           <View style={styles.alertBadge}>
             <Text style={styles.alertBadgeText}>{result.alerts.length}</Text>
@@ -49,7 +49,7 @@ export function VolumeBalanceCard({ result, compact = false }: VolumeBalanceCard
         <>
           {/* Push Bar */}
           <View style={styles.volumeRow}>
-            <Text style={[styles.label, { color: colors.foreground }]}>Push</Text>
+            <Text style={[styles.label, { color: colors.cardForeground }]}>Push</Text>
             <View style={[styles.barContainer, { backgroundColor: colors.surface }]}>
               <View
                 style={[
@@ -61,12 +61,12 @@ export function VolumeBalanceCard({ result, compact = false }: VolumeBalanceCard
                 ]}
               />
             </View>
-            <Text style={[styles.setCount, { color: colors.muted }]}>{result.push.sets}</Text>
+            <Text style={[styles.setCount, { color: colors.cardMuted }]}>{result.push.sets}</Text>
           </View>
 
           {/* Pull Bar */}
           <View style={styles.volumeRow}>
-            <Text style={[styles.label, { color: colors.foreground }]}>Pull</Text>
+            <Text style={[styles.label, { color: colors.cardForeground }]}>Pull</Text>
             <View style={[styles.barContainer, { backgroundColor: colors.surface }]}>
               <View
                 style={[
@@ -78,12 +78,12 @@ export function VolumeBalanceCard({ result, compact = false }: VolumeBalanceCard
                 ]}
               />
             </View>
-            <Text style={[styles.setCount, { color: colors.muted }]}>{result.pull.sets}</Text>
+            <Text style={[styles.setCount, { color: colors.cardMuted }]}>{result.pull.sets}</Text>
           </View>
 
           {/* Legs Bar */}
           <View style={styles.volumeRow}>
-            <Text style={[styles.label, { color: colors.foreground }]}>Legs</Text>
+            <Text style={[styles.label, { color: colors.cardForeground }]}>Legs</Text>
             <View style={[styles.barContainer, { backgroundColor: colors.surface }]}>
               <View
                 style={[
@@ -95,21 +95,21 @@ export function VolumeBalanceCard({ result, compact = false }: VolumeBalanceCard
                 ]}
               />
             </View>
-            <Text style={[styles.setCount, { color: colors.muted }]}>{result.legs.sets}</Text>
+            <Text style={[styles.setCount, { color: colors.cardMuted }]}>{result.legs.sets}</Text>
           </View>
 
           {/* Ratios */}
           <View style={styles.ratioRow}>
             <View style={styles.ratioItem}>
-              <Text style={[styles.ratioLabel, { color: colors.muted }]}>Push:Pull</Text>
-              <Text style={[styles.ratioValue, { color: colors.foreground }]}>
+              <Text style={[styles.ratioLabel, { color: colors.cardMuted }]}>Push:Pull</Text>
+              <Text style={[styles.ratioValue, { color: colors.cardForeground }]}>
                 {result.pushPullRatio.toFixed(2)}:1
               </Text>
             </View>
             <View style={styles.divider} />
             <View style={styles.ratioItem}>
-              <Text style={[styles.ratioLabel, { color: colors.muted }]}>Upper:Lower</Text>
-              <Text style={[styles.ratioValue, { color: colors.foreground }]}>
+              <Text style={[styles.ratioLabel, { color: colors.cardMuted }]}>Upper:Lower</Text>
+              <Text style={[styles.ratioValue, { color: colors.cardForeground }]}>
                 {result.upperLowerRatio.toFixed(2)}:1
               </Text>
             </View>
@@ -117,18 +117,18 @@ export function VolumeBalanceCard({ result, compact = false }: VolumeBalanceCard
 
           {/* Alerts Section */}
           {result.alerts.length > 0 && (
-            <View style={[styles.alertsSection, { borderTopColor: colors.border }]}>
-              <Text style={[styles.alertsTitle, { color: colors.foreground }]}>Alerts</Text>
+            <View style={[styles.alertsSection, { borderTopColor: colors.cardBorder }]}>
+              <Text style={[styles.alertsTitle, { color: colors.cardForeground }]}>Alerts</Text>
               {result.alerts.slice(0, 2).map((alert) => (
                 <View key={alert.id} style={styles.alertItem}>
                   <Text style={styles.alertEmoji}>{alert.emoji}</Text>
                   <View style={styles.alertContent}>
-                    <Text style={[styles.alertTitle, { color: colors.foreground }]}>{alert.title}</Text>
+                    <Text style={[styles.alertTitle, { color: colors.cardForeground }]}>{alert.title}</Text>
                     <Text
                       style={[
                         styles.alertMessage,
                         {
-                          color: colors.muted,
+                          color: colors.cardMuted,
                         },
                       ]}
                       numberOfLines={2}
@@ -139,7 +139,7 @@ export function VolumeBalanceCard({ result, compact = false }: VolumeBalanceCard
                 </View>
               ))}
               {result.alerts.length > 2 && (
-                <Text style={[styles.moreAlerts, { color: colors.muted }]}>
+                <Text style={[styles.moreAlerts, { color: colors.cardMuted }]}>
                   +{result.alerts.length - 2} more alert{result.alerts.length - 2 !== 1 ? 's' : ''}
                 </Text>
               )}
@@ -148,7 +148,7 @@ export function VolumeBalanceCard({ result, compact = false }: VolumeBalanceCard
 
           {/* Trend Badge */}
           <View style={styles.trendRow}>
-            <Text style={[styles.trendLabel, { color: colors.muted }]}>Status:</Text>
+            <Text style={[styles.trendLabel, { color: colors.cardMuted }]}>Status:</Text>
             <View
               style={[
                 styles.trendBadge,
@@ -183,7 +183,7 @@ export function VolumeBalanceCard({ result, compact = false }: VolumeBalanceCard
       )}
 
       {compact && !expanded && (
-        <Text style={[styles.compactHint, { color: colors.muted }]}>Tap to expand</Text>
+        <Text style={[styles.compactHint, { color: colors.cardMuted }]}>Tap to expand</Text>
       )}
     </Pressable>
   );

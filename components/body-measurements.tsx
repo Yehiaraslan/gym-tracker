@@ -128,9 +128,9 @@ export function BodyMeasurementsView() {
       <ScrollView className="flex-1 px-4" showsVerticalScrollIndicator={false}>
         {measurements.length === 0 ? (
           <View className="items-center py-12">
-            <IconSymbol name="person.fill" size={48} color={colors.muted} />
-            <Text className="text-foreground font-medium mt-4">No Measurements Yet</Text>
-            <Text className="text-muted text-center mt-1">
+            <IconSymbol name="person.fill" size={48} color={colors.cardMuted} />
+            <Text className="text-cardForeground font-medium mt-4">No Measurements Yet</Text>
+            <Text className="text-cardMuted text-center mt-1">
               Track your body weight and measurements over time
             </Text>
           </View>
@@ -144,18 +144,18 @@ export function BodyMeasurementsView() {
                 key={m.id}
                 onPress={() => setExpandedId(isExpanded ? null : m.id)}
                 className="bg-surface rounded-xl mb-3 overflow-hidden"
-                style={{ borderWidth: 1, borderColor: colors.border }}
+                style={{ borderWidth: 1, borderColor: colors.cardBorder }}
               >
                 {/* Header */}
                 <View className="p-4">
                   <View className="flex-row items-center justify-between">
                     <View>
-                      <Text className="text-lg font-semibold text-foreground">
+                      <Text className="text-lg font-semibold text-cardForeground">
                         {formatDate(m.date)}
                       </Text>
                       {m.weight && (
                         <View className="flex-row items-center mt-1">
-                          <Text className="text-2xl font-bold text-foreground">
+                          <Text className="text-2xl font-bold text-cardForeground">
                             {m.weight} kg
                           </Text>
                           {previousMeasurement?.weight && (
@@ -166,7 +166,7 @@ export function BodyMeasurementsView() {
                                   ? colors.success + '20' 
                                   : m.weight > previousMeasurement.weight 
                                     ? colors.error + '20' 
-                                    : colors.muted + '20'
+                                    : colors.cardMuted + '20'
                               }}
                             >
                               <Text 
@@ -176,7 +176,7 @@ export function BodyMeasurementsView() {
                                     ? colors.success 
                                     : m.weight > previousMeasurement.weight 
                                       ? colors.error 
-                                      : colors.muted
+                                      : colors.cardMuted
                                 }}
                               >
                                 {m.weight < previousMeasurement.weight ? '↓' : m.weight > previousMeasurement.weight ? '↑' : '='} 
@@ -198,7 +198,7 @@ export function BodyMeasurementsView() {
 
                 {/* Expanded Details */}
                 {isExpanded && (
-                  <View className="px-4 pb-4 border-t" style={{ borderTopColor: colors.border }}>
+                  <View className="px-4 pb-4 border-t" style={{ borderTopColor: colors.cardBorder }}>
                     <View className="pt-3">
                       {MEASUREMENT_FIELDS.filter(f => f.key !== 'weight' && (m as any)[f.key]).map(field => {
                         const value = (m as any)[field.key];
@@ -209,18 +209,18 @@ export function BodyMeasurementsView() {
                           <View 
                             key={field.key}
                             className="flex-row items-center justify-between py-2 border-b"
-                            style={{ borderBottomColor: colors.border }}
+                            style={{ borderBottomColor: colors.cardBorder }}
                           >
-                            <Text className="text-muted">{field.label}</Text>
+                            <Text className="text-cardMuted">{field.label}</Text>
                             <View className="flex-row items-center">
-                              <Text className="font-semibold text-foreground">
+                              <Text className="font-semibold text-cardForeground">
                                 {value} {field.unit}
                               </Text>
                               {progress && (
                                 <Text 
                                   className="ml-2 text-xs"
                                   style={{ 
-                                    color: progress.diff < 0 ? colors.success : progress.diff > 0 ? colors.warning : colors.muted 
+                                    color: progress.diff < 0 ? colors.success : progress.diff > 0 ? colors.warning : colors.cardMuted 
                                   }}
                                 >
                                   ({progress.diff > 0 ? '+' : ''}{progress.diff.toFixed(1)})
@@ -232,8 +232,8 @@ export function BodyMeasurementsView() {
                       })}
                       {m.notes && (
                         <View className="pt-3">
-                          <Text className="text-sm text-muted">Notes</Text>
-                          <Text className="text-foreground mt-1">{m.notes}</Text>
+                          <Text className="text-sm text-cardMuted">Notes</Text>
+                          <Text className="text-cardForeground mt-1">{m.notes}</Text>
                         </View>
                       )}
                     </View>
@@ -282,11 +282,11 @@ export function BodyMeasurementsView() {
             style={{ maxHeight: '90%' }}
           >
             {/* Modal Header */}
-            <View className="flex-row items-center justify-between p-4 border-b" style={{ borderBottomColor: colors.border }}>
+            <View className="flex-row items-center justify-between p-4 border-b" style={{ borderBottomColor: colors.cardBorder }}>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Text style={{ color: colors.muted }}>Cancel</Text>
+                <Text style={{ color: colors.cardMuted }}>Cancel</Text>
               </TouchableOpacity>
-              <Text className="text-lg font-semibold text-foreground">Add Measurement</Text>
+              <Text className="text-lg font-semibold text-cardForeground">Add Measurement</Text>
               <TouchableOpacity onPress={handleSave}>
                 <Text style={{ color: colors.primary, fontWeight: '600' }}>Save</Text>
               </TouchableOpacity>
@@ -294,45 +294,45 @@ export function BodyMeasurementsView() {
 
             <ScrollView className="p-4">
               {/* Date */}
-              <Text className="text-sm font-medium text-muted mb-2">Date (YYYY-MM-DD)</Text>
+              <Text className="text-sm font-medium text-cardMuted mb-2">Date (YYYY-MM-DD)</Text>
               <TextInput
                 value={formData.date}
                 onChangeText={(text) => setFormData(prev => ({ ...prev, date: text }))}
                 placeholder="2024-01-01"
-                placeholderTextColor={colors.muted}
-                className="bg-surface rounded-xl p-4 text-foreground mb-4"
-                style={{ borderWidth: 1, borderColor: colors.border }}
+                placeholderTextColor={colors.cardMuted}
+                className="bg-surface rounded-xl p-4 text-cardForeground mb-4"
+                style={{ borderWidth: 1, borderColor: colors.cardBorder }}
               />
 
               {/* Measurement Fields */}
               {MEASUREMENT_FIELDS.map(field => (
                 <View key={field.key} className="mb-4">
-                  <Text className="text-sm font-medium text-muted mb-2">
+                  <Text className="text-sm font-medium text-cardMuted mb-2">
                     {field.label} ({field.unit})
                   </Text>
                   <TextInput
                     value={formData[field.key]}
                     onChangeText={(text) => setFormData(prev => ({ ...prev, [field.key]: text }))}
                     placeholder={`Enter ${field.label.toLowerCase()}`}
-                    placeholderTextColor={colors.muted}
+                    placeholderTextColor={colors.cardMuted}
                     keyboardType="decimal-pad"
-                    className="bg-surface rounded-xl p-4 text-foreground"
-                    style={{ borderWidth: 1, borderColor: colors.border }}
+                    className="bg-surface rounded-xl p-4 text-cardForeground"
+                    style={{ borderWidth: 1, borderColor: colors.cardBorder }}
                   />
                 </View>
               ))}
 
               {/* Notes */}
-              <Text className="text-sm font-medium text-muted mb-2">Notes (optional)</Text>
+              <Text className="text-sm font-medium text-cardMuted mb-2">Notes (optional)</Text>
               <TextInput
                 value={formData.notes}
                 onChangeText={(text) => setFormData(prev => ({ ...prev, notes: text }))}
                 placeholder="Any notes about this measurement"
-                placeholderTextColor={colors.muted}
+                placeholderTextColor={colors.cardMuted}
                 multiline
                 numberOfLines={3}
-                className="bg-surface rounded-xl p-4 text-foreground mb-8"
-                style={{ borderWidth: 1, borderColor: colors.border, minHeight: 80 }}
+                className="bg-surface rounded-xl p-4 text-cardForeground mb-8"
+                style={{ borderWidth: 1, borderColor: colors.cardBorder, minHeight: 80 }}
               />
             </ScrollView>
           </View>

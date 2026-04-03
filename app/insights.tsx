@@ -160,12 +160,12 @@ Available Exercises: ${store.exercises.map(e => e.name).join(', ')}`;
         style={{
           backgroundColor: item.role === 'user' ? colors.primary : colors.surface,
           borderWidth: item.role === 'user' ? 0 : 1,
-          borderColor: colors.border,
+          borderColor: colors.cardBorder,
         }}
       >
         <Text
           style={{
-            color: item.role === 'user' ? 'white' : colors.foreground,
+            color: item.role === 'user' ? 'white' : colors.cardForeground,
             fontSize: 14,
             lineHeight: 20,
           }}
@@ -184,10 +184,10 @@ Available Exercises: ${store.exercises.map(e => e.name).join(', ')}`;
       >
         {messages.length === 0 ? (
           <ScrollView className="flex-1 px-4" contentContainerStyle={{ paddingVertical: 24 }}>
-            <Text className="text-2xl font-bold text-foreground mb-2">
+            <Text className="text-2xl font-bold text-cardForeground mb-2">
               AI Fitness Coach
             </Text>
-            <Text className="text-muted mb-8">
+            <Text className="text-cardMuted mb-8">
               Ask me anything about your workouts, recovery, and training progress.
             </Text>
 
@@ -205,7 +205,7 @@ Available Exercises: ${store.exercises.map(e => e.name).join(', ')}`;
               </View>
             )}
 
-            <Text className="text-base font-semibold text-foreground mb-3">
+            <Text className="text-base font-semibold text-cardForeground mb-3">
               Suggested Questions:
             </Text>
 
@@ -216,11 +216,11 @@ Available Exercises: ${store.exercises.map(e => e.name).join(', ')}`;
                 disabled={!openAiKey || loading}
                 className="bg-surface rounded-xl p-4 mb-3 border"
                 style={{
-                  borderColor: colors.border,
+                  borderColor: colors.cardBorder,
                   opacity: !openAiKey || loading ? 0.5 : 1,
                 }}
               >
-                <Text className="text-foreground text-sm">{question}</Text>
+                <Text className="text-cardForeground text-sm">{question}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -238,21 +238,21 @@ Available Exercises: ${store.exercises.map(e => e.name).join(', ')}`;
         {/* Input Area */}
         <View
           className="px-4 py-4 border-t"
-          style={{ borderTopColor: colors.border, backgroundColor: colors.background }}
+          style={{ borderTopColor: colors.cardBorder, backgroundColor: colors.background }}
         >
           <View className="flex-row items-center gap-2">
             <TextInput
               value={inputText}
               onChangeText={setInputText}
               placeholder="Ask me about your workouts..."
-              placeholderTextColor={colors.muted}
+              placeholderTextColor={colors.cardMuted}
               multiline
               maxLength={500}
               editable={!loading && !!openAiKey}
-              className="flex-1 bg-surface rounded-xl p-3 text-foreground"
+              className="flex-1 bg-surface rounded-xl p-3 text-cardForeground"
               style={{
                 borderWidth: 1,
-                borderColor: colors.border,
+                borderColor: colors.cardBorder,
                 maxHeight: 100,
               }}
             />
@@ -261,7 +261,7 @@ Available Exercises: ${store.exercises.map(e => e.name).join(', ')}`;
               disabled={loading || !inputText.trim() || !openAiKey}
               className="p-3 rounded-xl"
               style={{
-                backgroundColor: loading || !inputText.trim() || !openAiKey ? colors.muted : colors.primary,
+                backgroundColor: loading || !inputText.trim() || !openAiKey ? colors.cardMuted : colors.primary,
               }}
             >
               {loading ? (

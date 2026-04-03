@@ -95,13 +95,13 @@ export default function CoachTab() {
       {/* Header */}
       <View style={s.header}>
         <View>
-          <Text style={[s.title, { color: colors.foreground }]}>AI Form Coach</Text>
-          <Text style={[s.subtitle, { color: colors.muted }]}>
+          <Text style={[s.title, { color: colors.cardForeground }]}>AI Form Coach</Text>
+          <Text style={[s.subtitle, { color: colors.cardMuted }]}>
             {isNative ? 'On-device pose tracking · No upload' : 'Native device required for tracking'}
           </Text>
         </View>
         <View style={[s.badge, { backgroundColor: isNative ? '#10B98120' : colors.surface }]}>
-          <Text style={[s.badgeText, { color: isNative ? '#10B981' : colors.muted }]}>
+          <Text style={[s.badgeText, { color: isNative ? '#10B981' : colors.cardMuted }]}>
             {isNative ? '● LIVE' : '○ WEB'}
           </Text>
         </View>
@@ -124,8 +124,8 @@ export default function CoachTab() {
           <View style={s.aiCoachCardInner}>
             <Text style={{ fontSize: 32 }}>🧠</Text>
             <View style={{ flex: 1 }}>
-              <Text style={[s.aiCoachTitle, { color: colors.foreground }]}>AI Coaching Dashboard</Text>
-              <Text style={[s.aiCoachDesc, { color: colors.muted }]}>
+              <Text style={[s.aiCoachTitle, { color: colors.cardForeground }]}>AI Coaching Dashboard</Text>
+              <Text style={[s.aiCoachDesc, { color: colors.cardMuted }]}>
                 Daily insights, workout adjustments, and nutrition analysis powered by your data
               </Text>
             </View>
@@ -135,8 +135,8 @@ export default function CoachTab() {
 
         {/* How it works card */}
         <View style={[s.infoCard, { backgroundColor: colors.surface, borderColor: colors.primary + '30' }]}>
-          <Text style={[s.infoTitle, { color: colors.foreground }]}>How it works</Text>
-          <Text style={[s.infoBody, { color: colors.muted }]}>
+          <Text style={[s.infoTitle, { color: colors.cardForeground }]}>How it works</Text>
+          <Text style={[s.infoBody, { color: colors.cardMuted }]}>
             Your camera feeds live video to MediaPipe Pose — a Google AI model running entirely on your device.
             It maps 33 body landmarks at 15–30 FPS, counts your reps automatically, and scores your form 0–100.
             No video is ever uploaded.
@@ -153,7 +153,7 @@ export default function CoachTab() {
         )}
 
         {/* Exercise selection */}
-        <Text style={[s.sectionLabel, { color: colors.muted }]}>SELECT EXERCISE</Text>
+        <Text style={[s.sectionLabel, { color: colors.cardMuted }]}>SELECT EXERCISE</Text>
 
         {EXERCISES.map((ex) => (
           <TouchableOpacity
@@ -167,7 +167,7 @@ export default function CoachTab() {
               s.exerciseCard,
               {
                 backgroundColor: colors.surface,
-                borderColor: selected === ex.type ? ex.color : colors.border,
+                borderColor: selected === ex.type ? ex.color : colors.cardBorder,
                 borderWidth: selected === ex.type ? 2 : 1,
               },
             ]}
@@ -176,8 +176,8 @@ export default function CoachTab() {
               <Text style={s.iconText}>{ex.icon}</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[s.exName, { color: colors.foreground }]}>{ex.name}</Text>
-              <Text style={[s.exDesc, { color: colors.muted }]}>{ex.description}</Text>
+              <Text style={[s.exName, { color: colors.cardForeground }]}>{ex.name}</Text>
+              <Text style={[s.exDesc, { color: colors.cardMuted }]}>{ex.description}</Text>
             </View>
             {selected === ex.type && (
               <View style={[s.checkCircle, { backgroundColor: ex.color }]}>
@@ -189,8 +189,8 @@ export default function CoachTab() {
 
         {/* Tips for selected exercise */}
         {selectedOption && (
-          <View style={[s.tipsCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[s.tipsTitle, { color: colors.foreground }]}>
+          <View style={[s.tipsCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+            <Text style={[s.tipsTitle, { color: colors.cardForeground }]}>
               Setup tips for {selectedOption.name}
             </Text>
             {selectedOption.tips.map((tip, i) => (
@@ -198,7 +198,7 @@ export default function CoachTab() {
                 <View style={[s.tipNum, { backgroundColor: selectedOption.color + '20' }]}>
                   <Text style={[s.tipNumText, { color: selectedOption.color }]}>{i + 1}</Text>
                 </View>
-                <Text style={[s.tipText, { color: colors.foreground }]}>{tip}</Text>
+                <Text style={[s.tipText, { color: colors.cardForeground }]}>{tip}</Text>
               </View>
             ))}
           </View>
@@ -206,7 +206,7 @@ export default function CoachTab() {
 
         {/* Disclaimer */}
         <View style={[s.disclaimer, { backgroundColor: colors.surface }]}>
-          <Text style={[s.disclaimerText, { color: colors.muted }]}>
+          <Text style={[s.disclaimerText, { color: colors.cardMuted }]}>
             ⚠️  AI tracking works best with stable camera position and good lighting. Accuracy may vary based on conditions.
           </Text>
         </View>

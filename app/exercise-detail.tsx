@@ -101,7 +101,7 @@ export default function ExerciseDetailScreen() {
   if (!exercise || !stats) {
     return (
       <ScreenContainer className="flex-1 items-center justify-center">
-        <Text className="text-foreground">Exercise not found</Text>
+        <Text className="text-cardForeground">Exercise not found</Text>
       </ScreenContainer>
     );
   }
@@ -153,11 +153,11 @@ export default function ExerciseDetailScreen() {
     <ScreenContainer className="flex-1">
       <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
         {/* Header */}
-        <View className="flex-row items-center justify-between px-4 py-4 border-b" style={{ borderBottomColor: colors.border }}>
+        <View className="flex-row items-center justify-between px-4 py-4 border-b" style={{ borderBottomColor: colors.cardBorder }}>
           <TouchableOpacity onPress={() => router.back()} className="p-2">
-            <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
+            <IconSymbol name="chevron.left" size={24} color={colors.cardForeground} />
           </TouchableOpacity>
-          <Text className="text-xl font-bold text-foreground flex-1 ml-2">{exercise.name}</Text>
+          <Text className="text-xl font-bold text-cardForeground flex-1 ml-2">{exercise.name}</Text>
           <View style={{ width: 44 }} />
         </View>
 
@@ -166,26 +166,26 @@ export default function ExerciseDetailScreen() {
           <View className="flex-row gap-4 mb-6">
             <View
               className="flex-1 bg-surface rounded-xl p-4"
-              style={{ borderWidth: 1, borderColor: colors.border }}
+              style={{ borderWidth: 1, borderColor: colors.cardBorder }}
             >
-              <Text className="text-2xl font-bold text-foreground">{sessionCount}</Text>
-              <Text className="text-xs text-muted mt-1">Sessions Logged</Text>
+              <Text className="text-2xl font-bold text-cardForeground">{sessionCount}</Text>
+              <Text className="text-xs text-cardMuted mt-1">Sessions Logged</Text>
             </View>
             <View
               className="flex-1 bg-surface rounded-xl p-4"
-              style={{ borderWidth: 1, borderColor: colors.border }}
+              style={{ borderWidth: 1, borderColor: colors.cardBorder }}
             >
-              <Text className="text-2xl font-bold text-foreground">{stats.averageDifficulty.toFixed(1)}</Text>
-              <Text className="text-xs text-muted mt-1">Avg Difficulty</Text>
+              <Text className="text-2xl font-bold text-cardForeground">{stats.averageDifficulty.toFixed(1)}</Text>
+              <Text className="text-xs text-cardMuted mt-1">Avg Difficulty</Text>
             </View>
             <View
               className="flex-1 bg-surface rounded-xl p-4"
-              style={{ borderWidth: 1, borderColor: colors.border }}
+              style={{ borderWidth: 1, borderColor: colors.cardBorder }}
             >
               <Text className="text-2xl font-bold" style={{ color: getTrendColor(stats.trend) }}>
                 {getTrendEmoji(stats.trend)}
               </Text>
-              <Text className="text-xs text-muted mt-1 capitalize">{stats.trend}</Text>
+              <Text className="text-xs text-cardMuted mt-1 capitalize">{stats.trend}</Text>
             </View>
           </View>
         </View>
@@ -196,28 +196,28 @@ export default function ExerciseDetailScreen() {
             className="bg-surface rounded-xl p-4"
             style={{ borderWidth: 2, borderColor: recommendation.color + '40', backgroundColor: recommendation.color + '10' }}
           >
-            <Text className="text-lg font-bold text-foreground mb-2">{recommendation.title}</Text>
-            <Text className="text-muted">{recommendation.message}</Text>
+            <Text className="text-lg font-bold text-cardForeground mb-2">{recommendation.title}</Text>
+            <Text className="text-cardMuted">{recommendation.message}</Text>
           </View>
         </View>
 
         {/* Difficulty Distribution */}
         <View className="px-4 mb-6">
-          <Text className="text-lg font-bold text-foreground mb-3">Difficulty Distribution</Text>
+          <Text className="text-lg font-bold text-cardForeground mb-3">Difficulty Distribution</Text>
           <View
             className="bg-surface rounded-xl p-4"
-            style={{ borderWidth: 1, borderColor: colors.border }}
+            style={{ borderWidth: 1, borderColor: colors.cardBorder }}
           >
             <View className="mb-4">
               <View className="flex-row items-center justify-between mb-2">
-                <Text className="text-sm text-foreground">😌 Easy</Text>
-                <Text className="text-sm font-semibold text-foreground">
+                <Text className="text-sm text-cardForeground">😌 Easy</Text>
+                <Text className="text-sm font-semibold text-cardForeground">
                   {stats.easyPercentage.toFixed(0)}% ({stats.easyCount})
                 </Text>
               </View>
               <View
                 className="h-3 rounded-full"
-                style={{ backgroundColor: colors.border }}
+                style={{ backgroundColor: colors.cardBorder }}
               >
                 <View
                   className="h-3 rounded-full"
@@ -231,14 +231,14 @@ export default function ExerciseDetailScreen() {
 
             <View className="mb-4">
               <View className="flex-row items-center justify-between mb-2">
-                <Text className="text-sm text-foreground">💪 Medium</Text>
-                <Text className="text-sm font-semibold text-foreground">
+                <Text className="text-sm text-cardForeground">💪 Medium</Text>
+                <Text className="text-sm font-semibold text-cardForeground">
                   {stats.mediumPercentage.toFixed(0)}% ({stats.mediumCount})
                 </Text>
               </View>
               <View
                 className="h-3 rounded-full"
-                style={{ backgroundColor: colors.border }}
+                style={{ backgroundColor: colors.cardBorder }}
               >
                 <View
                   className="h-3 rounded-full"
@@ -252,14 +252,14 @@ export default function ExerciseDetailScreen() {
 
             <View>
               <View className="flex-row items-center justify-between mb-2">
-                <Text className="text-sm text-foreground">🔥 Hard</Text>
-                <Text className="text-sm font-semibold text-foreground">
+                <Text className="text-sm text-cardForeground">🔥 Hard</Text>
+                <Text className="text-sm font-semibold text-cardForeground">
                   {stats.hardPercentage.toFixed(0)}% ({stats.hardCount})
                 </Text>
               </View>
               <View
                 className="h-3 rounded-full"
-                style={{ backgroundColor: colors.border }}
+                style={{ backgroundColor: colors.cardBorder }}
               >
                 <View
                   className="h-3 rounded-full"
@@ -276,10 +276,10 @@ export default function ExerciseDetailScreen() {
         {/* Recent Trend */}
         {trend && trend.lastFiveRatings.length > 0 && (
           <View className="px-4 mb-6">
-            <Text className="text-lg font-bold text-foreground mb-3">Last 5 Attempts</Text>
+            <Text className="text-lg font-bold text-cardForeground mb-3">Last 5 Attempts</Text>
             <View
               className="bg-surface rounded-xl p-4"
-              style={{ borderWidth: 1, borderColor: colors.border }}
+              style={{ borderWidth: 1, borderColor: colors.cardBorder }}
             >
               <View className="flex-row justify-between items-end h-24">
                 {trend.lastFiveRatings.map((rating: string, index: number) => {
@@ -298,7 +298,7 @@ export default function ExerciseDetailScreen() {
                           backgroundColor: color,
                         }}
                       />
-                      <Text className="text-xs text-muted mt-2">
+                      <Text className="text-xs text-cardMuted mt-2">
                         {index === 0 ? 'Oldest' : index === trend.lastFiveRatings.length - 1 ? 'Latest' : ''}
                       </Text>
                     </View>
@@ -311,26 +311,26 @@ export default function ExerciseDetailScreen() {
 
         {/* Exercise Details */}
         <View className="px-4 mb-6">
-          <Text className="text-lg font-bold text-foreground mb-3">Exercise Details</Text>
+          <Text className="text-lg font-bold text-cardForeground mb-3">Exercise Details</Text>
           <View
             className="bg-surface rounded-xl p-4"
-            style={{ borderWidth: 1, borderColor: colors.border }}
+            style={{ borderWidth: 1, borderColor: colors.cardBorder }}
           >
-            <View className="py-3 border-b" style={{ borderBottomColor: colors.border }}>
-              <Text className="text-sm text-muted">Body Part</Text>
-              <Text className="text-base font-semibold text-foreground capitalize mt-1">
+            <View className="py-3 border-b" style={{ borderBottomColor: colors.cardBorder }}>
+              <Text className="text-sm text-cardMuted">Body Part</Text>
+              <Text className="text-base font-semibold text-cardForeground capitalize mt-1">
                 {exercise.bodyPart}
               </Text>
             </View>
             {exercise.notes && (
-              <View className="py-3 border-b" style={{ borderBottomColor: colors.border }}>
-                <Text className="text-sm text-muted">Notes</Text>
-                <Text className="text-base text-foreground mt-1">{exercise.notes}</Text>
+              <View className="py-3 border-b" style={{ borderBottomColor: colors.cardBorder }}>
+                <Text className="text-sm text-cardMuted">Notes</Text>
+                <Text className="text-base text-cardForeground mt-1">{exercise.notes}</Text>
               </View>
             )}
             <View className="py-3">
-              <Text className="text-sm text-muted">Default Reps</Text>
-              <Text className="text-base font-semibold text-foreground mt-1">{exercise.defaultReps || 'N/A'}</Text>
+              <Text className="text-sm text-cardMuted">Default Reps</Text>
+              <Text className="text-base font-semibold text-cardForeground mt-1">{exercise.defaultReps || 'N/A'}</Text>
             </View>
           </View>
         </View>

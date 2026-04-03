@@ -47,14 +47,14 @@ export default function MuscleHeatmapScreen() {
   return (
     <ScreenContainer>
       {/* Header */}
-      <View style={[styles.header, { borderBottomColor: colors.muted }]}>
+      <View style={[styles.header, { borderBottomColor: colors.cardMuted }]}>
         <TouchableOpacity
           onPress={() => router.back()}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
           <Text style={[styles.backButton, { color: colors.primary }]}>← Back</Text>
         </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.foreground }]}>Muscle Heatmap</Text>
+        <Text style={[styles.title, { color: colors.cardForeground }]}>Muscle Heatmap</Text>
         <View style={{ width: 60 }} />
       </View>
 
@@ -77,33 +77,33 @@ export default function MuscleHeatmapScreen() {
 
         {/* Balance info card */}
         {balance && (
-          <View style={[styles.balanceCard, { backgroundColor: colors.surface, borderColor: colors.muted }]}>
-            <Text style={[styles.balanceTitle, { color: colors.foreground }]}>
+          <View style={[styles.balanceCard, { backgroundColor: colors.surface, borderColor: colors.cardMuted }]}>
+            <Text style={[styles.balanceTitle, { color: colors.cardForeground }]}>
               Push/Pull/Legs Balance
             </Text>
             <View style={styles.balanceRow}>
               <View style={styles.balanceItem}>
-                <Text style={[styles.balanceLabel, { color: colors.muted }]}>Push</Text>
-                <Text style={[styles.balanceValue, { color: colors.foreground }]}>
+                <Text style={[styles.balanceLabel, { color: colors.cardMuted }]}>Push</Text>
+                <Text style={[styles.balanceValue, { color: colors.cardForeground }]}>
                   {balance.pushSets}
                 </Text>
               </View>
               <View style={styles.balanceItem}>
-                <Text style={[styles.balanceLabel, { color: colors.muted }]}>Pull</Text>
-                <Text style={[styles.balanceValue, { color: colors.foreground }]}>
+                <Text style={[styles.balanceLabel, { color: colors.cardMuted }]}>Pull</Text>
+                <Text style={[styles.balanceValue, { color: colors.cardForeground }]}>
                   {balance.pullSets}
                 </Text>
               </View>
               <View style={styles.balanceItem}>
-                <Text style={[styles.balanceLabel, { color: colors.muted }]}>Legs</Text>
-                <Text style={[styles.balanceValue, { color: colors.foreground }]}>
+                <Text style={[styles.balanceLabel, { color: colors.cardMuted }]}>Legs</Text>
+                <Text style={[styles.balanceValue, { color: colors.cardForeground }]}>
                   {balance.legSets}
                 </Text>
               </View>
             </View>
-            <View style={[styles.ratioContainer, { borderTopColor: colors.muted }]}>
-              <Text style={[styles.ratioLabel, { color: colors.muted }]}>Distribution</Text>
-              <Text style={[styles.ratioValue, { color: colors.foreground }]}>
+            <View style={[styles.ratioContainer, { borderTopColor: colors.cardMuted }]}>
+              <Text style={[styles.ratioLabel, { color: colors.cardMuted }]}>Distribution</Text>
+              <Text style={[styles.ratioValue, { color: colors.cardForeground }]}>
                 {balance.ratio}
               </Text>
             </View>
@@ -139,7 +139,7 @@ function ToggleButton({ label, active, onPress, colors }: ToggleButtonProps) {
           backgroundColor: colors.primary,
         },
         !active && {
-          backgroundColor: colors.muted,
+          backgroundColor: colors.cardMuted,
         },
       ]}
     >
@@ -147,7 +147,7 @@ function ToggleButton({ label, active, onPress, colors }: ToggleButtonProps) {
         style={[
           styles.toggleLabel,
           {
-            color: active ? '#fff' : colors.foreground,
+            color: active ? '#fff' : colors.cardForeground,
           },
         ]}
       >

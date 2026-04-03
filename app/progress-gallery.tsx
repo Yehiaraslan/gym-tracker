@@ -275,26 +275,26 @@ export default function ProgressGalleryScreen() {
       <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
         {/* Header */}
         <View style={{ paddingHorizontal: 16, paddingTop: 24, paddingBottom: 12 }}>
-          <Text style={[styles.title, { color: colors.foreground }]}>Progress Gallery</Text>
-          <Text style={{ color: colors.muted, fontSize: 14, marginTop: 4 }}>Track your transformation over time</Text>
+          <Text style={[styles.title, { color: colors.cardForeground }]}>Progress Gallery</Text>
+          <Text style={{ color: colors.cardMuted, fontSize: 14, marginTop: 4 }}>Track your transformation over time</Text>
         </View>
 
         {/* Stats */}
         {stats && (
           <View style={{ paddingHorizontal: 16, marginBottom: 16 }}>
-            <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                 <View style={{ flex: 1, alignItems: 'center' }}>
-                  <Text style={[styles.statNum, { color: colors.foreground }]}>{stats.totalPhotos}</Text>
-                  <Text style={{ color: colors.muted, fontSize: 11, marginTop: 2 }}>Total Photos</Text>
+                  <Text style={[styles.statNum, { color: colors.cardForeground }]}>{stats.totalPhotos}</Text>
+                  <Text style={{ color: colors.cardMuted, fontSize: 11, marginTop: 2 }}>Total Photos</Text>
                 </View>
                 <View style={{ flex: 1, alignItems: 'center' }}>
-                  <Text style={[styles.statNum, { color: colors.foreground }]}>{stats.daysSinceFirst}</Text>
-                  <Text style={{ color: colors.muted, fontSize: 11, marginTop: 2 }}>Days Tracked</Text>
+                  <Text style={[styles.statNum, { color: colors.cardForeground }]}>{stats.daysSinceFirst}</Text>
+                  <Text style={{ color: colors.cardMuted, fontSize: 11, marginTop: 2 }}>Days Tracked</Text>
                 </View>
                 <View style={{ flex: 1, alignItems: 'center' }}>
-                  <Text style={[styles.statNum, { color: colors.foreground }]}>{stats.averagePhotosPerMonth}</Text>
-                  <Text style={{ color: colors.muted, fontSize: 11, marginTop: 2 }}>Per Month</Text>
+                  <Text style={[styles.statNum, { color: colors.cardForeground }]}>{stats.averagePhotosPerMonth}</Text>
+                  <Text style={{ color: colors.cardMuted, fontSize: 11, marginTop: 2 }}>Per Month</Text>
                 </View>
               </View>
             </View>
@@ -323,10 +323,10 @@ export default function ProgressGalleryScreen() {
               sliderX.setValue(SCREEN_WIDTH / 2);
               setCompareModalVisible(true);
             }}
-            style={[styles.actionBtn, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, flex: 1 }]}
+            style={[styles.actionBtn, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.cardBorder, flex: 1 }]}
           >
             <Text style={{ fontSize: 16 }}>⚖️</Text>
-            <Text style={[styles.actionBtnText, { color: colors.foreground }]}>Compare</Text>
+            <Text style={[styles.actionBtnText, { color: colors.cardForeground }]}>Compare</Text>
           </TouchableOpacity>
         </View>
 
@@ -344,8 +344,8 @@ export default function ProgressGalleryScreen() {
         ) : (
           <View style={{ alignItems: 'center', paddingVertical: 48, paddingHorizontal: 16 }}>
             <Text style={{ fontSize: 48, marginBottom: 12 }}>📸</Text>
-            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>No photos yet</Text>
-            <Text style={{ color: colors.muted, textAlign: 'center', fontSize: 14 }}>
+            <Text style={[styles.emptyTitle, { color: colors.cardForeground }]}>No photos yet</Text>
+            <Text style={{ color: colors.cardMuted, textAlign: 'center', fontSize: 14 }}>
               Start tracking your progress by adding your first photo
             </Text>
           </View>
@@ -357,9 +357,9 @@ export default function ProgressGalleryScreen() {
       <Modal visible={sourcePickerVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={[styles.bottomSheet, { backgroundColor: colors.surface }]}>
-            <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
-            <Text style={[styles.sheetTitle, { color: colors.foreground }]}>Add Progress Photo</Text>
-            <Text style={{ color: colors.muted, fontSize: 14, marginBottom: 20, textAlign: 'center' }}>
+            <View style={[styles.sheetHandle, { backgroundColor: colors.cardBorder }]} />
+            <Text style={[styles.sheetTitle, { color: colors.cardForeground }]}>Add Progress Photo</Text>
+            <Text style={{ color: colors.cardMuted, fontSize: 14, marginBottom: 20, textAlign: 'center' }}>
               Choose a photo source
             </Text>
             <TouchableOpacity
@@ -384,9 +384,9 @@ export default function ProgressGalleryScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => setSourcePickerVisible(false)}
-              style={[styles.sheetBtn, { backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, marginTop: 8 }]}
+              style={[styles.sheetBtn, { backgroundColor: colors.background, borderWidth: 1, borderColor: colors.cardBorder, marginTop: 8 }]}
             >
-              <Text style={{ color: colors.foreground, fontWeight: '600' }}>Cancel</Text>
+              <Text style={{ color: colors.cardForeground, fontWeight: '600' }}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -396,9 +396,9 @@ export default function ProgressGalleryScreen() {
       <Modal visible={categoryModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={[styles.bottomSheet, { backgroundColor: colors.surface }]}>
-            <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
-            <Text style={[styles.sheetTitle, { color: colors.foreground }]}>Tag This Photo</Text>
-            <Text style={{ color: colors.muted, fontSize: 14, marginBottom: 20, textAlign: 'center' }}>
+            <View style={[styles.sheetHandle, { backgroundColor: colors.cardBorder }]} />
+            <Text style={[styles.sheetTitle, { color: colors.cardForeground }]}>Tag This Photo</Text>
+            <Text style={{ color: colors.cardMuted, fontSize: 14, marginBottom: 20, textAlign: 'center' }}>
               Which angle is this photo?
             </Text>
             {pendingImageUri && (
@@ -419,13 +419,13 @@ export default function ProgressGalleryScreen() {
                     styles.categoryChip,
                     {
                       backgroundColor: selectedCategory === cat.value ? colors.primary : colors.background,
-                      borderColor: selectedCategory === cat.value ? colors.primary : colors.border,
+                      borderColor: selectedCategory === cat.value ? colors.primary : colors.cardBorder,
                     },
                   ]}
                 >
                   <Text style={{ fontSize: 20, marginBottom: 4 }}>{cat.emoji}</Text>
                   <Text style={{
-                    color: selectedCategory === cat.value ? 'white' : colors.foreground,
+                    color: selectedCategory === cat.value ? 'white' : colors.cardForeground,
                     fontWeight: '600',
                     fontSize: 13,
                   }}>{cat.label}</Text>
@@ -435,9 +435,9 @@ export default function ProgressGalleryScreen() {
             <View style={{ flexDirection: 'row', gap: 10 }}>
               <TouchableOpacity
                 onPress={() => { setCategoryModalVisible(false); setPendingImageUri(null); setPendingBase64(null); }}
-                style={[styles.sheetBtn, { backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, flex: 1 }]}
+                style={[styles.sheetBtn, { backgroundColor: colors.background, borderWidth: 1, borderColor: colors.cardBorder, flex: 1 }]}
               >
-                <Text style={{ color: colors.foreground, fontWeight: '600' }}>Cancel</Text>
+                <Text style={{ color: colors.cardForeground, fontWeight: '600' }}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleConfirmCategory}
@@ -465,9 +465,9 @@ export default function ProgressGalleryScreen() {
                   source={{ uri: selectedPhoto.uri }}
                   style={{ width: '100%', aspectRatio: 3 / 4, borderRadius: 12 }}
                 />
-                <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, marginTop: 16 }]}>
+                <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.cardBorder, marginTop: 16 }]}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                    <Text style={{ color: colors.muted, fontSize: 13 }}>
+                    <Text style={{ color: colors.cardMuted, fontSize: 13 }}>
                       {new Date(selectedPhoto.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                     </Text>
                     {selectedPhoto.category && (
@@ -479,7 +479,7 @@ export default function ProgressGalleryScreen() {
                     )}
                   </View>
                   {selectedPhoto.notes ? (
-                    <Text style={{ color: colors.foreground, fontSize: 14, marginBottom: 16 }}>{selectedPhoto.notes}</Text>
+                    <Text style={{ color: colors.cardForeground, fontSize: 14, marginBottom: 16 }}>{selectedPhoto.notes}</Text>
                   ) : null}
                   <View style={{ flexDirection: 'row', gap: 10 }}>
                     <TouchableOpacity
@@ -605,7 +605,7 @@ export default function ProgressGalleryScreen() {
             onPress={() => setCompareModalVisible(false)}
             style={[styles.closeBtn, { backgroundColor: colors.surface }]}
           >
-            <Text style={{ color: colors.foreground, fontWeight: '700', fontSize: 16 }}>Close</Text>
+            <Text style={{ color: colors.cardForeground, fontWeight: '700', fontSize: 16 }}>Close</Text>
           </TouchableOpacity>
         </View>
       </Modal>

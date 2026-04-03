@@ -97,11 +97,11 @@ export default function ProgramHistoryScreen() {
   const [loading, setLoading] = useState(true);
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
 
-  const fg = colors.foreground;
-  const mt = colors.muted;
+  const fg = colors.cardForeground;
+  const mt = colors.cardMuted;
   const pr = colors.primary;
   const surf = colors.surface;
-  const bord = colors.border;
+  const bord = colors.cardBorder;
   const bg = colors.background;
 
   const loadData = useCallback(async () => {

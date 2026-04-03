@@ -105,12 +105,12 @@ export default function HistoryScreen() {
 
     return (
       <TouchableOpacity onPress={() => toggleWorkout(item.id)} activeOpacity={0.7}>
-        <View style={[styles.card, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+        <View style={[styles.card, { borderColor: colors.cardBorder, backgroundColor: colors.surface }]}>
           {/* Header */}
           <View style={styles.cardHeader}>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.sessionName, { color: colors.foreground }]}>{sessionName}</Text>
-              <Text style={[styles.sessionDate, { color: colors.muted }]}>
+              <Text style={[styles.sessionName, { color: colors.cardForeground }]}>{sessionName}</Text>
+              <Text style={[styles.sessionDate, { color: colors.cardMuted }]}>
                 {formatSessionDate(item.date)}
                 {item.durationMinutes ? `  ·  ${formatDuration(item.durationMinutes)}` : ''}
               </Text>
@@ -128,7 +128,7 @@ export default function HistoryScreen() {
                 </Text>
               </View>
               {workingSets > 0 && (
-                <Text style={[styles.setsText, { color: colors.muted }]}>
+                <Text style={[styles.setsText, { color: colors.cardMuted }]}>
                   {workingSets} sets · {Math.round(totalVolume).toLocaleString()} kg vol
                 </Text>
               )}
@@ -137,21 +137,21 @@ export default function HistoryScreen() {
 
           {/* Expanded exercises */}
           {isExpanded && (
-            <View style={[styles.expandedArea, { borderTopColor: colors.border }]}>
+            <View style={[styles.expandedArea, { borderTopColor: colors.cardBorder }]}>
               {item.exercises.map((ex, idx) => (
-                <View key={idx} style={[styles.exerciseRow, { borderBottomColor: colors.border }]}>
+                <View key={idx} style={[styles.exerciseRow, { borderBottomColor: colors.cardBorder }]}>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.exerciseName, { color: ex.skipped ? colors.muted : colors.foreground }]}>
+                    <Text style={[styles.exerciseName, { color: ex.skipped ? colors.cardMuted : colors.cardForeground }]}>
                       {ex.skipped ? '⊘ ' : ''}{ex.exerciseName}
                     </Text>
                     {ex.skipped && ex.skipReason ? (
-                      <Text style={[styles.skipReason, { color: colors.muted }]}>Skipped: {ex.skipReason}</Text>
+                      <Text style={[styles.skipReason, { color: colors.cardMuted }]}>Skipped: {ex.skipReason}</Text>
                     ) : null}
                   </View>
                   {!ex.skipped && ex.sets.filter(s => !s.isWarmup).length > 0 && (
                     <View style={{ alignItems: 'flex-end' }}>
                       {ex.sets.filter(s => !s.isWarmup).map((set, si) => (
-                        <Text key={si} style={[styles.setDetail, { color: colors.muted }]}>
+                        <Text key={si} style={[styles.setDetail, { color: colors.cardMuted }]}>
                           {set.weightKg > 0 ? `${set.weightKg}kg × ${set.reps}` : `${set.reps} reps`}
                         </Text>
                       ))}
@@ -167,13 +167,13 @@ export default function HistoryScreen() {
             <View style={[{ paddingHorizontal: 14, paddingBottom: 12, paddingTop: 4 }]}>
               <View style={{ backgroundColor: '#6366F110', borderRadius: 10, padding: 10, borderWidth: 1, borderColor: '#6366F130' }}>
                 <Text style={{ fontSize: 11, fontWeight: '600', color: '#6366F1', marginBottom: 3 }}>SESSION NOTES</Text>
-                <Text style={{ fontSize: 13, color: colors.foreground, lineHeight: 18 }}>{item.notes}</Text>
+                <Text style={{ fontSize: 13, color: colors.cardForeground, lineHeight: 18 }}>{item.notes}</Text>
               </View>
             </View>
           ) : null}
           {/* Expand chevron */}
-          <View style={[styles.chevronRow, { borderTopColor: colors.border }]}>
-            <Text style={[styles.chevronText, { color: colors.muted }]}>
+          <View style={[styles.chevronRow, { borderTopColor: colors.cardBorder }]}>
+            <Text style={[styles.chevronText, { color: colors.cardMuted }]}>
               {isExpanded ? '▲ Hide details' : '▼ Show exercises'}
             </Text>
           </View>
@@ -198,13 +198,13 @@ export default function HistoryScreen() {
       >
         <View 
           className="bg-surface rounded-xl mx-4 mb-3 overflow-hidden"
-          style={{ borderWidth: 1, borderColor: colors.border }}
+          style={{ borderWidth: 1, borderColor: colors.cardBorder }}
         >
           <View className="p-4">
             <View className="flex-row justify-between items-center">
               <View className="flex-1">
-                <Text className="text-lg font-semibold text-foreground">{item.name}</Text>
-                <Text className="text-sm text-muted mt-1">
+                <Text className="text-lg font-semibold text-cardForeground">{item.name}</Text>
+                <Text className="text-sm text-cardMuted mt-1">
                   {history.length} workout{history.length !== 1 ? 's' : ''} logged
                 </Text>
               </View>
@@ -212,9 +212,9 @@ export default function HistoryScreen() {
                 <View className="items-end">
                   <View className="flex-row items-center">
                     <IconSymbol name="trophy.fill" size={16} color={colors.warning} />
-                    <Text className="ml-1 font-bold text-foreground">{maxWeight} kg</Text>
+                    <Text className="ml-1 font-bold text-cardForeground">{maxWeight} kg</Text>
                   </View>
-                  <Text className="text-xs text-muted">Best</Text>
+                  <Text className="text-xs text-cardMuted">Best</Text>
                 </View>
               )}
             </View>
@@ -224,19 +224,19 @@ export default function HistoryScreen() {
           {isSelected && history.length > 0 && (
             <View 
               className="px-4 pb-4 pt-2 border-t"
-              style={{ borderTopColor: colors.border }}
+              style={{ borderTopColor: colors.cardBorder }}
             >
-              <Text className="text-sm font-medium text-muted mb-3">Weight History</Text>
+              <Text className="text-sm font-medium text-cardMuted mb-3">Weight History</Text>
               {history.slice(-10).reverse().map((entry, index) => (
                 <View 
                   key={index}
                   className="flex-row justify-between items-center py-2 border-b"
-                  style={{ borderBottomColor: colors.border }}
+                  style={{ borderBottomColor: colors.cardBorder }}
                 >
-                  <Text className="text-sm text-muted">{formatSessionDate(entry.date)}</Text>
+                  <Text className="text-sm text-cardMuted">{formatSessionDate(entry.date)}</Text>
                   <View className="flex-row items-center">
-                    <Text className="font-semibold text-foreground">{entry.weight} kg</Text>
-                    <Text className="text-sm text-muted ml-2">× {entry.reps} reps</Text>
+                    <Text className="font-semibold text-cardForeground">{entry.weight} kg</Text>
+                    <Text className="text-sm text-cardMuted ml-2">× {entry.reps} reps</Text>
                     {entry.weight === maxWeight && (
                       <IconSymbol name="trophy.fill" size={14} color={colors.warning} style={{ marginLeft: 8 }} />
                     )}
@@ -244,7 +244,7 @@ export default function HistoryScreen() {
                 </View>
               ))}
               {history.length > 10 && (
-                <Text className="text-xs text-muted text-center mt-2">
+                <Text className="text-xs text-cardMuted text-center mt-2">
                   Showing last 10 entries
                 </Text>
               )}
@@ -259,9 +259,9 @@ export default function HistoryScreen() {
     <ScreenContainer className="flex-1">
       {/* Header */}
       <View style={styles.header}>
-        <Text style={[styles.headerTitle, { color: colors.foreground }]}>Workout History</Text>
+        <Text style={[styles.headerTitle, { color: colors.cardForeground }]}>Workout History</Text>
         {splitWorkouts.length > 0 && (
-          <Text style={[styles.headerSub, { color: colors.muted }]}>
+          <Text style={[styles.headerSub, { color: colors.cardMuted }]}>
             {splitWorkouts.length} session{splitWorkouts.length !== 1 ? 's' : ''} completed
           </Text>
         )}
@@ -278,7 +278,7 @@ export default function HistoryScreen() {
             }}
             style={[styles.toggleBtn, { backgroundColor: viewMode === mode ? colors.primary : colors.surface }]}
           >
-            <Text style={[styles.toggleLabel, { color: viewMode === mode ? '#FFFFFF' : colors.foreground }]}>
+            <Text style={[styles.toggleLabel, { color: viewMode === mode ? '#FFFFFF' : colors.cardForeground }]}>
               {mode === 'workouts' ? 'Workouts' : mode === 'exercises' ? 'Exercises' : 'Body'}
             </Text>
           </TouchableOpacity>
@@ -292,8 +292,8 @@ export default function HistoryScreen() {
             value={workoutSearchQuery}
             onChangeText={setWorkoutSearchQuery}
             placeholder="Search by session name or notes..."
-            placeholderTextColor={colors.muted}
-            style={[styles.searchInput, { color: colors.foreground, backgroundColor: colors.surface, borderColor: colors.border }]}
+            placeholderTextColor={colors.cardMuted}
+            style={[styles.searchInput, { color: colors.cardForeground, backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
             returnKeyType="search"
           />
         </View>
@@ -306,8 +306,8 @@ export default function HistoryScreen() {
             value={searchQuery}
             onChangeText={setSearchQuery}
             placeholder="Search exercises..."
-            placeholderTextColor={colors.muted}
-            style={[styles.searchInput, { color: colors.foreground, backgroundColor: colors.surface, borderColor: colors.border }]}
+            placeholderTextColor={colors.cardMuted}
+            style={[styles.searchInput, { color: colors.cardForeground, backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
           />
         </View>
       )}
@@ -320,9 +320,9 @@ export default function HistoryScreen() {
           renderItem={renderWorkoutItem}
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <IconSymbol name="dumbbell.fill" size={48} color={colors.muted} />
-              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>No Workouts Yet</Text>
-              <Text style={[styles.emptyBody, { color: colors.muted }]}>
+              <IconSymbol name="dumbbell.fill" size={48} color={colors.cardMuted} />
+              <Text style={[styles.emptyTitle, { color: colors.cardForeground }]}>No Workouts Yet</Text>
+              <Text style={[styles.emptyBody, { color: colors.cardMuted }]}>
                 Complete your first workout to see it here
               </Text>
             </View>
@@ -336,11 +336,11 @@ export default function HistoryScreen() {
           renderItem={renderExerciseItem}
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <IconSymbol name="dumbbell.fill" size={48} color={colors.muted} />
-              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+              <IconSymbol name="dumbbell.fill" size={48} color={colors.cardMuted} />
+              <Text style={[styles.emptyTitle, { color: colors.cardForeground }]}>
                 {searchQuery ? 'No Matching Exercises' : 'No Exercises Yet'}
               </Text>
-              <Text style={[styles.emptyBody, { color: colors.muted }]}>
+              <Text style={[styles.emptyBody, { color: colors.cardMuted }]}>
                 {searchQuery ? 'Try a different search term' : 'Add exercises in the Admin panel'}
               </Text>
             </View>

@@ -29,6 +29,7 @@ function buildSchemePalette(colors: ThemeColorTokens): SchemePalette {
 export const SchemeColors = buildSchemePalette(ThemeColors);
 
 type RuntimePalette = SchemePaletteItem & {
+  // Legacy aliases
   text: string;
   background: string;
   tint: string;
@@ -36,6 +37,12 @@ type RuntimePalette = SchemePaletteItem & {
   tabIconDefault: string;
   tabIconSelected: string;
   border: string;
+  // Two-surface model: navy background + white cards
+  // foreground / muted    → text on navy background (white / soft blue-white)
+  // cardForeground / cardMuted → text inside white card surfaces (near-black / grey)
+  cardForeground: string;
+  cardMuted: string;
+  cardBorder: string;
 };
 
 function buildRuntimePalette(scheme: ColorScheme): RuntimePalette {
@@ -44,11 +51,14 @@ function buildRuntimePalette(scheme: ColorScheme): RuntimePalette {
     ...base,
     text: base.foreground,
     background: base.background,
-    tint: base.primary,
+    tint: base.tint ?? base.primary,
     icon: base.muted,
     tabIconDefault: base.muted,
     tabIconSelected: base.primary,
     border: base.border,
+    cardForeground: base.cardForeground ?? base.foreground,
+    cardMuted: base.cardMuted ?? base.muted,
+    cardBorder: base.cardBorder ?? base.border,
   };
 }
 

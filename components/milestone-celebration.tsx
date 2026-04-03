@@ -91,12 +91,12 @@ export function MilestoneCelebration({
             <Text className="text-8xl mb-4">{badge.icon}</Text>
 
             {/* Badge Name */}
-            <Text className="text-2xl font-bold text-foreground text-center mb-2">
+            <Text className="text-2xl font-bold text-cardForeground text-center mb-2">
               {badge.name}
             </Text>
 
             {/* Badge Description */}
-            <Text className="text-base text-muted text-center mb-6">
+            <Text className="text-base text-cardMuted text-center mb-6">
               {badge.description}
             </Text>
 

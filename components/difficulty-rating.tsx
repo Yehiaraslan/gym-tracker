@@ -27,7 +27,7 @@ export function DifficultyRatingComponent({ value, onChange, disabled = false }:
   };
   return (
     <View className="gap-2">
-      <Text className="text-sm font-semibold text-foreground mb-2">How was this exercise?</Text>
+      <Text className="text-sm font-semibold text-cardForeground mb-2">How was this exercise?</Text>
       <View className="flex-row gap-3">
         {DIFFICULTY_OPTIONS.map((option) => (
           <TouchableOpacity
@@ -38,14 +38,14 @@ export function DifficultyRatingComponent({ value, onChange, disabled = false }:
             style={{
               backgroundColor: value === option.value ? option.color + '20' : colors.surface,
               borderWidth: 2,
-              borderColor: value === option.value ? option.color : colors.border,
+              borderColor: value === option.value ? option.color : colors.cardBorder,
               opacity: disabled ? 0.5 : 1,
             }}
           >
             <Text className="text-2xl mb-1">{option.emoji}</Text>
             <Text
               className="text-xs font-semibold"
-              style={{ color: value === option.value ? option.color : colors.muted }}
+              style={{ color: value === option.value ? option.color : colors.cardMuted }}
             >
               {option.label}
             </Text>

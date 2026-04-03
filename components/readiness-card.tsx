@@ -21,7 +21,7 @@ export function ReadinessCard({ readinessResult }: ReadinessCardProps) {
     container: {
       borderRadius: 12,
       backgroundColor: colors.surface,
-      borderColor: colors.border,
+      borderColor: colors.cardBorder,
       borderWidth: 1,
       overflow: 'hidden',
     },
@@ -44,7 +44,7 @@ export function ReadinessCard({ readinessResult }: ReadinessCardProps) {
     scoreText: {
       fontSize: 32,
       fontWeight: '700',
-      color: colors.foreground,
+      color: colors.cardForeground,
     },
     labelContainer: {
       flexDirection: 'row',
@@ -59,18 +59,18 @@ export function ReadinessCard({ readinessResult }: ReadinessCardProps) {
     labelText: {
       fontSize: 18,
       fontWeight: '600',
-      color: colors.foreground,
+      color: colors.cardForeground,
     },
     recommendationText: {
       fontSize: 13,
-      color: colors.muted,
+      color: colors.cardMuted,
       textAlign: 'center',
       marginTop: 12,
       lineHeight: 18,
     },
     expandedContent: {
       borderTopWidth: 1,
-      borderTopColor: colors.border,
+      borderTopColor: colors.cardBorder,
       paddingTop: 12,
       marginTop: 12,
     },
@@ -80,7 +80,7 @@ export function ReadinessCard({ readinessResult }: ReadinessCardProps) {
     breakdownLabel: {
       fontSize: 12,
       fontWeight: '600',
-      color: colors.muted,
+      color: colors.cardMuted,
       marginBottom: 6,
       textTransform: 'uppercase',
       letterSpacing: 0.5,
@@ -88,7 +88,7 @@ export function ReadinessCard({ readinessResult }: ReadinessCardProps) {
     breakdownBar: {
       height: 8,
       borderRadius: 4,
-      backgroundColor: colors.muted,
+      backgroundColor: colors.cardMuted,
       overflow: 'hidden',
       marginBottom: 4,
     },
@@ -98,7 +98,7 @@ export function ReadinessCard({ readinessResult }: ReadinessCardProps) {
     },
     breakdownDetail: {
       fontSize: 12,
-      color: colors.muted,
+      color: colors.cardMuted,
       marginBottom: 8,
     },
     expandButton: {

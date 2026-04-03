@@ -661,14 +661,14 @@ export default function SplitWorkoutScreen() {
     return (
       <ScreenContainer className="flex-1 items-center justify-center px-6">
         <Text style={{ fontSize: 64 }}>😴</Text>
-        <Text className="text-2xl font-bold text-foreground mt-4">Rest Day</Text>
-        <Text className="text-muted text-center mt-2">Recovery is where the gains happen.</Text>
+        <Text className="text-2xl font-bold text-cardForeground mt-4">Rest Day</Text>
+        <Text className="text-cardMuted text-center mt-2">Recovery is where the gains happen.</Text>
         <TouchableOpacity
           onPress={() => router.back()}
           className="mt-8 px-6 py-3 rounded-xl"
-          style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+          style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.cardBorder }}
         >
-          <Text className="font-semibold text-foreground">Back</Text>
+          <Text className="font-semibold text-cardForeground">Back</Text>
         </TouchableOpacity>
       </ScreenContainer>
     );
@@ -686,27 +686,27 @@ export default function SplitWorkoutScreen() {
           {/* Hero */}
           <View className="items-center pt-12 pb-8 px-6">
             <Text style={{ fontSize: 64 }}>🏆</Text>
-            <Text className="text-3xl font-bold text-foreground mt-4">Workout Complete!</Text>
-            <Text className="text-base text-muted mt-2">{sessionDisplayName}</Text>
+            <Text className="text-3xl font-bold text-cardForeground mt-4">Workout Complete!</Text>
+            <Text className="text-base text-cardMuted mt-2">{sessionDisplayName}</Text>
           </View>
 
           {/* Stats Grid */}
           <View className="px-6 mb-6">
             <View className="flex-row" style={{ gap: 10 }}>
-              <View className="flex-1 rounded-2xl p-4 items-center" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+              <View className="flex-1 rounded-2xl p-4 items-center" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.cardBorder }}>
                 <IconSymbol name="timer" size={24} color={sessionColor} />
-                <Text className="text-2xl font-bold text-foreground mt-2">{formatDuration(summaryData.duration)}</Text>
-                <Text className="text-xs text-muted mt-1">Duration</Text>
+                <Text className="text-2xl font-bold text-cardForeground mt-2">{formatDuration(summaryData.duration)}</Text>
+                <Text className="text-xs text-cardMuted mt-1">Duration</Text>
                 {previousSession?.durationMinutes && (
                   <Text className="text-xs mt-1" style={{ color: summaryData.duration <= previousSession.durationMinutes ? '#10B981' : '#F59E0B' }}>
                     {summaryData.duration <= previousSession.durationMinutes ? 'Faster' : 'Slower'} than last
                   </Text>
                 )}
               </View>
-              <View className="flex-1 rounded-2xl p-4 items-center" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+              <View className="flex-1 rounded-2xl p-4 items-center" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.cardBorder }}>
                 <IconSymbol name="flame.fill" size={24} color="#FF6B35" />
-                <Text className="text-2xl font-bold text-foreground mt-2">{(summaryData.totalVolume / 1000).toFixed(1)}t</Text>
-                <Text className="text-xs text-muted mt-1">Volume</Text>
+                <Text className="text-2xl font-bold text-cardForeground mt-2">{(summaryData.totalVolume / 1000).toFixed(1)}t</Text>
+                <Text className="text-xs text-cardMuted mt-1">Volume</Text>
                 {volumeDelta !== null && (
                   <Text className="text-xs mt-1" style={{ color: volumeDelta >= 0 ? '#10B981' : '#EF4444' }}>
                     {volumeDelta >= 0 ? '+' : ''}{volumeDelta.toFixed(1)}% vs last
@@ -715,19 +715,19 @@ export default function SplitWorkoutScreen() {
               </View>
             </View>
             <View className="flex-row mt-3" style={{ gap: 10 }}>
-              <View className="flex-1 rounded-2xl p-4 items-center" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
-                <Text className="text-2xl font-bold text-foreground">{summaryData.exercisesCompleted}</Text>
-                <Text className="text-xs text-muted mt-1">Exercises</Text>
+              <View className="flex-1 rounded-2xl p-4 items-center" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.cardBorder }}>
+                <Text className="text-2xl font-bold text-cardForeground">{summaryData.exercisesCompleted}</Text>
+                <Text className="text-xs text-cardMuted mt-1">Exercises</Text>
               </View>
-              <View className="flex-1 rounded-2xl p-4 items-center" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
-                <Text className="text-2xl font-bold text-foreground">{summaryData.setsCompleted}</Text>
-                <Text className="text-xs text-muted mt-1">Sets</Text>
+              <View className="flex-1 rounded-2xl p-4 items-center" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.cardBorder }}>
+                <Text className="text-2xl font-bold text-cardForeground">{summaryData.setsCompleted}</Text>
+                <Text className="text-xs text-cardMuted mt-1">Sets</Text>
               </View>
-              <View className="flex-1 rounded-2xl p-4 items-center" style={{ backgroundColor: summaryData.prs.length > 0 ? '#F59E0B15' : colors.surface, borderWidth: 1, borderColor: summaryData.prs.length > 0 ? '#F59E0B40' : colors.border }}>
-                <Text className="text-2xl font-bold" style={{ color: summaryData.prs.length > 0 ? '#F59E0B' : colors.foreground }}>
+              <View className="flex-1 rounded-2xl p-4 items-center" style={{ backgroundColor: summaryData.prs.length > 0 ? '#F59E0B15' : colors.surface, borderWidth: 1, borderColor: summaryData.prs.length > 0 ? '#F59E0B40' : colors.cardBorder }}>
+                <Text className="text-2xl font-bold" style={{ color: summaryData.prs.length > 0 ? '#F59E0B' : colors.cardForeground }}>
                   {summaryData.prs.length}
                 </Text>
-                <Text className="text-xs text-muted mt-1">PRs</Text>
+                <Text className="text-xs text-cardMuted mt-1">PRs</Text>
               </View>
             </View>
           </View>
@@ -735,7 +735,7 @@ export default function SplitWorkoutScreen() {
           {/* PRs */}
           {summaryData.prs.length > 0 && (
             <View className="px-6 mb-6">
-              <Text className="text-sm font-semibold text-foreground mb-3">Personal Records</Text>
+              <Text className="text-sm font-semibold text-cardForeground mb-3">Personal Records</Text>
               {summaryData.prs.map((pr, i) => (
                 <View
                   key={i}
@@ -744,12 +744,12 @@ export default function SplitWorkoutScreen() {
                 >
                   <Text style={{ fontSize: 20 }}>🏆</Text>
                   <View className="ml-3 flex-1">
-                    <Text className="text-sm font-semibold text-foreground">{pr.exercise}</Text>
-                    <Text className="text-xs text-muted">{pr.weight}kg x {pr.reps} reps</Text>
+                    <Text className="text-sm font-semibold text-cardForeground">{pr.exercise}</Text>
+                    <Text className="text-xs text-cardMuted">{pr.weight}kg x {pr.reps} reps</Text>
                   </View>
                   <View className="items-end">
                     <Text className="text-sm font-bold" style={{ color: '#F59E0B' }}>~{pr.e1rm}kg</Text>
-                    <Text className="text-xs text-muted">est. 1RM</Text>
+                    <Text className="text-xs text-cardMuted">est. 1RM</Text>
                   </View>
                 </View>
               ))}
@@ -758,7 +758,7 @@ export default function SplitWorkoutScreen() {
 
           {/* Exercise Breakdown */}
           <View className="px-6 mb-6">
-            <Text className="text-sm font-semibold text-foreground mb-3">Exercise Breakdown</Text>
+            <Text className="text-sm font-semibold text-cardForeground mb-3">Exercise Breakdown</Text>
             {exerciseLogs.map((exLog, i) => {
               if (exLog.skipped) return null;
               const workingSets = exLog.sets.filter(s => !s.isWarmup);
@@ -768,14 +768,14 @@ export default function SplitWorkoutScreen() {
                 <View
                   key={i}
                   className="flex-row items-center rounded-xl p-3 mb-2"
-                  style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+                  style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.cardBorder }}
                 >
                   <View
                     style={{ width: 4, height: 28, borderRadius: 2, backgroundColor: sessionColor, marginRight: 12 }}
                   />
                   <View className="flex-1">
-                    <Text className="text-sm font-medium text-foreground">{exLog.exerciseName}</Text>
-                    <Text className="text-xs text-muted">
+                    <Text className="text-sm font-medium text-cardForeground">{exLog.exerciseName}</Text>
+                    <Text className="text-xs text-cardMuted">
                       {workingSets.map(s => `${s.weightKg}×${s.reps}`).join(' · ')}
                     </Text>
                   </View>
@@ -789,23 +789,23 @@ export default function SplitWorkoutScreen() {
 
           {/* Post-workout Notes */}
           <View className="px-6 mb-4">
-            <Text className="text-sm font-semibold text-foreground mb-2">Session Notes</Text>
-            <Text className="text-xs text-muted mb-3">How did you feel? Any physical sensations, energy levels, or observations?</Text>
+            <Text className="text-sm font-semibold text-cardForeground mb-2">Session Notes</Text>
+            <Text className="text-xs text-cardMuted mb-3">How did you feel? Any physical sensations, energy levels, or observations?</Text>
             <View
               className="rounded-2xl p-4"
-              style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+              style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.cardBorder }}
             >
               <TextInput
                 value={workoutNotes}
                 onChangeText={setWorkoutNotes}
                 placeholder="e.g. Felt strong on bench, left shoulder tight, great energy today..."
-                placeholderTextColor={colors.muted}
+                placeholderTextColor={colors.cardMuted}
                 multiline
                 numberOfLines={4}
                 returnKeyType="done"
                 blurOnSubmit
                 style={{
-                  color: colors.foreground,
+                  color: colors.cardForeground,
                   fontSize: 14,
                   lineHeight: 20,
                   minHeight: 80,
@@ -827,11 +827,11 @@ export default function SplitWorkoutScreen() {
                       paddingVertical: 5,
                       borderRadius: 20,
                       borderWidth: 1,
-                      borderColor: colors.border,
+                      borderColor: colors.cardBorder,
                       backgroundColor: colors.background,
                     }}
                   >
-                    <Text style={{ fontSize: 12, color: colors.foreground }}>{preset.label}</Text>
+                    <Text style={{ fontSize: 12, color: colors.cardForeground }}>{preset.label}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -848,8 +848,8 @@ export default function SplitWorkoutScreen() {
             >
               <Text style={{ fontSize: 22 }}>🧠</Text>
               <View style={{ flex: 1 }}>
-                <Text className="text-sm font-bold text-foreground">Get AI Analysis</Text>
-                <Text className="text-xs text-muted">Personalized insights on this workout</Text>
+                <Text className="text-sm font-bold text-cardForeground">Get AI Analysis</Text>
+                <Text className="text-xs text-cardMuted">Personalized insights on this workout</Text>
               </View>
               <Text style={{ color: '#6366F1', fontSize: 18 }}>→</Text>
             </TouchableOpacity>
@@ -898,10 +898,10 @@ export default function SplitWorkoutScreen() {
           {/* Header */}
           <View className="px-6 pt-4 pb-2">
             <TouchableOpacity onPress={() => router.back()} className="mb-4">
-              <IconSymbol name="chevron.left" size={24} color={colors.muted} />
+              <IconSymbol name="chevron.left" size={24} color={colors.cardMuted} />
             </TouchableOpacity>
-            <Text className="text-2xl font-bold text-foreground">{sessionDisplayName}</Text>
-            <Text className="text-sm text-muted mt-1">
+            <Text className="text-2xl font-bold text-cardForeground">{sessionDisplayName}</Text>
+            <Text className="text-sm text-cardMuted mt-1">
               {exercises.length} exercises{isDeload ? ' · Deload Week' : ''}
             </Text>
           </View>
@@ -917,13 +917,13 @@ export default function SplitWorkoutScreen() {
                   style={{
                     backgroundColor: sessionType === s ? resolveSessionColor(s) : colors.surface,
                     borderWidth: 1,
-                    borderColor: sessionType === s ? resolveSessionColor(s) : colors.border,
+                    borderColor: sessionType === s ? resolveSessionColor(s) : colors.cardBorder,
                     minWidth: '45%',
                   }}
                 >
                   <Text
                     className="text-xs font-semibold"
-                    style={{ color: sessionType === s ? '#FFFFFF' : colors.muted }}
+                    style={{ color: sessionType === s ? '#FFFFFF' : colors.cardMuted }}
                   >
                     {resolveSessionName(s).split('—')[0].trim()}
                   </Text>
@@ -939,7 +939,7 @@ export default function SplitWorkoutScreen() {
 
           {/* Exercise preview with video thumbnails */}
           <View className="px-6 mb-4">
-            <Text className="text-sm font-semibold text-foreground mb-3">Exercises</Text>
+            <Text className="text-sm font-semibold text-cardForeground mb-3">Exercises</Text>
             {exercises.map((ex, i) => {
               const libEntry = getExerciseByName(ex.name);
               const suggestion = weightSuggestions[ex.name];
@@ -949,7 +949,7 @@ export default function SplitWorkoutScreen() {
                 <View
                   key={i}
                   className="rounded-2xl mb-3 overflow-hidden"
-                  style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+                  style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.cardBorder }}
                 >
                   {/* Video thumbnail */}
                   {libEntry?.videoId && (
@@ -957,7 +957,7 @@ export default function SplitWorkoutScreen() {
                       <View style={{ position: 'relative' }}>
                         <Image
                           source={{ uri: `https://img.youtube.com/vi/${libEntry.videoId}/mqdefault.jpg` }}
-                          style={{ width: '100%', height: 140, backgroundColor: colors.border }}
+                          style={{ width: '100%', height: 140, backgroundColor: colors.cardBorder }}
                           contentFit="cover"
                         />
                         <View style={{
@@ -988,15 +988,15 @@ export default function SplitWorkoutScreen() {
                             <Text className="text-xs font-bold" style={{ color: sessionColor }}>{i + 1}</Text>
                           </View>
                           <View className="flex-1">
-                            <Text className="text-base font-semibold text-foreground">{ex.name}</Text>
-                            <Text className="text-xs text-muted mt-0.5">
+                            <Text className="text-base font-semibold text-cardForeground">{ex.name}</Text>
+                            <Text className="text-xs text-cardMuted mt-0.5">
                               {displaySets} sets × {ex.repsMin === 0 ? 'max' : `${ex.repsMin}-${ex.repsMax} reps`}
                               {suggestion ? ` · ${suggestion.weight}kg` : ''}
                             </Text>
                           </View>
                         </View>
                         {ex.notes ? (
-                          <Text className="text-xs text-muted italic mt-2 ml-10">{ex.notes}</Text>
+                          <Text className="text-xs text-cardMuted italic mt-2 ml-10">{ex.notes}</Text>
                         ) : null}
                         {libEntry?.proTip ? (
                           <View className="mt-2 ml-10 rounded-lg p-2" style={{ backgroundColor: colors.primary + '08' }}>
@@ -1016,9 +1016,9 @@ export default function SplitWorkoutScreen() {
           {/* Previous session */}
           {previousSession && (
             <View className="px-6 mb-4">
-              <View className="rounded-2xl p-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
-                <Text className="text-xs text-muted mb-1">Last Session</Text>
-                <Text className="text-sm text-foreground">
+              <View className="rounded-2xl p-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.cardBorder }}>
+                <Text className="text-xs text-cardMuted mb-1">Last Session</Text>
+                <Text className="text-sm text-cardForeground">
                   {new Date(previousSession.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
                   {previousSession.durationMinutes ? ` · ${previousSession.durationMinutes}m` : ''}
                   {previousSession.totalVolume ? ` · ${previousSession.totalVolume.toLocaleString()}kg` : ''}
@@ -1047,7 +1047,7 @@ export default function SplitWorkoutScreen() {
                     <Text style={{ color: '#EF4444', fontSize: 16 }}>✕</Text>
                   </TouchableOpacity>
                 </View>
-                <Text style={{ color: colors.foreground, fontSize: 13, marginBottom: 10 }}>
+                <Text style={{ color: colors.cardForeground, fontSize: 13, marginBottom: 10 }}>
                   Your recovery is below 50%. Switching to{' '}
                   <Text style={{ fontWeight: '700' }}>{resolveSessionName(nudgeAlternative)}</Text>{' '}
                   (lighter volume day) will protect your joints and still drive adaptation.
@@ -1086,7 +1086,7 @@ export default function SplitWorkoutScreen() {
                   Ask Zaki to Modify Session
                 </Text>
               </TouchableOpacity>
-              <Text className="text-xs text-muted text-center mt-1">
+              <Text className="text-xs text-cardMuted text-center mt-1">
                 Recovery {Math.round(recovery.recoveryScore)}% — Zaki will adapt this session to your body
               </Text>
             </View>
@@ -1270,13 +1270,13 @@ export default function SplitWorkoutScreen() {
               <View className="flex-row items-center justify-between mb-4">
                 <View className="flex-row items-center gap-2">
                   <Text style={{ fontSize: 22 }}>🤖</Text>
-                  <Text className="text-lg font-bold text-foreground">Zaki’s Modification</Text>
+                  <Text className="text-lg font-bold text-cardForeground">Zaki’s Modification</Text>
                 </View>
                 <TouchableOpacity
                   onPress={() => setShowZakiModif(false)}
                   style={{ padding: 4 }}
                 >
-                  <IconSymbol name="xmark" size={20} color={colors.muted} />
+                  <IconSymbol name="xmark" size={20} color={colors.cardMuted} />
                 </TouchableOpacity>
               </View>
 
@@ -1293,10 +1293,10 @@ export default function SplitWorkoutScreen() {
               <ScrollView showsVerticalScrollIndicator={false}>
                 {zakiModifLoading ? (
                   <View className="items-center py-8">
-                    <Text className="text-muted text-base">Zaki is analysing your session…</Text>
+                    <Text className="text-cardMuted text-base">Zaki is analysing your session…</Text>
                   </View>
                 ) : (
-                  <Text className="text-foreground text-sm leading-relaxed" style={{ lineHeight: 22 }}>
+                  <Text className="text-cardForeground text-sm leading-relaxed" style={{ lineHeight: 22 }}>
                     {zakiModifResult}
                   </Text>
                 )}
@@ -1309,9 +1309,9 @@ export default function SplitWorkoutScreen() {
                   <TouchableOpacity
                     onPress={() => setShowZakiModif(false)}
                     className="flex-1 py-3 rounded-xl items-center"
-                    style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+                    style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.cardBorder }}
                   >
-                    <Text className="text-foreground font-semibold">Got It</Text>
+                    <Text className="text-cardForeground font-semibold">Got It</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => { setShowZakiModif(false); startWorkout(); }}
@@ -1332,11 +1332,11 @@ export default function SplitWorkoutScreen() {
   return (
     <ScreenContainer className="flex-1">
       {/* Sticky Header */}
-      <View className="px-4 py-3" style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}>
+      <View className="px-4 py-3" style={{ borderBottomWidth: 1, borderBottomColor: colors.cardBorder }}>
         <View className="flex-row items-center justify-between mb-2">
           <View>
-            <Text className="text-base font-bold text-foreground">{sessionDisplayName}</Text>
-            <Text className="text-xs text-muted">
+            <Text className="text-base font-bold text-cardForeground">{sessionDisplayName}</Text>
+            <Text className="text-xs text-cardMuted">
               ⏱ {formatTime(elapsed)} · {totalSetsLogged}/{totalSetsTarget} sets
             </Text>
           </View>
@@ -1348,7 +1348,7 @@ export default function SplitWorkoutScreen() {
             <Text className="text-white text-sm font-semibold">Finish</Text>
           </TouchableOpacity>
         </View>
-        <View className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: colors.border }}>
+        <View className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: colors.cardBorder }}>
           <View
             className="h-full rounded-full"
             style={{ width: `${Math.min(100, overallProgress * 100)}%`, backgroundColor: sessionColor }}
@@ -1363,13 +1363,13 @@ export default function SplitWorkoutScreen() {
             className="rounded-2xl p-6 items-center mb-4"
             style={{ backgroundColor: '#F59E0B10', borderWidth: 2, borderColor: '#F59E0B40' }}
           >
-            <Text className="text-xs font-medium text-muted mb-2" style={{ textTransform: 'uppercase', letterSpacing: 1 }}>
+            <Text className="text-xs font-medium text-cardMuted mb-2" style={{ textTransform: 'uppercase', letterSpacing: 1 }}>
               Rest Timer
             </Text>
-            <Text className="text-5xl font-bold text-foreground">{formatTime(restTime)}</Text>
-            <Text className="text-sm text-muted mt-1">{restExerciseName}</Text>
+            <Text className="text-5xl font-bold text-cardForeground">{formatTime(restTime)}</Text>
+            <Text className="text-sm text-cardMuted mt-1">{restExerciseName}</Text>
             {/* Progress ring (simplified as bar) */}
-            <View className="w-full mt-4 h-2 rounded-full overflow-hidden" style={{ backgroundColor: colors.border }}>
+            <View className="w-full mt-4 h-2 rounded-full overflow-hidden" style={{ backgroundColor: colors.cardBorder }}>
               <View
                 className="h-full rounded-full"
                 style={{
@@ -1408,7 +1408,7 @@ export default function SplitWorkoutScreen() {
                 style={{
                   backgroundColor: isComplete ? '#10B98108' : isSkipped ? colors.surface + '60' : colors.surface,
                   borderWidth: isActive && !isComplete ? 2 : 1,
-                  borderColor: isActive && !isComplete ? sessionColor : isComplete ? '#10B98130' : isSkipped ? colors.border + '50' : colors.border,
+                  borderColor: isActive && !isComplete ? sessionColor : isComplete ? '#10B98130' : isSkipped ? colors.cardBorder + '50' : colors.cardBorder,
                   opacity: isSkipped ? 0.5 : 1,
                 }}
               >
@@ -1435,15 +1435,15 @@ export default function SplitWorkoutScreen() {
                       <View className="flex-1">
                         <Text
                           className="text-base font-semibold"
-                          style={{ color: isComplete ? '#10B981' : colors.foreground }}
+                          style={{ color: isComplete ? '#10B981' : colors.cardForeground }}
                         >
                           {ex.name}
                         </Text>
-                        <Text className="text-xs text-muted mt-0.5">
+                        <Text className="text-xs text-cardMuted mt-0.5">
                           {displaySets} × {ex.repsMin === 0 ? 'max' : `${ex.repsMin}-${ex.repsMax}`} · {Math.floor(ex.restSeconds / 60)}m rest
                           {isDeload ? ' · DELOAD' : ''}
                         </Text>
-                        {ex.notes ? <Text className="text-xs text-muted italic mt-0.5">{ex.notes}</Text> : null}
+                        {ex.notes ? <Text className="text-xs text-cardMuted italic mt-0.5">{ex.notes}</Text> : null}
                       </View>
                     </View>
 
@@ -1498,7 +1498,7 @@ export default function SplitWorkoutScreen() {
                         <View style={{ position: 'relative', borderRadius: 12, overflow: 'hidden' }}>
                           <Image
                             source={{ uri: `https://img.youtube.com/vi/${libEntry.videoId}/mqdefault.jpg` }}
-                            style={{ width: '100%', height: 120, backgroundColor: colors.border }}
+                            style={{ width: '100%', height: 120, backgroundColor: colors.cardBorder }}
                             contentFit="cover"
                           />
                           <View style={{
@@ -1540,11 +1540,11 @@ export default function SplitWorkoutScreen() {
                     {prevExLog && (
                       <View className="mx-4 mb-3">
                         <View className="rounded-xl p-2" style={{ backgroundColor: colors.background }}>
-                          <Text className="text-xs text-muted mb-1">Previous Session</Text>
+                          <Text className="text-xs text-cardMuted mb-1">Previous Session</Text>
                           <View className="flex-row flex-wrap" style={{ gap: 4 }}>
                             {prevExLog.sets.filter(s => !s.isWarmup).map((s, si) => (
-                              <View key={si} className="px-2 py-1 rounded-lg" style={{ backgroundColor: colors.border + '50' }}>
-                                <Text className="text-xs text-muted">{s.weightKg}×{s.reps}</Text>
+                              <View key={si} className="px-2 py-1 rounded-lg" style={{ backgroundColor: colors.cardBorder + '50' }}>
+                                <Text className="text-xs text-cardMuted">{s.weightKg}×{s.reps}</Text>
                               </View>
                             ))}
                           </View>
@@ -1580,10 +1580,10 @@ export default function SplitWorkoutScreen() {
                         <TouchableOpacity
                           onPress={() => handleSkip(i)}
                           className="py-3 rounded-xl items-center flex-row justify-center"
-                          style={{ borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed' }}
+                          style={{ borderWidth: 1, borderColor: colors.cardBorder, borderStyle: 'dashed' }}
                         >
-                          <IconSymbol name="forward.fill" size={14} color={colors.muted} />
-                          <Text className="text-sm text-muted ml-2">Skip Exercise</Text>
+                          <IconSymbol name="forward.fill" size={14} color={colors.cardMuted} />
+                          <Text className="text-sm text-cardMuted ml-2">Skip Exercise</Text>
                         </TouchableOpacity>
                       )}
                     </View>
@@ -1671,14 +1671,14 @@ export default function SplitWorkoutScreen() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Text style={{ fontSize: 22 }}>🤖</Text>
                 <View>
-                  <Text style={{ fontSize: 17, fontWeight: '800', color: colors.foreground }}>Zaki Check-In</Text>
-                  <Text style={{ fontSize: 11, color: colors.muted }}>
+                  <Text style={{ fontSize: 17, fontWeight: '800', color: colors.cardForeground }}>Zaki Check-In</Text>
+                  <Text style={{ fontSize: 11, color: colors.cardMuted }}>
                     {Math.round(elapsed / 60)}m in · {totalSetsLogged}/{totalSetsTarget} sets
                   </Text>
                 </View>
               </View>
               <TouchableOpacity onPress={() => setShowZakiCheckIn(false)} style={{ padding: 4 }}>
-                <IconSymbol name="xmark" size={20} color={colors.muted} />
+                <IconSymbol name="xmark" size={20} color={colors.cardMuted} />
               </TouchableOpacity>
             </View>
 
@@ -1707,10 +1707,10 @@ export default function SplitWorkoutScreen() {
             <ScrollView showsVerticalScrollIndicator={false}>
               {zakiCheckInLoading ? (
                 <View style={{ alignItems: 'center', paddingVertical: 32 }}>
-                  <Text style={{ color: colors.muted, fontSize: 15 }}>Zaki is reading your session…</Text>
+                  <Text style={{ color: colors.cardMuted, fontSize: 15 }}>Zaki is reading your session…</Text>
                 </View>
               ) : (
-                <Text style={{ color: colors.foreground, fontSize: 14, lineHeight: 22 }}>
+                <Text style={{ color: colors.cardForeground, fontSize: 14, lineHeight: 22 }}>
                   {zakiCheckInResult}
                 </Text>
               )}
@@ -1725,10 +1725,10 @@ export default function SplitWorkoutScreen() {
                   style={{
                     flex: 1, paddingVertical: 14, borderRadius: 14,
                     alignItems: 'center', backgroundColor: colors.surface,
-                    borderWidth: 1, borderColor: colors.border,
+                    borderWidth: 1, borderColor: colors.cardBorder,
                   }}
                 >
-                  <Text style={{ color: colors.foreground, fontWeight: '600' }}>Got It</Text>
+                  <Text style={{ color: colors.cardForeground, fontWeight: '600' }}>Got It</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => {
@@ -1766,12 +1766,12 @@ export default function SplitWorkoutScreen() {
       >
         <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
           <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 40 }}>
-            <Text style={{ fontSize: 18, fontWeight: '700', color: colors.foreground, marginBottom: 4 }}>Swap Exercise</Text>
-            <Text style={{ fontSize: 13, color: colors.muted, marginBottom: 16 }}>
+            <Text style={{ fontSize: 18, fontWeight: '700', color: colors.cardForeground, marginBottom: 4 }}>Swap Exercise</Text>
+            <Text style={{ fontSize: 13, color: colors.cardMuted, marginBottom: 16 }}>
               {swapTargetIndex !== null ? `Replacing: ${exercises[swapTargetIndex]?.name}` : ''}
             </Text>
             {swapAlternatives.length === 0 ? (
-              <Text style={{ color: colors.muted, textAlign: 'center', paddingVertical: 20 }}>No alternatives available for this exercise.</Text>
+              <Text style={{ color: colors.cardMuted, textAlign: 'center', paddingVertical: 20 }}>No alternatives available for this exercise.</Text>
             ) : (
               swapAlternatives.map((alt, idx) => (
                 <TouchableOpacity
@@ -1783,14 +1783,14 @@ export default function SplitWorkoutScreen() {
                     padding: 14,
                     marginBottom: 10,
                     borderWidth: 1,
-                    borderColor: colors.border,
+                    borderColor: colors.cardBorder,
                   }}
                 >
-                  <Text style={{ fontSize: 15, fontWeight: '600', color: colors.foreground }}>{alt.name}</Text>
-                  <Text style={{ fontSize: 12, color: colors.muted, marginTop: 2 }}>
+                  <Text style={{ fontSize: 15, fontWeight: '600', color: colors.cardForeground }}>{alt.name}</Text>
+                  <Text style={{ fontSize: 12, color: colors.cardMuted, marginTop: 2 }}>
                     {alt.sets} sets · {alt.repsMin}-{alt.repsMax} reps · {alt.bodyPart}
                   </Text>
-                  {alt.notes ? <Text style={{ fontSize: 11, color: colors.muted, fontStyle: 'italic', marginTop: 2 }}>{alt.notes}</Text> : null}
+                  {alt.notes ? <Text style={{ fontSize: 11, color: colors.cardMuted, fontStyle: 'italic', marginTop: 2 }}>{alt.notes}</Text> : null}
                 </TouchableOpacity>
               ))
             )}
@@ -1798,7 +1798,7 @@ export default function SplitWorkoutScreen() {
               onPress={() => setShowSwapModal(false)}
               style={{ marginTop: 8, alignItems: 'center', paddingVertical: 12 }}
             >
-              <Text style={{ color: colors.muted, fontSize: 15 }}>Cancel</Text>
+              <Text style={{ color: colors.cardMuted, fontSize: 15 }}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </View>

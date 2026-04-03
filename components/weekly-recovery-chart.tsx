@@ -33,7 +33,7 @@ export function WeeklyRecoveryChart({ data, height = 200 }: WeeklyRecoveryChartP
   if (data.length === 0) {
     return (
       <View className="items-center justify-center" style={{ height }}>
-        <Text className="text-muted">No recovery data available</Text>
+        <Text className="text-cardMuted">No recovery data available</Text>
       </View>
     );
   }
@@ -52,7 +52,7 @@ export function WeeklyRecoveryChart({ data, height = 200 }: WeeklyRecoveryChartP
               left: 0,
               right: 0,
               height: 1,
-              backgroundColor: colors.border,
+              backgroundColor: colors.cardBorder,
               opacity: 0.3,
             }}
           />
@@ -85,7 +85,7 @@ export function WeeklyRecoveryChart({ data, height = 200 }: WeeklyRecoveryChartP
               <Text
                 style={{
                   fontSize: 10,
-                  color: colors.muted,
+                  color: colors.cardMuted,
                   marginTop: 4,
                   fontWeight: '600',
                 }}
@@ -108,7 +108,7 @@ export function WeeklyRecoveryChart({ data, height = 200 }: WeeklyRecoveryChartP
               alignItems: 'center',
             }}
           >
-            <Text style={{ fontSize: 10, color: colors.muted }}>
+            <Text style={{ fontSize: 10, color: colors.cardMuted }}>
               {new Date(item.date).toLocaleDateString('en-US', { weekday: 'short' })}
             </Text>
           </View>
@@ -127,7 +127,7 @@ export function WeeklyRecoveryChart({ data, height = 200 }: WeeklyRecoveryChartP
               marginRight: 6,
             }}
           />
-          <Text style={{ fontSize: 12, color: colors.muted }}>Good (67+)</Text>
+          <Text style={{ fontSize: 12, color: colors.cardMuted }}>Good (67+)</Text>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <View
@@ -139,7 +139,7 @@ export function WeeklyRecoveryChart({ data, height = 200 }: WeeklyRecoveryChartP
               marginRight: 6,
             }}
           />
-          <Text style={{ fontSize: 12, color: colors.muted }}>Fair (34-66)</Text>
+          <Text style={{ fontSize: 12, color: colors.cardMuted }}>Fair (34-66)</Text>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <View
@@ -151,7 +151,7 @@ export function WeeklyRecoveryChart({ data, height = 200 }: WeeklyRecoveryChartP
               marginRight: 6,
             }}
           />
-          <Text style={{ fontSize: 12, color: colors.muted }}>Low (&lt;34)</Text>
+          <Text style={{ fontSize: 12, color: colors.cardMuted }}>Low (&lt;34)</Text>
         </View>
       </View>
     </View>

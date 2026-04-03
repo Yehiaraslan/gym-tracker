@@ -169,7 +169,7 @@ export default function WeeklyReportScreen() {
   if (!stats) {
     return (
       <ScreenContainer className="flex-1 items-center justify-center">
-        <Text className="text-muted">Loading report...</Text>
+        <Text className="text-cardMuted">Loading report...</Text>
       </ScreenContainer>
     );
   }
@@ -182,8 +182,8 @@ export default function WeeklyReportScreen() {
           <TouchableOpacity onPress={() => router.back()} className="mb-4">
             <IconSymbol name="chevron.left" size={24} color={colors.muted} />
           </TouchableOpacity>
-          <Text className="text-2xl font-bold text-foreground">📋 Weekly Report</Text>
-          <Text className="text-sm text-muted mt-1">Last 7 days performance</Text>
+          <Text className="text-2xl font-bold text-cardForeground">📋 Weekly Report</Text>
+          <Text className="text-sm text-cardMuted mt-1">Last 7 days performance</Text>
         </View>
 
         {/* Grade card */}
@@ -195,8 +195,8 @@ export default function WeeklyReportScreen() {
             <Text className="text-6xl font-black" style={{ color: stats.gradeColor }}>
               {stats.grade}
             </Text>
-            <Text className="text-base text-foreground font-semibold mt-2">Weekly Grade</Text>
-            <Text className="text-sm text-muted mt-1">
+            <Text className="text-base text-cardForeground font-semibold mt-2">Weekly Grade</Text>
+            <Text className="text-sm text-cardMuted mt-1">
               {stats.workoutsCompleted}/{stats.workoutsPlanned} workouts · {stats.prsHit} PRs
             </Text>
           </View>
@@ -226,7 +226,7 @@ export default function WeeklyReportScreen() {
                 }}
               >
                 <Text style={{ fontSize: 20 }}>{stat.icon}</Text>
-                <Text className="text-xs text-muted mt-2">{stat.label}</Text>
+                <Text className="text-xs text-cardMuted mt-2">{stat.label}</Text>
                 <Text className="text-xl font-bold mt-0.5" style={{ color: stat.color }}>
                   {stat.value}
                 </Text>
@@ -238,7 +238,7 @@ export default function WeeklyReportScreen() {
         {/* Sessions breakdown */}
         {stats.sessions.length > 0 && (
           <View className="px-6 mb-4">
-            <Text className="text-xs font-medium text-muted mb-3" style={{ textTransform: 'uppercase', letterSpacing: 1 }}>
+            <Text className="text-xs font-medium text-cardMuted mb-3" style={{ textTransform: 'uppercase', letterSpacing: 1 }}>
               Sessions This Week
             </Text>
             {stats.sessions.map((s, i) => (
@@ -249,8 +249,8 @@ export default function WeeklyReportScreen() {
               >
                 <View className="w-2 h-8 rounded-full mr-3" style={{ backgroundColor: resolveColor(s.type) }} />
                 <View className="flex-1">
-                  <Text className="text-sm font-medium text-foreground">{resolveName(s.type)}</Text>
-                  <Text className="text-xs text-muted">
+                  <Text className="text-sm font-medium text-cardForeground">{resolveName(s.type)}</Text>
+                  <Text className="text-xs text-cardMuted">
                     {new Date(s.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                     {s.duration > 0 ? ` · ${s.duration}m` : ''}
                   </Text>
@@ -265,14 +265,14 @@ export default function WeeklyReportScreen() {
 
         {/* Quick insights */}
         <View className="px-6 mb-4">
-          <Text className="text-xs font-medium text-muted mb-3" style={{ textTransform: 'uppercase', letterSpacing: 1 }}>
+          <Text className="text-xs font-medium text-cardMuted mb-3" style={{ textTransform: 'uppercase', letterSpacing: 1 }}>
             Insights
           </Text>
           <View className="rounded-2xl p-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
             {stats.workoutsCompleted < stats.workoutsPlanned && (
               <View className="flex-row items-start mb-3">
                 <Text style={{ fontSize: 14 }}>⚠️</Text>
-                <Text className="text-sm text-foreground ml-2 flex-1">
+                <Text className="text-sm text-cardForeground ml-2 flex-1">
                   Missed {stats.workoutsPlanned - stats.workoutsCompleted} workout(s) this week. Consistency is key for hypertrophy.
                 </Text>
               </View>
@@ -280,7 +280,7 @@ export default function WeeklyReportScreen() {
             {stats.avgSleep !== null && stats.avgSleep < 7 && (
               <View className="flex-row items-start mb-3">
                 <Text style={{ fontSize: 14 }}>😴</Text>
-                <Text className="text-sm text-foreground ml-2 flex-1">
+                <Text className="text-sm text-cardForeground ml-2 flex-1">
                   Sleep averaging {stats.avgSleep.toFixed(1)}h. Aim for 7.5h+ — recovery is where gains happen.
                 </Text>
               </View>
@@ -288,7 +288,7 @@ export default function WeeklyReportScreen() {
             {stats.avgRPE !== null && stats.avgRPE > 9 && (
               <View className="flex-row items-start mb-3">
                 <Text style={{ fontSize: 14 }}>🔥</Text>
-                <Text className="text-sm text-foreground ml-2 flex-1">
+                <Text className="text-sm text-cardForeground ml-2 flex-1">
                   Average RPE is {stats.avgRPE.toFixed(1)} — you're pushing very hard. Consider a deload if fatigue accumulates.
                 </Text>
               </View>
@@ -296,7 +296,7 @@ export default function WeeklyReportScreen() {
             {stats.prsHit > 0 && (
               <View className="flex-row items-start">
                 <Text style={{ fontSize: 14 }}>🏆</Text>
-                <Text className="text-sm text-foreground ml-2 flex-1">
+                <Text className="text-sm text-cardForeground ml-2 flex-1">
                   {stats.prsHit} new PR{stats.prsHit > 1 ? 's' : ''} this week! Progressive overload is working.
                 </Text>
               </View>
@@ -304,7 +304,7 @@ export default function WeeklyReportScreen() {
             {stats.workoutsCompleted >= stats.workoutsPlanned && stats.sleepTarget && stats.prsHit > 0 && (
               <View className="flex-row items-start">
                 <Text style={{ fontSize: 14 }}>⭐</Text>
-                <Text className="text-sm text-foreground ml-2 flex-1">
+                <Text className="text-sm text-cardForeground ml-2 flex-1">
                   Perfect week — training, sleep, and progression all on point. Keep this up!
                 </Text>
               </View>

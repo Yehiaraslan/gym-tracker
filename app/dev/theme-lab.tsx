@@ -14,12 +14,12 @@ const paletteNames: PaletteName[] = Object.keys(SchemeColors.light) as PaletteNa
 
 function ColorSwatch({ name, value }: { name: PaletteName; value: string }) {
   return (
-    <View className="flex-row items-center justify-between rounded-xl border border-border px-3 py-2">
+    <View className="flex-row items-center justify-between rounded-xl border border-cardBorder px-3 py-2">
       <View className="flex-row items-center gap-3">
-        <View className="h-6 w-6 rounded-full border border-border" style={{ backgroundColor: value }} />
-        <Text className="text-sm font-semibold text-foreground">{name}</Text>
+        <View className="h-6 w-6 rounded-full border border-cardBorder" style={{ backgroundColor: value }} />
+        <Text className="text-sm font-semibold text-cardForeground">{name}</Text>
       </View>
-      <Text className="text-xs font-mono text-muted">{value}</Text>
+      <Text className="text-xs font-mono text-cardMuted">{value}</Text>
     </View>
   );
 }
@@ -110,11 +110,11 @@ export default function ThemeLabScreen() {
             ))}
           </View>
 
-          <ThemedView className="rounded-2xl border border-border p-4">
-            <Text className="text-lg font-bold text-foreground">
+          <ThemedView className="rounded-2xl border border-cardBorder p-4">
+            <Text className="text-lg font-bold text-cardForeground">
               Tailwind tokens
             </Text>
-            <Text className="mt-1 text-sm text-muted">
+            <Text className="mt-1 text-sm text-cardMuted">
               Buttons and badges driven by global {colorScheme} palette
             </Text>
 
@@ -130,14 +130,14 @@ export default function ThemeLabScreen() {
                 <Text className="text-sm font-semibold text-background">Primary</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                className="rounded-full px-4 py-2 border border-border"
+                className="rounded-full px-4 py-2 border border-cardBorder"
                 style={{ backgroundColor: SchemeColors[colorScheme].surface }}
                 onPress={() => {
                   setPressCount((count) => count + 1);
                   setLastAction("Pressed Surface token");
                 }}
               >
-                <Text className="text-sm font-semibold text-foreground">
+                <Text className="text-sm font-semibold text-cardForeground">
                   Surface
                 </Text>
               </TouchableOpacity>
@@ -179,35 +179,35 @@ export default function ThemeLabScreen() {
               </TouchableOpacity>
             </View>
 
-            <View className="mt-4 rounded-xl bg-background p-4 border border-border">
-              <Text className="text-base font-semibold text-foreground">
+            <View className="mt-4 rounded-xl bg-background p-4 border border-cardBorder">
+              <Text className="text-base font-semibold text-cardForeground">
                 useColors()
               </Text>
-              <Text className="mt-1 text-sm text-muted">
+              <Text className="mt-1 text-sm text-cardMuted">
                 Background: {colors.background} • Text: {colors.text} • Tint: {colors.tint}
               </Text>
-              <Text className="text-xs text-muted">
+              <Text className="text-xs text-cardMuted">
                 (Pressable uses style; Tailwind on Pressable is disabled via remap)
               </Text>
               <View className="mt-3 gap-2">
                 <View className="flex-row items-center gap-2">
                   <IconSymbol name="house.fill" color={colors.tint} size={20} />
-                  <Text className="text-sm text-foreground">
+                  <Text className="text-sm text-cardForeground">
                     Press count: {pressCount}
                   </Text>
                 </View>
-                <Text className="text-sm text-muted">
+                <Text className="text-sm text-cardMuted">
                   Last action: {lastAction}
                 </Text>
               </View>
             </View>
           </ThemedView>
 
-          <ThemedView className="rounded-2xl border border-border p-4">
-            <Text className="text-lg font-bold text-foreground">
+          <ThemedView className="rounded-2xl border border-cardBorder p-4">
+            <Text className="text-lg font-bold text-cardForeground">
               Palette values
             </Text>
-            <Text className="mt-1 text-sm text-muted">
+            <Text className="mt-1 text-sm text-cardMuted">
               Live values for the selected scheme
             </Text>
             <View className="mt-3 gap-2">

@@ -190,7 +190,7 @@ export default function ProgressScreen() {
     <ScreenContainer className="flex-1">
       {/* Header + Tab switcher */}
       <View style={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 0 }}>
-        <Text className="text-2xl font-bold text-foreground">Progress</Text>
+        <Text className="text-2xl font-bold text-cardForeground">Progress</Text>
         <View style={{
           flexDirection: 'row',
           marginTop: 12,
@@ -214,7 +214,7 @@ export default function ProgressScreen() {
               <Text style={{
                 fontSize: 13,
                 fontWeight: '600',
-                color: activeTab === tab ? '#fff' : colors.muted,
+                color: activeTab === tab ? '#fff' : colors.cardMuted,
               }}>
                 {tab === 'overview' ? '📊 Overview' : '📋 Exercise History'}
               </Text>
@@ -229,13 +229,13 @@ export default function ProgressScreen() {
           {/* Search bar */}
           <View style={[
             { flexDirection: 'row', alignItems: 'center', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, marginBottom: 12 },
-            { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+            { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.cardBorder },
           ]}>
             <Text style={{ fontSize: 16, marginRight: 8 }}>🔍</Text>
             <TextInput
-              style={{ flex: 1, fontSize: 15, color: colors.foreground }}
+              style={{ flex: 1, fontSize: 15, color: colors.cardForeground }}
               placeholder="Search exercises…"
-              placeholderTextColor={colors.muted}
+              placeholderTextColor={colors.cardMuted}
               value={exerciseSearch}
               onChangeText={setExerciseSearch}
               returnKeyType="search"
@@ -246,15 +246,15 @@ export default function ProgressScreen() {
           {trackedExercises.length === 0 ? (
             <View style={{ alignItems: 'center', paddingTop: 60, gap: 8 }}>
               <Text style={{ fontSize: 40 }}>🏋️</Text>
-              <Text style={{ fontSize: 17, fontWeight: '700', color: colors.foreground, textAlign: 'center' }}>
+              <Text style={{ fontSize: 17, fontWeight: '700', color: colors.cardForeground, textAlign: 'center' }}>
                 No workout history yet
               </Text>
-              <Text style={{ fontSize: 14, color: colors.muted, textAlign: 'center', lineHeight: 20 }}>
+              <Text style={{ fontSize: 14, color: colors.cardMuted, textAlign: 'center', lineHeight: 20 }}>
                 Complete a workout to start tracking your exercise history.
               </Text>
             </View>
           ) : filteredExercises.length === 0 ? (
-            <Text style={{ color: colors.muted, textAlign: 'center', marginTop: 40 }}>No exercises match your search.</Text>
+            <Text style={{ color: colors.cardMuted, textAlign: 'center', marginTop: 40 }}>No exercises match your search.</Text>
           ) : (
             <FlatList
               data={filteredExercises}
@@ -274,7 +274,7 @@ export default function ProgressScreen() {
                         marginBottom: 8,
                         borderWidth: 0.5,
                       },
-                      { backgroundColor: colors.surface, borderColor: colors.border },
+                      { backgroundColor: colors.surface, borderColor: colors.cardBorder },
                     ]}
                     onPress={() => {
                       if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -283,15 +283,15 @@ export default function ProgressScreen() {
                     activeOpacity={0.8}
                   >
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 15, fontWeight: '600', color: colors.foreground }}>{name}</Text>
+                      <Text style={{ fontSize: 15, fontWeight: '600', color: colors.cardForeground }}>{name}</Text>
                       {pr && (
-                        <Text style={{ fontSize: 12, color: colors.muted, marginTop: 2 }}>
+                        <Text style={{ fontSize: 12, color: colors.cardMuted, marginTop: 2 }}>
                           PR: {pr.weight}kg × {pr.reps} reps · ~{Math.round(pr.e1rm)}kg e1RM
                         </Text>
                       )}
                     </View>
                     {pr && <Text style={{ fontSize: 14 }}>🏆</Text>}
-                    <Text style={{ fontSize: 20, color: colors.muted, marginLeft: 8 }}>›</Text>
+                    <Text style={{ fontSize: 20, color: colors.cardMuted, marginLeft: 8 }}>›</Text>
                   </TouchableOpacity>
                 );
               }}
@@ -342,8 +342,8 @@ export default function ProgressScreen() {
 
         {/* Training Readiness */}
         <View className="px-6 mt-5">
-          <Text className="text-sm font-semibold text-foreground mb-3">Training Readiness</Text>
-          <View className="rounded-2xl p-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+          <Text className="text-sm font-semibold text-cardForeground mb-3">Training Readiness</Text>
+          <View className="rounded-2xl p-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.cardBorder }}>
             <View className="flex-row items-center justify-between mb-3">
               <View className="flex-row items-center">
                 <View
@@ -355,10 +355,10 @@ export default function ProgressScreen() {
                   </Text>
                 </View>
                 <View>
-                  <Text className="text-base font-semibold text-foreground">
+                  <Text className="text-base font-semibold text-cardForeground">
                     {getReadinessLabel(readinessScore)}
                   </Text>
-                  <Text className="text-xs text-muted">
+                  <Text className="text-xs text-cardMuted">
                     {getReadinessAdvice(readinessScore)}
                   </Text>
                 </View>
@@ -370,14 +370,14 @@ export default function ProgressScreen() {
               <ReadinessRow
                 label="Recovery"
                 value={recovery ? `${Math.round(recovery.recoveryScore)}%` : 'No data'}
-                color={recovery ? getRecoveryColor(recovery.recoveryScore) : colors.muted}
+                color={recovery ? getRecoveryColor(recovery.recoveryScore) : colors.cardMuted}
                 progress={recovery ? recovery.recoveryScore / 100 : 0}
                 colors={colors}
               />
               <ReadinessRow
                 label="Sleep"
                 value={recovery ? `${Math.round(recovery.sleepScore)}%` : 'No data'}
-                color={recovery ? getRecoveryColor(recovery.sleepScore) : colors.muted}
+                color={recovery ? getRecoveryColor(recovery.sleepScore) : colors.cardMuted}
                 progress={recovery ? recovery.sleepScore / 100 : 0}
                 colors={colors}
               />
@@ -394,13 +394,13 @@ export default function ProgressScreen() {
 
         {/* Protein Tracker */}
         <View className="px-6 mt-5">
-          <Text className="text-sm font-semibold text-foreground mb-3">Today's Protein</Text>
-          <View className="rounded-2xl p-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+          <Text className="text-sm font-semibold text-cardForeground mb-3">Today's Protein</Text>
+          <View className="rounded-2xl p-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.cardBorder }}>
             <View className="flex-row items-center justify-between mb-2">
-              <Text className="text-2xl font-bold text-foreground">{todayMacros.protein}g</Text>
-              <Text className="text-sm text-muted">/ {proteinTarget}g target</Text>
+              <Text className="text-2xl font-bold text-cardForeground">{todayMacros.protein}g</Text>
+              <Text className="text-sm text-cardMuted">/ {proteinTarget}g target</Text>
             </View>
-            <View className="h-3 rounded-full overflow-hidden" style={{ backgroundColor: colors.border }}>
+            <View className="h-3 rounded-full overflow-hidden" style={{ backgroundColor: colors.cardBorder }}>
               <View
                 className="h-full rounded-full"
                 style={{
@@ -409,7 +409,7 @@ export default function ProgressScreen() {
                 }}
               />
             </View>
-            <Text className="text-xs text-muted mt-2">
+            <Text className="text-xs text-cardMuted mt-2">
               {proteinPercent >= 80
                 ? 'On track for your protein goal'
                 : proteinPercent >= 50
@@ -422,13 +422,13 @@ export default function ProgressScreen() {
         {/* Sleep Optimization */}
         {recovery && (
           <View className="px-6 mt-5">
-            <Text className="text-sm font-semibold text-foreground mb-3">Sleep & Recovery</Text>
-            <View className="rounded-2xl p-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+            <Text className="text-sm font-semibold text-cardForeground mb-3">Sleep & Recovery</Text>
+            <View className="rounded-2xl p-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.cardBorder }}>
               <View className="flex-row items-center mb-3">
                 <IconSymbol name="bed.double.fill" size={20} color="#8B5CF6" />
-                <Text className="text-sm font-medium text-foreground ml-2">Sleep Score: {Math.round(recovery.sleepScore)}%</Text>
+                <Text className="text-sm font-medium text-cardForeground ml-2">Sleep Score: {Math.round(recovery.sleepScore)}%</Text>
               </View>
-              <Text className="text-xs text-muted leading-relaxed">
+              <Text className="text-xs text-cardMuted leading-relaxed">
                 {recovery.sleepScore >= 80
                   ? `Great sleep quality. Your target is ${SLEEP_TARGETS.durationHours}h (${SLEEP_TARGETS.bedtime}–${SLEEP_TARGETS.wakeTime}). Keep this up for optimal recovery.`
                   : recovery.sleepScore >= 60
@@ -476,24 +476,24 @@ export default function ProgressScreen() {
         {/* Personal Records */}
         {prList.length > 0 && (
           <View className="px-6 mt-5">
-            <Text className="text-sm font-semibold text-foreground mb-3">Personal Records</Text>
-            <View className="rounded-2xl overflow-hidden" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+            <Text className="text-sm font-semibold text-cardForeground mb-3">Personal Records</Text>
+            <View className="rounded-2xl overflow-hidden" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.cardBorder }}>
               {prList.slice(0, 8).map(([name, pr], i) => (
                 <View
                   key={name}
                   className="flex-row items-center px-4 py-3"
-                  style={i < Math.min(prList.length, 8) - 1 ? { borderBottomWidth: 1, borderBottomColor: colors.border } : {}}
+                  style={i < Math.min(prList.length, 8) - 1 ? { borderBottomWidth: 1, borderBottomColor: colors.cardBorder } : {}}
                 >
                   <Text style={{ fontSize: 16, marginRight: 10 }}>🏆</Text>
                   <View className="flex-1">
-                    <Text className="text-sm font-medium text-foreground">{name}</Text>
-                    <Text className="text-xs text-muted">
+                    <Text className="text-sm font-medium text-cardForeground">{name}</Text>
+                    <Text className="text-xs text-cardMuted">
                       {pr.weight}kg x {pr.reps} reps · {new Date(pr.date + 'T00:00:00').toLocaleDateString('en', { month: 'short', day: 'numeric' })}
                     </Text>
                   </View>
                   <View className="items-end">
                     <Text className="text-sm font-bold" style={{ color: '#F59E0B' }}>~{Math.round(pr.e1rm)}kg</Text>
-                    <Text className="text-xs text-muted">est. 1RM</Text>
+                    <Text className="text-xs text-cardMuted">est. 1RM</Text>
                   </View>
                 </View>
               ))}
@@ -504,19 +504,19 @@ export default function ProgressScreen() {
         {/* Coach Recommendations */}
         {recommendations.length > 0 && (
           <View className="px-6 mt-5">
-            <Text className="text-sm font-semibold text-foreground mb-3">Coach Insights</Text>
+            <Text className="text-sm font-semibold text-cardForeground mb-3">Coach Insights</Text>
             {recommendations.slice(0, 3).map((rec, i) => {
               const catIcon: Record<string, string> = { nutrition: '🍗', training: '🏋️', recovery: '😴', overload: '📈' };
               return (
                 <View
                   key={i}
                   className="rounded-xl p-3 mb-2"
-                  style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+                  style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.cardBorder }}
                 >
-                  <Text className="text-sm font-medium text-foreground">
+                  <Text className="text-sm font-medium text-cardForeground">
                     {catIcon[rec.type] || '💡'} {rec.message}
                   </Text>
-                  <Text className="text-xs text-muted mt-1 leading-relaxed">{rec.actionable}</Text>
+                  <Text className="text-xs text-cardMuted mt-1 leading-relaxed">{rec.actionable}</Text>
                 </View>
               );
             })}
@@ -526,24 +526,24 @@ export default function ProgressScreen() {
         {/* Recent Workouts */}
         {recentWorkouts.length > 0 && (
           <View className="px-6 mt-5">
-            <Text className="text-sm font-semibold text-foreground mb-3">Recent Workouts</Text>
-            <View className="rounded-2xl overflow-hidden" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+            <Text className="text-sm font-semibold text-cardForeground mb-3">Recent Workouts</Text>
+            <View className="rounded-2xl overflow-hidden" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.cardBorder }}>
               {recentWorkouts.slice(0, 5).map((w, i) => {
                 const sColor = resolveColor(w.sessionType);
                 return (
                   <View
                     key={w.id}
                     className="flex-row items-center px-4 py-3"
-                    style={i < Math.min(recentWorkouts.length, 5) - 1 ? { borderBottomWidth: 1, borderBottomColor: colors.border } : {}}
+                    style={i < Math.min(recentWorkouts.length, 5) - 1 ? { borderBottomWidth: 1, borderBottomColor: colors.cardBorder } : {}}
                   >
                     <View
                       style={{ width: 4, height: 32, borderRadius: 2, backgroundColor: sColor, marginRight: 12 }}
                     />
                     <View className="flex-1">
-                      <Text className="text-sm font-medium text-foreground">
+                      <Text className="text-sm font-medium text-cardForeground">
                         {resolveName(w.sessionType)}
                       </Text>
-                      <Text className="text-xs text-muted">
+                      <Text className="text-xs text-cardMuted">
                         {new Date(w.date + 'T00:00:00').toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' })}
                         {w.durationMinutes ? ` · ${w.durationMinutes}m` : ''}
                       </Text>
@@ -585,11 +585,11 @@ function StatCard({
   colors: ReturnType<typeof useColors>;
 }) {
   return (
-    <View className="flex-1 rounded-2xl p-3 items-center" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+    <View className="flex-1 rounded-2xl p-3 items-center" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.cardBorder }}>
       <IconSymbol name={icon} size={20} color={iconColor} />
-      <Text className="text-xl font-bold text-foreground mt-1">{value}</Text>
-      <Text className="text-xs text-muted">{label}</Text>
-      {sublabel && <Text className="text-xs text-muted" style={{ fontSize: 10 }}>{sublabel}</Text>}
+      <Text className="text-xl font-bold text-cardForeground mt-1">{value}</Text>
+      <Text className="text-xs text-cardMuted">{label}</Text>
+      {sublabel && <Text className="text-xs text-cardMuted" style={{ fontSize: 10 }}>{sublabel}</Text>}
     </View>
   );
 }
@@ -610,10 +610,10 @@ function ReadinessRow({
   return (
     <View>
       <View className="flex-row items-center justify-between mb-1">
-        <Text className="text-xs text-muted">{label}</Text>
+        <Text className="text-xs text-cardMuted">{label}</Text>
         <Text className="text-xs font-medium" style={{ color }}>{value}</Text>
       </View>
-      <View className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: colors.border }}>
+      <View className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: colors.cardBorder }}>
         <View className="h-full rounded-full" style={{ width: `${Math.max(2, progress * 100)}%`, backgroundColor: color }} />
       </View>
     </View>
@@ -764,7 +764,7 @@ function WeeklyVolumeChart({
   return (
     <View className="px-6 mt-5">
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-        <Text className="text-sm font-semibold text-foreground">Weekly Volume by Session Type</Text>
+        <Text className="text-sm font-semibold text-cardForeground">Weekly Volume by Session Type</Text>
         {/* Date range selector */}
         <View style={{ flexDirection: 'row', gap: 4 }}>
           {([28, 56, undefined] as (28 | 56 | undefined)[]).map((r) => {
@@ -780,22 +780,22 @@ function WeeklyVolumeChart({
                   borderRadius: 6,
                   backgroundColor: active ? colors.primary : colors.surface,
                   borderWidth: 1,
-                  borderColor: active ? colors.primary : colors.border,
+                  borderColor: active ? colors.primary : colors.cardBorder,
                 }}
               >
-                <Text style={{ fontSize: 11, fontWeight: active ? '700' : '400', color: active ? '#fff' : colors.muted }}>{label}</Text>
+                <Text style={{ fontSize: 11, fontWeight: active ? '700' : '400', color: active ? '#fff' : colors.cardMuted }}>{label}</Text>
               </TouchableOpacity>
             );
           })}
         </View>
       </View>
-      <View className="rounded-2xl p-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+      <View className="rounded-2xl p-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.cardBorder }}>
         {/* Legend */}
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 10 }}>
           {allSeries.map(([type]) => (
             <View key={type} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
               <View style={{ width: 12, height: 3, borderRadius: 2, backgroundColor: SESSION_LINE_COLORS[type] || colors.primary }} />
-              <Text style={{ fontSize: 11, color: colors.muted }}>{SESSION_LINE_LABELS[type] ?? type}</Text>
+              <Text style={{ fontSize: 11, color: colors.cardMuted }}>{SESSION_LINE_LABELS[type] ?? type}</Text>
             </View>
           ))}
         </View>
@@ -809,11 +809,11 @@ function WeeklyVolumeChart({
                 <React.Fragment key={i}>
                   <Line
                     x1={PAD_LEFT} y1={y} x2={CHART_W - PAD_RIGHT} y2={y}
-                    stroke={colors.border} strokeWidth={0.5} strokeDasharray="3,3"
+                    stroke={colors.cardBorder} strokeWidth={0.5} strokeDasharray="3,3"
                   />
                   <SvgText
                     x={PAD_LEFT - 4} y={y + 4}
-                    fontSize={9} fill={colors.muted} textAnchor="end"
+                    fontSize={9} fill={colors.cardMuted} textAnchor="end"
                   >
                     {v >= 1000 ? `${(v / 1000).toFixed(0)}t` : `${v}`}
                   </SvgText>
@@ -829,7 +829,7 @@ function WeeklyVolumeChart({
               return (
                 <SvgText
                   key={idx} x={x} y={CHART_H - 6}
-                  fontSize={9} fill={colors.muted} textAnchor="middle"
+                  fontSize={9} fill={colors.cardMuted} textAnchor="middle"
                 >
                   {label}
                 </SvgText>
@@ -910,7 +910,7 @@ function WeeklyVolumeChart({
                 left: tooltipLeft,
                 top: tooltipTop,
                 width: TOOLTIP_W,
-                backgroundColor: colors.foreground,
+                backgroundColor: colors.cardForeground,
                 borderRadius: 8,
                 paddingHorizontal: 10,
                 paddingVertical: 6,
@@ -1037,8 +1037,8 @@ function StrengthProgressionChart({
     <View style={{ marginHorizontal: 24, marginTop: 20 }}>
       {/* Section header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-        <Text style={{ fontSize: 14, fontWeight: '600', color: colors.foreground }}>Strength Progression</Text>
-        <Text style={{ fontSize: 11, color: colors.muted }}>Estimated 1RM (Epley)</Text>
+        <Text style={{ fontSize: 14, fontWeight: '600', color: colors.cardForeground }}>Strength Progression</Text>
+        <Text style={{ fontSize: 11, color: colors.cardMuted }}>Estimated 1RM (Epley)</Text>
       </View>
 
       {/* Pinned exercise chips */}
@@ -1077,7 +1077,7 @@ function StrengthProgressionChart({
               paddingHorizontal: 12,
               paddingVertical: 6,
               borderWidth: 1,
-              borderColor: showPicker ? CHART_ACCENT : colors.border,
+              borderColor: showPicker ? CHART_ACCENT : colors.cardBorder,
               gap: 4,
             }}
             onPress={() => {
@@ -1086,7 +1086,7 @@ function StrengthProgressionChart({
             }}
           >
             <Text style={{ fontSize: 14, color: CHART_ACCENT, fontWeight: '700' }}>+</Text>
-            <Text style={{ fontSize: 12, color: colors.muted }}>Add exercise</Text>
+            <Text style={{ fontSize: 12, color: colors.cardMuted }}>Add exercise</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -1097,12 +1097,12 @@ function StrengthProgressionChart({
           backgroundColor: colors.surface,
           borderRadius: 14,
           borderWidth: 1,
-          borderColor: colors.border,
+          borderColor: colors.cardBorder,
           marginBottom: 10,
           maxHeight: 260,
           overflow: 'hidden',
         }}>
-          <View style={{ padding: 10, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+          <View style={{ padding: 10, borderBottomWidth: 1, borderBottomColor: colors.cardBorder }}>
             <TextInput
               style={{
                 backgroundColor: colors.background,
@@ -1110,10 +1110,10 @@ function StrengthProgressionChart({
                 paddingHorizontal: 12,
                 paddingVertical: 8,
                 fontSize: 14,
-                color: colors.foreground,
+                color: colors.cardForeground,
               }}
               placeholder="Search exercises…"
-              placeholderTextColor={colors.muted}
+              placeholderTextColor={colors.cardMuted}
               value={exerciseSearch}
               onChangeText={onSearchChange}
               autoFocus
@@ -1122,11 +1122,11 @@ function StrengthProgressionChart({
           </View>
           {trackedExercises.length === 0 ? (
             <View style={{ padding: 20, alignItems: 'center' }}>
-              <Text style={{ color: colors.muted, fontSize: 13 }}>No workout history yet</Text>
+              <Text style={{ color: colors.cardMuted, fontSize: 13 }}>No workout history yet</Text>
             </View>
           ) : filteredExList.length === 0 ? (
             <View style={{ padding: 20, alignItems: 'center' }}>
-              <Text style={{ color: colors.muted, fontSize: 13 }}>No matches</Text>
+              <Text style={{ color: colors.cardMuted, fontSize: 13 }}>No matches</Text>
             </View>
           ) : (
             <FlatList
@@ -1144,7 +1144,7 @@ function StrengthProgressionChart({
                       paddingHorizontal: 16,
                       paddingVertical: 12,
                       borderBottomWidth: 0.5,
-                      borderBottomColor: colors.border,
+                      borderBottomColor: colors.cardBorder,
                       flexDirection: 'row',
                       alignItems: 'center',
                       justifyContent: 'space-between',
@@ -1156,7 +1156,7 @@ function StrengthProgressionChart({
                       onTogglePin(item);
                     }}
                   >
-                    <Text style={{ fontSize: 14, color: colors.foreground, flex: 1 }} numberOfLines={1}>{item}</Text>
+                    <Text style={{ fontSize: 14, color: colors.cardForeground, flex: 1 }} numberOfLines={1}>{item}</Text>
                     {isPinned && (
                       <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: OVERLAY_COLORS[pinIdx] }} />
                     )}
@@ -1173,7 +1173,7 @@ function StrengthProgressionChart({
         backgroundColor: colors.surface,
         borderRadius: 16,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: colors.cardBorder,
         padding: 12,
       }}>
         {/* Date range pills */}
@@ -1187,14 +1187,14 @@ function StrengthProgressionChart({
                 borderRadius: 20,
                 backgroundColor: dateRange === value ? CHART_ACCENT : colors.background,
                 borderWidth: 1,
-                borderColor: dateRange === value ? CHART_ACCENT : colors.border,
+                borderColor: dateRange === value ? CHART_ACCENT : colors.cardBorder,
               }}
               onPress={() => {
                 if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 onDateRangeChange(value);
               }}
             >
-              <Text style={{ fontSize: 12, fontWeight: '600', color: dateRange === value ? '#fff' : colors.muted }}>{label}</Text>
+              <Text style={{ fontSize: 12, fontWeight: '600', color: dateRange === value ? '#fff' : colors.cardMuted }}>{label}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -1210,8 +1210,8 @@ function StrengthProgressionChart({
         {!loading && pinnedExercises.length === 0 && (
           <View style={{ height: CHART_H, alignItems: 'center', justifyContent: 'center', gap: 6 }}>
             <Text style={{ fontSize: 28 }}>📈</Text>
-            <Text style={{ fontSize: 14, fontWeight: '600', color: colors.foreground }}>Pin up to 3 exercises</Text>
-            <Text style={{ fontSize: 12, color: colors.muted, textAlign: 'center' }}>
+            <Text style={{ fontSize: 14, fontWeight: '600', color: colors.cardForeground }}>Pin up to 3 exercises</Text>
+            <Text style={{ fontSize: 12, color: colors.cardMuted, textAlign: 'center' }}>
               Tap “+ Add exercise” to compare strength trends side by side
             </Text>
           </View>
@@ -1221,8 +1221,8 @@ function StrengthProgressionChart({
         {!loading && pinnedExercises.length > 0 && !hasData && (
           <View style={{ height: CHART_H, alignItems: 'center', justifyContent: 'center', gap: 6 }}>
             <Text style={{ fontSize: 28 }}>🏋️</Text>
-            <Text style={{ fontSize: 13, fontWeight: '600', color: colors.foreground }}>Not enough data yet</Text>
-            <Text style={{ fontSize: 12, color: colors.muted, textAlign: 'center' }}>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: colors.cardForeground }}>Not enough data yet</Text>
+            <Text style={{ fontSize: 12, color: colors.cardMuted, textAlign: 'center' }}>
               Complete at least 2 sessions to see the trend
             </Text>
           </View>
@@ -1240,7 +1240,7 @@ function StrengthProgressionChart({
                     y1={tick.y}
                     x2={CHART_W - PAD_R}
                     y2={tick.y}
-                    stroke={colors.border}
+                    stroke={colors.cardBorder}
                     strokeWidth={0.5}
                     strokeDasharray="3,3"
                   />
@@ -1248,7 +1248,7 @@ function StrengthProgressionChart({
                     x={PAD_L - 4}
                     y={tick.y + 4}
                     fontSize={9}
-                    fill={colors.muted}
+                    fill={colors.cardMuted}
                     textAnchor="end"
                   >
                     {tick.label}
@@ -1262,7 +1262,7 @@ function StrengthProgressionChart({
                 y1={PAD_T + plotH}
                 x2={CHART_W - PAD_R}
                 y2={PAD_T + plotH}
-                stroke={colors.border}
+                stroke={colors.cardBorder}
                 strokeWidth={0.5}
               />
 
@@ -1273,7 +1273,7 @@ function StrengthProgressionChart({
                   x={xl.x}
                   y={CHART_H - 4}
                   fontSize={9}
-                  fill={colors.muted}
+                  fill={colors.cardMuted}
                   textAnchor="middle"
                 >
                   {xl.label}
@@ -1346,26 +1346,26 @@ function StrengthProgressionChart({
                     marginTop: sIdx === 0 ? 10 : 6,
                     paddingTop: sIdx === 0 ? 10 : 6,
                     borderTopWidth: sIdx === 0 ? 0.5 : 0,
-                    borderTopColor: colors.border,
+                    borderTopColor: colors.cardBorder,
                   }}
                 >
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1.5 }}>
                     <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: color }} />
-                    <Text style={{ fontSize: 11, color: colors.foreground, flex: 1 }} numberOfLines={1}>{series.name}</Text>
+                    <Text style={{ fontSize: 11, color: colors.cardForeground, flex: 1 }} numberOfLines={1}>{series.name}</Text>
                   </View>
                   <View style={{ alignItems: 'center', flex: 1 }}>
                     <Text style={{ fontSize: 13, fontWeight: '700', color: '#F59E0B' }}>{`~${Math.round(best.e1rm)}kg`}</Text>
-                    <Text style={{ fontSize: 9, color: colors.muted }}>Best</Text>
+                    <Text style={{ fontSize: 9, color: colors.cardMuted }}>Best</Text>
                   </View>
                   <View style={{ alignItems: 'center', flex: 1 }}>
-                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.foreground }}>{`~${Math.round(d[d.length - 1].e1rm)}kg`}</Text>
-                    <Text style={{ fontSize: 9, color: colors.muted }}>Now</Text>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.cardForeground }}>{`~${Math.round(d[d.length - 1].e1rm)}kg`}</Text>
+                    <Text style={{ fontSize: 9, color: colors.cardMuted }}>Now</Text>
                   </View>
                   <View style={{ alignItems: 'center', flex: 1 }}>
                     <Text style={{ fontSize: 13, fontWeight: '700', color: delta >= 0 ? '#10B981' : '#EF4444' }}>
                       {delta >= 0 ? '+' : ''}{Math.round(delta)}kg
                     </Text>
-                    <Text style={{ fontSize: 9, color: colors.muted }}>Gain</Text>
+                    <Text style={{ fontSize: 9, color: colors.cardMuted }}>Gain</Text>
                   </View>
                 </View>
               );

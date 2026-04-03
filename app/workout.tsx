@@ -464,8 +464,8 @@ export default function WorkoutScreen() {
   if (!todayProgram || todayProgram.exercises.length === 0) {
     return (
       <ScreenContainer className="flex-1 items-center justify-center px-6">
-        <IconSymbol name="calendar" size={64} color={colors.muted} />
-        <Text className="text-xl font-semibold text-foreground mt-4">No Workout Today</Text>
+        <IconSymbol name="calendar" size={64} color={colors.cardMuted} />
+        <Text className="text-xl font-semibold text-cardForeground mt-4">No Workout Today</Text>
         <TouchableOpacity
           onPress={() => router.back()}
           className="mt-6 px-6 py-3 rounded-xl"
@@ -484,18 +484,18 @@ export default function WorkoutScreen() {
         {/* Header */}
         <View className="flex-row items-center justify-between px-4 py-3">
           <TouchableOpacity onPress={cancelWorkout} className="p-2">
-            <IconSymbol name="xmark.circle.fill" size={28} color={colors.muted} />
+            <IconSymbol name="xmark.circle.fill" size={28} color={colors.cardMuted} />
           </TouchableOpacity>
           <View className="items-center">
             <Text className="text-lg font-semibold" style={{ color: colors.warning }}>
               🔥 Warm-up
             </Text>
-            <Text className="text-sm text-muted">
+            <Text className="text-sm text-cardMuted">
               {warmupIndex + 1} of {warmupExercises.length}
             </Text>
           </View>
           <TouchableOpacity onPress={skipWarmupPhase} className="p-2">
-            <Text style={{ color: colors.muted }}>Skip All</Text>
+            <Text style={{ color: colors.cardMuted }}>Skip All</Text>
           </TouchableOpacity>
         </View>
 
@@ -503,7 +503,7 @@ export default function WorkoutScreen() {
         <View className="px-4 mb-4">
           <View 
             className="h-2 rounded-full overflow-hidden"
-            style={{ backgroundColor: colors.border }}
+            style={{ backgroundColor: colors.cardBorder }}
           >
             <View 
               className="h-full rounded-full"
@@ -531,7 +531,7 @@ export default function WorkoutScreen() {
             className="bg-surface rounded-3xl p-6 mb-6"
             style={{ borderWidth: 2, borderColor: colors.warning }}
           >
-            <Text className="text-2xl font-bold text-foreground text-center">
+            <Text className="text-2xl font-bold text-cardForeground text-center">
               {currentWarmupExercise.name}
             </Text>
             
@@ -540,7 +540,7 @@ export default function WorkoutScreen() {
                 className="mt-4 p-4 rounded-xl"
                 style={{ backgroundColor: colors.warning + '15' }}
               >
-                <Text className="text-foreground text-center">
+                <Text className="text-cardForeground text-center">
                   {currentWarmupExercise.notes}
                 </Text>
               </View>
@@ -548,10 +548,10 @@ export default function WorkoutScreen() {
 
             {/* Timer */}
             <View className="items-center mt-6">
-              <Text className="text-6xl font-bold text-foreground">
+              <Text className="text-6xl font-bold text-cardForeground">
                 {formatTime(warmupTimer)}
               </Text>
-              <Text className="text-muted mt-2">
+              <Text className="text-cardMuted mt-2">
                 {isWarmupTimerRunning ? 'Time remaining' : 'Tap Start to begin'}
               </Text>
             </View>
@@ -576,7 +576,7 @@ export default function WorkoutScreen() {
                   onPress={() => setIsWarmupTimerRunning(false)}
                   style={{
                     flex: 1,
-                    backgroundColor: colors.muted,
+                    backgroundColor: colors.cardMuted,
                     paddingVertical: 16,
                     borderRadius: 12,
                     marginRight: 8,
@@ -603,7 +603,7 @@ export default function WorkoutScreen() {
               onPress={skipWarmupExercise}
               className="mt-4"
             >
-              <Text className="text-center text-muted">Skip this exercise</Text>
+              <Text className="text-center text-cardMuted">Skip this exercise</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -622,12 +622,12 @@ export default function WorkoutScreen() {
             <Text className="text-lg font-semibold" style={{ color: colors.primary }}>
               ❄️ Cool-down
             </Text>
-            <Text className="text-sm text-muted">
+            <Text className="text-sm text-cardMuted">
               {cooldownIndex + 1} of {cooldownExercises.length}
             </Text>
           </View>
           <TouchableOpacity onPress={skipCooldownPhase} className="p-2">
-            <Text style={{ color: colors.muted }}>Skip All</Text>
+            <Text style={{ color: colors.cardMuted }}>Skip All</Text>
           </TouchableOpacity>
         </View>
 
@@ -635,7 +635,7 @@ export default function WorkoutScreen() {
         <View className="px-4 mb-4">
           <View 
             className="h-2 rounded-full overflow-hidden"
-            style={{ backgroundColor: colors.border }}
+            style={{ backgroundColor: colors.cardBorder }}
           >
             <View 
               className="h-full rounded-full"
@@ -663,7 +663,7 @@ export default function WorkoutScreen() {
             className="bg-surface rounded-3xl p-6 mb-6"
             style={{ borderWidth: 2, borderColor: colors.primary }}
           >
-            <Text className="text-2xl font-bold text-foreground text-center">
+            <Text className="text-2xl font-bold text-cardForeground text-center">
               {currentCooldownExercise.name}
             </Text>
             
@@ -672,7 +672,7 @@ export default function WorkoutScreen() {
                 className="mt-4 p-4 rounded-xl"
                 style={{ backgroundColor: colors.primary + '15' }}
               >
-                <Text className="text-foreground text-center">
+                <Text className="text-cardForeground text-center">
                   {currentCooldownExercise.notes}
                 </Text>
               </View>
@@ -680,10 +680,10 @@ export default function WorkoutScreen() {
 
             {/* Timer */}
             <View className="items-center mt-6">
-              <Text className="text-6xl font-bold text-foreground">
+              <Text className="text-6xl font-bold text-cardForeground">
                 {formatTime(warmupTimer)}
               </Text>
-              <Text className="text-muted mt-2">
+              <Text className="text-cardMuted mt-2">
                 {isWarmupTimerRunning ? 'Time remaining' : 'Tap Start to begin'}
               </Text>
             </View>
@@ -708,7 +708,7 @@ export default function WorkoutScreen() {
                   onPress={() => setIsWarmupTimerRunning(false)}
                   style={{
                     flex: 1,
-                    backgroundColor: colors.muted,
+                    backgroundColor: colors.cardMuted,
                     paddingVertical: 16,
                     borderRadius: 12,
                     marginRight: 8,
@@ -735,7 +735,7 @@ export default function WorkoutScreen() {
               onPress={skipWarmupExercise}
               className="mt-4"
             >
-              <Text className="text-center text-muted">Skip this exercise</Text>
+              <Text className="text-center text-cardMuted">Skip this exercise</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -833,18 +833,18 @@ export default function WorkoutScreen() {
         {/* Header */}
         <View className="px-4 py-6 items-center">
           <IconSymbol name="trophy.fill" size={64} color={colors.warning} />
-          <Text className="text-3xl font-bold text-foreground mt-4">Workout Complete!</Text>
-          <Text className="text-lg text-muted mt-2">Great job! 💪</Text>
+          <Text className="text-3xl font-bold text-cardForeground mt-4">Workout Complete!</Text>
+          <Text className="text-lg text-cardMuted mt-2">Great job! 💪</Text>
         </View>
 
         <ScrollView className="flex-1 px-4" showsVerticalScrollIndicator={false}>
           {/* Workout Summary */}
           <View 
             className="bg-surface rounded-2xl p-5 mb-4"
-            style={{ borderWidth: 1, borderColor: colors.border }}
+            style={{ borderWidth: 1, borderColor: colors.cardBorder }}
           >
             <View className="flex-row justify-between items-center mb-3">
-              <Text className="text-lg font-semibold text-foreground">Summary</Text>
+              <Text className="text-lg font-semibold text-cardForeground">Summary</Text>
               <TouchableOpacity 
                 onPress={handleShareSummary}
                 className="flex-row items-center px-3 py-1.5 rounded-full"
@@ -855,19 +855,19 @@ export default function WorkoutScreen() {
               </TouchableOpacity>
             </View>
             <View className="flex-row justify-between mb-2">
-              <Text className="text-muted">Exercises</Text>
-              <Text className="text-foreground font-medium">{todayProgram.exercises.length}</Text>
+              <Text className="text-cardMuted">Exercises</Text>
+              <Text className="text-cardForeground font-medium">{todayProgram.exercises.length}</Text>
             </View>
             <View className="flex-row justify-between mb-2">
-              <Text className="text-muted">Total Sets</Text>
-              <Text className="text-foreground font-medium">
+              <Text className="text-cardMuted">Total Sets</Text>
+              <Text className="text-cardForeground font-medium">
                 {workoutLog?.exercises.reduce((acc, ex) => acc + ex.sets.length, 0) || 0}
               </Text>
             </View>
             {workoutLog?.startedAt && workoutLog?.completedAt && (
               <View className="flex-row justify-between">
-                <Text className="text-muted">Duration</Text>
-                <Text className="text-foreground font-medium">
+                <Text className="text-cardMuted">Duration</Text>
+                <Text className="text-cardForeground font-medium">
                   {Math.round((workoutLog.completedAt - workoutLog.startedAt) / 60000)} min
                 </Text>
               </View>
@@ -887,7 +887,7 @@ export default function WorkoutScreen() {
             >
               <View className="flex-row items-center mb-4">
                 <Text style={{ fontSize: 20 }}>💡</Text>
-                <Text className="text-lg font-semibold text-foreground ml-2">
+                <Text className="text-lg font-semibold text-cardForeground ml-2">
                   Form Tips Reviewed ({displayedTips.length})
                 </Text>
               </View>
@@ -901,10 +901,10 @@ export default function WorkoutScreen() {
                     <View 
                       key={`${item.tip.id}-${index}`}
                       className="flex-row items-start mb-2 pl-2"
-                      style={{ borderLeftWidth: 2, borderLeftColor: colors.border }}
+                      style={{ borderLeftWidth: 2, borderLeftColor: colors.cardBorder }}
                     >
                       <Text style={{ fontSize: 14 }}>{getCategoryEmoji(item.tip.category)}</Text>
-                      <Text className="text-sm text-muted ml-2 flex-1">{item.tip.tip}</Text>
+                      <Text className="text-sm text-cardMuted ml-2 flex-1">{item.tip.tip}</Text>
                       <TouchableOpacity 
                         onPress={() => handleToggleFavorite(item.tip, exerciseName)}
                         className="ml-2 p-1"
@@ -912,7 +912,7 @@ export default function WorkoutScreen() {
                         <IconSymbol 
                           name={favoritedTipIds.has(item.tip.id) ? "star.fill" : "star"} 
                           size={18} 
-                          color={favoritedTipIds.has(item.tip.id) ? colors.warning : colors.muted} 
+                          color={favoritedTipIds.has(item.tip.id) ? colors.warning : colors.cardMuted} 
                         />
                       </TouchableOpacity>
                     </View>
@@ -920,7 +920,7 @@ export default function WorkoutScreen() {
                 </View>
               ))}
               
-              <Text className="text-xs text-muted text-center mt-2">
+              <Text className="text-xs text-cardMuted text-center mt-2">
                 Tap ⭐ to save tips for future reference
               </Text>
             </View>
@@ -948,9 +948,9 @@ export default function WorkoutScreen() {
       {/* Header */}
       <View className="flex-row items-center justify-between px-4 py-3">
         <TouchableOpacity onPress={cancelWorkout} className="p-2">
-          <IconSymbol name="xmark.circle.fill" size={28} color={colors.muted} />
+          <IconSymbol name="xmark.circle.fill" size={28} color={colors.cardMuted} />
         </TouchableOpacity>
-        <Text className="text-lg font-semibold text-foreground">
+        <Text className="text-lg font-semibold text-cardForeground">
           Week {currentCycleInfo.week}, {getDayName(currentCycleInfo.day)}
         </Text>
         <View style={{ width: 44 }} />
@@ -960,7 +960,7 @@ export default function WorkoutScreen() {
       <View className="px-4 mb-4">
         <View 
           className="h-2 rounded-full overflow-hidden"
-          style={{ backgroundColor: colors.border }}
+          style={{ backgroundColor: colors.cardBorder }}
         >
           <View 
             className="h-full rounded-full"
@@ -970,7 +970,7 @@ export default function WorkoutScreen() {
             }}
           />
         </View>
-        <Text className="text-xs text-muted mt-1 text-center">
+        <Text className="text-xs text-cardMuted mt-1 text-center">
           Exercise {currentExerciseIndex + 1} of {todayProgram.exercises.length}
         </Text>
       </View>
@@ -985,10 +985,10 @@ export default function WorkoutScreen() {
               style={{ borderWidth: 2, borderColor: colors.warning }}
             >
               <IconSymbol name="timer" size={48} color={colors.warning} />
-              <Text className="text-5xl font-bold text-foreground mt-4">
+              <Text className="text-5xl font-bold text-cardForeground mt-4">
                 {formatTime(restTime)}
               </Text>
-              <Text className="text-lg text-muted mt-2">Rest Time</Text>
+              <Text className="text-lg text-cardMuted mt-2">Rest Time</Text>
               <TouchableOpacity
                 onPress={skipRest}
                 className="mt-6 px-8 py-3 rounded-xl"
@@ -1010,10 +1010,10 @@ export default function WorkoutScreen() {
                     {getCategoryLabel(currentFormTip.category)} Tip
                   </Text>
                 </View>
-                <Text className="text-base text-foreground leading-relaxed">
+                <Text className="text-base text-cardForeground leading-relaxed">
                   {currentFormTip.tip}
                 </Text>
-                <Text className="text-xs text-muted mt-3 text-center">
+                <Text className="text-xs text-cardMuted mt-3 text-center">
                   Tips rotate every 8 seconds
                 </Text>
               </View>
@@ -1022,7 +1022,7 @@ export default function WorkoutScreen() {
             {/* Next Up Preview */}
             {currentExercise && (
               <View className="mt-4 px-2">
-                <Text className="text-sm text-muted text-center">
+                <Text className="text-sm text-cardMuted text-center">
                   Next: Set {currentSetIndex + 2} of {currentDayExercise?.sets} • {currentExercise.name}
                 </Text>
               </View>
@@ -1044,13 +1044,13 @@ export default function WorkoutScreen() {
             {/* Current Exercise Card */}
             <View 
               className="bg-surface rounded-3xl p-6 mb-6"
-              style={{ borderWidth: 1, borderColor: colors.border }}
+              style={{ borderWidth: 1, borderColor: colors.cardBorder }}
             >
               <View className="mb-4">
-                <Text className="text-2xl font-bold text-foreground">
+                <Text className="text-2xl font-bold text-cardForeground">
                   {currentExercise?.name}
                 </Text>
-                <Text className="text-muted mt-1">
+                <Text className="text-cardMuted mt-1">
                   Set {currentSetIndex + 1} of {currentDayExercise?.sets}
                 </Text>
               </View>
@@ -1058,10 +1058,10 @@ export default function WorkoutScreen() {
               {/* Target Reps */}
               <View 
                 className="bg-background rounded-xl p-4 mb-4"
-                style={{ borderWidth: 1, borderColor: colors.border }}
+                style={{ borderWidth: 1, borderColor: colors.cardBorder }}
               >
-                <Text className="text-sm text-muted">Target Reps</Text>
-                <Text className="text-xl font-bold text-foreground">
+                <Text className="text-sm text-cardMuted">Target Reps</Text>
+                <Text className="text-xl font-bold text-cardForeground">
                   {currentDayExercise?.reps}
                 </Text>
               </View>
@@ -1073,34 +1073,34 @@ export default function WorkoutScreen() {
                   style={{ backgroundColor: colors.primary + '10' }}
                 >
                   <IconSymbol name="info.circle.fill" size={20} color={colors.primary} />
-                  <Text className="ml-2 text-foreground">
+                  <Text className="ml-2 text-cardForeground">
                     Last time: <Text className="font-bold">{lastWeightValue} kg</Text>
                   </Text>
                 </View>
               )}
 
               {/* Weight Input */}
-              <Text className="text-sm font-medium text-muted mb-2">Weight (kg)</Text>
+              <Text className="text-sm font-medium text-cardMuted mb-2">Weight (kg)</Text>
               <TextInput
                 value={weight}
                 onChangeText={setWeight}
                 placeholder="0"
-                placeholderTextColor={colors.muted}
+                placeholderTextColor={colors.cardMuted}
                 keyboardType="decimal-pad"
-                className="bg-background rounded-xl p-4 text-2xl font-bold text-foreground text-center mb-4"
-                style={{ borderWidth: 1, borderColor: colors.border }}
+                className="bg-background rounded-xl p-4 text-2xl font-bold text-cardForeground text-center mb-4"
+                style={{ borderWidth: 1, borderColor: colors.cardBorder }}
               />
 
               {/* Reps Input */}
-              <Text className="text-sm font-medium text-muted mb-2">Reps Completed</Text>
+              <Text className="text-sm font-medium text-cardMuted mb-2">Reps Completed</Text>
               <TextInput
                 value={reps}
                 onChangeText={setReps}
                 placeholder="0"
-                placeholderTextColor={colors.muted}
+                placeholderTextColor={colors.cardMuted}
                 keyboardType="number-pad"
-                className="bg-background rounded-xl p-4 text-2xl font-bold text-foreground text-center"
-                style={{ borderWidth: 1, borderColor: colors.border }}
+                className="bg-background rounded-xl p-4 text-2xl font-bold text-cardForeground text-center"
+                style={{ borderWidth: 1, borderColor: colors.cardBorder }}
               />
             </View>
 
@@ -1137,12 +1137,12 @@ export default function WorkoutScreen() {
         {/* Completed Sets */}
         {workoutLog && workoutLog.exercises[currentExerciseIndex].sets.length > 0 && (
           <View className="mt-6 mb-8">
-            <Text className="text-sm font-medium text-muted mb-3">Completed Sets</Text>
+            <Text className="text-sm font-medium text-cardMuted mb-3">Completed Sets</Text>
             {workoutLog.exercises[currentExerciseIndex].sets.map((set, index) => (
               <View 
                 key={index}
                 className="flex-row items-center bg-surface rounded-xl p-3 mb-2"
-                style={{ borderWidth: 1, borderColor: colors.border }}
+                style={{ borderWidth: 1, borderColor: colors.cardBorder }}
               >
                 <View 
                   className="w-8 h-8 rounded-full items-center justify-center mr-3"
@@ -1150,8 +1150,8 @@ export default function WorkoutScreen() {
                 >
                   <IconSymbol name="checkmark.circle.fill" size={20} color={colors.success} />
                 </View>
-                <Text className="flex-1 text-foreground">Set {set.setNumber}</Text>
-                <Text className="font-semibold text-foreground">{set.weight} kg × {set.reps}</Text>
+                <Text className="flex-1 text-cardForeground">Set {set.setNumber}</Text>
+                <Text className="font-semibold text-cardForeground">{set.weight} kg × {set.reps}</Text>
               </View>
             ))}
           </View>
@@ -1170,9 +1170,9 @@ export default function WorkoutScreen() {
             style={{ borderWidth: 2, borderColor: colors.success }}
           >
             <IconSymbol name="trophy.fill" size={64} color={colors.warning} />
-            <Text className="text-3xl font-bold text-foreground mt-4">🎉 PR!</Text>
+            <Text className="text-3xl font-bold text-cardForeground mt-4">🎉 PR!</Text>
             <Text className="text-xl mt-2 font-semibold" style={{ color: colors.success }}>{congratsMessage}</Text>
-            <Text className="text-muted mt-2">Keep pushing!</Text>
+            <Text className="text-cardMuted mt-2">Keep pushing!</Text>
           </View>
         </View>
       </Modal>

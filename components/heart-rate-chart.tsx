@@ -37,22 +37,22 @@ export function HeartRateChart({ data }: HeartRateChartProps) {
   const labelInterval = Math.max(1, Math.floor(data.estimatedCurve.length / 6));
 
   return (
-    <View className="bg-surface rounded-2xl p-4 mt-4" style={{ borderWidth: 1, borderColor: colors.border }}>
+    <View className="bg-surface rounded-2xl p-4 mt-4" style={{ borderWidth: 1, borderColor: colors.cardBorder }}>
       {/* Header */}
       <View className="mb-4">
-        <Text className="text-lg font-semibold text-foreground">Heart Rate</Text>
+        <Text className="text-lg font-semibold text-cardForeground">Heart Rate</Text>
         <View className="flex-row gap-6 mt-2">
           <View>
-            <Text className="text-xs text-muted">Average</Text>
-            <Text className="text-xl font-bold text-foreground">{data.averageHeartRate} bpm</Text>
+            <Text className="text-xs text-cardMuted">Average</Text>
+            <Text className="text-xl font-bold text-cardForeground">{data.averageHeartRate} bpm</Text>
           </View>
           <View>
-            <Text className="text-xs text-muted">Max</Text>
-            <Text className="text-xl font-bold text-foreground">{data.maxHeartRate} bpm</Text>
+            <Text className="text-xs text-cardMuted">Max</Text>
+            <Text className="text-xl font-bold text-cardForeground">{data.maxHeartRate} bpm</Text>
           </View>
           <View>
-            <Text className="text-xs text-muted">Duration</Text>
-            <Text className="text-xl font-bold text-foreground">{data.durationMinutes} min</Text>
+            <Text className="text-xs text-cardMuted">Duration</Text>
+            <Text className="text-xl font-bold text-cardForeground">{data.durationMinutes} min</Text>
           </View>
         </View>
       </View>
@@ -71,7 +71,7 @@ export function HeartRateChart({ data }: HeartRateChartProps) {
                   y1={y}
                   x2={chartWidth - padding}
                   y2={y}
-                  stroke={colors.border}
+                  stroke={colors.cardBorder}
                   strokeWidth="0.5"
                   strokeDasharray="2,2"
                 />
@@ -79,7 +79,7 @@ export function HeartRateChart({ data }: HeartRateChartProps) {
                   x={padding - 5}
                   y={y + 4}
                   fontSize="10"
-                  fill={colors.muted}
+                  fill={colors.cardMuted}
                   textAnchor="end"
                 >
                   {hr}
@@ -123,7 +123,7 @@ export function HeartRateChart({ data }: HeartRateChartProps) {
                   x={scaleX(i)}
                   y={chartHeight - padding + 15}
                   fontSize="10"
-                  fill={colors.muted}
+                  fill={colors.cardMuted}
                   textAnchor="middle"
                 >
                   {d.time}m
@@ -137,7 +137,7 @@ export function HeartRateChart({ data }: HeartRateChartProps) {
 
       {/* Zone Distribution */}
       <View className="mt-4">
-        <Text className="text-sm font-semibold text-foreground mb-3">Heart Rate Zones</Text>
+        <Text className="text-sm font-semibold text-cardForeground mb-3">Heart Rate Zones</Text>
         {data.zones.map((zone, idx) => (
           <View key={idx} className="mb-2">
             <View className="flex-row items-center justify-between mb-1">
@@ -146,15 +146,15 @@ export function HeartRateChart({ data }: HeartRateChartProps) {
                   className="w-3 h-3 rounded-full mr-2"
                   style={{ backgroundColor: zone.color }}
                 />
-                <Text className="text-sm text-foreground flex-1">{zone.label}</Text>
+                <Text className="text-sm text-cardForeground flex-1">{zone.label}</Text>
               </View>
-              <Text className="text-sm font-semibold text-foreground">
+              <Text className="text-sm font-semibold text-cardForeground">
                 {zone.minutes}m ({zone.percentage}%)
               </Text>
             </View>
             <View
               className="h-1.5 rounded-full overflow-hidden"
-              style={{ backgroundColor: colors.border }}
+              style={{ backgroundColor: colors.cardBorder }}
             >
               <View
                 className="h-full rounded-full"
@@ -169,15 +169,15 @@ export function HeartRateChart({ data }: HeartRateChartProps) {
       </View>
 
       {/* Stats */}
-      <View className="mt-4 pt-4" style={{ borderTopWidth: 1, borderTopColor: colors.border }}>
+      <View className="mt-4 pt-4" style={{ borderTopWidth: 1, borderTopColor: colors.cardBorder }}>
         <View className="flex-row justify-between">
           <View>
-            <Text className="text-xs text-muted">Total Strain</Text>
-            <Text className="text-lg font-semibold text-foreground">{data.strain.toFixed(1)}</Text>
+            <Text className="text-xs text-cardMuted">Total Strain</Text>
+            <Text className="text-lg font-semibold text-cardForeground">{data.strain.toFixed(1)}</Text>
           </View>
           <View>
-            <Text className="text-xs text-muted">Energy Burned</Text>
-            <Text className="text-lg font-semibold text-foreground">{data.kilojoules} kJ</Text>
+            <Text className="text-xs text-cardMuted">Energy Burned</Text>
+            <Text className="text-lg font-semibold text-cardForeground">{data.kilojoules} kJ</Text>
           </View>
         </View>
       </View>

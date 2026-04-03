@@ -87,17 +87,17 @@ export function WhoopReconnectBanner() {
               <Text style={{ fontSize: 13, fontWeight: '700', color: '#F59E0B', letterSpacing: 0.3 }}>
                 WHOOP Session Expired
               </Text>
-              <Text style={{ fontSize: 12, color: colors.muted, marginTop: 2, lineHeight: 16 }}>
+              <Text style={{ fontSize: 12, color: colors.cardMuted, marginTop: 2, lineHeight: 16 }}>
                 Your WHOOP token has expired. Tap to reconnect and resume syncing recovery data.
               </Text>
             </View>
           </View>
           <TouchableOpacity onPress={handleDismiss} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ paddingLeft: 8 }}>
-            <Text style={{ fontSize: 18, color: colors.muted }}>✕</Text>
+            <Text style={{ fontSize: 18, color: colors.cardMuted }}>✕</Text>
           </TouchableOpacity>
         </View>
         <View style={{ marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#F59E0B25', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Text style={{ fontSize: 12, color: colors.muted }}>Recovery data paused until reconnected</Text>
+          <Text style={{ fontSize: 12, color: colors.cardMuted }}>Recovery data paused until reconnected</Text>
           <View style={{ backgroundColor: '#F59E0B20', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20, borderWidth: 1, borderColor: '#F59E0B50' }}>
             <Text style={{ fontSize: 12, fontWeight: '700', color: '#F59E0B' }}>Reconnect →</Text>
           </View>

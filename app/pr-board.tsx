@@ -83,7 +83,7 @@ export default function PRBoardScreen() {
           <TouchableOpacity onPress={() => router.back()} style={{ padding: 8, marginRight: 8 }}>
             <Text style={{ color: colors.primary, fontSize: 16 }}>← Back</Text>
           </TouchableOpacity>
-          <Text style={{ color: colors.foreground, fontSize: 24, fontWeight: '700', flex: 1 }}>
+          <Text style={{ color: colors.cardForeground, fontSize: 24, fontWeight: '700', flex: 1 }}>
             PR Board
           </Text>
         </View>
@@ -91,7 +91,7 @@ export default function PRBoardScreen() {
         {/* Top 3 Podium */}
         {topLifts.length > 0 && (
           <View style={{ marginHorizontal: 16, marginBottom: 20 }}>
-            <Text style={{ color: colors.foreground, fontSize: 18, fontWeight: '700', marginBottom: 12 }}>
+            <Text style={{ color: colors.cardForeground, fontSize: 18, fontWeight: '700', marginBottom: 12 }}>
               Top Lifts
             </Text>
             <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -113,16 +113,16 @@ export default function PRBoardScreen() {
                   >
                     <Text style={{ fontSize: 28 }}>{medals[index]}</Text>
                     <Text style={{
-                      color: colors.foreground,
+                      color: colors.cardForeground,
                       fontSize: 22,
                       fontWeight: '800',
                       marginTop: 4,
                     }}>
                       {pr.estimated1RM}
                     </Text>
-                    <Text style={{ color: colors.muted, fontSize: 10, marginTop: 2 }}>est. 1RM (kg)</Text>
+                    <Text style={{ color: colors.cardMuted, fontSize: 10, marginTop: 2 }}>est. 1RM (kg)</Text>
                     <Text style={{
-                      color: colors.foreground,
+                      color: colors.cardForeground,
                       fontSize: 12,
                       fontWeight: '600',
                       marginTop: 6,
@@ -130,7 +130,7 @@ export default function PRBoardScreen() {
                     }}>
                       {pr.exerciseName}
                     </Text>
-                    <Text style={{ color: colors.muted, fontSize: 10, marginTop: 2 }}>
+                    <Text style={{ color: colors.cardMuted, fontSize: 10, marginTop: 2 }}>
                       {pr.bestWeight}kg × {pr.bestReps}
                     </Text>
                   </View>
@@ -150,11 +150,11 @@ export default function PRBoardScreen() {
             marginBottom: 20,
             alignItems: 'center',
           }}>
-            <Text style={{ color: colors.muted, fontSize: 12 }}>Total Estimated 1RM</Text>
-            <Text style={{ color: colors.foreground, fontSize: 36, fontWeight: '800' }}>
+            <Text style={{ color: colors.cardMuted, fontSize: 12 }}>Total Estimated 1RM</Text>
+            <Text style={{ color: colors.cardForeground, fontSize: 36, fontWeight: '800' }}>
               {Math.round(prRecords.reduce((s, pr) => s + pr.estimated1RM, 0))} kg
             </Text>
-            <Text style={{ color: colors.muted, fontSize: 12 }}>
+            <Text style={{ color: colors.cardMuted, fontSize: 12 }}>
               Across {prRecords.length} exercises
             </Text>
           </View>
@@ -163,7 +163,7 @@ export default function PRBoardScreen() {
         {/* PRs by Body Part */}
         {groupedPRs.map(([bodyPart, prs]) => (
           <View key={bodyPart} style={{ marginHorizontal: 16, marginBottom: 16 }}>
-            <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '700', marginBottom: 8 }}>
+            <Text style={{ color: colors.cardForeground, fontSize: 16, fontWeight: '700', marginBottom: 8 }}>
               {bodyPart}
             </Text>
             {prs.map((pr) => (
@@ -179,10 +179,10 @@ export default function PRBoardScreen() {
                 }}
               >
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '600' }}>
+                  <Text style={{ color: colors.cardForeground, fontSize: 14, fontWeight: '600' }}>
                     {pr.exerciseName}
                   </Text>
-                  <Text style={{ color: colors.muted, fontSize: 12 }}>
+                  <Text style={{ color: colors.cardMuted, fontSize: 12 }}>
                     Best: {pr.bestWeight}kg × {pr.bestReps} reps
                   </Text>
                 </View>
@@ -190,7 +190,7 @@ export default function PRBoardScreen() {
                   <Text style={{ color: colors.primary, fontSize: 18, fontWeight: '700' }}>
                     {pr.estimated1RM}
                   </Text>
-                  <Text style={{ color: colors.muted, fontSize: 10 }}>est. 1RM</Text>
+                  <Text style={{ color: colors.cardMuted, fontSize: 10 }}>est. 1RM</Text>
                 </View>
               </View>
             ))}
@@ -200,10 +200,10 @@ export default function PRBoardScreen() {
         {prRecords.length === 0 && (
           <View style={{ alignItems: 'center', marginTop: 60 }}>
             <Text style={{ fontSize: 48 }}>🏆</Text>
-            <Text style={{ color: colors.foreground, fontSize: 18, fontWeight: '600', marginTop: 12 }}>
+            <Text style={{ color: colors.cardForeground, fontSize: 18, fontWeight: '600', marginTop: 12 }}>
               No PRs Yet
             </Text>
-            <Text style={{ color: colors.muted, fontSize: 14, marginTop: 4, textAlign: 'center', paddingHorizontal: 40 }}>
+            <Text style={{ color: colors.cardMuted, fontSize: 14, marginTop: 4, textAlign: 'center', paddingHorizontal: 40 }}>
               Complete workouts with weight tracking to see your personal records here.
             </Text>
           </View>

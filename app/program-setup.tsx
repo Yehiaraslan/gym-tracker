@@ -103,12 +103,12 @@ export default function ProgramSetupScreen() {
   const [refinementHistory, setRefinementHistory] = useState<{ round: number; feedback: string; programName: string }[]>([]);
   const [showRefinementHistory, setShowRefinementHistory] = useState(false);
 
-  const fg = colors.foreground;
-  const mt = colors.muted;
+  const fg = colors.cardForeground;
+  const mt = colors.cardMuted;
   const pr = colors.primary;
   const bg = colors.background;
   const surf = colors.surface;
-  const bord = colors.border;
+  const bord = colors.cardBorder;
   const succ = colors.success;
 
   useEffect(() => {

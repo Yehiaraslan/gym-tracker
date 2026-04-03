@@ -524,7 +524,7 @@ export default function FormCoachTrackingScreen() {
     return (
       <ScreenContainer className="flex-1 items-center justify-center">
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text className="text-foreground mt-4">Setting up...</Text>
+        <Text className="text-cardForeground mt-4">Setting up...</Text>
       </ScreenContainer>
     );
   }
@@ -537,32 +537,32 @@ export default function FormCoachTrackingScreen() {
         <ScrollView className="flex-1 p-4">
           <View className="items-center mb-6">
             <IconSymbol name="checkmark.circle.fill" size={64} color={colors.success} />
-            <Text className="text-2xl font-bold text-foreground mt-4">Workout Complete!</Text>
+            <Text className="text-2xl font-bold text-cardForeground mt-4">Workout Complete!</Text>
           </View>
 
           <View className="bg-surface rounded-2xl p-6 mb-4">
-            <Text className="text-lg font-semibold text-foreground mb-4">{getExerciseName()}</Text>
+            <Text className="text-lg font-semibold text-cardForeground mb-4">{getExerciseName()}</Text>
             
             <View className="flex-row justify-between mb-4">
               <View className="items-center">
                 <Text className="text-3xl font-bold text-primary">{currentRep}</Text>
-                <Text className="text-muted">Reps</Text>
+                <Text className="text-cardMuted">Reps</Text>
               </View>
               <View className="items-center">
                 <Text className="text-3xl font-bold" style={{ color: colors.success }}>{summary.averageScore}</Text>
-                <Text className="text-muted">Form Score</Text>
+                <Text className="text-cardMuted">Form Score</Text>
               </View>
               <View className="items-center">
-                <Text className="text-3xl font-bold text-foreground">{summary.grade}</Text>
-                <Text className="text-muted">Grade</Text>
+                <Text className="text-3xl font-bold text-cardForeground">{summary.grade}</Text>
+                <Text className="text-cardMuted">Grade</Text>
               </View>
             </View>
 
             {summary.topIssues.length > 0 && (
-              <View className="mt-4 pt-4 border-t border-border">
-                <Text className="text-sm font-medium text-foreground mb-2">Areas to Improve:</Text>
+              <View className="mt-4 pt-4 border-t border-cardBorder">
+                <Text className="text-sm font-medium text-cardForeground mb-2">Areas to Improve:</Text>
                 {summary.topIssues.map((issue, idx) => (
-                  <Text key={idx} className="text-sm text-muted">• {issue}</Text>
+                  <Text key={idx} className="text-sm text-cardMuted">• {issue}</Text>
                 ))}
               </View>
             )}
@@ -579,7 +579,7 @@ export default function FormCoachTrackingScreen() {
               className="flex-1 bg-surface py-4 rounded-xl items-center"
               onPress={() => router.back()}
             >
-              <Text className="text-foreground font-semibold">Done</Text>
+              <Text className="text-cardForeground font-semibold">Done</Text>
             </TouchableOpacity>
             <TouchableOpacity
               className="flex-1 bg-primary py-4 rounded-xl items-center"
@@ -636,7 +636,7 @@ export default function FormCoachTrackingScreen() {
             </>
           ) : (
             <View style={[styles.camera, { backgroundColor: colors.surface }]}>
-              <Text className="text-muted">Camera preview (web simulation)</Text>
+              <Text className="text-cardMuted">Camera preview (web simulation)</Text>
             </View>
           )}
 
@@ -646,7 +646,7 @@ export default function FormCoachTrackingScreen() {
               style={[styles.backButton, { backgroundColor: colors.surface }]}
               onPress={() => router.back()}
             >
-              <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
+              <IconSymbol name="chevron.left" size={24} color={colors.cardForeground} />
             </TouchableOpacity>
 
             <View style={styles.topRightControls}>
@@ -655,7 +655,7 @@ export default function FormCoachTrackingScreen() {
                 style={[styles.controlButton, { backgroundColor: colors.surface }]}
                 onPress={toggleCamera}
               >
-                <IconSymbol name="camera.rotate" size={20} color={colors.foreground} />
+                <IconSymbol name="camera.rotate" size={20} color={colors.cardForeground} />
               </TouchableOpacity>
 
               {/* Audio Toggle */}
@@ -666,7 +666,7 @@ export default function FormCoachTrackingScreen() {
                 <IconSymbol 
                   name={audioEnabled ? "speaker.wave.2.fill" : "speaker.slash.fill"} 
                   size={20} 
-                  color={audioEnabled ? colors.background : colors.foreground} 
+                  color={audioEnabled ? colors.background : colors.cardForeground} 
                 />
               </TouchableOpacity>
 
@@ -676,7 +676,7 @@ export default function FormCoachTrackingScreen() {
                   style={[styles.controlButton, { backgroundColor: showSkeleton ? colors.primary : colors.surface }]}
                   onPress={() => setShowSkeleton(!showSkeleton)}
                 >
-                  <IconSymbol name="figure.stand" size={20} color={showSkeleton ? colors.background : colors.foreground} />
+                  <IconSymbol name="figure.stand" size={20} color={showSkeleton ? colors.background : colors.cardForeground} />
                 </TouchableOpacity>
               )}
 
@@ -685,7 +685,7 @@ export default function FormCoachTrackingScreen() {
                 style={[styles.controlButton, { backgroundColor: showDebug ? '#f59e0b' : colors.surface }]}
                 onPress={() => setShowDebug(!showDebug)}
               >
-                <Text style={{ fontSize: 14, color: showDebug ? '#000' : colors.foreground, fontWeight: '700' }}>DBG</Text>
+                <Text style={{ fontSize: 14, color: showDebug ? '#000' : colors.cardForeground, fontWeight: '700' }}>DBG</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -755,11 +755,11 @@ export default function FormCoachTrackingScreen() {
           {trackingState === 'tracking' && (
             <View style={[styles.confidenceIndicator, { backgroundColor: colors.surface }]}>
               <View style={[styles.confidenceDot, { backgroundColor: getConfidenceColor() }]} />
-              <Text style={[styles.confidenceText, { color: colors.foreground }]}>
+              <Text style={[styles.confidenceText, { color: colors.cardForeground }]}>
                 {getConfidenceLabel()}
               </Text>
               {showDebug && (
-                <Text style={[styles.fpsText, { color: colors.muted }]}>
+                <Text style={[styles.fpsText, { color: colors.cardMuted }]}>
                   {detectionFps} FPS | {Math.round(confidence * 100)}%
                 </Text>
               )}
@@ -787,17 +787,17 @@ export default function FormCoachTrackingScreen() {
                 <Text style={[styles.coachMessage, { color: colors.warning }]}>
                   📷 No person detected
                 </Text>
-                <Text style={[styles.coachSubMessage, { color: colors.muted }]}>
+                <Text style={[styles.coachSubMessage, { color: colors.cardMuted }]}>
                   Stand in front of the camera so your full body is visible.
                   {Platform.OS === 'web' ? '\nNote: Real detection requires a native app build.' : ''}
                 </Text>
               </>
             ) : (
               <>
-                <Text style={[styles.coachMessage, { color: colors.foreground }]}>
+                <Text style={[styles.coachMessage, { color: colors.cardForeground }]}>
                   {coachMessage}
                 </Text>
-                <Text style={[styles.coachSubMessage, { color: colors.muted }]}>
+                <Text style={[styles.coachSubMessage, { color: colors.cardMuted }]}>
                   {coachSubMessage}
                 </Text>
               </>
@@ -808,7 +808,7 @@ export default function FormCoachTrackingScreen() {
           {trackingState === 'tracking' && (
             <View style={styles.repCounter}>
               <Text style={[styles.repCount, { color: colors.primary }]}>{currentRep}</Text>
-              <Text style={[styles.repLabel, { color: colors.muted }]}>reps</Text>
+              <Text style={[styles.repLabel, { color: colors.cardMuted }]}>reps</Text>
             </View>
           )}
 
@@ -839,7 +839,7 @@ export default function FormCoachTrackingScreen() {
                     }
                   }}
                 >
-                  <Text style={[styles.secondaryButtonText, { color: demoMode ? '#000' : colors.foreground }]}>
+                  <Text style={[styles.secondaryButtonText, { color: demoMode ? '#000' : colors.cardForeground }]}>
                     {demoMode ? '🎭 Demo ON' : '🎭 Demo'}
                   </Text>
                 </TouchableOpacity>
@@ -848,7 +848,7 @@ export default function FormCoachTrackingScreen() {
                   style={[styles.secondaryButton, { backgroundColor: colors.surface }]}
                   onPress={handleRecalibrate}
                 >
-                  <Text style={[styles.secondaryButtonText, { color: colors.foreground }]}>
+                  <Text style={[styles.secondaryButtonText, { color: colors.cardForeground }]}>
                     Restart
                   </Text>
                 </TouchableOpacity>
@@ -861,7 +861,7 @@ export default function FormCoachTrackingScreen() {
                   style={[styles.secondaryButton, { backgroundColor: colors.surface }]}
                   onPress={handleRecalibrate}
                 >
-                  <Text style={[styles.secondaryButtonText, { color: colors.foreground }]}>
+                  <Text style={[styles.secondaryButtonText, { color: colors.cardForeground }]}>
                     Recalibrate
                   </Text>
                 </TouchableOpacity>
@@ -869,7 +869,7 @@ export default function FormCoachTrackingScreen() {
                 <TouchableOpacity
                   style={[
                     styles.primaryButton, 
-                    { backgroundColor: trackingState === 'ready' ? colors.primary : colors.muted }
+                    { backgroundColor: trackingState === 'ready' ? colors.primary : colors.cardMuted }
                   ]}
                   onPress={handleReadyToStart}
                   disabled={trackingState !== 'ready'}

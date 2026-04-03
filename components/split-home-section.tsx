@@ -70,9 +70,9 @@ export function SplitHomeSection() {
       {/* Section header */}
       <View className="flex-row items-center justify-between mb-4">
         <View>
-          <Text className="text-lg font-bold text-foreground">Upper/Lower Split</Text>
+          <Text className="text-lg font-bold text-cardForeground">Upper/Lower Split</Text>
           {mesoInfo && (
-            <Text className="text-xs text-muted mt-0.5">
+            <Text className="text-xs text-cardMuted mt-0.5">
               Week {mesoInfo.currentWeek}/5
               {mesoInfo.isDeload ? ' — DELOAD WEEK' : ` · ${mesoInfo.daysUntilDeload}d to deload`}
             </Text>
@@ -105,15 +105,15 @@ export function SplitHomeSection() {
               <Text className="text-xs font-medium" style={{ color: sessionColor, textTransform: 'uppercase', letterSpacing: 1 }}>
                 Today's Split Workout
               </Text>
-              <Text className="text-xl font-bold text-foreground mt-1">
+              <Text className="text-xl font-bold text-cardForeground mt-1">
                 {resolveName(todaySession)}
               </Text>
-              <Text className="text-sm text-muted mt-1">
+              <Text className="text-sm text-cardMuted mt-1">
                 {exercises.length} exercises · 9:00 PM
                 {mesoInfo?.isDeload ? ' · Deload' : ''}
               </Text>
               {lastSession && (
-                <Text className="text-xs text-muted mt-2">
+                <Text className="text-xs text-cardMuted mt-2">
                   Last: {new Date(lastSession.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                   {lastSession.durationMinutes ? ` · ${lastSession.durationMinutes}m` : ''}
                   {lastSession.totalVolume ? ` · ${(lastSession.totalVolume / 1000).toFixed(1)}t` : ''}
@@ -131,13 +131,13 @@ export function SplitHomeSection() {
       ) : (
         <View
           className="rounded-2xl p-5 mb-3"
-          style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+          style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.cardBorder }}
         >
           <View className="flex-row items-center">
             <Text style={{ fontSize: 32 }}>😴</Text>
             <View className="ml-3">
-              <Text className="text-base font-semibold text-foreground">Rest Day</Text>
-              <Text className="text-sm text-muted">Recovery is where gains happen</Text>
+              <Text className="text-base font-semibold text-cardForeground">Rest Day</Text>
+              <Text className="text-sm text-cardMuted">Recovery is where gains happen</Text>
             </View>
           </View>
         </View>
@@ -148,37 +148,37 @@ export function SplitHomeSection() {
         <TouchableOpacity
           onPress={() => { if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/pr-board'); }}
           className="flex-1 flex-row items-center rounded-xl p-3"
-          style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+          style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.cardBorder }}
         >
           <Text style={{ fontSize: 18 }}>🏆</Text>
-          <Text className="text-sm font-medium text-foreground ml-2">PR Board</Text>
+          <Text className="text-sm font-medium text-cardForeground ml-2">PR Board</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           onPress={() => { if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/weekly-report'); }}
           className="flex-1 flex-row items-center rounded-xl p-3"
-          style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+          style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.cardBorder }}
         >
           <Text style={{ fontSize: 18 }}>📋</Text>
-          <Text className="text-sm font-medium text-foreground ml-2">Report</Text>
+          <Text className="text-sm font-medium text-cardForeground ml-2">Report</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           onPress={() => { if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/next-week'); }}
           className="flex-1 flex-row items-center rounded-xl p-3"
-          style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+          style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.cardBorder }}
         >
           <Text style={{ fontSize: 18 }}>📅</Text>
-          <Text className="text-sm font-medium text-foreground ml-2">Schedule</Text>
+          <Text className="text-sm font-medium text-cardForeground ml-2">Schedule</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           onPress={() => { if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/nutrition'); }}
           className="flex-1 flex-row items-center rounded-xl p-3"
-          style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+          style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.cardBorder }}
         >
           <Text style={{ fontSize: 18 }}>🍗</Text>
-          <Text className="text-sm font-medium text-foreground ml-2">Nutrition</Text>
+          <Text className="text-sm font-medium text-cardForeground ml-2">Nutrition</Text>
         </TouchableOpacity>
       </View>
 
@@ -211,7 +211,7 @@ export function SplitHomeSection() {
                   <Text style={{ fontSize: 16 }}>{icon}</Text>
                   <View className="ml-2 flex-1">
                     <Text className="text-sm font-semibold" style={{ color }}>{rec.message}</Text>
-                    <Text className="text-xs text-muted mt-0.5">{rec.actionable}</Text>
+                    <Text className="text-xs text-cardMuted mt-0.5">{rec.actionable}</Text>
                   </View>
                 </View>
               </View>
@@ -223,19 +223,19 @@ export function SplitHomeSection() {
       {/* Recent split workouts */}
       {recentWorkouts.length > 0 && (
         <View className="mt-4">
-          <Text className="text-xs font-medium text-muted mb-2" style={{ textTransform: 'uppercase', letterSpacing: 1 }}>
+          <Text className="text-xs font-medium text-cardMuted mb-2" style={{ textTransform: 'uppercase', letterSpacing: 1 }}>
             Recent Split Workouts
           </Text>
           {recentWorkouts.slice(0, 3).map(w => (
             <View
               key={w.id}
               className="flex-row items-center rounded-xl p-3 mb-2"
-              style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+              style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.cardBorder }}
             >
               <View className="w-2 h-8 rounded-full mr-3" style={{ backgroundColor: resolveColor(w.sessionType) }} />
               <View className="flex-1">
-                <Text className="text-sm font-medium text-foreground">{resolveName(w.sessionType)}</Text>
-                <Text className="text-xs text-muted">
+                <Text className="text-sm font-medium text-cardForeground">{resolveName(w.sessionType)}</Text>
+                <Text className="text-xs text-cardMuted">
                   {new Date(w.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                   {w.durationMinutes ? ` · ${w.durationMinutes}m` : ''}
                 </Text>

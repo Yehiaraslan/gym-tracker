@@ -105,11 +105,11 @@ export default function FormCoachScreen() {
           onPress={() => router.back()} 
           className="p-2 mr-2"
         >
-          <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
+          <IconSymbol name="chevron.left" size={24} color={colors.cardForeground} />
         </TouchableOpacity>
         <View>
-          <Text className="text-2xl font-bold text-foreground">AI Form Coach</Text>
-          <Text className="text-sm text-muted">On-device pose tracking</Text>
+          <Text className="text-2xl font-bold text-cardForeground">AI Form Coach</Text>
+          <Text className="text-sm text-cardMuted">On-device pose tracking</Text>
         </View>
       </View>
 
@@ -121,9 +121,9 @@ export default function FormCoachScreen() {
         >
           <View className="flex-row items-center mb-2">
             <IconSymbol name="info.circle.fill" size={20} color={colors.primary} />
-            <Text className="ml-2 font-semibold text-foreground">How it works</Text>
+            <Text className="ml-2 font-semibold text-cardForeground">How it works</Text>
           </View>
-          <Text className="text-muted text-sm leading-5">
+          <Text className="text-cardMuted text-sm leading-5">
             The AI Form Coach uses your camera to track your body position in real-time. 
             It counts your reps automatically and provides feedback on your form. 
             All processing happens on your device - no video is uploaded.
@@ -131,7 +131,7 @@ export default function FormCoachScreen() {
         </View>
 
         {/* Exercise Selection */}
-        <Text className="text-lg font-semibold text-foreground mb-3">Select Exercise</Text>
+        <Text className="text-lg font-semibold text-cardForeground mb-3">Select Exercise</Text>
         
         {EXERCISES.map((exercise) => (
           <TouchableOpacity
@@ -145,7 +145,7 @@ export default function FormCoachScreen() {
                 borderWidth: 2, 
                 borderColor: selectedExercise === exercise.type 
                   ? colors.primary 
-                  : colors.border,
+                  : colors.cardBorder,
               }}
             >
               <View className="flex-row items-center">
@@ -156,10 +156,10 @@ export default function FormCoachScreen() {
                   <Text style={{ fontSize: 28 }}>{exercise.icon}</Text>
                 </View>
                 <View className="flex-1">
-                  <Text className="text-lg font-semibold text-foreground">
+                  <Text className="text-lg font-semibold text-cardForeground">
                     {exercise.name}
                   </Text>
-                  <Text className="text-sm text-muted mt-1">
+                  <Text className="text-sm text-cardMuted mt-1">
                     {exercise.description}
                   </Text>
                 </View>
@@ -178,12 +178,12 @@ export default function FormCoachScreen() {
         {/* Tips Section */}
         {selectedOption && (
           <View className="mt-4 mb-6">
-            <Text className="text-lg font-semibold text-foreground mb-3">
+            <Text className="text-lg font-semibold text-cardForeground mb-3">
               Tips for {selectedOption.name}
             </Text>
             <View 
               className="bg-surface rounded-2xl p-4"
-              style={{ borderWidth: 1, borderColor: colors.border }}
+              style={{ borderWidth: 1, borderColor: colors.cardBorder }}
             >
               {selectedOption.tips.map((tip, index) => (
                 <View key={index} className="flex-row items-start mb-2 last:mb-0">
@@ -195,7 +195,7 @@ export default function FormCoachScreen() {
                       {index + 1}
                     </Text>
                   </View>
-                  <Text className="flex-1 text-foreground">{tip}</Text>
+                  <Text className="flex-1 text-cardForeground">{tip}</Text>
                 </View>
               ))}
             </View>
@@ -209,7 +209,7 @@ export default function FormCoachScreen() {
         >
           <View className="flex-row items-start">
             <Text style={{ fontSize: 16, marginRight: 8 }}>⚠️</Text>
-            <Text className="flex-1 text-sm text-muted">
+            <Text className="flex-1 text-sm text-cardMuted">
               AI tracking works best with stable camera position and good lighting. 
               Results may vary based on conditions.
             </Text>

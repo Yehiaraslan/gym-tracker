@@ -334,9 +334,11 @@ export default function HomeScreen() {
 
   const bg = colors.background;
   const surf = colors.surface;
-  const bord = colors.border;
-  const fg = colors.foreground;
-  const mut = colors.muted;
+  const bord = (colors as any).cardBorder ?? colors.border;
+  const fg = (colors as any).cardForeground ?? colors.foreground;   // dark text inside white cards
+  const mut = (colors as any).cardMuted ?? colors.muted;             // grey secondary inside white cards
+  const screenFg = colors.foreground;                                // white text on navy background
+  const screenMut = colors.muted;                                    // soft blue-white on navy
   const pri = colors.primary;
 
   return (
@@ -358,7 +360,7 @@ export default function HomeScreen() {
             <Text style={s.warningIcon}>👤</Text>
             <View style={{ flex: 1 }}>
               <Text style={[s.warningTitle, { color: '#3B82F6' }]}>Complete your profile</Text>
-              <Text style={[s.warningSub, { color: mut }]}>Zaki needs your height, weight & goal for personalised coaching</Text>
+              <Text style={[s.warningSub, { color: screenMut }]}>Zaki needs your height, weight & goal for personalised coaching</Text>
             </View>
             <Text style={{ color: '#3B82F6', fontSize: 18 }}>›</Text>
           </TouchableOpacity>
@@ -385,9 +387,9 @@ export default function HomeScreen() {
             )}
           </TouchableOpacity>
           <View style={{ flex: 1, marginLeft: 10 }}>
-            <Text style={[s.headerName, { color: fg }]}>{authUser?.name || userProfile?.name || 'Athlete'}</Text>
+            <Text style={[s.headerName, { color: screenFg }]}>{authUser?.name || userProfile?.name || 'Athlete'}</Text>
             {userProfile?.fitnessGoal ? (
-              <Text style={{ color: mut, fontSize: 12, textTransform: 'capitalize' }}>{userProfile.fitnessGoal.replace('_', ' ')}</Text>
+              <Text style={{ color: screenMut, fontSize: 12, textTransform: 'capitalize' }}>{userProfile.fitnessGoal.replace('_', ' ')}</Text>
             ) : null}
           </View>
           {/* Sync status pill */}
@@ -442,7 +444,7 @@ export default function HomeScreen() {
                 }}
                 style={{ padding: 4 }}
               >
-                <Text style={{ color: mut, fontSize: 11 }}>{visible.length > 1 ? `Dismiss All (${visible.length})` : '✕'}</Text>
+                <Text style={{ color: screenMut, fontSize: 11 }}>{visible.length > 1 ? `Dismiss All (${visible.length})` : '✕'}</Text>
               </TouchableOpacity>
             </View>
           );
@@ -454,7 +456,7 @@ export default function HomeScreen() {
             <Text style={s.warningIcon}>⚠️</Text>
             <View style={{ flex: 1 }}>
               <Text style={[s.warningTitle, { color: '#EF4444' }]}>Low Recovery ({recoveryScore}%)</Text>
-              <Text style={[s.warningSub, { color: mut }]}>Your body needs rest — deload mode uses 70% weight & half sets</Text>
+              <Text style={[s.warningSub, { color: screenMut }]}>Your body needs rest — deload mode uses 70% weight & half sets</Text>
               <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
                 <TouchableOpacity
                   style={{ backgroundColor: '#EF4444', paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10 }}
@@ -509,7 +511,7 @@ export default function HomeScreen() {
               <Text style={s.warningIcon}>🌟</Text>
               <View style={{ flex: 1 }}>
                 <Text style={[s.warningTitle, { color: '#22C55E' }]}>Program Complete!</Text>
-                <Text style={[s.warningSub, { color: mut }]}>{suggestion.reason}</Text>
+                <Text style={[s.warningSub, { color: screenMut }]}>{suggestion.reason}</Text>
                 <TouchableOpacity
                   onPress={() => {
                     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -545,7 +547,7 @@ export default function HomeScreen() {
                   }}
                   activeOpacity={0.7}
                 >
-                  <Text style={[s.dayLabel, { color: d.isToday ? fg : mut, fontWeight: d.isToday ? '700' : '400' }]}>
+                  <Text style={[s.dayLabel, { color: d.isToday ? fg : mut, fontWeight: d.isToday ? '700' : '400' }]}>{/* fg/mut = cardForeground/cardMuted inside white card */}
                     {d.label}
                   </Text>
                   <View style={[s.dayDot, { backgroundColor: d.isToday ? pri : dotColor, opacity: d.session === 'rest' ? 0.4 : 1 }]} />
@@ -800,13 +802,13 @@ export default function HomeScreen() {
                   ? 'Deload Week — Active Now'
                   : `Deload in ${meso.daysUntilDeload} day${meso.daysUntilDeload !== 1 ? 's' : ''}`}
               </Text>
-              <Text style={[s.deloadBannerSub, { color: mut }]}>
+              <Text style={[s.deloadBannerSub, { color: screenMut }]}>
                 {meso.daysUntilDeload === 0
                   ? 'Week 5/5 · 70% weight & half sets today'
                   : `Week ${meso.currentWeek}/${meso.totalWeeks} · Prepare to back off soon`}
               </Text>
             </View>
-            <Text style={[s.deloadBannerArrow, { color: mut }]}>›</Text>
+            <Text style={[s.deloadBannerArrow, { color: screenMut }]}>›</Text>
           </TouchableOpacity>
         )}
         {/* ── AI Form Coach Banner ── */}
@@ -830,8 +832,8 @@ export default function HomeScreen() {
               <Text style={s.coachIcon}>🤖</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[s.coachTitle, { color: fg }]}>AI Form Coach</Text>
-              <Text style={[s.coachSub, { color: mut }]}>Pose detection · Rep counting · Form score</Text>
+              <Text style={[s.coachTitle, { color: '#FFFFFF' }]}>AI Form Coach</Text>
+              <Text style={[s.coachSub, { color: '#94A3B8' }]}>Pose detection · Rep counting · Form score</Text>
             </View>
           </View>
           <View style={[s.coachBadge, { backgroundColor: '#3B82F620' }]}>
@@ -1096,10 +1098,10 @@ function ReadinessBar({ label, value, progress, color, colors }: {
   return (
     <View>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 3 }}>
-        <Text style={{ fontSize: 11, color: colors.muted }}>{label}</Text>
+        <Text style={{ fontSize: 11, color: (colors as any).cardMuted ?? colors.muted }}>{label}</Text>
         <Text style={{ fontSize: 11, fontWeight: '600', color }}>{value}</Text>
       </View>
-      <View style={{ height: 5, borderRadius: 3, backgroundColor: colors.border, overflow: 'hidden' }}>
+      <View style={{ height: 5, borderRadius: 3, backgroundColor: (colors as any).cardBorder ?? colors.border, overflow: 'hidden' }}>
         <View style={{ height: 5, borderRadius: 3, width: `${Math.max(2, progress * 100)}%`, backgroundColor: color } as any} />
       </View>
     </View>
@@ -1110,10 +1112,12 @@ function ReadinessBar({ label, value, progress, color, colors }: {
 
 function SectionHeader({ icon, title, accent, colors: c }: { icon: string; title: string; accent: string; colors: ReturnType<typeof useColors> }) {
   const gradId = `grad_${title.replace(/\s/g, '')}`;
+  // Section headers sit on navy background — use white foreground
+  const headerColor = c.foreground;
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 6 }}>
       <Text style={{ fontSize: 13 }}>{icon}</Text>
-      <Text style={{ fontSize: 11, fontWeight: '600', letterSpacing: 1, color: c.muted }}>{title}</Text>
+      <Text style={{ fontSize: 11, fontWeight: '600', letterSpacing: 1, color: headerColor }}>{title}</Text>
       <Svg height={1} style={{ flex: 1, marginLeft: 6 }}>
         <Defs>
           <SvgGradient id={gradId} x1="0" y1="0" x2="1" y2="0">

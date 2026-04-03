@@ -737,32 +737,32 @@ export default function AICoachingDashboard() {
         <View style={styles.header}>
           <TouchableOpacity
             onPress={() => router.back()}
-            style={[styles.iconBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            style={[styles.iconBtn, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
           >
-            <Text style={{ color: colors.foreground, fontSize: 18 }}>←</Text>
+            <Text style={{ color: colors.cardForeground, fontSize: 18 }}>←</Text>
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Text style={[styles.headerTitle, { color: colors.foreground }]}>Agent Zaki</Text>
+              <Text style={[styles.headerTitle, { color: colors.cardForeground }]}>Agent Zaki</Text>
               <View style={styles.liveBadge}>
                 <View style={styles.liveDot} />
                 <Text style={styles.liveText}>LIVE</Text>
               </View>
             </View>
-            <Text style={[styles.headerSub, { color: colors.muted }]}>
+            <Text style={[styles.headerSub, { color: colors.cardMuted }]}>
               Your AI coach — powered by real data
             </Text>
           </View>
           <TouchableOpacity
             onPress={onRefresh}
-            style={[styles.iconBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            style={[styles.iconBtn, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
           >
             <Text style={{ fontSize: 16 }}>🔄</Text>
           </TouchableOpacity>
         </View>
 
         {/* ── Tab Bar ── */}
-        <View style={[styles.tabBar, { borderBottomColor: colors.border }]}>
+        <View style={[styles.tabBar, { borderBottomColor: colors.cardBorder }]}>
           {tabs.map(tab => (
             <TouchableOpacity
               key={tab.key}
@@ -779,7 +779,7 @@ export default function AICoachingDashboard() {
               <Text
                 style={[
                   styles.tabLabel,
-                  { color: activeTab === tab.key ? '#6366F1' : colors.muted },
+                  { color: activeTab === tab.key ? '#6366F1' : colors.cardMuted },
                 ]}
               >
                 {tab.label}
@@ -804,7 +804,7 @@ export default function AICoachingDashboard() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.zakiName, { color: '#6366F1' }]}>Agent Zaki</Text>
-                    <Text style={[styles.bubbleText, { color: colors.foreground }]}>
+                    <Text style={[styles.bubbleText, { color: colors.cardForeground }]}>
                       Hey Yehia — I have full access to your WHOOP data, workout history, and nutrition logs. Ask me anything: training advice, exercise substitutions, recovery questions, or how to push through a plateau.
                     </Text>
                   </View>
@@ -819,11 +819,11 @@ export default function AICoachingDashboard() {
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.zakiName, { color: '#6366F1' }]}>Agent Zaki</Text>
-                        <Text style={[styles.bubbleText, { color: colors.foreground }]}>{msg.text}</Text>
+                        <Text style={[styles.bubbleText, { color: colors.cardForeground }]}>{msg.text}</Text>
                         {/* Schedule proposal card */}
                         {msg.scheduleProposal && (
                           <View style={[styles.scheduleCard, { backgroundColor: colors.surface, borderColor: '#6366F140' }]}>
-                            <Text style={[styles.scheduleCardTitle, { color: colors.foreground }]}>
+                            <Text style={[styles.scheduleCardTitle, { color: colors.cardForeground }]}>
                               📅 {msg.scheduleProposal.description}
                             </Text>
                             <View style={styles.scheduleGrid}>
@@ -838,9 +838,9 @@ export default function AICoachingDashboard() {
                                   'rest': '🛌 Rest',
                                 };
                                 return (
-                                  <View key={day} style={[styles.scheduleDayRow, { borderBottomColor: colors.border }]}>
-                                    <Text style={[styles.scheduleDayLabel, { color: colors.muted }]}>{day.slice(0,3)}</Text>
-                                    <Text style={[styles.scheduleSessionLabel, { color: isRest ? colors.muted : '#6366F1' }]}>
+                                  <View key={day} style={[styles.scheduleDayRow, { borderBottomColor: colors.cardBorder }]}>
+                                    <Text style={[styles.scheduleDayLabel, { color: colors.cardMuted }]}>{day.slice(0,3)}</Text>
+                                    <Text style={[styles.scheduleSessionLabel, { color: isRest ? colors.cardMuted : '#6366F1' }]}>
                                       {sessionLabels[session] ?? session}
                                     </Text>
                                   </View>
@@ -848,7 +848,7 @@ export default function AICoachingDashboard() {
                               })}
                             </View>
                             {msg.scheduleProposal.weightAdjustments ? (
-                              <Text style={[styles.scheduleNote, { color: colors.muted }]}>
+                              <Text style={[styles.scheduleNote, { color: colors.cardMuted }]}>
                                 💡 {msg.scheduleProposal.weightAdjustments}
                               </Text>
                             ) : null}
@@ -880,10 +880,10 @@ export default function AICoachingDashboard() {
                                 </TouchableOpacity>
                               ) : null}
                               <TouchableOpacity
-                                style={[styles.scheduleDismissBtn, { borderColor: colors.border }]}
+                                style={[styles.scheduleDismissBtn, { borderColor: colors.cardBorder }]}
                                 onPress={handleDismissSchedule}
                               >
-                                <Text style={{ color: colors.muted, fontSize: 13 }}>Dismiss</Text>
+                                <Text style={{ color: colors.cardMuted, fontSize: 13 }}>Dismiss</Text>
                               </TouchableOpacity>
                             </View>
                           </View>
@@ -907,13 +907,13 @@ export default function AICoachingDashboard() {
                   </View>
                   <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     <ActivityIndicator size="small" color="#6366F1" />
-                    <Text style={{ color: colors.muted, fontSize: 13 }}>Zaki is thinking...</Text>
+                    <Text style={{ color: colors.cardMuted, fontSize: 13 }}>Zaki is thinking...</Text>
                   </View>
                 </View>
               )}
             </ScrollView>
             {/* ── Schedule Actions Bar ── */}
-            <View style={{ flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 6, gap: 8, borderTopWidth: 0.5, borderTopColor: colors.border, backgroundColor: colors.surface }}>
+            <View style={{ flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 6, gap: 8, borderTopWidth: 0.5, borderTopColor: colors.cardBorder, backgroundColor: colors.surface }}>
               <TouchableOpacity
                 onPress={handleResetSchedule}
                 disabled={resetLoading}
@@ -934,20 +934,20 @@ export default function AICoachingDashboard() {
             </View>
             {/* ── Schedule History Panel ── */}
             {showScheduleHistory && (
-              <View style={{ maxHeight: 220, backgroundColor: colors.background, borderTopWidth: 0.5, borderTopColor: colors.border }}>
+              <View style={{ maxHeight: 220, backgroundColor: colors.background, borderTopWidth: 0.5, borderTopColor: colors.cardBorder }}>
                 <ScrollView contentContainerStyle={{ padding: 12, gap: 8 }}>
                   {scheduleHistory.length === 0 ? (
-                    <Text style={{ color: colors.muted, fontSize: 13, textAlign: 'center' }}>No schedule changes yet.</Text>
+                    <Text style={{ color: colors.cardMuted, fontSize: 13, textAlign: 'center' }}>No schedule changes yet.</Text>
                   ) : (
                     scheduleHistory.map((entry, idx) => (
-                      <View key={idx} style={{ padding: 10, borderRadius: 8, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+                      <View key={idx} style={{ padding: 10, borderRadius: 8, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.cardBorder }}>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 3 }}>
                           <Text style={{ fontSize: 11, fontWeight: '700', color: entry.appliedByZaki ? '#6366F1' : '#F59E0B' }}>{entry.appliedByZaki ? '🤖 Zaki' : '🔄 Reset'}</Text>
-                          <Text style={{ fontSize: 10, color: colors.muted }}>{new Date(entry.appliedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</Text>
+                          <Text style={{ fontSize: 10, color: colors.cardMuted }}>{new Date(entry.appliedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</Text>
                         </View>
-                        <Text style={{ fontSize: 12, color: colors.foreground, fontWeight: '600', marginBottom: 2 }}>{entry.description}</Text>
+                        <Text style={{ fontSize: 12, color: colors.cardForeground, fontWeight: '600', marginBottom: 2 }}>{entry.description}</Text>
                         {entry.weightSuggestions ? (
-                          <Text style={{ fontSize: 11, color: colors.muted, marginTop: 2 }}>💪 {entry.weightSuggestions}</Text>
+                          <Text style={{ fontSize: 11, color: colors.cardMuted, marginTop: 2 }}>💪 {entry.weightSuggestions}</Text>
                         ) : null}
                       </View>
                     ))
@@ -955,13 +955,13 @@ export default function AICoachingDashboard() {
                 </ScrollView>
               </View>
             )}
-            <View style={[styles.chatInputBar, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+            <View style={[styles.chatInputBar, { backgroundColor: colors.surface, borderTopColor: colors.cardBorder }]}>
               <TextInput
-                style={[styles.chatInput, { color: colors.foreground, backgroundColor: colors.background, borderColor: colors.border }]}
+                style={[styles.chatInput, { color: colors.cardForeground, backgroundColor: colors.background, borderColor: colors.cardBorder }]}
                 value={chatInput}
                 onChangeText={setChatInput}
                 placeholder="Ask Zaki anything..."
-                placeholderTextColor={colors.muted}
+                placeholderTextColor={colors.cardMuted}
                 multiline
                 maxLength={500}
                 returnKeyType="send"
@@ -972,7 +972,7 @@ export default function AICoachingDashboard() {
                 disabled={!chatInput.trim() || chatLoading}
                 style={[
                   styles.sendBtn,
-                  { backgroundColor: chatInput.trim() && !chatLoading ? '#6366F1' : colors.border },
+                  { backgroundColor: chatInput.trim() && !chatLoading ? '#6366F1' : colors.cardBorder },
                 ]}
               >
                 <Text style={{ color: '#FFFFFF', fontSize: 16 }}>↑</Text>
@@ -990,18 +990,18 @@ export default function AICoachingDashboard() {
             {activeTab === 'daily' && (
               <View style={styles.tabContent}>
                 {dailyContextSummary ? (
-                  <View style={[styles.contextPill, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                    <Text style={{ fontSize: 10, color: colors.muted }}>📡 DATA USED: {dailyContextSummary}</Text>
+                  <View style={[styles.contextPill, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+                    <Text style={{ fontSize: 10, color: colors.cardMuted }}>📡 DATA USED: {dailyContextSummary}</Text>
                   </View>
                 ) : null}
 
                 {dailyLoading ? (
                   <View style={styles.loadingCard}>
                     <Text style={{ fontSize: 40, textAlign: 'center', marginBottom: 12 }}>🤖</Text>
-                    <Text style={[styles.loadingTitle, { color: colors.foreground }]}>
+                    <Text style={[styles.loadingTitle, { color: colors.cardForeground }]}>
                       Zaki is analyzing your data...
                     </Text>
-                    <Text style={[styles.loadingSubtitle, { color: colors.muted }]}>
+                    <Text style={[styles.loadingSubtitle, { color: colors.cardMuted }]}>
                       Checking WHOOP recovery, workout history, and nutrition
                     </Text>
                     <ActivityIndicator size="large" color="#6366F1" style={{ marginTop: 20 }} />
@@ -1021,12 +1021,12 @@ export default function AICoachingDashboard() {
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.zakiNameLg, { color: '#6366F1' }]}>Agent Zaki</Text>
-                        <Text style={[styles.zakiTimestamp, { color: colors.muted }]}>
+                        <Text style={[styles.zakiTimestamp, { color: colors.cardMuted }]}>
                           {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
                         </Text>
                       </View>
                     </View>
-                    <Text style={[styles.responseText, { color: colors.foreground }]}>
+                    <Text style={[styles.responseText, { color: colors.cardForeground }]}>
                       {dailyResponse}
                     </Text>
                     <TouchableOpacity
@@ -1039,10 +1039,10 @@ export default function AICoachingDashboard() {
                 ) : (
                   <View style={[styles.emptyCard, { backgroundColor: colors.surface }]}>
                     <Text style={{ fontSize: 48, textAlign: 'center' }}>🤖</Text>
-                    <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+                    <Text style={[styles.emptyTitle, { color: colors.cardForeground }]}>
                       Get your daily coaching
                     </Text>
-                    <Text style={[styles.emptySubtitle, { color: colors.muted }]}>
+                    <Text style={[styles.emptySubtitle, { color: colors.cardMuted }]}>
                       Zaki will analyze your WHOOP recovery, recent workouts, and nutrition to give you personalized advice.
                     </Text>
                     <TouchableOpacity
@@ -1054,8 +1054,8 @@ export default function AICoachingDashboard() {
                   </View>
                 )}
 
-                <View style={[styles.quickPromptsCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                  <Text style={[styles.sectionLabel, { color: colors.muted }]}>QUICK QUESTIONS FOR ZAKI</Text>
+                <View style={[styles.quickPromptsCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+                  <Text style={[styles.sectionLabel, { color: colors.cardMuted }]}>QUICK QUESTIONS FOR ZAKI</Text>
                   {[
                     'Should I push hard today or take it easy?',
                     'What should I eat before my workout?',
@@ -1087,25 +1087,25 @@ export default function AICoachingDashboard() {
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.zakiNameLg, { color: '#6366F1' }]}>Session Debrief</Text>
-                      <Text style={[styles.zakiTimestamp, { color: colors.muted }]}>
+                      <Text style={[styles.zakiTimestamp, { color: colors.cardMuted }]}>
                         Pattern analysis across last 3 sessions
                       </Text>
                     </View>
                   </View>
-                  <Text style={[styles.cardBody, { color: colors.muted, marginBottom: 14 }]}>
+                  <Text style={[styles.cardBody, { color: colors.cardMuted, marginBottom: 14 }]}>
                     Zaki will analyze your recent workout data and session notes to identify physical patterns, energy trends, and give you one concrete coaching recommendation.
                   </Text>
 
                   {debriefResponse ? (
                     <View style={{ gap: 12 }}>
-                      <Text style={[styles.responseText, { color: colors.foreground }]}>
+                      <Text style={[styles.responseText, { color: colors.cardForeground }]}>
                         {debriefResponse}
                       </Text>
                       <TouchableOpacity
                         onPress={() => setDebriefResponse(null)}
                         style={{ alignSelf: 'flex-end' }}
                       >
-                        <Text style={{ fontSize: 12, color: colors.muted }}>Clear ×</Text>
+                        <Text style={{ fontSize: 12, color: colors.cardMuted }}>Clear ×</Text>
                       </TouchableOpacity>
                     </View>
                   ) : (
@@ -1143,15 +1143,15 @@ export default function AICoachingDashboard() {
                     {showDebriefHistory && debriefHistory.map((entry, idx) => (
                       <View
                         key={idx}
-                        style={[styles.historyEntry, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                        style={[styles.historyEntry, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
                       >
-                        <Text style={{ fontSize: 10, color: colors.muted, marginBottom: 6 }}>
+                        <Text style={{ fontSize: 10, color: colors.cardMuted, marginBottom: 6 }}>
                           {new Date(entry.timestamp).toLocaleDateString('en-US', {
                             weekday: 'short', month: 'short', day: 'numeric',
                             hour: '2-digit', minute: '2-digit',
                           })} · {entry.sessionCount} sessions analyzed
                         </Text>
-                        <Text style={[styles.historyText, { color: colors.foreground }]} numberOfLines={6}>
+                        <Text style={[styles.historyText, { color: colors.cardForeground }]} numberOfLines={6}>
                           {entry.response}
                         </Text>
                       </View>
@@ -1168,7 +1168,7 @@ export default function AICoachingDashboard() {
                 {weeklyLoading ? (
                   <View style={styles.loadingCard}>
                     <Text style={{ fontSize: 40, textAlign: 'center', marginBottom: 12 }}>📊</Text>
-                    <Text style={[styles.loadingTitle, { color: colors.foreground }]}>
+                    <Text style={[styles.loadingTitle, { color: colors.cardForeground }]}>
                       Generating weekly digest...
                     </Text>
                     <ActivityIndicator size="large" color="#6366F1" style={{ marginTop: 20 }} />
@@ -1188,12 +1188,12 @@ export default function AICoachingDashboard() {
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.zakiNameLg, { color: '#6366F1' }]}>Weekly Digest</Text>
-                        <Text style={[styles.zakiTimestamp, { color: colors.muted }]}>
+                        <Text style={[styles.zakiTimestamp, { color: colors.cardMuted }]}>
                           Performance review by Agent Zaki
                         </Text>
                       </View>
                     </View>
-                    <Text style={[styles.responseText, { color: colors.foreground }]}>
+                    <Text style={[styles.responseText, { color: colors.cardForeground }]}>
                       {weeklyResponse}
                     </Text>
                     <TouchableOpacity
@@ -1206,10 +1206,10 @@ export default function AICoachingDashboard() {
                 ) : (
                   <View style={[styles.emptyCard, { backgroundColor: colors.surface }]}>
                     <Text style={{ fontSize: 48, textAlign: 'center' }}>📊</Text>
-                    <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+                    <Text style={[styles.emptyTitle, { color: colors.cardForeground }]}>
                       Weekly Performance Review
                     </Text>
-                    <Text style={[styles.emptySubtitle, { color: colors.muted }]}>
+                    <Text style={[styles.emptySubtitle, { color: colors.cardMuted }]}>
                       Zaki will grade your week, highlight your best performances, and build a plan for next week.
                     </Text>
                     <TouchableOpacity
@@ -1228,10 +1228,10 @@ export default function AICoachingDashboard() {
                   {/* Daily Digest Test Panel */}
                   <View style={[styles.emptyCard, { backgroundColor: colors.surface, marginTop: 12 }]}>
                     <Text style={{ fontSize: 32, textAlign: 'center' }}>🔔</Text>
-                    <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+                    <Text style={[styles.emptyTitle, { color: colors.cardForeground }]}>
                       Morning Brief Notification
                     </Text>
-                    <Text style={[styles.emptySubtitle, { color: colors.muted }]}>
+                    <Text style={[styles.emptySubtitle, { color: colors.cardMuted }]}>
                       Auto-fires daily at 07:00 Dubai time. Tap below to send one now.
                     </Text>
                     <TouchableOpacity
@@ -1243,7 +1243,7 @@ export default function AICoachingDashboard() {
                       </Text>
                     </TouchableOpacity>
                     {digestTriggerResult && (
-                      <Text style={{ color: colors.muted, fontSize: 12, textAlign: 'center', marginTop: 8, lineHeight: 18 }}>
+                      <Text style={{ color: colors.cardMuted, fontSize: 12, textAlign: 'center', marginTop: 8, lineHeight: 18 }}>
                         {digestTriggerResult}
                       </Text>
                     )}
@@ -1252,10 +1252,10 @@ export default function AICoachingDashboard() {
                   {/* Performance Analysis Panel */}
                   <View style={[styles.emptyCard, { backgroundColor: colors.surface, marginTop: 12 }]}>
                     <Text style={{ fontSize: 32, textAlign: 'center' }}>📈</Text>
-                    <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+                    <Text style={[styles.emptyTitle, { color: colors.cardForeground }]}>
                       Performance Analysis
                     </Text>
-                    <Text style={[styles.emptySubtitle, { color: colors.muted }]}>
+                    <Text style={[styles.emptySubtitle, { color: colors.cardMuted }]}>
                       Zaki analyzes your last 4 weeks of workouts from the cloud — exercise progressions, volume trends, and a specific load plan for the next 2 weeks.
                     </Text>
                     {perfAnalysisLoading ? (
@@ -1281,10 +1281,10 @@ export default function AICoachingDashboard() {
                           </View>
                           <View style={{ flex: 1 }}>
                             <Text style={[styles.zakiNameLg, { color: '#F59E0B' }]}>Performance Report</Text>
-                            <Text style={[styles.zakiTimestamp, { color: colors.muted }]}>4-week analysis by Agent Zaki</Text>
+                            <Text style={[styles.zakiTimestamp, { color: colors.cardMuted }]}>4-week analysis by Agent Zaki</Text>
                           </View>
                         </View>
-                        <Text style={[styles.responseText, { color: colors.foreground }]}>{perfAnalysisResponse}</Text>
+                        <Text style={[styles.responseText, { color: colors.cardForeground }]}>{perfAnalysisResponse}</Text>
 
                         {/* Stagnation detected banner */}
                         {stagnationDetected && !deloadScheduled && (
@@ -1297,13 +1297,13 @@ export default function AICoachingDashboard() {
                             marginTop: 12,
                           }}>
                             <Text style={{ fontSize: 16, textAlign: 'center', marginBottom: 6 }}>⚠️ Stagnation Detected</Text>
-                            <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: '600', marginBottom: 4 }}>
+                            <Text style={{ color: colors.cardForeground, fontSize: 13, fontWeight: '600', marginBottom: 4 }}>
                               3+ weeks without progression on:
                             </Text>
                             {stagnantExercises.map((ex, i) => (
-                              <Text key={i} style={{ color: colors.muted, fontSize: 12, marginBottom: 2 }}>• {ex}</Text>
+                              <Text key={i} style={{ color: colors.cardMuted, fontSize: 12, marginBottom: 2 }}>• {ex}</Text>
                             ))}
-                            <Text style={{ color: colors.muted, fontSize: 12, marginTop: 8, lineHeight: 18 }}>
+                            <Text style={{ color: colors.cardMuted, fontSize: 12, marginTop: 8, lineHeight: 18 }}>
                               Zaki recommends scheduling a deload week to allow full recovery and break the plateau.
                             </Text>
                             {deloadScheduling ? (
@@ -1337,7 +1337,7 @@ export default function AICoachingDashboard() {
                             marginTop: 12,
                           }}>
                             <Text style={{ fontSize: 16, textAlign: 'center', marginBottom: 6 }}>✅ Deload Week Scheduled</Text>
-                            <Text style={{ color: colors.muted, fontSize: 12, lineHeight: 18, textAlign: 'center' }}>
+                            <Text style={{ color: colors.cardMuted, fontSize: 12, lineHeight: 18, textAlign: 'center' }}>
                               This week is now your deload week. Workouts will use 70% weight and half sets. Head to the Home screen to start today's deload session.
                             </Text>
                             <TouchableOpacity
@@ -1368,10 +1368,10 @@ export default function AICoachingDashboard() {
                   {/* Body Composition Analysis Panel */}
                   <View style={[styles.emptyCard, { backgroundColor: colors.surface, marginTop: 12 }]}>
                     <Text style={{ fontSize: 32, textAlign: 'center' }}>📸</Text>
-                    <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+                    <Text style={[styles.emptyTitle, { color: colors.cardForeground }]}>
                       Body Composition Analysis
                     </Text>
-                    <Text style={[styles.emptySubtitle, { color: colors.muted }]}>
+                    <Text style={[styles.emptySubtitle, { color: colors.cardMuted }]}>
                       Zaki will analyze your most recent progress photos alongside your training and nutrition data.
                     </Text>
                     {bodyCompLoading ? (
@@ -1397,10 +1397,10 @@ export default function AICoachingDashboard() {
                           </View>
                           <View style={{ flex: 1 }}>
                             <Text style={[styles.zakiNameLg, { color: '#10B981' }]}>Body Composition Report</Text>
-                            <Text style={[styles.zakiTimestamp, { color: colors.muted }]}>Analysis by Agent Zaki</Text>
+                            <Text style={[styles.zakiTimestamp, { color: colors.cardMuted }]}>Analysis by Agent Zaki</Text>
                           </View>
                         </View>
-                        <Text style={[styles.responseText, { color: colors.foreground }]}>{bodyCompResult}</Text>
+                        <Text style={[styles.responseText, { color: colors.cardForeground }]}>{bodyCompResult}</Text>
                         <TouchableOpacity
                           onPress={handleAnalyzeBodyComposition}
                           style={[styles.refreshSmallBtn, { borderColor: '#10B98140' }]}
