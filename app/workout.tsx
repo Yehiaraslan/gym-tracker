@@ -31,6 +31,8 @@ import { useKeepAwake } from 'expo-keep-awake';
 import { getRandomTip, FormTip, getCategoryEmoji, getCategoryLabel } from '@/lib/form-tips';
 import { toggleFavoriteTip, getFavoriteTips } from '@/lib/favorite-tips';
 import { recordWorkout } from '@/lib/streak-tracker';
+import { awardWorkoutXP } from '@/lib/xp-system';
+import { loadStore, saveStore } from '@/lib/store';
 import { HeartRateChart } from '@/components/heart-rate-chart';
 import { getDemoHeartRateData } from '@/lib/whoop-service';
 import { DifficultyRatingComponent } from '@/components/difficulty-rating';
@@ -396,6 +398,15 @@ export default function WorkoutScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
     
+    // Award XP for workout completion
+    try {
+      const currentStore = await loadStore();
+      const updatedXP = awardWorkoutXP(currentStore.xpState);
+      await saveStore({ ...currentStore, xpState: updatedXP });
+    } catch (e) {
+      console.warn('[workout] XP award failed:', e);
+    }
+
     if (cooldownExercises.length > 0) {
       setPhase('cooldown');
       setWarmupTimer(cooldownExercises[0]?.duration || 30);

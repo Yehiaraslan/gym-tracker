@@ -55,6 +55,8 @@ import { localDateStr } from '@/lib/utils';
 import { checkProgressiveOverload, saveRecommendation } from '@/lib/coach-engine';
 import { recordWorkout } from '@/lib/streak-tracker';
 import { generateId } from '@/lib/types';
+import { awardWorkoutXP, awardPRXP } from '@/lib/xp-system';
+import { loadStore, saveStore } from '@/lib/store';
 import { getExerciseByName } from '@/lib/data/exercise-library';
 import { getTodayRecoveryData, type RecoveryData } from '@/lib/whoop-recovery-service';
 import {
@@ -603,6 +605,18 @@ export default function SplitWorkoutScreen() {
     await saveSplitWorkout(session);
     await recordWorkout();
     await clearActiveWorkout(); // Remove persisted state after completion
+
+    // Award XP for workout completion and PRs
+    try {
+      const currentStore = await loadStore();
+      let updatedXP = awardWorkoutXP(currentStore.xpState);
+      for (let i = 0; i < prs.length; i++) {
+        updatedXP = awardPRXP(updatedXP);
+      }
+      await saveStore({ ...currentStore, xpState: updatedXP });
+    } catch (e) {
+      console.warn('[split-workout] XP award failed:', e);
+    }
 
     setSummaryData({
       duration,
