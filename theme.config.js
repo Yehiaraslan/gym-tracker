@@ -1,28 +1,35 @@
 /** @type {const} */
 const themeColors = {
-  // ── BodBot-inspired premium athletic palette ──────────────────────────────
-  // Background: deep navy. Cards: white. Accent: energetic orange.
+  // ── Industry-standard gym tracker palette ─────────────────────────────────
+  // Modeled on WHOOP, Hevy, Strong — the three most respected strength apps.
+  // Background: near-black charcoal. Cards: elevated dark surface. Accent: lime green.
+  //
   // Two-surface model:
-  //   • Screen background → navy (#0D2B6B)
-  //   • Card surface      → white (#FFFFFF)
-  //   • foreground        → white (readable on navy background)
-  //   • cardForeground    → near-black (readable on white card surface)
-  //   • muted             → soft blue-white (secondary text on navy)
-  //   • cardMuted         → medium grey (secondary text on white card)
+  //   • Screen background → near-black  (#0A0B0A)
+  //   • Card surface      → elevated charcoal (#1A1D1A)
+  //   • foreground        → white (readable on dark background)
+  //   • cardForeground    → white/near-white (readable on elevated card)
+  //   • muted             → warm grey (secondary text on dark background)
+  //   • cardMuted         → medium grey (secondary text inside cards)
+  //
+  // Color psychology rationale:
+  //   • Near-black: reduces eye strain during workouts, signals premium/serious
+  //   • Lime green (#C8F53C): universally signals health, strength, progress
+  //   • Elevated charcoal cards: clear hierarchy without harsh white contrast
   // ─────────────────────────────────────────────────────────────────────────
-  primary:         { light: '#E8600A', dark: '#FF6B1A' },   // Energetic orange — CTA & accent
-  background:      { light: '#0D2B6B', dark: '#091D4A' },   // Deep navy
-  surface:         { light: '#FFFFFF', dark: '#132254' },    // White cards on navy
-  foreground:      { light: '#FFFFFF', dark: '#F1F5F9' },   // White — text on navy background
-  muted:           { light: '#A8C4F0', dark: '#7A9DD4' },   // Soft blue-white — secondary on navy
-  cardForeground:  { light: '#0F172A', dark: '#F1F5F9' },   // Near-black — text inside white cards
-  cardMuted:       { light: '#64748B', dark: '#94A3B8' },   // Medium grey — secondary inside cards
-  border:          { light: '#1E3A7A', dark: '#1E3A7A' },   // Navy dividers
-  cardBorder:      { light: '#E2E8F0', dark: '#1E3A7A' },   // Light grey card internal borders
-  tint:            { light: '#E8600A', dark: '#FF6B1A' },   // Tab bar active tint (same as primary)
-  success:         { light: '#22C55E', dark: '#4ADE80' },
-  warning:         { light: '#F59E0B', dark: '#FBBF24' },
-  error:           { light: '#EF4444', dark: '#F87171' },
+  primary:         { light: '#C8F53C', dark: '#C8F53C' },   // Lime green — CTA, accent, progress
+  background:      { light: '#0A0B0A', dark: '#0A0B0A' },   // Near-black (WHOOP/Hevy standard)
+  surface:         { light: '#1A1D1A', dark: '#1A1D1A' },   // Elevated charcoal cards
+  foreground:      { light: '#F5F5F5', dark: '#F5F5F5' },   // Near-white — text on dark background
+  muted:           { light: '#7A8070', dark: '#7A8070' },   // Warm grey — secondary on dark bg
+  cardForeground:  { light: '#EDEEE8', dark: '#EDEEE8' },   // Soft white — text inside cards
+  cardMuted:       { light: '#6B7060', dark: '#6B7060' },   // Muted grey — secondary inside cards
+  border:          { light: '#2A2D2A', dark: '#2A2D2A' },   // Subtle dark dividers
+  cardBorder:      { light: '#2E322E', dark: '#2E322E' },   // Card internal borders
+  tint:            { light: '#C8F53C', dark: '#C8F53C' },   // Tab bar active tint (lime green)
+  success:         { light: '#4ADE80', dark: '#4ADE80' },   // Green — completion, PRs
+  warning:         { light: '#FBBF24', dark: '#FBBF24' },   // Amber — deload, warnings
+  error:           { light: '#F87171', dark: '#F87171' },   // Red — errors, missed sessions
 };
 
 module.exports = { themeColors };

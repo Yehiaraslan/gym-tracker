@@ -1013,3 +1013,10 @@
 ## Photo Picker Bug Fixes (Apr 3 2026)
 - [x] Fix "Pick a picture" → Photo Library Error on Android (permission denied / READ_MEDIA_IMAGES not granted)
 - [x] Fix "Take a photo" → "Photo saved but may not persist" warning — use reliable DocumentDirectory storage
+
+## Color Palette Redesign — Industry Standard Dark (Apr 3 2026)
+- [x] Replace navy #0D2B6B with near-black charcoal #0A0B0A (WHOOP/Hevy standard)
+- [x] Update card surface to #1A1D1A elevated charcoal
+- [x] Replace orange accent #E8600A with lime green #C8F53C (strength/progress signal)
+- [x] Update all card-specific tokens for new surfaces
+- [x] Update tab bar and header to match new palette

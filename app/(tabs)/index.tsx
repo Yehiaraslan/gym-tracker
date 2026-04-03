@@ -813,7 +813,7 @@ export default function HomeScreen() {
         )}
         {/* ── AI Form Coach Banner ── */}
         <TouchableOpacity
-          style={[s.coachCard, { backgroundColor: '#1A1F2E', borderColor: '#3B82F640', overflow: 'hidden' }]}
+          style={[s.coachCard, { backgroundColor: colors.surface, borderColor: '#3B82F640', overflow: 'hidden' }]}
           onPress={() => router.push('/(tabs)/coach' as any)}
           activeOpacity={0.8}
         >

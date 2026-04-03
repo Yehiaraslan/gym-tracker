@@ -37,9 +37,9 @@ type RuntimePalette = SchemePaletteItem & {
   tabIconDefault: string;
   tabIconSelected: string;
   border: string;
-  // Two-surface model: navy background + white cards
-  // foreground / muted    → text on navy background (white / soft blue-white)
-  // cardForeground / cardMuted → text inside white card surfaces (near-black / grey)
+  // Two-surface model: near-black background + elevated charcoal cards
+  // foreground / muted    → text on dark background (near-white / warm grey)
+  // cardForeground / cardMuted → text inside elevated card surfaces (soft white / muted grey)
   cardForeground: string;
   cardMuted: string;
   cardBorder: string;
