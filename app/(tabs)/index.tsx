@@ -56,7 +56,7 @@ import { getRecentNutrition, getMacroTotals } from '@/lib/nutrition-store';
 import { getActiveRecommendations, type CoachRecommendation } from '@/lib/coach-engine';
 import { getWorkoutsInLastDays } from '@/lib/streak-tracker';
 import { NUTRITION_TARGETS } from '@/lib/training-program';
-import Svg, { Polyline, Line, Circle, Text as SvgText } from 'react-native-svg';
+import Svg, { Polyline, Line, Circle, Text as SvgText, Path, Defs, LinearGradient as SvgGradient, Stop, Rect } from 'react-native-svg';
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -363,8 +363,18 @@ export default function HomeScreen() {
             <Text style={{ color: '#3B82F6', fontSize: 18 }}>›</Text>
           </TouchableOpacity>
         )}
-        {/* ── Header ── */}
-        <View style={[s.row, { marginBottom: 16, alignItems: 'center' }]}>
+        {/* ── Header with gradient backdrop ── */}
+        <View style={{ marginHorizontal: -16, marginTop: -8, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16, marginBottom: 8 }}>
+          <Svg width={SCREEN_WIDTH} height={100} style={{ position: 'absolute', top: 0, left: 0 }}>
+            <Defs>
+              <SvgGradient id="headerGrad" x1="0" y1="0" x2="0" y2="1">
+                <Stop offset="0" stopColor="#3B82F6" stopOpacity="0.12" />
+                <Stop offset="1" stopColor="#3B82F6" stopOpacity="0" />
+              </SvgGradient>
+            </Defs>
+            <Rect x="0" y="0" width={SCREEN_WIDTH} height={100} fill="url(#headerGrad)" />
+          </Svg>
+          <View style={[s.row, { alignItems: 'center' }]}>
           <TouchableOpacity onPress={() => router.push('/profile' as any)} activeOpacity={0.85} style={s.avatarBtn}>
             {userProfile?.profilePhotoUri ? (
               <Image source={{ uri: userProfile.profilePhotoUri }} style={[s.avatarImg, { borderColor: pri }]} />
@@ -398,6 +408,7 @@ export default function HomeScreen() {
           >
             <Text style={{ fontSize: 16 }}>📸</Text>
           </TouchableOpacity>
+          </View>
         </View>
 
         {/* ── Missed Session Banner (only last missed) ── */}
@@ -616,25 +627,46 @@ export default function HomeScreen() {
 
         {/* ── Today's Session Hero ── */}
         <TouchableOpacity
-          style={[s.heroCard, { backgroundColor: surf, borderColor: getColor(todaySession) + '40' }]}
+          style={[s.heroCard, { backgroundColor: surf, borderColor: getColor(todaySession) + '40', overflow: 'hidden', padding: 0 }]}
           onPress={handleStartWorkout}
           activeOpacity={0.85}
         >
-          <View style={s.heroRow}>
-            <Text style={s.heroEmoji}>{getEmoji(todaySession)}</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={[s.heroTitle, { color: fg }]}>{getName(todaySession)}</Text>
-              <Text style={[s.heroSub, { color: mut }]}>{getSubtitle(todaySession)}</Text>
+          {/* Gradient background */}
+          <Svg width="100%" height="100%" style={{ position: 'absolute', top: 0, left: 0 }}>
+            <Defs>
+              <SvgGradient id="heroGrad" x1="0" y1="0" x2="1" y2="1">
+                <Stop offset="0" stopColor={getColor(todaySession)} stopOpacity="0.15" />
+                <Stop offset="1" stopColor={getColor(todaySession)} stopOpacity="0.03" />
+              </SvgGradient>
+            </Defs>
+            <Rect x="0" y="0" width="100%" height="100%" rx="16" fill="url(#heroGrad)" />
+          </Svg>
+          <View style={{ padding: 20 }}>
+            <View style={s.heroRow}>
+              <Text style={[s.heroEmoji, { fontSize: 48, marginRight: 14 }]}>{getEmoji(todaySession)}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={[s.heroTitle, { color: fg, fontSize: 22, fontWeight: '800' }]}>{getName(todaySession)}</Text>
+                <Text style={[s.heroSub, { color: mut, fontSize: 14 }]}>{getSubtitle(todaySession)}</Text>
+              </View>
             </View>
+            {!isRest && (
+              <TouchableOpacity
+                style={[s.startBtn, {
+                  backgroundColor: todayDone ? '#22C55E' : getColor(todaySession),
+                  shadowColor: todayDone ? '#22C55E' : getColor(todaySession),
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.35,
+                  shadowRadius: 12,
+                  elevation: 8,
+                  paddingVertical: 14,
+                  borderRadius: 14,
+                }]}
+                onPress={handleStartWorkout}
+              >
+                <Text style={[s.startBtnText, { fontSize: 16 }]}>{todayDone ? '✓ Completed — Start Again' : 'Start Workout'}</Text>
+              </TouchableOpacity>
+            )}
           </View>
-          {!isRest && (
-            <TouchableOpacity
-              style={[s.startBtn, { backgroundColor: todayDone ? '#22C55E' : getColor(todaySession) }]}
-              onPress={handleStartWorkout}
-            >
-              <Text style={s.startBtnText}>{todayDone ? '✓ Completed — Start Again' : 'Start Workout'}</Text>
-            </TouchableOpacity>
-          )}
         </TouchableOpacity>
 
         {/* ── Metrics Grid ── */}
@@ -702,7 +734,7 @@ export default function HomeScreen() {
 
           {/* Workout Streak */}
           <TouchableOpacity
-            style={[s.metricCard, { backgroundColor: surf, borderColor: bord }]}
+            style={[s.metricCard, { backgroundColor: surf, borderColor: (streak?.currentStreak ?? 0) >= 3 ? '#F59E0B30' : bord }]}
             onPress={() => router.push('/(tabs)/history' as any)}
             activeOpacity={0.8}
           >
@@ -712,7 +744,10 @@ export default function HomeScreen() {
             </View>
             <Text style={[s.metricLabel, { color: mut }]}>Workout Streak</Text>
             <View style={s.metricValueRow}>
-              <Text style={[s.metricValueLg, { color: pri }]}>{streak?.currentStreak ?? 0}</Text>
+              <Text style={[s.metricValueLg, {
+                color: (streak?.currentStreak ?? 0) >= 3 ? '#F59E0B' : pri,
+                ...(Platform.OS === 'ios' && (streak?.currentStreak ?? 0) >= 3 ? { textShadowColor: '#F59E0B40', textShadowRadius: 8, textShadowOffset: { width: 0, height: 0 } } : {}),
+              }]}>{streak?.currentStreak ?? 0}</Text>
               <Text style={[s.metricUnit, { color: mut }]}> days</Text>
             </View>
             <Text style={[s.metricSub, { color: mut }]}>Best: {streak?.bestStreak ?? 0}d</Text>
@@ -776,10 +811,20 @@ export default function HomeScreen() {
         )}
         {/* ── AI Form Coach Banner ── */}
         <TouchableOpacity
-          style={[s.coachCard, { backgroundColor: '#1A1F2E', borderColor: '#3B82F640' }]}
+          style={[s.coachCard, { backgroundColor: '#1A1F2E', borderColor: '#3B82F640', overflow: 'hidden' }]}
           onPress={() => router.push('/(tabs)/coach' as any)}
           activeOpacity={0.8}
         >
+          {/* Gradient accent stripe */}
+          <Svg width="100%" height={2} style={{ position: 'absolute', top: 0, left: 0 }}>
+            <Defs>
+              <SvgGradient id="coachAccent" x1="0" y1="0" x2="1" y2="0">
+                <Stop offset="0" stopColor="#3B82F6" stopOpacity="1" />
+                <Stop offset="1" stopColor="#8B5CF6" stopOpacity="1" />
+              </SvgGradient>
+            </Defs>
+            <Rect x="0" y="0" width="100%" height="2" fill="url(#coachAccent)" />
+          </Svg>
           <View style={s.coachLeft}>
             <View style={[s.coachIconWrap, { backgroundColor: '#3B82F620' }]}>
               <Text style={s.coachIcon}>🤖</Text>
@@ -800,10 +845,15 @@ export default function HomeScreen() {
           onPress={() => router.push('/(tabs)/nutrition' as any)}
         >
           <View style={s.row}>
-            <Text style={[s.sectionLabel, { color: mut }]}>TODAY'S NUTRITION</Text>
+            <SectionHeader icon="🍎" title="TODAY'S NUTRITION" accent="#F59E0B" colors={colors} />
             <Text style={[s.link, { color: pri }]}>Today →</Text>
           </View>
-          <View style={[s.row, { marginTop: 12, marginBottom: 4 }]}>
+          {/* Macro rings */}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginTop: 12, marginBottom: 12 }}>
+            <MacroRing consumed={calConsumed} target={calTarget} color="#F59E0B" label={`${calConsumed}/${calTarget} kcal`} />
+            <MacroRing consumed={protConsumed} target={protTarget} color="#3B82F6" label={`${protConsumed}/${protTarget}g prot`} />
+          </View>
+          <View style={[s.row, { marginBottom: 4 }]}>
             <Text style={[s.macroLabel, { color: fg }]}>Calories</Text>
             <Text style={[s.macroValue, { color: '#F59E0B' }]}>{calConsumed}/{calTarget}kcal</Text>
           </View>
@@ -825,33 +875,34 @@ export default function HomeScreen() {
           onPress={() => router.push('/(tabs)/whoop' as any)}
         >
           <View style={s.row}>
-            <View style={s.row}>
-              <Text style={[s.whoopIcon, { color: recoveryColor }]}>♥︎ </Text>
-              <Text style={[s.sectionLabel, { color: recoveryColor }]}>WHOOP RECOVERY</Text>
-            </View>
+            <SectionHeader icon="♥︎" title="WHOOP RECOVERY" accent={recoveryColor} colors={colors} />
             <Text style={[s.link, { color: mut }]}>›</Text>
           </View>
-          <View style={[s.row, { marginTop: 12, alignItems: 'flex-end' }]}>
-            <View>
-              <Text style={[s.whoopScore, { color: recoveryColor }]}>
-                {recoveryScore != null ? `${recoveryScore}%` : whoopConnected ? '…' : '—'}
-              </Text>
-              <Text style={[s.whoopStatus, { color: mut }]}>
+          <View style={[s.row, { marginTop: 12, alignItems: 'center' }]}>
+            {recoveryScore != null ? (
+              <ProgressRing score={recoveryScore} color={recoveryColor} size={80} strokeWidth={8} />
+            ) : (
+              <View style={{ width: 80, height: 80, borderRadius: 40, borderWidth: 3, borderColor: bord, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontSize: 22, fontWeight: '800', color: mut }}>{whoopConnected ? '…' : '—'}</Text>
+              </View>
+            )}
+            <View style={{ flex: 1, marginLeft: 16 }}>
+              <Text style={[s.whoopStatus, { color: mut, marginBottom: 8 }]}>
                 {!whoopConnected ? 'Tap to connect WHOOP'
                   : recoveryScore == null ? 'Fetching data…'
                   : recoveryScore >= 67 ? 'Green — Train hard'
                   : recoveryScore >= 34 ? 'Yellow — Moderate'
                   : 'Red — Rest'}
               </Text>
-            </View>
-            <View style={{ gap: 8 }}>
-              <View style={{ alignItems: 'flex-end' }}>
-                <Text style={[s.metricSub, { color: mut }]}>⚡ HRV</Text>
-                <Text style={[s.whoopMetricVal, { color: fg }]}>{hrv != null ? `${hrv}ms` : '—'}</Text>
-              </View>
-              <View style={{ alignItems: 'flex-end' }}>
-                <Text style={[s.metricSub, { color: mut }]}>♥ RHR</Text>
-                <Text style={[s.whoopMetricVal, { color: fg }]}>{rhr != null ? `${rhr}bpm` : '—'}</Text>
+              <View style={{ flexDirection: 'row', gap: 16 }}>
+                <View>
+                  <Text style={[s.metricSub, { color: mut }]}>⚡ HRV</Text>
+                  <Text style={[s.whoopMetricVal, { color: fg }]}>{hrv != null ? `${hrv}ms` : '—'}</Text>
+                </View>
+                <View>
+                  <Text style={[s.metricSub, { color: mut }]}>♥ RHR</Text>
+                  <Text style={[s.whoopMetricVal, { color: fg }]}>{rhr != null ? `${rhr}bpm` : '—'}</Text>
+                </View>
               </View>
             </View>
           </View>
@@ -866,12 +917,10 @@ export default function HomeScreen() {
           const readinessLabel = readinessScore >= 80 ? 'Peak Readiness' : readinessScore >= 67 ? 'Good to Train' : readinessScore >= 50 ? 'Moderate' : readinessScore >= 34 ? 'Consider Light' : 'Rest Recommended';
           return (
             <View style={[s.card, { backgroundColor: surf, borderColor: bord }]}>
-              <Text style={[s.sectionLabel, { color: mut, marginBottom: 10 }]}>TRAINING READINESS</Text>
+              <SectionHeader icon="⚡" title="TRAINING READINESS" accent={readinessColor} colors={colors} />
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-                <View style={{ width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: readinessColor + '20', marginRight: 12 }}>
-                  <Text style={{ fontSize: 18, fontWeight: '800', color: readinessColor }}>{readinessScore}</Text>
-                </View>
-                <View style={{ flex: 1 }}>
+                <ProgressRing score={readinessScore} color={readinessColor} size={60} strokeWidth={7} />
+                <View style={{ flex: 1, marginLeft: 14 }}>
                   <Text style={{ fontSize: 15, fontWeight: '700', color: fg }}>{readinessLabel}</Text>
                   <Text style={{ fontSize: 12, color: mut }}>
                     {readinessScore >= 67 ? 'Push hard today' : readinessScore >= 34 ? 'Reduce intensity slightly' : 'Take a rest day'}
@@ -893,22 +942,30 @@ export default function HomeScreen() {
           if (prList.length === 0) return null;
           return (
             <View style={[s.card, { backgroundColor: surf, borderColor: bord, paddingBottom: 4 }]}>
-              <Text style={[s.sectionLabel, { color: mut, marginBottom: 10 }]}>PERSONAL RECORDS</Text>
-              {prList.slice(0, 5).map(([name, pr], i) => (
+              <SectionHeader icon="🏆" title="PERSONAL RECORDS" accent="#F59E0B" colors={colors} />
+              {prList.slice(0, 5).map(([name, pr], i) => {
+                const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '🏆';
+                const medalColor = i === 0 ? '#FFD700' : i === 1 ? '#C0C0C0' : i === 2 ? '#CD7F32' : undefined;
+                return (
                 <TouchableOpacity
                   key={name}
-                  style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderTopWidth: i > 0 ? 1 : 0, borderTopColor: bord }}
+                  style={{
+                    flexDirection: 'row', alignItems: 'center', paddingVertical: 8,
+                    borderTopWidth: i > 0 ? 1 : 0, borderTopColor: bord,
+                    ...(medalColor ? { borderLeftWidth: 3, borderLeftColor: medalColor, paddingLeft: 10, marginLeft: -4 } : {}),
+                  }}
                   onPress={() => router.push({ pathname: '/rep-history', params: { exercise: name, exerciseType: '' } } as any)}
                   activeOpacity={0.7}
                 >
-                  <Text style={{ fontSize: 14, marginRight: 8 }}>🏆</Text>
+                  <Text style={{ fontSize: 14, marginRight: 8 }}>{medal}</Text>
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 13, fontWeight: '600', color: fg }}>{name}</Text>
                     <Text style={{ fontSize: 11, color: mut }}>{pr.weight}kg x {pr.reps} · {new Date(pr.date + 'T00:00:00').toLocaleDateString('en', { month: 'short', day: 'numeric' })}</Text>
                   </View>
-                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#F59E0B' }}>~{Math.round(pr.e1rm)}kg</Text>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: medalColor || '#F59E0B' }}>~{Math.round(pr.e1rm)}kg</Text>
                 </TouchableOpacity>
-              ))}
+                );
+              })}
             </View>
           );
         })()}
@@ -916,7 +973,7 @@ export default function HomeScreen() {
         {/* ── Recent Workouts ── */}
         {recentWorkouts.length > 0 && (
           <View style={[s.card, { backgroundColor: surf, borderColor: bord, paddingBottom: 4 }]}>
-            <Text style={[s.sectionLabel, { color: mut, marginBottom: 10 }]}>RECENT WORKOUTS</Text>
+            <SectionHeader icon="📋" title="RECENT WORKOUTS" accent="#3B82F6" colors={colors} />
             {recentWorkouts.slice(0, 5).map((w, i) => {
               const sColor = getColor(w.sessionType);
               return (
@@ -939,7 +996,7 @@ export default function HomeScreen() {
         {/* ── Coach Insights ── */}
         {recommendations.length > 0 && (
           <View style={[s.card, { backgroundColor: surf, borderColor: bord }]}>
-            <Text style={[s.sectionLabel, { color: mut, marginBottom: 10 }]}>COACH INSIGHTS</Text>
+            <SectionHeader icon="💡" title="COACH INSIGHTS" accent="#3B82F6" colors={colors} />
             {recommendations.slice(0, 3).map((rec, i) => {
               const catIcon: Record<string, string> = { nutrition: '🍗', training: '🏋️', recovery: '😴', overload: '📈' };
               return (
@@ -954,7 +1011,7 @@ export default function HomeScreen() {
 
         {/* ── Quick Tools ── */}
         <View style={[s.card, { backgroundColor: surf, borderColor: bord }]}>
-          <Text style={[s.sectionLabel, { color: mut, marginBottom: 10 }]}>TOOLS & INSIGHTS</Text>
+          <SectionHeader icon="🔧" title="TOOLS & INSIGHTS" accent="#3B82F6" colors={colors} />
           <View style={{ gap: 8 }}>
             <TouchableOpacity
               style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10 }}
@@ -1049,16 +1106,81 @@ function ReadinessBar({ label, value, progress, color, colors }: {
   );
 }
 
+// ── SVG Helper Components ──
+
+function SectionHeader({ icon, title, accent, colors: c }: { icon: string; title: string; accent: string; colors: ReturnType<typeof useColors> }) {
+  const gradId = `grad_${title.replace(/\s/g, '')}`;
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 6 }}>
+      <Text style={{ fontSize: 13 }}>{icon}</Text>
+      <Text style={{ fontSize: 11, fontWeight: '600', letterSpacing: 1, color: c.muted }}>{title}</Text>
+      <Svg height={1} style={{ flex: 1, marginLeft: 6 }}>
+        <Defs>
+          <SvgGradient id={gradId} x1="0" y1="0" x2="1" y2="0">
+            <Stop offset="0" stopColor={accent} stopOpacity="0.5" />
+            <Stop offset="1" stopColor={accent} stopOpacity="0" />
+          </SvgGradient>
+        </Defs>
+        <Rect x="0" y="0" width="100%" height="1" fill={`url(#${gradId})`} />
+      </Svg>
+    </View>
+  );
+}
+
+function ProgressRing({ score, color, size = 56, strokeWidth = 6 }: { score: number; color: string; size?: number; strokeWidth?: number }) {
+  const r = (size - strokeWidth) / 2;
+  const cx = size / 2;
+  const cy = size / 2;
+  const circ = 2 * Math.PI * r;
+  const pct = Math.max(0, Math.min(100, score));
+  const offset = circ - (pct / 100) * circ;
+  const gradId = `ring_${size}_${color.replace('#', '')}`;
+  return (
+    <Svg width={size} height={size}>
+      <Defs>
+        <SvgGradient id={gradId} x1="0" y1="0" x2="1" y2="1">
+          <Stop offset="0" stopColor={color} stopOpacity="1" />
+          <Stop offset="1" stopColor={color} stopOpacity="0.4" />
+        </SvgGradient>
+      </Defs>
+      <Circle cx={cx} cy={cy} r={r} stroke="#1E2433" strokeWidth={strokeWidth} fill="none" />
+      <Circle
+        cx={cx} cy={cy} r={r}
+        stroke={`url(#${gradId})`}
+        strokeWidth={strokeWidth}
+        fill="none"
+        strokeDasharray={`${circ}`}
+        strokeDashoffset={offset}
+        strokeLinecap="round"
+        transform={`rotate(-90, ${cx}, ${cy})`}
+      />
+      <SvgText x={cx} y={cy + 1} textAnchor="middle" alignmentBaseline="central" fontSize={size * 0.28} fontWeight="800" fill={color}>
+        {Math.round(score)}
+      </SvgText>
+    </Svg>
+  );
+}
+
+function MacroRing({ consumed, target, color, label }: { consumed: number; target: number; color: string; label: string }) {
+  const pct = target > 0 ? Math.min(100, (consumed / target) * 100) : 0;
+  return (
+    <View style={{ alignItems: 'center', gap: 4 }}>
+      <ProgressRing score={pct} color={color} size={48} strokeWidth={5} />
+      <Text style={{ fontSize: 10, color: '#64748B', fontWeight: '500' }}>{label}</Text>
+    </View>
+  );
+}
+
 const s = StyleSheet.create({
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  headerName: { fontSize: 28, fontWeight: '700', letterSpacing: -0.5 },
+  headerName: { fontSize: 30, fontWeight: '800', letterSpacing: -0.5 },
   avatarBtn: { position: 'relative' },
-  avatarImg: { width: 40, height: 40, borderRadius: 20, borderWidth: 2 },
-  avatarPlaceholder: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
+  avatarImg: { width: 48, height: 48, borderRadius: 24, borderWidth: 2 },
+  avatarPlaceholder: { width: 48, height: 48, borderRadius: 24, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
   avatarEmoji: { fontSize: 20 },
   iconBtn: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
 
-  heroCard: { borderRadius: 16, borderWidth: 1, padding: 16, marginBottom: 12 },
+  heroCard: { borderRadius: 16, borderWidth: 1, padding: 16, marginBottom: 14 },
   heroRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   heroEmoji: { fontSize: 36, marginRight: 12 },
   heroTitle: { fontSize: 18, fontWeight: '700', marginBottom: 2 },
@@ -1066,16 +1188,16 @@ const s = StyleSheet.create({
   startBtn: { borderRadius: 12, paddingVertical: 12, alignItems: 'center' },
   startBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 15 },
 
-  card: { borderRadius: 16, borderWidth: 1, padding: 16, marginBottom: 12 },
+  card: { borderRadius: 16, borderWidth: 1, padding: 16, marginBottom: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 3 },
 
   weekRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   dayCol: { alignItems: 'center', gap: 6 },
   dayLabel: { fontSize: 12 },
-  dayDot: { width: 9, height: 9, borderRadius: 5 },
-  checkDot: { width: 4, height: 4, borderRadius: 2, marginTop: -2 },
+  dayDot: { width: 14, height: 14, borderRadius: 7 },
+  checkDot: { width: 6, height: 6, borderRadius: 3, marginTop: -2 },
 
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 12 },
-  metricCard: { width: '48%', borderRadius: 16, borderWidth: 1, padding: 14, position: 'relative' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 14 },
+  metricCard: { width: '48%', borderRadius: 16, borderWidth: 1, padding: 14, position: 'relative', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 6, elevation: 2 },
   metricIcon: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
   metricIconText: { fontSize: 18 },
   metricChevron: { position: 'absolute', top: 14, right: 14, fontSize: 18 },
