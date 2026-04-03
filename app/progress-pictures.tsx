@@ -674,7 +674,9 @@ export default function ProgressPicturesScreen() {
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         quality: 0.85,
-        allowsEditing: true,
+        // allowsEditing launches a separate crop Activity on Android which crashes
+        // on some Android 13+ devices (including foldables). Disabled on Android.
+        allowsEditing: Platform.OS !== 'android',
         base64: isWeb,
       });
       if (!result.canceled && result.assets[0]) {
@@ -718,7 +720,9 @@ export default function ProgressPicturesScreen() {
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         quality: 0.85,
         allowsMultipleSelection: false,
-        allowsEditing: true,
+        // allowsEditing launches a separate crop Activity on Android which crashes
+        // on some Android 13+ devices (including foldables). Disabled on Android.
+        allowsEditing: Platform.OS !== 'android',
         base64: isWeb,
       });
       if (!result.canceled && result.assets[0]) {
