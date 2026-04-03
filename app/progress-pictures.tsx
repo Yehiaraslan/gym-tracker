@@ -580,18 +580,20 @@ export default function ProgressPicturesScreen() {
   }, []);
 
   // Fire the pending image-picker action once the source-picker modal has closed.
-  // InteractionManager.runAfterInteractions waits for the Modal dismiss animation
-  // to truly finish, then an extra 300ms buffer ensures expo-image-picker can
-  // present its own UI without silently failing.
+  // On Android, the modal dismiss animation takes ~400ms and the OS blocks any
+  // new Activity (camera/gallery) while the previous one is still animating out.
+  // We use a 700ms delay on Android to guarantee the transition is fully done.
   useEffect(() => {
     if (!sourcePickerVisible && pendingSourceAction.current) {
       const action = pendingSourceAction.current;
       pendingSourceAction.current = null;
+      const delay = Platform.OS === 'android' ? 700 : 300;
       const handle = InteractionManager.runAfterInteractions(() => {
-        setTimeout(() => {
+        const t = setTimeout(() => {
           if (action === 'camera') openCamera();
           else openLibrary();
-        }, 300);
+        }, delay);
+        return () => clearTimeout(t);
       });
       return () => handle.cancel();
     }
@@ -647,17 +649,27 @@ export default function ProgressPicturesScreen() {
 
   const openCamera = async () => {
     try {
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      const { status, canAskAgain } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Please allow camera access to take a progress photo.');
+        if (!canAskAgain) {
+          Alert.alert(
+            'Camera Permission Blocked',
+            'Camera access was permanently denied. Please enable it in Settings → Apps → Banana Pro Gym → Permissions → Camera.',
+            [{ text: 'OK' }]
+          );
+        } else {
+          Alert.alert('Permission Required', 'Please allow camera access to take a progress photo.');
+        }
         return;
       }
       const isWeb = Platform.OS === 'web';
+      // Use MediaTypeOptions enum — compatible with all native binary versions.
+      // The ['images'] array syntax requires an SDK 55 native build to work on Android.
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ['images'] as any,
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         quality: 0.85,
         allowsEditing: true,
-        base64: isWeb,  // Request base64 on web so we can persist as data-URL
+        base64: isWeb,
       });
       if (!result.canceled && result.assets[0]) {
         setPreviewUri(result.assets[0].uri);
@@ -666,24 +678,36 @@ export default function ProgressPicturesScreen() {
       }
     } catch (error) {
       console.error('[progress-pictures] openCamera error:', error);
-      Alert.alert('Error', 'Failed to open camera. Please try again.');
+      Alert.alert(
+        'Camera Error',
+        'Could not open the camera. Make sure the app has Camera permission in Settings → Apps → Banana Pro Gym → Permissions.',
+        [{ text: 'OK' }]
+      );
     }
   };
 
   const openLibrary = async () => {
     try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const { status, canAskAgain } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Please allow access to your photo library.');
+        if (!canAskAgain) {
+          Alert.alert(
+            'Photo Library Permission Blocked',
+            'Photo library access was permanently denied. Please enable it in Settings → Apps → Banana Pro Gym → Permissions → Photos & Videos.',
+            [{ text: 'OK' }]
+          );
+        } else {
+          Alert.alert('Permission Required', 'Please allow access to your photo library.');
+        }
         return;
       }
       const isWeb = Platform.OS === 'web';
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'] as any,
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         quality: 0.85,
         allowsMultipleSelection: false,
         allowsEditing: true,
-        base64: isWeb,  // Request base64 on web so we can persist as data-URL
+        base64: isWeb,
       });
       if (!result.canceled && result.assets[0]) {
         setPreviewUri(result.assets[0].uri);
@@ -692,7 +716,11 @@ export default function ProgressPicturesScreen() {
       }
     } catch (error) {
       console.error('[progress-pictures] openLibrary error:', error);
-      Alert.alert('Error', 'Failed to open photo library. Please try again.');
+      Alert.alert(
+        'Photo Library Error',
+        'Could not open the photo library. Make sure the app has Photos & Videos permission in Settings → Apps → Banana Pro Gym → Permissions.',
+        [{ text: 'OK' }]
+      );
     }
   };
 
