@@ -21,6 +21,7 @@ import {
   InteractionManager,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Linking } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -33,6 +34,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { trpc } from '@/lib/trpc';
 
 const PICTURES_KEY = '@gym_progress_pictures';
+const PERM_ONBOARDING_KEY = '@gym_tracker_photo_perm_onboarded';
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const THUMB_SIZE = (SCREEN_WIDTH - 48 - 8) / 3;
 
@@ -563,6 +565,7 @@ export default function ProgressPicturesScreen() {
   const [zakiAnalysis, setZakiAnalysis] = useState<BodyAnalysis | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [sourcePickerVisible, setSourcePickerVisible] = useState(false);
+  const [permOnboardingVisible, setPermOnboardingVisible] = useState(false);
   const [previewUri, setPreviewUri] = useState<string | null>(null);
   const [previewBase64, setPreviewBase64] = useState<string | null>(null);
   const [previewSource, setPreviewSource] = useState<'camera' | 'library'>('camera');
@@ -654,8 +657,11 @@ export default function ProgressPicturesScreen() {
         if (!canAskAgain) {
           Alert.alert(
             'Camera Permission Blocked',
-            'Camera access was permanently denied. Please enable it in Settings → Apps → Banana Pro Gym → Permissions → Camera.',
-            [{ text: 'OK' }]
+            'Camera access was permanently denied. Open Settings and enable Camera permission for Banana Pro Gym.',
+            [
+              { text: 'Not Now', style: 'cancel' },
+              { text: 'Open Settings', onPress: () => Linking.openSettings() },
+            ]
           );
         } else {
           Alert.alert('Permission Required', 'Please allow camera access to take a progress photo.');
@@ -680,8 +686,11 @@ export default function ProgressPicturesScreen() {
       console.error('[progress-pictures] openCamera error:', error);
       Alert.alert(
         'Camera Error',
-        'Could not open the camera. Make sure the app has Camera permission in Settings → Apps → Banana Pro Gym → Permissions.',
-        [{ text: 'OK' }]
+        'Could not open the camera. Make sure the app has Camera permission.',
+        [
+          { text: 'Not Now', style: 'cancel' },
+          { text: 'Open Settings', onPress: () => Linking.openSettings() },
+        ]
       );
     }
   };
@@ -693,8 +702,11 @@ export default function ProgressPicturesScreen() {
         if (!canAskAgain) {
           Alert.alert(
             'Photo Library Permission Blocked',
-            'Photo library access was permanently denied. Please enable it in Settings → Apps → Banana Pro Gym → Permissions → Photos & Videos.',
-            [{ text: 'OK' }]
+            'Photo library access was permanently denied. Open Settings and enable Photos & Videos permission for Banana Pro Gym.',
+            [
+              { text: 'Not Now', style: 'cancel' },
+              { text: 'Open Settings', onPress: () => Linking.openSettings() },
+            ]
           );
         } else {
           Alert.alert('Permission Required', 'Please allow access to your photo library.');
@@ -718,8 +730,11 @@ export default function ProgressPicturesScreen() {
       console.error('[progress-pictures] openLibrary error:', error);
       Alert.alert(
         'Photo Library Error',
-        'Could not open the photo library. Make sure the app has Photos & Videos permission in Settings → Apps → Banana Pro Gym → Permissions.',
-        [{ text: 'OK' }]
+        'Could not open the photo library. Make sure the app has Photos & Videos permission.',
+        [
+          { text: 'Not Now', style: 'cancel' },
+          { text: 'Open Settings', onPress: () => Linking.openSettings() },
+        ]
       );
     }
   };
@@ -758,10 +773,17 @@ export default function ProgressPicturesScreen() {
     }, 300);
   };
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    // Use a Modal instead of Alert.alert — Alert.alert with custom buttons
-    // is broken on web (buttons don't render). The modal works everywhere.
+    // On first use, show the permission onboarding sheet before the source picker.
+    // This explains WHY we need camera/photos access, improving grant rate.
+    if (Platform.OS !== 'web') {
+      const seen = await AsyncStorage.getItem(PERM_ONBOARDING_KEY);
+      if (!seen) {
+        setPermOnboardingVisible(true);
+        return;
+      }
+    }
     setSourcePickerVisible(true);
   };
 
@@ -1160,6 +1182,85 @@ export default function ProgressPicturesScreen() {
           />
         )}
       </Modal>
+      {/* Permission Onboarding Sheet — shown once before first camera/library access */}
+      <Modal
+        visible={permOnboardingVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setPermOnboardingVisible(false)}
+      >
+        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.55)' }}>
+          <View style={{
+            borderTopLeftRadius: 28,
+            borderTopRightRadius: 28,
+            padding: 28,
+            paddingBottom: 44,
+            backgroundColor: colors.surface,
+          }}>
+            {/* Drag handle */}
+            <View style={{ width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 24, backgroundColor: colors.border }} />
+
+            {/* Icon row */}
+            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 16, marginBottom: 20 }}>
+              <View style={{ width: 56, height: 56, borderRadius: 16, backgroundColor: colors.primary + '22', justifyContent: 'center', alignItems: 'center' }}>
+                <Text style={{ fontSize: 28 }}>📷</Text>
+              </View>
+              <View style={{ width: 56, height: 56, borderRadius: 16, backgroundColor: colors.primary + '22', justifyContent: 'center', alignItems: 'center' }}>
+                <Text style={{ fontSize: 28 }}>🖼️</Text>
+              </View>
+            </View>
+
+            <Text style={{ fontSize: 22, fontWeight: '800', textAlign: 'center', color: colors.foreground, marginBottom: 10 }}>
+              Track Your Transformation
+            </Text>
+            <Text style={{ fontSize: 15, color: colors.muted, textAlign: 'center', lineHeight: 22, marginBottom: 28 }}>
+              Banana Pro Gym needs access to your{' '}
+              <Text style={{ fontWeight: '700', color: colors.foreground }}>Camera</Text> and{' '}
+              <Text style={{ fontWeight: '700', color: colors.foreground }}>Photo Library</Text>{' '}
+              to let you log progress photos.{`\n\n`}Photos are stored{' '}
+              <Text style={{ fontWeight: '700', color: colors.foreground }}>only on your device</Text>{' '}
+              — never uploaded without your permission.
+            </Text>
+
+            {/* What we use each for */}
+            <View style={{ gap: 12, marginBottom: 28 }}>
+              {[
+                { icon: '📷', title: 'Camera', desc: 'Take a fresh progress photo right now' },
+                { icon: '🖼️', title: 'Photo Library', desc: 'Pick an existing photo from your gallery' },
+              ].map(item => (
+                <View key={item.title} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, borderRadius: 14, backgroundColor: colors.background }}>
+                  <Text style={{ fontSize: 22 }}>{item.icon}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontWeight: '700', color: colors.foreground, fontSize: 14 }}>{item.title}</Text>
+                    <Text style={{ color: colors.muted, fontSize: 13, marginTop: 2 }}>{item.desc}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+
+            {/* CTA */}
+            <TouchableOpacity
+              onPress={async () => {
+                await AsyncStorage.setItem(PERM_ONBOARDING_KEY, '1');
+                setPermOnboardingVisible(false);
+                // Small delay so the sheet fully closes before the source picker opens
+                setTimeout(() => setSourcePickerVisible(true), Platform.OS === 'android' ? 500 : 250);
+              }}
+              style={{ paddingVertical: 16, borderRadius: 16, alignItems: 'center', backgroundColor: colors.primary }}
+            >
+              <Text style={{ color: '#fff', fontWeight: '800', fontSize: 16 }}>Continue</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setPermOnboardingVisible(false)}
+              style={{ paddingVertical: 12, alignItems: 'center', marginTop: 8 }}
+            >
+              <Text style={{ color: colors.muted, fontSize: 14 }}>Not now</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {/* Zaki Body Analysis modal */}
       {zakiAnalysis && (
         <ZakiAnalysisModal

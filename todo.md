@@ -994,3 +994,7 @@
 - [x] Widget Configuration Screen — in-app screen to choose which stats appear on Android home screen widget
 - [x] XP Level-Up celebration overlay — full-screen animation when user crosses an XP threshold
 - [ ] Zaki token fix — pull updated MCP_TOKEN from GitHub and publish (pending GitHub commit from user)
+
+## Permission UX Improvements (Apr 3 2026)
+- [x] First-time permission onboarding bottom sheet before camera/library access
+- [x] Linking.openSettings() retry button when permission is permanently denied
