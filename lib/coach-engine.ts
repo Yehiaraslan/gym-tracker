@@ -17,6 +17,7 @@ export type { CoachRecommendation, SleepEntry, WeightEntry };
 
 // Re-export from canonical location
 export { epley1RM } from './fitness-utils';
+import { epley1RM } from './fitness-utils';
 
 // Analyze weight trend over last 7 entries
 function analyzeWeightTrend(entries: WeightEntry[]): CoachRecommendation | null {

@@ -4,6 +4,7 @@
 
 import React from 'react';
 import { FlexWidget, TextWidget } from 'react-native-android-widget';
+import type { HexColor } from 'react-native-android-widget';
 import type { WidgetData } from '@/lib/widget-data';
 
 interface GymStatsWidgetProps {
@@ -11,7 +12,7 @@ interface GymStatsWidgetProps {
 }
 
 // Theme colors (dark mode — matches app theme)
-const COLORS = {
+const COLORS: Record<string, HexColor> = {
   surface: '#161A22',
   foreground: '#F1F5F9',
   muted: '#64748B',
