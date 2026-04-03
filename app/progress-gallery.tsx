@@ -27,7 +27,8 @@ import {
 } from '@/lib/progress-photos';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
-import { Platform } from 'react-native';
+import * as MediaLibrary from 'expo-media-library';
+import { Platform, Linking } from 'react-native';
 
 type PhotoCategory = 'front' | 'side' | 'back' | 'other';
 
@@ -153,17 +154,49 @@ export default function ProgressGalleryScreen() {
   // Step 1b: Open library
   const openGalleryLibrary = async () => {
     try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Please allow access to your photo library.');
-        return;
+      // On Android 13+, use expo-media-library permission (more reliable than ImagePicker's)
+      if (Platform.OS === 'android') {
+        const { status, canAskAgain } = await MediaLibrary.requestPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert(
+            canAskAgain ? 'Permission Required' : 'Photo Library Permission Blocked',
+            canAskAgain
+              ? 'Please allow access to your photo library to pick a progress photo.'
+              : 'Photo library access was permanently denied. Open Settings → Apps → Banana Pro Gym → Permissions and enable Photos & Videos.',
+            canAskAgain
+              ? [{ text: 'OK' }]
+              : [
+                  { text: 'Not Now', style: 'cancel' },
+                  { text: 'Open Settings', onPress: () => Linking.openSettings() },
+                ]
+          );
+          return;
+        }
+      } else {
+        const { status, canAskAgain } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert(
+            canAskAgain ? 'Permission Required' : 'Photo Library Permission Blocked',
+            canAskAgain
+              ? 'Please allow access to your photo library.'
+              : 'Photo library access was permanently denied. Open Settings and enable Photos permission.',
+            canAskAgain
+              ? [{ text: 'OK' }]
+              : [
+                  { text: 'Not Now', style: 'cancel' },
+                  { text: 'Open Settings', onPress: () => Linking.openSettings() },
+                ]
+          );
+          return;
+        }
       }
+
       const isWeb = Platform.OS === 'web';
       const result = await ImagePicker.launchImageLibraryAsync({
         // Use array syntax — MediaTypeOptions enum is deprecated in expo-image-picker SDK 15+
         mediaTypes: ['images'] as any,
         quality: 0.85,
-        allowsEditing: true,
+        allowsEditing: Platform.OS !== 'android',
         aspect: [3, 4],
         allowsMultipleSelection: false,
         base64: isWeb,
@@ -176,7 +209,14 @@ export default function ProgressGalleryScreen() {
       }
     } catch (error) {
       console.error('[progress-gallery] openGalleryLibrary error:', error);
-      Alert.alert('Error', 'Failed to add photo. Please try again.');
+      Alert.alert(
+        'Photo Library Error',
+        'Could not open the photo library. If this keeps happening, check Photos & Videos permission in Settings.',
+        [
+          { text: 'Not Now', style: 'cancel' },
+          { text: 'Open Settings', onPress: () => Linking.openSettings() },
+        ]
+      );
     }
   };
 

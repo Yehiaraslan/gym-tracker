@@ -1009,3 +1009,7 @@
 - [x] Global replacement: colors.foreground→cardForeground, colors.muted→cardMuted, colors.border→cardBorder across all screens and components
 - [x] Global replacement: text-foreground→text-cardForeground, text-muted→text-cardMuted in Tailwind classes
 - [x] TypeScript check — 0 errors
+
+## Photo Picker Bug Fixes (Apr 3 2026)
+- [x] Fix "Pick a picture" → Photo Library Error on Android (permission denied / READ_MEDIA_IMAGES not granted)
+- [x] Fix "Take a photo" → "Photo saved but may not persist" warning — use reliable DocumentDirectory storage

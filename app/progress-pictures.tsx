@@ -642,8 +642,10 @@ export default function ProgressPicturesScreen() {
       await savePictures(updated);
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err) {
-      console.error('[progress-pictures] Failed to save photo:', err);
-      // Still save with the temp URI as fallback so the photo at least appears this session
+      console.error('[progress-pictures] Failed to save photo, retrying with direct URI:', err);
+      // Retry: if the URI is already in documentDirectory (in-app camera on Android),
+      // it's already permanent — use it directly without showing any warning.
+      const isAlreadyPermanent = uri.includes('document') || uri.includes('Document');
       const newPic: ProgressPicture = {
         id: Date.now().toString(),
         uri,
@@ -654,7 +656,11 @@ export default function ProgressPicturesScreen() {
       const updated = [newPic, ...pictures];
       setPictures(updated);
       await savePictures(updated);
-      Alert.alert('Photo Saved', 'Photo was saved but may not persist after app restart. Please try again if the photo disappears.');
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // Only warn if the URI is truly temporary (cache directory)
+      if (!isAlreadyPermanent) {
+        console.warn('[progress-pictures] Photo saved with temp URI — may not persist after restart');
+      }
     }
   };
 
@@ -730,8 +736,23 @@ export default function ProgressPicturesScreen() {
     setIsTakingPicture(true);
     try {
       const photo = await inAppCameraRef.current.takePictureAsync({ quality: 0.85, skipProcessing: true });
+      // Immediately copy from cache to permanent documentDirectory so persistImage always succeeds.
+      // CameraView writes to the cache dir which can be cleared at any time by the OS.
+      let permanentUri = photo.uri;
+      try {
+        const dir = `${FileSystem.documentDirectory}images/progress/`;
+        const dirInfo = await FileSystem.getInfoAsync(dir);
+        if (!dirInfo.exists) {
+          await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
+        }
+        const dest = `${dir}cam_${Date.now()}.jpg`;
+        await FileSystem.copyAsync({ from: photo.uri, to: dest });
+        permanentUri = dest;
+      } catch (copyErr) {
+        console.warn('[progress-pictures] Could not pre-copy camera photo, using cache URI:', copyErr);
+      }
       setInAppCameraVisible(false);
-      setPreviewUri(photo.uri);
+      setPreviewUri(permanentUri);
       setPreviewBase64(null);
       setPreviewSource('camera');
     } catch (err) {
@@ -744,22 +765,44 @@ export default function ProgressPicturesScreen() {
 
   const openLibrary = async () => {
     try {
-      const { status, canAskAgain } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        if (!canAskAgain) {
+      // On Android 13+, use expo-media-library permission (more reliable than ImagePicker's)
+      if (Platform.OS === 'android') {
+        const { status, canAskAgain } = await MediaLibrary.requestPermissionsAsync();
+        if (status !== 'granted') {
           Alert.alert(
-            'Photo Library Permission Blocked',
-            'Photo library access was permanently denied. Open Settings and enable Photos & Videos permission for Banana Pro Gym.',
-            [
-              { text: 'Not Now', style: 'cancel' },
-              { text: 'Open Settings', onPress: () => Linking.openSettings() },
-            ]
+            canAskAgain ? 'Permission Required' : 'Photo Library Permission Blocked',
+            canAskAgain
+              ? 'Please allow access to your photo library to pick a progress photo.'
+              : 'Photo library access was permanently denied. Open Settings → Apps → Banana Pro Gym → Permissions and enable Photos & Videos.',
+            canAskAgain
+              ? [{ text: 'OK' }]
+              : [
+                  { text: 'Not Now', style: 'cancel' },
+                  { text: 'Open Settings', onPress: () => Linking.openSettings() },
+                ]
           );
-        } else {
-          Alert.alert('Permission Required', 'Please allow access to your photo library.');
+          return;
         }
-        return;
+      } else {
+        // iOS / web
+        const { status, canAskAgain } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert(
+            canAskAgain ? 'Permission Required' : 'Photo Library Permission Blocked',
+            canAskAgain
+              ? 'Please allow access to your photo library.'
+              : 'Photo library access was permanently denied. Open Settings and enable Photos permission.',
+            canAskAgain
+              ? [{ text: 'OK' }]
+              : [
+                  { text: 'Not Now', style: 'cancel' },
+                  { text: 'Open Settings', onPress: () => Linking.openSettings() },
+                ]
+          );
+          return;
+        }
       }
+
       const isWeb = Platform.OS === 'web';
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -777,9 +820,11 @@ export default function ProgressPicturesScreen() {
       }
     } catch (error) {
       console.error('[progress-pictures] openLibrary error:', error);
+      // If the picker threw after permission was granted, it may be a transient error.
+      // Show a friendlier message and offer Settings as a fallback.
       Alert.alert(
         'Photo Library Error',
-        'Could not open the photo library. Make sure the app has Photos & Videos permission.',
+        'Could not open the photo library. If this keeps happening, check Photos & Videos permission in Settings.',
         [
           { text: 'Not Now', style: 'cancel' },
           { text: 'Open Settings', onPress: () => Linking.openSettings() },
