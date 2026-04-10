@@ -309,6 +309,13 @@ export default function SplitWorkoutScreen() {
   const [swapTargetIndex, setSwapTargetIndex] = useState<number | null>(null);
   const [swapAlternatives, setSwapAlternatives] = useState<AlternativeExercise[]>([]);
   const [swapOriginalExercise, setSwapOriginalExercise] = useState<ProgramExercise | null>(null);
+  // Swap history log — accumulated during the session, saved with the workout
+  const [swapLog, setSwapLog] = useState<Array<{
+    originalExercise: string;
+    replacementExercise: string;
+    timestamp: string;
+    zakiVerification?: { suitable: boolean; message: string };
+  }>>([]);
   const [nudgeDismissed, setNudgeDismissed] = useState(false);
 
   // Lighter alternative for the recovery nudge (Strength → Volume)
@@ -340,14 +347,24 @@ export default function SplitWorkoutScreen() {
     setShowSwapModal(true);
   };
 
-  const handleConfirmSwap = (alt: AlternativeExercise) => {
+  const handleConfirmSwap = (alt: AlternativeExercise, zakiVerif?: { suitable: boolean; message: string }) => {
     if (swapTargetIndex === null) return;
     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    const originalName = exercises[swapTargetIndex]?.name ?? '';
     const updated = exercises.map((ex, i) => i === swapTargetIndex ? { ...alt } : ex);
     setSwappableExercises(updated);
     setExerciseLogs(prev => prev.map((log, i) =>
       i === swapTargetIndex ? { ...log, exerciseName: alt.name } : log
     ));
+    // Record the swap in the session log
+    if (originalName && originalName !== alt.name) {
+      setSwapLog(prev => [...prev, {
+        originalExercise: originalName,
+        replacementExercise: alt.name,
+        timestamp: new Date().toISOString(),
+        zakiVerification: zakiVerif,
+      }]);
+    }
     // Persist swap so it's remembered in future sessions
     if (sessionType !== 'rest') {
       const swapMap: Record<number, ProgramExercise> = {};
@@ -829,6 +846,7 @@ export default function SplitWorkoutScreen() {
           notes: cardioNotes || undefined,
         },
       } : {}),
+      ...(swapLog.length > 0 ? { swapLog } : {}),
     };
 
     await saveSplitWorkout(session);

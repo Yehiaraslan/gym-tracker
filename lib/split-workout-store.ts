@@ -47,6 +47,15 @@ export interface SplitWorkoutSession {
     intensity: 'easy' | 'moderate' | 'hard';
     notes?: string;
   };
+  swapLog?: Array<{
+    originalExercise: string;    // Name of the exercise that was replaced
+    replacementExercise: string; // Name of the exercise it was replaced with
+    timestamp: string;           // ISO timestamp of when the swap happened
+    zakiVerification?: {         // Optional Zaki equipment verification result
+      suitable: boolean;
+      message: string;
+    };
+  }>;
 }
 
 // ---- Storage ----

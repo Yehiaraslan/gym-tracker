@@ -1172,3 +1172,9 @@
 - [x] Zaki suggests adjusted daily calorie and macro targets with reasoning
 - [x] Show suggestion card in Zaki Nutrition tab
 - [x] One-tap "Apply These Targets" updates custom program nutrition targets
+
+## Exercise Swap History in Session Detail
+- [ ] Add swapLog field to SplitWorkoutSession type
+- [ ] Record each swap (original, replacement, Zaki verification result) during workout
+- [ ] Show swap history section in session detail view in History screen
+- [ ] Display original → replacement with Zaki's equipment verification note

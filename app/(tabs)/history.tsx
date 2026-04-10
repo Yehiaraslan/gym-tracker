@@ -171,6 +171,43 @@ export default function HistoryScreen() {
               </View>
             </View>
           ) : null}
+
+          {/* Exercise swap history (shown when expanded and swaps exist) */}
+          {isExpanded && item.swapLog && item.swapLog.length > 0 ? (
+            <View style={{ paddingHorizontal: 14, paddingBottom: 12, paddingTop: 4 }}>
+              <View style={{ backgroundColor: '#F59E0B10', borderRadius: 10, padding: 10, borderWidth: 1, borderColor: '#F59E0B30' }}>
+                <Text style={{ fontSize: 11, fontWeight: '600', color: '#F59E0B', marginBottom: 6 }}>
+                  🔄 EXERCISE SWAPS ({item.swapLog.length})
+                </Text>
+                {item.swapLog.map((swap, si) => (
+                  <View key={si} style={{ marginBottom: si < item.swapLog!.length - 1 ? 8 : 0 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4 }}>
+                      <Text style={{ fontSize: 13, color: colors.cardMuted, textDecorationLine: 'line-through' }}>
+                        {swap.originalExercise}
+                      </Text>
+                      <Text style={{ fontSize: 13, color: '#F59E0B' }}>→</Text>
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: colors.cardForeground }}>
+                        {swap.replacementExercise}
+                      </Text>
+                    </View>
+                    {swap.zakiVerification ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 3, gap: 4 }}>
+                        <Text style={{ fontSize: 11 }}>
+                          {swap.zakiVerification.suitable ? '✅' : '⚠️'}
+                        </Text>
+                        <Text style={{ fontSize: 11, color: swap.zakiVerification.suitable ? '#22C55E' : '#F59E0B', flex: 1 }}>
+                          Zaki: {swap.zakiVerification.message}
+                        </Text>
+                      </View>
+                    ) : null}
+                    <Text style={{ fontSize: 11, color: colors.cardMuted, marginTop: 2 }}>
+                      {new Date(swap.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          ) : null}
           {/* Expand chevron */}
           <View style={[styles.chevronRow, { borderTopColor: colors.cardBorder }]}>
             <Text style={[styles.chevronText, { color: colors.cardMuted }]}>
