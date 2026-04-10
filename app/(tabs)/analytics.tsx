@@ -614,6 +614,32 @@ export default function ProgressScreen() {
             </View>
           </View>
         )}
+        {/* Program History Link */}
+        <View style={{ paddingHorizontal: 24, marginTop: 16 }}>
+          <TouchableOpacity
+            onPress={() => router.push('/program-history' as any)}
+            activeOpacity={0.8}
+            style={{
+              backgroundColor: colors.surface,
+              borderRadius: 16,
+              borderWidth: 1,
+              borderColor: colors.cardBorder,
+              padding: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <Text style={{ fontSize: 24 }}>📋</Text>
+              <View>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: colors.cardForeground }}>Program History</Text>
+                <Text style={{ fontSize: 12, color: colors.cardMuted, marginTop: 2 }}>Past mesocycles · PRs · Volume per block</Text>
+              </View>
+            </View>
+            <Text style={{ fontSize: 20, color: '#C8F53C', fontWeight: '600' }}>›</Text>
+          </TouchableOpacity>
+        </View>
         <View style={{ height: 20 }} />
       </ScrollView>
       )}

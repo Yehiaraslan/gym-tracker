@@ -182,6 +182,10 @@ export default function RootLayout() {
             <Stack.Screen name="whoop" options={{ presentation: 'modal' }} />
             <Stack.Screen name="form-coach" options={{ presentation: 'modal' }} />
             <Stack.Screen name="form-coach-tracking" options={{ presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="program-history" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="ai-coaching-dashboard" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="progress-pictures" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="progress-gallery" options={{ presentation: 'modal' }} />
             <Stack.Screen name="oauth/callback" />
           </Stack>
           <StatusBar style="auto" />

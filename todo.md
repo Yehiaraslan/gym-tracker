@@ -1040,3 +1040,8 @@
 - [x] Workout volume heatmap: GitHub-style 12-week grid in Analytics tab, lime green intensity scale, session count + total/avg volume summary
 - [x] Smart deload trigger: detect 3 consecutive sessions with declining total volume, surface amber warning banner in Analytics tab with % drop
 - [x] Weekly protein adherence score: 7-day bar strip + % score card in Nutrition tab above MEALS, lime green/amber/red based on adherence level
+
+## Three Features — Zaki Schedule, Onboarding, Program History (Apr 10 2026)
+- [x] Onboarding questionnaire: fully implemented in onboarding.tsx with 3-step flow (goal/experience/equipment); triggered on first launch via AuthGate in _layout.tsx
+- [x] Zaki schedule modification: fully implemented in ai-coaching-dashboard.tsx with proposeSchedule, resetToDefault, timestamped history log; registered as Stack.Screen modal; accessible from Coach tab
+- [x] Program history screen: fully implemented in program-history.tsx using getAllPRs() + getSplitWorkouts(); registered as Stack.Screen modal; linked from Analytics tab via Program History card
