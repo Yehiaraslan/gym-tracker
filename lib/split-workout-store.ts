@@ -40,6 +40,13 @@ export interface SplitWorkoutSession {
   notes?: string; // Post-workout notes / physical sensations
   hasPRs?: boolean; // True if this session contains at least one new PR
   isDeload?: boolean; // True if this was a deload session
+  cardioLog?: {
+    type: string;           // e.g. 'Treadmill', 'Bike', 'Rowing', 'Jump Rope', 'Elliptical', 'Custom'
+    durationMinutes: number;
+    distanceKm?: number;
+    intensity: 'easy' | 'moderate' | 'hard';
+    notes?: string;
+  };
 }
 
 // ---- Storage ----

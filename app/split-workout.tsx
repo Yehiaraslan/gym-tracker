@@ -19,8 +19,10 @@ import {
   Easing,
   Share,
   StyleSheet,
+  ActivityIndicator,
 } from 'react-native';
 import ViewShot from 'react-native-view-shot';
+import * as ImagePicker from 'expo-image-picker';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ScreenContainer } from '@/components/screen-container';
@@ -269,8 +271,37 @@ export default function SplitWorkoutScreen() {
   const [zakiCheckInResult, setZakiCheckInResult] = useState<string | null>(null);
   const [zakiCheckInSessionId, setZakiCheckInSessionId] = useState<string | undefined>(undefined);
   const zakiMidWorkoutMutation = trpc.zaki.midWorkoutCheckIn.useMutation();
+  // Warm-up plan
+  const [warmupItems, setWarmupItems] = useState<{ name: string; sets: number; reps: string; note: string }[]>([]);
+  const [warmupLoading, setWarmupLoading] = useState(false);
+  const [warmupDone, setWarmupDone] = useState(false);
+  const [warmupChecked, setWarmupChecked] = useState<boolean[]>([]);
+  const zakiWarmupMutation = trpc.zaki.warmupPlan.useMutation();
+  // Cardio log
+  const CARDIO_TYPES = ['Treadmill', 'Bike', 'Rowing', 'Jump Rope', 'Elliptical', 'Custom'] as const;
+  type CardioIntensity = 'easy' | 'moderate' | 'hard';
+  const [cardioEnabled, setCardioEnabled] = useState(false);
+  const [cardioType, setCardioType] = useState<string>('Treadmill');
+  const [cardioDuration, setCardioDuration] = useState<string>('');
+  const [cardioDistance, setCardioDistance] = useState<string>('');
+  const [cardioIntensity, setCardioIntensity] = useState<CardioIntensity>('moderate');
+  const [cardioNotes, setCardioNotes] = useState<string>('');
+  // Zaki form review
+  const [formMediaMap, setFormMediaMap] = useState<Record<string, { uri: string; base64: string; type: 'photo' | 'video' }[]>>({});
+  const [formReviewModal, setFormReviewModal] = useState<{ exerciseName: string } | null>(null);
+  const [formReviewLoading, setFormReviewLoading] = useState(false);
+  const [formReviewResult, setFormReviewResult] = useState<string | null>(null);
+  const formReviewMutation = trpc.zaki.formReview.useMutation();
 
-  // Exercise swap
+  // Zaki equipment verify
+  const [equipVerifyModal, setEquipVerifyModal] = useState<{ exerciseIndex: number; exerciseName: string } | null>(null);
+  const [equipImageUri, setEquipImageUri] = useState<string | null>(null);
+  const [equipImageBase64, setEquipImageBase64] = useState<string | null>(null);
+  const [equipVerifyLoading, setEquipVerifyLoading] = useState(false);
+  const [equipVerifyResult, setEquipVerifyResult] = useState<{ suitable: boolean; message: string } | null>(null);
+  const equipVerifyMutation = trpc.zaki.equipmentVerify.useMutation();
+
+  // Exercise swapp
   const [showSwapModal, setShowSwapModal] = useState(false);
   const [swapTargetIndex, setSwapTargetIndex] = useState<number | null>(null);
   const [swapAlternatives, setSwapAlternatives] = useState<AlternativeExercise[]>([]);
@@ -325,6 +356,93 @@ export default function SplitWorkoutScreen() {
     setShowSwapModal(false);
     setSwapTargetIndex(null);
     setSwapOriginalExercise(null);
+  };
+
+  // ── Form Review handlers ────────────────────────────────
+  const handleAddFormMedia = async (exerciseName: string, source: 'camera' | 'library') => {
+    const permFn = source === 'camera'
+      ? ImagePicker.requestCameraPermissionsAsync
+      : ImagePicker.requestMediaLibraryPermissionsAsync;
+    const { status } = await permFn();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', source === 'camera' ? 'Allow camera access.' : 'Allow photo/video access.');
+      return;
+    }
+    const launchFn = source === 'camera' ? ImagePicker.launchCameraAsync : ImagePicker.launchImageLibraryAsync;
+    const result = await launchFn({
+      mediaTypes: 'livePhotos',
+      quality: 0.6,
+      base64: true,
+      videoMaxDuration: 30,
+    });
+    if (!result.canceled && result.assets[0]) {
+      const asset = result.assets[0];
+      const isVideo = asset.type === 'video';
+      setFormMediaMap(prev => ({
+        ...prev,
+        [exerciseName]: [
+          ...(prev[exerciseName] ?? []),
+          { uri: asset.uri, base64: asset.base64 ?? '', type: isVideo ? 'video' : 'photo' },
+        ],
+      }));
+    }
+  };
+
+  const handleFormReview = async (exerciseName: string) => {
+    const media = formMediaMap[exerciseName];
+    if (!media || media.length === 0) return;
+    setFormReviewLoading(true);
+    setFormReviewResult(null);
+    try {
+      // Send first media item (photo or video) to the server
+      const firstMedia = media[0];
+      const isVideo = firstMedia.type === 'video';
+      const result = await formReviewMutation.mutateAsync({
+        exerciseName,
+        imageBase64: isVideo ? undefined : firstMedia.base64,
+        videoBase64: isVideo ? firstMedia.base64 : undefined,
+        mimeType: isVideo ? 'video/mp4' : 'image/jpeg',
+        setInfo: media.length > 1 ? `${media.length} media items attached` : undefined,
+      });
+      setFormReviewResult(result.feedback);
+    } catch {
+      setFormReviewResult('Zaki could not analyze the media. Please try again.');
+    } finally {
+      setFormReviewLoading(false);
+    }
+  };
+
+  // ── Equipment Verify handlers ─────────────────────────────
+  const handleEquipPickImage = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Allow camera access to snap the equipment.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({ quality: 0.7, base64: true });
+    if (!result.canceled && result.assets[0]) {
+      setEquipImageUri(result.assets[0].uri);
+      setEquipImageBase64(result.assets[0].base64 ?? null);
+      setEquipVerifyResult(null);
+    }
+  };
+
+  const handleEquipVerify = async () => {
+    if (!equipVerifyModal || !equipImageBase64) return;
+    setEquipVerifyLoading(true);
+    setEquipVerifyResult(null);
+    try {
+      const result = await equipVerifyMutation.mutateAsync({
+        targetExercise: equipVerifyModal.exerciseName,
+        imageBase64: equipImageBase64,
+      });
+      const suitable = result.verdict === 'yes' || result.verdict === 'partial';
+      setEquipVerifyResult({ suitable, message: result.feedback });
+    } catch {
+      setEquipVerifyResult({ suitable: false, message: 'Could not analyze. Try a clearer photo.' });
+    } finally {
+      setEquipVerifyLoading(false);
+    }
   };
 
   const handleZakiModification = async () => {
@@ -520,6 +638,28 @@ export default function SplitWorkoutScreen() {
       sets: [],
       skipped: false,
     })));
+    // Trigger Zaki warm-up generation
+    if (!warmupDone && warmupItems.length === 0) {
+      setWarmupLoading(true);
+      zakiWarmupMutation.mutate(
+        {
+          sessionType,
+          sessionName: sessionDisplayName,
+          exercises: exercises.map(e => e.name),
+          recoveryScore: recovery?.recoveryScore,
+        },
+        {
+          onSuccess: (data) => {
+            if (data.items && data.items.length > 0) {
+              setWarmupItems(data.items);
+              setWarmupChecked(data.items.map(() => false));
+            }
+            setWarmupLoading(false);
+          },
+          onError: () => setWarmupLoading(false),
+        },
+      );
+    }
   };
 
   const handleSetLogged = useCallback((exerciseIndex: number, weight: number, reps: number, rpe?: number) => {
@@ -677,6 +817,15 @@ export default function SplitWorkoutScreen() {
       totalVolume,
       hasPRs: prs.length > 0,
       isDeload,
+      ...(cardioEnabled && cardioDuration ? {
+        cardioLog: {
+          type: cardioType,
+          durationMinutes: parseInt(cardioDuration, 10) || 0,
+          distanceKm: cardioDistance ? parseFloat(cardioDistance) : undefined,
+          intensity: cardioIntensity,
+          notes: cardioNotes || undefined,
+        },
+      } : {}),
     };
 
     await saveSplitWorkout(session);
@@ -1528,6 +1677,115 @@ export default function SplitWorkoutScreen() {
       </View>
 
       <ScrollView ref={scrollRef} className="flex-1 px-4 pt-4" contentContainerStyle={{ paddingBottom: 120 }}>
+        {/* ── Zaki Warm-Up Block ── */}
+        {!warmupDone && (
+          <View
+            style={{
+              backgroundColor: '#0a7ea410',
+              borderWidth: 1.5,
+              borderColor: '#0a7ea440',
+              borderRadius: 20,
+              padding: 16,
+              marginBottom: 16,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text style={{ fontSize: 18 }}>🤖</Text>
+                <View>
+                  <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 14 }}>Zaki's Warm-Up</Text>
+                  <Text style={{ color: colors.cardMuted, fontSize: 11 }}>Tailored for {sessionDisplayName}</Text>
+                </View>
+              </View>
+              {warmupItems.length > 0 && (
+                <TouchableOpacity
+                  onPress={() => {
+                    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    setWarmupDone(true);
+                  }}
+                  style={{ backgroundColor: '#10B981', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 8 }}
+                >
+                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>Done ✓</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            {warmupLoading ? (
+              <View style={{ alignItems: 'center', paddingVertical: 16 }}>
+                <Text style={{ color: colors.cardMuted, fontSize: 13 }}>Generating warm-up...</Text>
+              </View>
+            ) : warmupItems.length === 0 ? (
+              <View style={{ alignItems: 'center', paddingVertical: 8 }}>
+                <Text style={{ color: colors.cardMuted, fontSize: 13 }}>No warm-up generated. Tap Skip to proceed.</Text>
+                <TouchableOpacity
+                  onPress={() => setWarmupDone(true)}
+                  style={{ marginTop: 8, paddingHorizontal: 16, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: colors.cardBorder }}
+                >
+                  <Text style={{ color: colors.cardMuted, fontSize: 13 }}>Skip Warm-Up</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={{ gap: 8 }}>
+                {warmupItems.map((item, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    onPress={() => {
+                      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setWarmupChecked(prev => {
+                        const next = [...prev];
+                        next[idx] = !next[idx];
+                        return next;
+                      });
+                    }}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 10,
+                      backgroundColor: warmupChecked[idx] ? '#10B98115' : colors.surface,
+                      borderRadius: 12,
+                      padding: 12,
+                      borderWidth: 1,
+                      borderColor: warmupChecked[idx] ? '#10B98140' : colors.cardBorder,
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: 24, height: 24, borderRadius: 12,
+                        backgroundColor: warmupChecked[idx] ? '#10B981' : 'transparent',
+                        borderWidth: 2,
+                        borderColor: warmupChecked[idx] ? '#10B981' : colors.cardMuted,
+                        alignItems: 'center', justifyContent: 'center',
+                      }}
+                    >
+                      {warmupChecked[idx] && <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>✓</Text>}
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Text style={{
+                          color: warmupChecked[idx] ? colors.cardMuted : colors.cardForeground,
+                          fontWeight: '600',
+                          fontSize: 14,
+                          textDecorationLine: warmupChecked[idx] ? 'line-through' : 'none',
+                        }}>
+                          {item.name}
+                        </Text>
+                        <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700' }}>
+                          {item.sets}×{item.reps}
+                        </Text>
+                      </View>
+                      <Text style={{ color: colors.cardMuted, fontSize: 12, marginTop: 2 }}>{item.note}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+                <TouchableOpacity
+                  onPress={() => setWarmupDone(true)}
+                  style={{ alignItems: 'center', paddingVertical: 6 }}
+                >
+                  <Text style={{ color: colors.cardMuted, fontSize: 12 }}>Skip warm-up →</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        )}
         {/* Rest timer card */}
         {isResting && (() => {
           const nextIdx = autoAdvanceToRef.current;
@@ -1729,9 +1987,25 @@ export default function SplitWorkoutScreen() {
                         style={{
                           width: 36, height: 36, borderRadius: 10,
                           backgroundColor: '#FF000015', alignItems: 'center', justifyContent: 'center',
+                          marginRight: 4,
                         }}
                       >
                         <IconSymbol name="play.fill" size={16} color="#FF0000" />
+                      </TouchableOpacity>
+                    )}
+                    {/* Zaki form review button */}
+                    {started && (
+                      <TouchableOpacity
+                        onPress={() => {
+                          setFormReviewModal({ exerciseName: ex.name });
+                          setFormReviewResult(null);
+                        }}
+                        style={{
+                          width: 36, height: 36, borderRadius: 10,
+                          backgroundColor: '#6366F115', alignItems: 'center', justifyContent: 'center',
+                        }}
+                      >
+                        <Text style={{ fontSize: 15 }}>{(formMediaMap[ex.name]?.length ?? 0) > 0 ? '📹' : '🤖'}</Text>
                       </TouchableOpacity>
                     )}
                   </View>
@@ -1843,6 +2117,157 @@ export default function SplitWorkoutScreen() {
             </View>
           );
         })}
+
+        {/* ── Optional Cardio Log ── */}
+        <View
+          style={{
+            backgroundColor: cardioEnabled ? '#8B5CF610' : colors.surface,
+            borderWidth: 1.5,
+            borderColor: cardioEnabled ? '#8B5CF640' : colors.cardBorder,
+            borderRadius: 20,
+            padding: 16,
+            marginBottom: 12,
+          }}
+        >
+          <TouchableOpacity
+            onPress={() => {
+              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setCardioEnabled(prev => !prev);
+            }}
+            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Text style={{ fontSize: 20 }}>🏃</Text>
+              <View>
+                <Text style={{ color: colors.cardForeground, fontWeight: '700', fontSize: 14 }}>Cardio Session</Text>
+                <Text style={{ color: colors.cardMuted, fontSize: 11 }}>Optional — log post-workout cardio</Text>
+              </View>
+            </View>
+            <View
+              style={{
+                width: 44, height: 26, borderRadius: 13,
+                backgroundColor: cardioEnabled ? '#8B5CF6' : colors.cardBorder,
+                justifyContent: 'center',
+                paddingHorizontal: 3,
+              }}
+            >
+              <View
+                style={{
+                  width: 20, height: 20, borderRadius: 10,
+                  backgroundColor: '#fff',
+                  alignSelf: cardioEnabled ? 'flex-end' : 'flex-start',
+                }}
+              />
+            </View>
+          </TouchableOpacity>
+
+          {cardioEnabled && (
+            <View style={{ marginTop: 14, gap: 12 }}>
+              {/* Cardio type selector */}
+              <View>
+                <Text style={{ color: colors.cardMuted, fontSize: 12, marginBottom: 6, fontWeight: '600' }}>TYPE</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                  {CARDIO_TYPES.map(t => (
+                    <TouchableOpacity
+                      key={t}
+                      onPress={() => setCardioType(t)}
+                      style={{
+                        paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
+                        backgroundColor: cardioType === t ? '#8B5CF6' : colors.surface,
+                        borderWidth: 1,
+                        borderColor: cardioType === t ? '#8B5CF6' : colors.cardBorder,
+                      }}
+                    >
+                      <Text style={{ color: cardioType === t ? '#fff' : colors.cardMuted, fontSize: 13, fontWeight: '600' }}>{t}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Duration + Distance row */}
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: colors.cardMuted, fontSize: 12, marginBottom: 4, fontWeight: '600' }}>DURATION (min)</Text>
+                  <TextInput
+                    value={cardioDuration}
+                    onChangeText={setCardioDuration}
+                    keyboardType="numeric"
+                    placeholder="30"
+                    placeholderTextColor={colors.cardMuted}
+                    returnKeyType="done"
+                    style={{
+                      backgroundColor: colors.surface, borderRadius: 12, padding: 12,
+                      borderWidth: 1, borderColor: colors.cardBorder,
+                      color: colors.cardForeground, fontSize: 16, fontWeight: '700',
+                    }}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: colors.cardMuted, fontSize: 12, marginBottom: 4, fontWeight: '600' }}>DISTANCE (km)</Text>
+                  <TextInput
+                    value={cardioDistance}
+                    onChangeText={setCardioDistance}
+                    keyboardType="decimal-pad"
+                    placeholder="5.0"
+                    placeholderTextColor={colors.cardMuted}
+                    returnKeyType="done"
+                    style={{
+                      backgroundColor: colors.surface, borderRadius: 12, padding: 12,
+                      borderWidth: 1, borderColor: colors.cardBorder,
+                      color: colors.cardForeground, fontSize: 16, fontWeight: '700',
+                    }}
+                  />
+                </View>
+              </View>
+
+              {/* Intensity selector */}
+              <View>
+                <Text style={{ color: colors.cardMuted, fontSize: 12, marginBottom: 6, fontWeight: '600' }}>INTENSITY</Text>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  {(['easy', 'moderate', 'hard'] as const).map(level => {
+                    const intensityColors: Record<string, string> = { easy: '#10B981', moderate: '#F59E0B', hard: '#EF4444' };
+                    const ic = intensityColors[level];
+                    return (
+                      <TouchableOpacity
+                        key={level}
+                        onPress={() => setCardioIntensity(level)}
+                        style={{
+                          flex: 1, paddingVertical: 8, borderRadius: 12, alignItems: 'center',
+                          backgroundColor: cardioIntensity === level ? ic + '20' : colors.surface,
+                          borderWidth: 1.5,
+                          borderColor: cardioIntensity === level ? ic : colors.cardBorder,
+                        }}
+                      >
+                        <Text style={{ color: cardioIntensity === level ? ic : colors.cardMuted, fontWeight: '700', fontSize: 13, textTransform: 'capitalize' }}>
+                          {level}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* Notes */}
+              <View>
+                <Text style={{ color: colors.cardMuted, fontSize: 12, marginBottom: 4, fontWeight: '600' }}>NOTES (optional)</Text>
+                <TextInput
+                  value={cardioNotes}
+                  onChangeText={setCardioNotes}
+                  placeholder="How did it feel?"
+                  placeholderTextColor={colors.cardMuted}
+                  multiline
+                  returnKeyType="done"
+                  style={{
+                    backgroundColor: colors.surface, borderRadius: 12, padding: 12,
+                    borderWidth: 1, borderColor: colors.cardBorder,
+                    color: colors.cardForeground, fontSize: 14,
+                    minHeight: 56, textAlignVertical: 'top',
+                  }}
+                />
+              </View>
+            </View>
+          )}
+        </View>
 
         {/* Finish button */}
         <TouchableOpacity
@@ -2055,6 +2480,25 @@ export default function SplitWorkoutScreen() {
                 </TouchableOpacity>
               ))
             )}
+            {/* Zaki equipment verify shortcut */}
+            {swapTargetIndex !== null && (
+              <TouchableOpacity
+                onPress={() => {
+                  const ex = exercises[swapTargetIndex];
+                  if (!ex) return;
+                  setShowSwapModal(false);
+                  setSwapOriginalExercise(null);
+                  setEquipImageUri(null);
+                  setEquipImageBase64(null);
+                  setEquipVerifyResult(null);
+                  setEquipVerifyModal({ exerciseIndex: swapTargetIndex, exerciseName: ex.name });
+                }}
+                style={{ marginTop: 4, backgroundColor: '#F59E0B15', borderRadius: 12, paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: '#F59E0B40', flexDirection: 'row', justifyContent: 'center', gap: 8 }}
+              >
+                <Text style={{ fontSize: 16 }}>📸</Text>
+                <Text style={{ color: '#F59E0B', fontWeight: '600', fontSize: 14 }}>Verify equipment with Zaki</Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity
               onPress={() => { setShowSwapModal(false); setSwapOriginalExercise(null); }}
               style={{ marginTop: 8, alignItems: 'center', paddingVertical: 12 }}
@@ -2064,6 +2508,135 @@ export default function SplitWorkoutScreen() {
           </View>
         </View>
        </Modal>
+
+      {/* ── Zaki Form Review Modal ── */}
+      <Modal
+        visible={formReviewModal !== null}
+        animationType="slide"
+        transparent
+        onRequestClose={() => { setFormReviewModal(null); setFormReviewResult(null); }}
+      >
+        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' }}>
+          <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 40, maxHeight: '85%' }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <Text style={{ fontSize: 18, fontWeight: '800', color: colors.cardForeground }}>🤖 Zaki Form Review</Text>
+              <TouchableOpacity onPress={() => { setFormReviewModal(null); setFormReviewResult(null); }}>
+                <Text style={{ color: colors.cardMuted, fontSize: 16 }}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            {formReviewModal && (
+              <Text style={{ fontSize: 14, color: colors.cardMuted, marginBottom: 16 }}>
+                {formReviewModal.exerciseName} — {(formMediaMap[formReviewModal.exerciseName]?.length ?? 0)} media attached
+              </Text>
+            )}
+            <ScrollView style={{ maxHeight: 300 }}>
+              {formReviewModal && (formMediaMap[formReviewModal.exerciseName] ?? []).map((m, idx) => (
+                <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8, backgroundColor: colors.background, borderRadius: 10, padding: 10 }}>
+                  <Text style={{ fontSize: 20 }}>{m.type === 'video' ? '🎬' : '📷'}</Text>
+                  <Text style={{ flex: 1, color: colors.cardForeground, fontSize: 13 }}>{m.type === 'video' ? 'Video clip' : 'Photo'} #{idx + 1}</Text>
+                  <TouchableOpacity onPress={() => {
+                    if (!formReviewModal) return;
+                    setFormMediaMap(prev => ({
+                      ...prev,
+                      [formReviewModal.exerciseName]: (prev[formReviewModal.exerciseName] ?? []).filter((_, fi) => fi !== idx),
+                    }));
+                  }}>
+                    <Text style={{ color: colors.error, fontSize: 13 }}>Remove</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </ScrollView>
+            {/* Add media buttons */}
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 12, marginBottom: 12 }}>
+              <TouchableOpacity
+                onPress={() => formReviewModal && handleAddFormMedia(formReviewModal.exerciseName, 'camera')}
+                style={{ flex: 1, backgroundColor: '#6366F115', borderRadius: 12, paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: '#6366F140', flexDirection: 'row', justifyContent: 'center', gap: 6 }}
+              >
+                <Text style={{ fontSize: 16 }}>📷</Text>
+                <Text style={{ color: '#6366F1', fontWeight: '600', fontSize: 13 }}>Camera</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => formReviewModal && handleAddFormMedia(formReviewModal.exerciseName, 'library')}
+                style={{ flex: 1, backgroundColor: '#10B98115', borderRadius: 12, paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: '#10B98140', flexDirection: 'row', justifyContent: 'center', gap: 6 }}
+              >
+                <Text style={{ fontSize: 16 }}>🖼️</Text>
+                <Text style={{ color: '#10B981', fontWeight: '600', fontSize: 13 }}>Gallery</Text>
+              </TouchableOpacity>
+            </View>
+            {/* Analyze button */}
+            <TouchableOpacity
+              onPress={() => formReviewModal && handleFormReview(formReviewModal.exerciseName)}
+              disabled={formReviewLoading || (formReviewModal ? (formMediaMap[formReviewModal.exerciseName]?.length ?? 0) === 0 : true)}
+              style={{ backgroundColor: '#6366F1', borderRadius: 12, paddingVertical: 14, alignItems: 'center', opacity: formReviewLoading ? 0.6 : 1, marginBottom: 12 }}
+            >
+              {formReviewLoading
+                ? <ActivityIndicator color="#fff" />
+                : <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>Analyze Form with Zaki</Text>
+              }
+            </TouchableOpacity>
+            {/* Result */}
+            {formReviewResult && (
+              <View style={{ backgroundColor: '#6366F108', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#6366F130' }}>
+                <Text style={{ color: colors.cardForeground, fontSize: 14, lineHeight: 22 }}>{formReviewResult}</Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Zaki Equipment Verify Modal ── */}
+      <Modal
+        visible={equipVerifyModal !== null}
+        animationType="slide"
+        transparent
+        onRequestClose={() => { setEquipVerifyModal(null); setEquipImageUri(null); setEquipImageBase64(null); setEquipVerifyResult(null); }}
+      >
+        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' }}>
+          <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 40 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <Text style={{ fontSize: 18, fontWeight: '800', color: colors.cardForeground }}>📸 Verify Equipment</Text>
+              <TouchableOpacity onPress={() => { setEquipVerifyModal(null); setEquipImageUri(null); setEquipImageBase64(null); setEquipVerifyResult(null); }}>
+                <Text style={{ color: colors.cardMuted, fontSize: 16 }}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            {equipVerifyModal && (
+              <Text style={{ fontSize: 13, color: colors.cardMuted, marginBottom: 16 }}>
+                Snap a photo of the machine. Zaki will confirm if it works for {equipVerifyModal.exerciseName}.
+              </Text>
+            )}
+            {/* Photo preview */}
+            {equipImageUri && (
+              <View style={{ marginBottom: 12, borderRadius: 12, overflow: 'hidden' }}>
+                <Image source={{ uri: equipImageUri }} style={{ width: '100%', height: 160, borderRadius: 12 }} contentFit="cover" />
+              </View>
+            )}
+            <TouchableOpacity
+              onPress={handleEquipPickImage}
+              style={{ backgroundColor: '#F59E0B15', borderRadius: 12, paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: '#F59E0B40', marginBottom: 12, flexDirection: 'row', justifyContent: 'center', gap: 8 }}
+            >
+              <Text style={{ fontSize: 18 }}>📷</Text>
+              <Text style={{ color: '#F59E0B', fontWeight: '600' }}>{equipImageUri ? 'Retake Photo' : 'Take Photo of Machine'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleEquipVerify}
+              disabled={equipVerifyLoading || !equipImageBase64}
+              style={{ backgroundColor: '#F59E0B', borderRadius: 12, paddingVertical: 14, alignItems: 'center', opacity: (equipVerifyLoading || !equipImageBase64) ? 0.5 : 1, marginBottom: 12 }}
+            >
+              {equipVerifyLoading
+                ? <ActivityIndicator color="#fff" />
+                : <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>Ask Zaki</Text>
+              }
+            </TouchableOpacity>
+            {/* Result */}
+            {equipVerifyResult && (
+              <View style={{ backgroundColor: equipVerifyResult.suitable ? '#10B98115' : '#EF444415', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: equipVerifyResult.suitable ? '#10B98140' : '#EF444440' }}>
+                <Text style={{ fontSize: 22, textAlign: 'center', marginBottom: 6 }}>{equipVerifyResult.suitable ? '✅' : '❌'}</Text>
+                <Text style={{ color: colors.cardForeground, fontSize: 14, lineHeight: 22, textAlign: 'center' }}>{equipVerifyResult.message}</Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
 
       {/* XP Level-Up Celebration */}
       <XPLevelUpOverlay

@@ -19,9 +19,7 @@ import { useColors } from '@/hooks/use-colors';
 import * as Haptics from 'expo-haptics';
 import {
   getExerciseHistory,
-  getFormCoachHistory,
   type ExerciseSetEntry,
-  type FormCoachSession,
 } from '@/lib/split-workout-store';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -249,72 +247,34 @@ function WorkoutSessionCard({
   );
 }
 
-// ── Form coach session card ───────────────────────────────────
-function FormCoachCard({ session }: { session: FormCoachSession }) {
-  const colors = useColors();
-  return (
-    <View style={[s.formCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
-      <View style={s.formCardHeader}>
-        <View style={{ flex: 1 }}>
-          <Text style={[s.sessionDate, { color: colors.cardForeground }]}>
-            {formatDisplayDate(session.date)}
-          </Text>
-          <Text style={[s.sessionType, { color: colors.cardMuted }]}>AI Form Coach</Text>
-        </View>
-        <GradeBadge grade={session.grade} score={session.formScore} />
-        <View style={s.statPill}>
-          <Text style={[s.statValue, { color: colors.cardForeground }]}>{session.reps}</Text>
-          <Text style={[s.statLabel, { color: colors.cardMuted }]}>Reps</Text>
-        </View>
-      </View>
-      {session.topIssues.length > 0 && (
-        <View style={s.issueList}>
-          {session.topIssues.slice(0, 2).map((issue, i) => (
-            <Text key={i} style={[s.issueText, { color: colors.cardMuted }]}>• {issue}</Text>
-          ))}
-        </View>
-      )}
-    </View>
-  );
-}
-
-// ── Helpers ───────────────────────────────────────────────────
+// ── Helpers─────────────────────────────────────────────
 function formatDisplayDate(iso: string): string {
   const [y, m, d] = iso.split('-').map(Number);
   const date = new Date(y, m - 1, d);
   return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
-// ── Main screen ───────────────────────────────────────────────
-type TabId = 'weight' | 'form';
-
+/// ── Main screen ──────────────────────────────────────────────
 export default function RepHistoryScreen() {
   const colors = useColors();
   const router = useRouter();
   const params = useLocalSearchParams<{ exercise: string; exerciseType?: string }>();
   const exerciseName = params.exercise ?? '';
-  const exerciseType = params.exerciseType ?? '';
 
   const [loading, setLoading] = useState(true);
   const [weightHistory, setWeightHistory] = useState<ExerciseSetEntry[]>([]);
-  const [formHistory, setFormHistory] = useState<FormCoachSession[]>([]);
-  const [activeTab, setActiveTab] = useState<TabId>('weight');
 
   useEffect(() => {
     let mounted = true;
     (async () => {
-      const [wh, fh] = await Promise.all([
-        getExerciseHistory(exerciseName, 30),
-        exerciseType ? getFormCoachHistory(exerciseType, 30) : Promise.resolve([]),
-      ]);
+      const wh = await getExerciseHistory(exerciseName, 30);
       if (mounted) {
         setWeightHistory(wh);
-        setFormHistory(fh);
         setLoading(false);
       }
     })();
     return () => { mounted = false; };
-  }, [exerciseName, exerciseType]);
+  }, [exerciseName]);
 
   // Build chart data
   const e1rmChartData = useMemo(
@@ -344,25 +304,11 @@ export default function RepHistoryScreen() {
     [weightHistory],
   );
 
-  const formScoreChartData = useMemo(
-    () =>
-      formHistory
-        .slice()
-        .reverse()
-        .map(f => ({ date: f.date, value: f.formScore })),
-    [formHistory],
-  );
-
   // Summary stats
   const bestE1RM = weightHistory.length > 0 ? Math.max(...weightHistory.map(e => e.e1rm)) : 0;
   const bestWeight = weightHistory.length > 0 ? Math.max(...weightHistory.map(e => e.bestWeightKg)) : 0;
-  const avgFormScore =
-    formHistory.length > 0
-      ? Math.round(formHistory.reduce((sum, f) => sum + f.formScore, 0) / formHistory.length)
-      : null;
 
   const hasWeightData = weightHistory.length > 0;
-  const hasFormData = formHistory.length > 0;
 
   return (
     <ScreenContainer containerClassName="bg-background">
@@ -396,7 +342,7 @@ export default function RepHistoryScreen() {
         ) : (
           <>
             {/* Summary stats row */}
-            {(hasWeightData || hasFormData) && (
+            {hasWeightData && (
               <View style={[s.summaryRow, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
                 {hasWeightData && (
                   <>
@@ -422,51 +368,12 @@ export default function RepHistoryScreen() {
                     </View>
                   </>
                 )}
-                {hasFormData && hasWeightData && (
-                  <View style={[s.summaryDivider, { backgroundColor: colors.cardBorder }]} />
-                )}
-                {hasFormData && (
-                  <View style={s.summaryItem}>
-                    <Text style={[s.summaryValue, { color: '#4ADE80' }]}>
-                      {avgFormScore}
-                    </Text>
-                    <Text style={[s.summaryLabel, { color: colors.cardMuted }]}>Avg Form</Text>
-                  </View>
-                )}
-              </View>
-            )}
 
-            {/* Tab switcher */}
-            {hasWeightData && hasFormData && (
-              <View style={[s.tabBar, { backgroundColor: colors.surface }]}>
-                {(['weight', 'form'] as TabId[]).map(tab => (
-                  <TouchableOpacity
-                    key={tab}
-                    style={[
-                      s.tabBtn,
-                      activeTab === tab && { backgroundColor: colors.primary },
-                    ]}
-                    onPress={() => {
-                      setActiveTab(tab);
-                      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    }}
-                  >
-                    <Text
-                      style={[
-                        s.tabText,
-                        { color: activeTab === tab ? '#fff' : colors.cardMuted },
-                      ]}
-                    >
-                      {tab === 'weight' ? '🏋️ Weight & Reps' : '🤖 Form Scores'}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
               </View>
             )}
 
             {/* Weight & Reps tab */}
-            {(activeTab === 'weight' || !hasFormData) && (
-              <>
+            <>
                 {/* Charts */}
                 {e1rmChartData.length >= 2 && (
                   <View style={s.chartsSection}>
@@ -508,44 +415,9 @@ export default function RepHistoryScreen() {
                   />
                 )}
               </>
-            )}
-
-            {/* Form Scores tab */}
-            {activeTab === 'form' && (
-              <>
-                {formScoreChartData.length >= 2 && (
-                  <View style={s.chartsSection}>
-                    <MiniChart
-                      data={formScoreChartData}
-                      color="#4ADE80"
-                      label="Form Score (0–100)"
-                    />
-                  </View>
-                )}
-
-                {hasFormData ? (
-                  <>
-                    <Text style={[s.sectionTitle, { color: colors.cardMuted }]}>
-                      COACHING SESSIONS ({formHistory.length})
-                    </Text>
-                    {formHistory.map((session, i) => (
-                      <FormCoachCard key={session.id + i} session={session} />
-                    ))}
-                  </>
-                ) : (
-                  <EmptyState
-                    icon="🤖"
-                    title="No form sessions yet"
-                    subtitle="Use the AI Form Coach to track your form score over time."
-                    color={colors.cardMuted}
-                    fg={colors.cardForeground}
-                  />
-                )}
-              </>
-            )}
 
             {/* If no data at all */}
-            {!hasWeightData && !hasFormData && !loading && (
+            {!hasWeightData && !loading && (
               <EmptyState
                 icon="📊"
                 title="No history yet"

@@ -218,3 +218,29 @@ export async function getZakiWorkoutModification(context: {
   const result = await askZaki(lines.join('\n'));
   return result.response;
 }
+
+/**
+ * Call a vision-capable LLM model with an optional base64 image.
+ * Used for: nutrition photo logging, form review, equipment verification.
+ */
+export async function callVisionModel(
+  prompt: string,
+  imageBase64?: string,
+  mimeType: string = 'image/jpeg',
+): Promise<{ response: string }> {
+  const { invokeLLM } = await import('./_core/llm.js');
+  const content: Array<{ type: string; text?: string; image_url?: { url: string } }> = [
+    { type: 'text', text: prompt },
+  ];
+  if (imageBase64) {
+    content.push({
+      type: 'image_url',
+      image_url: { url: `data:${mimeType};base64,${imageBase64}` },
+    });
+  }
+  const result = await invokeLLM({
+    messages: [{ role: 'user', content: content as any }],
+  });
+  const response = result.choices?.[0]?.message?.content ?? '';
+  return { response: typeof response === 'string' ? response : JSON.stringify(response) };
+}

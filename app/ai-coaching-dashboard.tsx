@@ -15,7 +15,10 @@ import {
   Platform,
   TextInput,
   KeyboardAvoidingView,
+  Image,
+  Alert,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -38,6 +41,7 @@ import { getDeviceId } from '@/lib/device-id';
 import { useAudioRecorder, RecordingPresets, requestRecordingPermissionsAsync } from 'expo-audio';
 import * as FileSystem from 'expo-file-system/legacy';
 import { addCustomExercise, addCustomSession, parseExerciseCommands, type CustomExercise } from '@/lib/custom-exercises-store';
+import { addFoodEntry } from '@/lib/nutrition-store';
 
 // ── Storage keys ──────────────────────────────────────────────
 const DAILY_CACHE_KEY = '@zaki_daily_cache';
@@ -82,7 +86,17 @@ export default function AICoachingDashboard() {
   const scrollRef = useRef<ScrollView>(null);
 
   // ── Tab state ─────────────────────────────────────────────
-  const [activeTab, setActiveTab] = useState<'daily' | 'debrief' | 'chat' | 'weekly'>('daily');
+  const [activeTab, setActiveTab] = useState<'daily' | 'debrief' | 'chat' | 'weekly' | 'nutrition'>('daily');
+
+  // ── Nutrition logging state ───────────────────────────────
+  const [nutritionInput, setNutritionInput] = useState('');
+  const [nutritionImageUri, setNutritionImageUri] = useState<string | null>(null);
+  const [nutritionImageBase64, setNutritionImageBase64] = useState<string | null>(null);
+  const [nutritionLoading, setNutritionLoading] = useState(false);
+  const [nutritionParsed, setNutritionParsed] = useState<{ foodName: string; protein: number; carbs: number; fat: number; calories: number; mealNumber: number; date: string } | null>(null);
+  const [nutritionSaved, setNutritionSaved] = useState(false);
+  const [nutritionError, setNutritionError] = useState<string | null>(null);
+  const logNutritionMutation = trpc.zaki.logNutrition.useMutation();
 
   // ── Daily coaching state ──────────────────────────────────
   const [dailyResponse, setDailyResponse] = useState<string | null>(null);
@@ -771,7 +785,93 @@ export default function AICoachingDashboard() {
     { key: 'debrief' as const, label: 'Debrief', icon: '📓' },
     { key: 'chat' as const, label: 'Ask Zaki', icon: '💬' },
     { key: 'weekly' as const, label: 'Weekly', icon: '📊' },
+    { key: 'nutrition' as const, label: 'Nutrition', icon: '🥗' },
   ];
+
+  const handleNutritionPickImage = useCallback(async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Allow photo access to log meals from photos.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: 'images',
+      quality: 0.7,
+      base64: true,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setNutritionImageUri(result.assets[0].uri);
+      setNutritionImageBase64(result.assets[0].base64 ?? null);
+      setNutritionParsed(null);
+      setNutritionSaved(false);
+    }
+  }, []);
+
+  const handleNutritionCamera = useCallback(async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Allow camera access to snap meal photos.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      quality: 0.7,
+      base64: true,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setNutritionImageUri(result.assets[0].uri);
+      setNutritionImageBase64(result.assets[0].base64 ?? null);
+      setNutritionParsed(null);
+      setNutritionSaved(false);
+    }
+  }, []);
+
+  const handleNutritionLog = useCallback(async () => {
+    if (!nutritionInput.trim() && !nutritionImageBase64) return;
+    setNutritionLoading(true);
+    setNutritionParsed(null);
+    setNutritionSaved(false);
+    setNutritionError(null);
+    try {
+      const today = new Date().toLocaleDateString('en-CA');
+      const result = await logNutritionMutation.mutateAsync({
+        description: nutritionInput.trim(),
+        imageBase64: nutritionImageBase64 ?? undefined,
+        mealNumber: 1,
+        date: today,
+        zakiSessionId: zakiSessionIdRef.current,
+      });
+      if (result.success && result.entry) {
+        setNutritionParsed(result.entry as any);
+      } else {
+        setNutritionError(result.error ?? 'Could not parse meal. Try describing it more specifically.');
+      }
+    } catch (err) {
+      setNutritionError('Network error. Please try again.');
+    } finally {
+      setNutritionLoading(false);
+    }
+  }, [nutritionInput, nutritionImageBase64, logNutritionMutation]);
+
+  const handleNutritionSave = useCallback(async () => {
+    if (!nutritionParsed) return;
+    try {
+      await addFoodEntry(nutritionParsed.date, {
+        mealNumber: nutritionParsed.mealNumber as 1|2|3|4|5,
+        foodName: nutritionParsed.foodName,
+        protein: nutritionParsed.protein,
+        carbs: nutritionParsed.carbs,
+        fat: nutritionParsed.fat,
+        calories: nutritionParsed.calories,
+      });
+      setNutritionSaved(true);
+      setNutritionInput('');
+      setNutritionImageUri(null);
+      setNutritionImageBase64(null);
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {
+      setNutritionError('Failed to save meal. Please try again.');
+    }
+  }, [nutritionParsed]);
 
   return (
     <ScreenContainer>
@@ -1476,6 +1576,125 @@ export default function AICoachingDashboard() {
                     )}
                   </View>
                   </>
+                  )}
+              </View>
+            )}
+            {activeTab === 'nutrition' && (
+              <View style={styles.tabContent}>
+                {/* Header */}
+                <View style={[styles.responseCard, { backgroundColor: '#10B98108', borderColor: '#10B98130', marginBottom: 12 }]}>
+                  <View style={styles.zakiHeaderRow}>
+                    <View style={[styles.zakiAvatarLg, { backgroundColor: '#10B98120' }]}>
+                      <Text style={{ fontSize: 24 }}>🥗</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.zakiNameLg, { color: '#10B981' }]}>Log Meal with Zaki</Text>
+                      <Text style={[styles.zakiTimestamp, { color: colors.cardMuted }]}>Describe what you ate or snap a photo</Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Photo preview */}
+                {nutritionImageUri && (
+                  <View style={{ marginBottom: 12, borderRadius: 12, overflow: 'hidden', position: 'relative' }}>
+                    <Image source={{ uri: nutritionImageUri }} style={{ width: '100%', height: 180, borderRadius: 12 }} resizeMode="cover" />
+                    <TouchableOpacity
+                      onPress={() => { setNutritionImageUri(null); setNutritionImageBase64(null); }}
+                      style={{ position: 'absolute', top: 8, right: 8, backgroundColor: '#00000080', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 4 }}
+                    >
+                      <Text style={{ color: '#fff', fontSize: 12 }}>✕ Remove</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* Camera / Gallery buttons */}
+                <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+                  <TouchableOpacity
+                    onPress={handleNutritionCamera}
+                    style={[styles.actionBtn, { flex: 1, backgroundColor: '#10B98115', borderColor: '#10B98140' }]}
+                  >
+                    <Text style={{ fontSize: 18 }}>📷</Text>
+                    <Text style={{ color: '#10B981', fontSize: 13, fontWeight: '600' }}>Take Photo</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={handleNutritionPickImage}
+                    style={[styles.actionBtn, { flex: 1, backgroundColor: '#6366F115', borderColor: '#6366F140' }]}
+                  >
+                    <Text style={{ fontSize: 18 }}>🖼️</Text>
+                    <Text style={{ color: '#6366F1', fontSize: 13, fontWeight: '600' }}>From Gallery</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Text input */}
+                <TextInput
+                  value={nutritionInput}
+                  onChangeText={setNutritionInput}
+                  placeholder="e.g. 200g grilled chicken, rice, salad..."
+                  placeholderTextColor={colors.cardMuted}
+                  multiline
+                  style={[styles.chatInput, { color: colors.cardForeground, backgroundColor: colors.background, borderColor: colors.cardBorder, minHeight: 72, marginBottom: 12, borderRadius: 12, padding: 12 }]}
+                  returnKeyType="done"
+                />
+
+                {/* Analyze button */}
+                <TouchableOpacity
+                  onPress={handleNutritionLog}
+                  disabled={nutritionLoading || (!nutritionInput.trim() && !nutritionImageBase64)}
+                  style={[styles.primaryBtn, { backgroundColor: '#10B981', opacity: (nutritionLoading || (!nutritionInput.trim() && !nutritionImageBase64)) ? 0.5 : 1, marginBottom: 16 }]}
+                >
+                  {nutritionLoading ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>🤖 Analyze with Zaki</Text>
+                  )}
+                </TouchableOpacity>
+
+                {/* Error */}
+                {nutritionError && (
+                  <View style={[styles.errorCard, { backgroundColor: '#FEE2E2', marginBottom: 12 }]}>
+                    <Text style={{ color: '#991B1B', fontSize: 13 }}>{nutritionError}</Text>
+                  </View>
+                )}
+
+                {/* Parsed result card */}
+                {nutritionParsed && !nutritionSaved && (
+                  <View style={[styles.responseCard, { backgroundColor: '#10B98108', borderColor: '#10B98130', marginBottom: 12 }]}>
+                    <Text style={[styles.zakiNameLg, { color: '#10B981', marginBottom: 8 }]}>{nutritionParsed.foodName}</Text>
+                    <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+                      {[
+                        { label: 'Calories', value: `${nutritionParsed.calories}`, color: '#F59E0B' },
+                        { label: 'Protein', value: `${nutritionParsed.protein}g`, color: '#6366F1' },
+                        { label: 'Carbs', value: `${nutritionParsed.carbs}g`, color: '#10B981' },
+                        { label: 'Fat', value: `${nutritionParsed.fat}g`, color: '#F97316' },
+                      ].map(m => (
+                        <View key={m.label} style={{ flex: 1, alignItems: 'center', backgroundColor: `${m.color}15`, borderRadius: 8, paddingVertical: 8 }}>
+                          <Text style={{ color: m.color, fontWeight: '800', fontSize: 15 }}>{m.value}</Text>
+                          <Text style={{ color: colors.cardMuted, fontSize: 10, marginTop: 2 }}>{m.label}</Text>
+                        </View>
+                      ))}
+                    </View>
+                    <TouchableOpacity
+                      onPress={handleNutritionSave}
+                      style={[styles.primaryBtn, { backgroundColor: '#10B981' }]}
+                    >
+                      <Text style={{ color: '#fff', fontWeight: '700' }}>✓ Add to Nutrition Log</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* Saved confirmation */}
+                {nutritionSaved && (
+                  <View style={[styles.responseCard, { backgroundColor: '#10B98115', borderColor: '#10B98140', alignItems: 'center', paddingVertical: 24 }]}>
+                    <Text style={{ fontSize: 40, marginBottom: 8 }}>✅</Text>
+                    <Text style={{ color: '#10B981', fontWeight: '700', fontSize: 16 }}>Meal logged!</Text>
+                    <Text style={{ color: colors.cardMuted, fontSize: 13, marginTop: 4 }}>Check the Nutrition tab to see today's totals.</Text>
+                    <TouchableOpacity
+                      onPress={() => { setNutritionSaved(false); setNutritionParsed(null); }}
+                      style={{ marginTop: 16 }}
+                    >
+                      <Text style={{ color: '#10B981', fontWeight: '600' }}>Log another meal</Text>
+                    </TouchableOpacity>
+                  </View>
                 )}
               </View>
             )}
@@ -1485,7 +1704,6 @@ export default function AICoachingDashboard() {
     </ScreenContainer>
   );
 }
-
 const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
@@ -1737,5 +1955,20 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     alignItems: 'center',
     borderWidth: 1,
+  },
+  actionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: 12,
+    paddingVertical: 12,
+    borderWidth: 1,
+  },
+  primaryBtn: {
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

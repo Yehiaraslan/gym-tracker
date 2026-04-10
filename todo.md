@@ -1110,3 +1110,47 @@
 - [x] Show oldest vs most recent photo of same category
 - [x] Implement draggable divider slider
 - [x] Support Front / Back / Side categories
+
+## Zaki Warm-Up Generator
+- [x] LLM call on workout start to generate session-specific warm-up (3-5 exercises)
+- [x] Warm-up block shown at top of workout screen before main exercises
+- [x] Each warm-up item shows name, sets/reps/duration, and purpose note
+- [x] Mark warm-up as done to collapse block and proceed to main workout
+- [x] Cache warm-up per session type to avoid repeated API calls
+
+## Optional Cardio Log at End of Workout
+- [x] Cardio section appears after last exercise in the workout screen
+- [x] Supports common cardio types: Treadmill, Bike, Rowing, Jump Rope, Elliptical, Custom
+- [x] Log: type, duration (minutes), distance (optional), intensity (easy/moderate/hard)
+- [x] Cardio data saved with the workout session
+- [x] Cardio summary shown in post-workout summary card
+
+## Remove AI Form Coach
+- [x] Remove form coach tab from tab bar
+- [x] Remove form coach screen and all related components
+- [x] Remove form coach routes from navigation
+- [x] Remove form coach imports and references across codebase
+
+## Zaki Nutrition Logging via Text
+- [x] Add "Tell Zaki what you ate" input in Zaki AI Coaching dashboard
+- [x] LLM parses meal description → protein, carbs, fat, calories
+- [x] Auto-logs to nutrition store with current date/time
+- [x] Shows parsed meal card for confirmation before saving
+
+## Zaki Nutrition Logging via Photo
+- [x] Add photo upload button in Zaki nutrition section
+- [x] Send image to vision-capable LLM for food recognition
+- [x] LLM estimates macros and calories from photo
+- [x] Shows parsed meal card with date/time for confirmation before saving
+
+## Zaki Form Review (Photo/Video per Exercise)
+- [x] Add optional camera/gallery button (🤖 icon) to each exercise card in split-workout
+- [x] Allow attaching photo or short video per exercise (stored locally)
+- [x] Zaki analyzes attached media and returns per-exercise form feedback
+- [x] Display form review results in a bottom sheet modal
+
+## Zaki Equipment Verification (Swap Exercise)
+- [x] Add camera button to the exercise swap/substitute sheet
+- [x] User snaps photo of machine/equipment
+- [x] Zaki confirms if it matches the target exercise or suggests adjustments
+- [x] Show Zaki's confirmation inline in the swap sheet

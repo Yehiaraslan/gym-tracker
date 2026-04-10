@@ -911,6 +911,153 @@ export const appRouter = router({
 
         return { analysis, analyzedAt: new Date().toISOString() };
       }),
+
+    // ── Zaki Warm-Up Plan Generator ──
+    warmupPlan: publicProcedure
+      .input(z.object({
+        sessionType: z.string(),
+        sessionName: z.string(),
+        exercises: z.array(z.string()),
+        recoveryScore: z.number().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const prompt = [
+          '**WARM-UP PLAN — GYM TRACKER**',
+          '',
+          `Session: ${input.sessionName} (${input.sessionType})`,
+          `Main exercises today: ${input.exercises.slice(0, 6).join(', ')}`,
+          input.recoveryScore != null ? `WHOOP Recovery: ${Math.round(input.recoveryScore)}%` : '',
+          '',
+          'Generate a targeted warm-up routine (4–6 items) that:',
+          '- Activates the primary muscle groups for this specific session',
+          '- Includes mobility, activation, and light movement drills',
+          '- Takes 8–12 minutes total',
+          '- Scales intensity if recovery is low (<50%)',
+          '',
+          'Respond ONLY with a raw JSON array (no markdown, no explanation):',
+          '[{"name":"...","sets":2,"reps":"10","note":"..."}]',
+        ].filter(Boolean).join('\n');
+
+        const result = await zaki.askZaki(prompt);
+        let items: { name: string; sets: number; reps: string; note: string }[] = [];
+        try {
+          const raw = result.response.trim().replace(/^```[\w]*\n?/, '').replace(/\n?```$/, '').trim();
+          items = JSON.parse(raw);
+        } catch {
+          const match = result.response.match(/\[\s*\{[\s\S]*?\}\s*\]/);
+          if (match) { try { items = JSON.parse(match[0]); } catch { /* ignore */ } }
+        }
+        return { items, zakiSessionId: result.zakiSessionId };
+      }),
+
+    logNutrition: publicProcedure
+      .input(z.object({
+        description: z.string(),
+        imageBase64: z.string().optional(),
+        mealNumber: z.number().min(1).max(5),
+        date: z.string(),
+        zakiSessionId: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const hasImage = !!input.imageBase64;
+        const hasText = !!input.description.trim();
+        const prompt = [
+          '**NUTRITION LOG — GYM TRACKER**',
+          '',
+          hasImage ? 'Analyze the food photo provided and identify all visible food items.' : '',
+          hasText ? `User description: "${input.description}"` : '',
+          '',
+          'Estimate the macronutrients for this meal. Be realistic and specific.',
+          'Respond ONLY with raw JSON (no markdown, no explanation):',
+          '{"foodName":"...","protein":25,"carbs":40,"fat":12,"calories":370}',
+          '',
+          'Rules:',
+          '- foodName: concise meal name (max 40 chars)',
+          '- protein/carbs/fat: grams as integers',
+          '- calories: integer (use 4*protein + 4*carbs + 9*fat if unsure)',
+          '- If multiple items, sum them all into one entry',
+        ].filter(Boolean).join('\n');
+        let response: string;
+        if (hasImage) {
+          response = (await zaki.callVisionModel(prompt, input.imageBase64)).response;
+        } else {
+          const result = await zaki.askZaki(prompt, input.zakiSessionId);
+          response = result.response;
+        }
+        let entry: { foodName: string; protein: number; carbs: number; fat: number; calories: number } | null = null;
+        try {
+          const raw = response.trim().replace(/^```[\w]*\n?/, '').replace(/\n?```$/, '').trim();
+          entry = JSON.parse(raw);
+        } catch {
+          const match = response.match(/\{[\s\S]*?\}/);
+          if (match) { try { entry = JSON.parse(match[0]); } catch { /* ignore */ } }
+        }
+        if (!entry) return { success: false, error: 'Could not parse nutrition data', entry: null };
+        entry.protein = Math.max(0, Math.round(entry.protein));
+        entry.carbs = Math.max(0, Math.round(entry.carbs));
+        entry.fat = Math.max(0, Math.round(entry.fat));
+        entry.calories = Math.max(0, Math.round(entry.calories));
+        return { success: true, entry: { ...entry, mealNumber: input.mealNumber as 1|2|3|4|5, date: input.date }, error: null };
+      }),
+
+    formReview: publicProcedure
+      .input(z.object({
+        exerciseName: z.string(),
+        imageBase64: z.string().optional(),
+        videoBase64: z.string().optional(),
+        mimeType: z.string().default('image/jpeg'),
+        setInfo: z.string().optional(),
+        zakiSessionId: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const prompt = [
+          `**FORM REVIEW — ${input.exerciseName.toUpperCase()}**`,
+          '',
+          input.setInfo ? `Set context: ${input.setInfo}` : '',
+          '',
+          'Analyze the form shown in this media. Provide:',
+          '1. OVERALL ASSESSMENT (1 sentence)',
+          '2. WHAT IS GOOD (1-2 bullet points)',
+          '3. WHAT TO FIX (1-2 specific corrections with cues)',
+          '4. SAFETY CONCERNS (if any)',
+          '',
+          'Be concise, specific, and coach-like. Reference body parts and angles.',
+        ].filter(Boolean).join('\n');
+        const media = input.imageBase64 || input.videoBase64;
+        let response: string;
+        if (media) {
+          response = (await zaki.callVisionModel(prompt, media, input.mimeType)).response;
+        } else {
+          const result = await zaki.askZaki(`Form review requested for ${input.exerciseName}. No media provided — please give general form cues for this exercise.`, input.zakiSessionId);
+          response = result.response;
+        }
+        return { feedback: response };
+      }),
+
+    equipmentVerify: publicProcedure
+      .input(z.object({
+        targetExercise: z.string(),
+        imageBase64: z.string(),
+        mimeType: z.string().default('image/jpeg'),
+      }))
+      .mutation(async ({ input }) => {
+        const prompt = [
+          `**EQUIPMENT VERIFICATION — GYM TRACKER**`,
+          '',
+          `The user wants to do: **${input.targetExercise}**`,
+          'They have taken a photo of the available equipment/machine.',
+          '',
+          'Analyze the equipment in the photo and answer:',
+          '1. VERDICT: Can this equipment be used for the target exercise? (Yes / Partial / No)',
+          '2. EQUIPMENT IDENTIFIED: What machine/equipment is shown?',
+          '3. RECOMMENDATION: If yes, confirm setup. If partial, explain modification. If no, suggest the closest alternative exercise for this equipment.',
+          '',
+          'Be direct. 3-4 sentences max.',
+        ].join('\n');
+        const response = (await zaki.callVisionModel(prompt, input.imageBase64, input.mimeType)).response;
+        const verdict = response.toLowerCase().includes('yes') ? 'yes' : response.toLowerCase().includes('partial') ? 'partial' : 'no';
+        return { verdict, feedback: response };
+      }),
   }),
 
   aiCoaching: router({
