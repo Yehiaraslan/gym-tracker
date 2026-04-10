@@ -152,6 +152,8 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   // Custom program state — loaded on focus, used for dynamic display names/colors
   const [customProgram, setCustomProgram] = useState<CustomProgram | null>(null);
+  // Body weight sparkline data (last 30 days)
+  const [weightEntries, setWeightEntries] = useState<{ date: string; weight: number }[]>([]);
 
   // Load deviceId once on mount
   useEffect(() => { getDeviceId().then(setDeviceId); }, []);
@@ -239,6 +241,21 @@ export default function HomeScreen() {
       setRecommendations(recs);
       setWorkoutsThisWeek(weekCount);
       setResumableWorkout(resumable);
+      // Load body weight entries for sparkline
+      try {
+        const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+        const raw = await AsyncStorage.getItem('gym_store');
+        if (raw) {
+          const store = JSON.parse(raw);
+          const entries: { date: string; weight: number }[] = (store.weightEntries || []);
+          const cutoff = new Date();
+          cutoff.setDate(cutoff.getDate() - 30);
+          const recent = entries
+            .filter(e => new Date(e.date) >= cutoff)
+            .sort((a, b) => a.date.localeCompare(b.date));
+          setWeightEntries(recent);
+        }
+      } catch {}
       // Detect missed sessions in the last 7 days (using Zaki's schedule override if set)
       const completedDates = workouts.filter(w => w.completed).map(w => w.date);
       const activeSchedule = await getActiveSchedule();
@@ -391,6 +408,31 @@ export default function HomeScreen() {
             {userProfile?.fitnessGoal ? (
               <Text style={{ color: screenMut, fontSize: 12, textTransform: 'capitalize' }}>{userProfile.fitnessGoal.replace('_', ' ')}</Text>
             ) : null}
+            {/* Body weight sparkline */}
+            {weightEntries.length >= 3 && (() => {
+              const W = 90, H = 24;
+              const weights = weightEntries.map(e => e.weight);
+              const minW = Math.min(...weights);
+              const maxW = Math.max(...weights);
+              const range = maxW - minW || 1;
+              const pts = weights.map((w, i) => {
+                const x = (i / (weights.length - 1)) * W;
+                const y = H - ((w - minW) / range) * (H - 4) - 2;
+                return `${x.toFixed(1)},${y.toFixed(1)}`;
+              }).join(' ');
+              const latest = weights[weights.length - 1];
+              const first = weights[0];
+              const diff = latest - first;
+              const trendColor = diff < -0.3 ? '#C8F53C' : diff > 0.3 ? '#EF4444' : '#94A3B8';
+              return (
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 6 }}>
+                  <Svg width={W} height={H}>
+                    <Polyline points={pts} fill="none" stroke={trendColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </Svg>
+                  <Text style={{ color: trendColor, fontSize: 11, fontWeight: '600' }}>{latest}kg</Text>
+                </View>
+              );
+            })()}
           </View>
           {/* Sync status pill */}
           <TouchableOpacity

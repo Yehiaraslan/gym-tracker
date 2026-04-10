@@ -14,6 +14,7 @@ import { invokeLLM } from "./_core/llm";
 import { storagePut } from "./storage";
 import { checkAndNotifyStagnation } from "./stagnationScheduler";
 import { ENV } from './_core/env';
+import { transcribeAudio } from './_core/voiceTranscription';
 import * as dataSync from "./data-sync-service";
 import * as db from "./db";
 import * as pinIdentity from "./pin-identity-service";
@@ -961,6 +962,36 @@ export const appRouter = router({
           input.sessionNotesContext,
           input.userContext,
         );
+      }),
+  }),
+
+  // ── Voice Transcription (Whisper) ──────────────────────────
+  voice: router({
+    // Accept base64 audio, upload to S3, then transcribe via Whisper
+    transcribeBase64: publicProcedure
+      .input(z.object({
+        deviceId: z.string(),
+        base64: z.string(),
+        mimeType: z.string().default('audio/m4a'),
+        language: z.string().optional(),
+        prompt: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        // Upload audio to S3 first
+        const buffer = Buffer.from(input.base64, 'base64');
+        const ext = input.mimeType.includes('webm') ? 'webm' : input.mimeType.includes('wav') ? 'wav' : 'm4a';
+        const key = `voice-recordings/${input.deviceId}/${Date.now()}.${ext}`;
+        const { url } = await storagePut(key, buffer, input.mimeType);
+        // Transcribe via Whisper
+        const result = await transcribeAudio({
+          audioUrl: url,
+          language: input.language,
+          prompt: input.prompt ?? 'Transcribe this gym coaching instruction or workout modification request',
+        });
+        if ('error' in result) {
+          throw new Error(result.error);
+        }
+        return { text: result.text, language: result.language, duration: result.duration };
       }),
   }),
 

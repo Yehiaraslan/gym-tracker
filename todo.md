@@ -1045,3 +1045,8 @@
 - [x] Onboarding questionnaire: fully implemented in onboarding.tsx with 3-step flow (goal/experience/equipment); triggered on first launch via AuthGate in _layout.tsx
 - [x] Zaki schedule modification: fully implemented in ai-coaching-dashboard.tsx with proposeSchedule, resetToDefault, timestamped history log; registered as Stack.Screen modal; accessible from Coach tab
 - [x] Program history screen: fully implemented in program-history.tsx using getAllPRs() + getSplitWorkouts(); registered as Stack.Screen modal; linked from Analytics tab via Program History card
+
+## Three Features — Voice Input, Weight Sparkline, Sharing Card (Apr 10 2026)
+- [ ] Zaki voice input: microphone button in AI Coaching Dashboard for hands-free schedule dictation
+- [ ] Body weight sparkline: 30-day trend line on home screen header card
+- [ ] Workout sharing card: shareable image card after session completion (exercises, volume, PRs, branding)

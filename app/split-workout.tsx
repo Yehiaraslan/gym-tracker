@@ -17,7 +17,10 @@ import {
   TextInput,
   Animated,
   Easing,
+  Share,
+  StyleSheet,
 } from 'react-native';
+import ViewShot from 'react-native-view-shot';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ScreenContainer } from '@/components/screen-container';
@@ -177,6 +180,9 @@ export default function SplitWorkoutScreen() {
     previousVolume?: number;
   } | null>(null);
 
+  // Sharing card
+  const viewShotRef = useRef<ViewShot>(null);
+  const [isSharing, setIsSharing] = useState(false);
   // XP Level-Up overlay
   const [showLevelUp, setShowLevelUp] = useState(false);
   const [levelUpLevel, setLevelUpLevel] = useState<import('@/lib/types').PlayerLevel>('Novice');
@@ -587,6 +593,29 @@ export default function SplitWorkoutScreen() {
     }
   };
 
+  // ── Share workout card ──
+  const handleShare = async () => {
+    if (!summaryData || !viewShotRef.current) return;
+    try {
+      setIsSharing(true);
+      // Small delay to let the card render fully
+      await new Promise(r => setTimeout(r, 300));
+      const uri = await (viewShotRef.current as any).capture();
+      if (Platform.OS === 'web') {
+        Alert.alert('Share', 'Sharing is only available on Android/iOS.');
+        return;
+      }
+      await Share.share({
+        url: uri,
+        message: `💪 Just crushed ${sessionDisplayName}! ${summaryData.exercisesCompleted} exercises · ${(summaryData.totalVolume / 1000).toFixed(1)}t volume${summaryData.prs.length > 0 ? ` · ${summaryData.prs.length} PR${summaryData.prs.length > 1 ? 's' : ''}! 🏆` : ''} #GymTrackr`,
+      });
+    } catch (e) {
+      console.warn('[share]', e);
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
   const finishWorkout = async () => {
     if (!startTime) return;
     const now = new Date();
@@ -699,8 +728,74 @@ export default function SplitWorkoutScreen() {
       ? ((summaryData.totalVolume - summaryData.previousVolume) / summaryData.previousVolume * 100)
       : null;
 
+    const shareDate = new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
     return (
       <ScreenContainer className="flex-1">
+        {/* Hidden sharing card — captured by ViewShot */}
+        <ViewShot
+          ref={viewShotRef}
+          options={{ format: 'jpg', quality: 0.95 }}
+          style={shareCardStyles.offscreen}
+        >
+          <View style={shareCardStyles.card}>
+            {/* Header */}
+            <View style={shareCardStyles.header}>
+              <View style={shareCardStyles.accentBar} />
+              <View style={{ flex: 1 }}>
+                <Text style={shareCardStyles.cardTitle}>{sessionDisplayName}</Text>
+                <Text style={shareCardStyles.cardDate}>{shareDate}</Text>
+              </View>
+              <Text style={shareCardStyles.trophy}>🏆</Text>
+            </View>
+            {/* Stats row */}
+            <View style={shareCardStyles.statsRow}>
+              <View style={shareCardStyles.statBox}>
+                <Text style={shareCardStyles.statValue}>{formatDuration(summaryData.duration)}</Text>
+                <Text style={shareCardStyles.statLabel}>Duration</Text>
+              </View>
+              <View style={shareCardStyles.statBox}>
+                <Text style={shareCardStyles.statValue}>{(summaryData.totalVolume / 1000).toFixed(1)}t</Text>
+                <Text style={shareCardStyles.statLabel}>Volume</Text>
+              </View>
+              <View style={shareCardStyles.statBox}>
+                <Text style={shareCardStyles.statValue}>{summaryData.setsCompleted}</Text>
+                <Text style={shareCardStyles.statLabel}>Sets</Text>
+              </View>
+              {summaryData.prs.length > 0 && (
+                <View style={shareCardStyles.statBox}>
+                  <Text style={[shareCardStyles.statValue, { color: '#F59E0B' }]}>{summaryData.prs.length} PR{summaryData.prs.length > 1 ? 's' : ''}</Text>
+                  <Text style={shareCardStyles.statLabel}>Records</Text>
+                </View>
+              )}
+            </View>
+            {/* Exercise list (top 5) */}
+            {exerciseLogs
+              .filter(ex => !ex.skipped && ex.sets.filter(s => !s.isWarmup).length > 0)
+              .slice(0, 5)
+              .map((ex, i) => {
+                const ws = ex.sets.filter(s => !s.isWarmup);
+                const best = ws.reduce((b, s) => s.weightKg > b ? s.weightKg : b, 0);
+                return (
+                  <View key={i} style={shareCardStyles.exRow}>
+                    <View style={[shareCardStyles.exDot, { backgroundColor: sessionColor }]} />
+                    <Text style={shareCardStyles.exName} numberOfLines={1}>{ex.exerciseName}</Text>
+                    <Text style={shareCardStyles.exWeight}>{best}kg</Text>
+                  </View>
+                );
+              })}
+            {/* PRs */}
+            {summaryData.prs.length > 0 && (
+              <View style={shareCardStyles.prRow}>
+                <Text style={shareCardStyles.prText}>🏆 {summaryData.prs.map(p => `${p.exercise} ${p.weight}kg×${p.reps}`).join(' · ')}</Text>
+              </View>
+            )}
+            {/* Footer branding */}
+            <View style={shareCardStyles.footer}>
+              <Text style={shareCardStyles.footerText}>GymTrackr</Text>
+            </View>
+          </View>
+        </ViewShot>
+
         <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 100 }}>
           {/* Hero */}
           <View className="items-center pt-12 pb-8 px-6">
@@ -873,6 +968,24 @@ export default function SplitWorkoutScreen() {
               <Text style={{ color: '#6366F1', fontSize: 18 }}>→</Text>
             </TouchableOpacity>
           </View>
+          {/* Share Workout button */}
+          <View className="px-6 mb-3">
+            <TouchableOpacity
+              onPress={handleShare}
+              disabled={isSharing}
+              style={[
+                shareCardStyles.shareBtn,
+                { borderColor: sessionColor, opacity: isSharing ? 0.6 : 1 },
+              ]}
+              activeOpacity={0.8}
+            >
+              <Text style={{ fontSize: 18, marginRight: 8 }}>📊</Text>
+              <Text style={[shareCardStyles.shareBtnText, { color: sessionColor }]}>
+                {isSharing ? 'Preparing...' : 'Share Workout'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
           {/* Done button */}
           <View className="px-6">
             <TouchableOpacity
@@ -1929,3 +2042,132 @@ function VideoModal({
     </Modal>
   );
 }
+
+// ── Workout Sharing Card Styles ──
+const shareCardStyles = StyleSheet.create({
+  // Positioned off-screen so ViewShot can capture it without showing it
+  offscreen: {
+    position: 'absolute',
+    top: -2000,
+    left: 0,
+    width: 360,
+  },
+  card: {
+    width: 360,
+    backgroundColor: '#0A0B0A',
+    borderRadius: 20,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: '#2A2D2A',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 12,
+  },
+  accentBar: {
+    width: 4,
+    height: 40,
+    borderRadius: 2,
+    backgroundColor: '#C8F53C',
+  },
+  cardTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#E2E8F0',
+    letterSpacing: -0.3,
+  },
+  cardDate: {
+    fontSize: 12,
+    color: '#94A3B8',
+    marginTop: 2,
+  },
+  trophy: {
+    fontSize: 28,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 16,
+  },
+  statBox: {
+    flex: 1,
+    backgroundColor: '#1A1D1A',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#C8F53C',
+  },
+  statLabel: {
+    fontSize: 10,
+    color: '#94A3B8',
+    marginTop: 2,
+  },
+  exRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1A1D1A',
+    gap: 10,
+  },
+  exDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  exName: {
+    flex: 1,
+    fontSize: 13,
+    color: '#E2E8F0',
+  },
+  exWeight: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#94A3B8',
+  },
+  prRow: {
+    marginTop: 12,
+    backgroundColor: '#F59E0B12',
+    borderRadius: 10,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#F59E0B30',
+  },
+  prText: {
+    fontSize: 12,
+    color: '#F59E0B',
+    lineHeight: 18,
+  },
+  footer: {
+    marginTop: 16,
+    alignItems: 'flex-end',
+  },
+  footerText: {
+    fontSize: 11,
+    color: '#C8F53C',
+    fontWeight: '700',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  // Share button in the summary screen
+  shareBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    backgroundColor: 'transparent',
+  },
+  shareBtnText: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+});
