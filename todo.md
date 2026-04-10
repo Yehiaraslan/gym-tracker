@@ -1091,3 +1091,22 @@
 - [x] Render compact donut chart (protein/carbs/fat) using SVG
 - [x] Add to home screen stats grid
 - [x] Show grams and % of daily goal
+
+## PR Celebration Card with Confetti
+- [x] Detect new PRs mid-workout using Epley 1RM comparison
+- [x] Show full-screen overlay with exercise name, new 1RM, delta vs old PR
+- [x] Animate confetti burst using react-native-reanimated
+- [x] Auto-dismiss after 3 seconds (via See Summary button)
+- [x] oldE1rm stored and shown as +Xkg improvement badge
+
+## This Week's Plan Row on Home Screen
+- [x] Add compact horizontal row below week strip
+- [x] Show session abbreviation for each day (UA / LB / Rest...)
+- [x] Reflect live active schedule (Zaki overrides included)
+- [x] Highlight today's day
+
+## Progress Photo Side-by-Side Comparison Slider
+- [x] Add comparison view to Progress Gallery
+- [x] Show oldest vs most recent photo of same category
+- [x] Implement draggable divider slider
+- [x] Support Front / Back / Side categories

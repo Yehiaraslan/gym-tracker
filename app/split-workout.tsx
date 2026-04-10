@@ -195,7 +195,7 @@ export default function SplitWorkoutScreen() {
   const [levelUpXP, setLevelUpXP] = useState(0);
   // PR Celebration overlay
   const [showPRCelebration, setShowPRCelebration] = useState(false);
-  const [celebrationPRs, setCelebrationPRs] = useState<{ exercise: string; weight: number; reps: number; e1rm: number }[]>([]);
+  const [celebrationPRs, setCelebrationPRs] = useState<{ exercise: string; weight: number; reps: number; e1rm: number; oldE1rm?: number }[]>([]);
   const [celebrationIndex, setCelebrationIndex] = useState(0);
   const prCardOpacity = useRef(new Animated.Value(0)).current;
   const prCardScale = useRef(new Animated.Value(0.7)).current;
@@ -208,7 +208,7 @@ export default function SplitWorkoutScreen() {
   const confettiRotate = useRef(Array.from({ length: CONFETTI_COUNT }, () => new Animated.Value(0))).current;
   const CONFETTI_COLORS = ['#F59E0B', '#10B981', '#3B82F6', '#EF4444', '#8B5CF6', '#EC4899', '#F97316', '#06B6D4'];
 
-  const launchPRCelebration = (prs: { exercise: string; weight: number; reps: number; e1rm: number }[]) => {
+  const launchPRCelebration = (prs: { exercise: string; weight: number; reps: number; e1rm: number; oldE1rm?: number }[]) => {
     if (prs.length === 0) return;
     setCelebrationPRs(prs);
     setCelebrationIndex(0);
@@ -652,7 +652,7 @@ export default function SplitWorkoutScreen() {
     const setsCompleted = exerciseLogs.reduce((sum, ex) => sum + ex.sets.filter(s => !s.isWarmup).length, 0);
 
     // Detect PRs using Epley formula
-    const prs: { exercise: string; weight: number; reps: number; e1rm: number }[] = [];
+    const prs: { exercise: string; weight: number; reps: number; e1rm: number; oldE1rm?: number }[] = [];
     for (const exLog of exerciseLogs) {
       if (exLog.skipped) continue;
       const workingSets = exLog.sets.filter(s => !s.isWarmup);
@@ -660,7 +660,7 @@ export default function SplitWorkoutScreen() {
         const currentE1RM = epley1RM(set.weightKg, set.reps);
         const existingPR = await getExercisePR(exLog.exerciseName);
         if (!existingPR || currentE1RM > existingPR.e1rm) {
-          prs.push({ exercise: exLog.exerciseName, weight: set.weightKg, reps: set.reps, e1rm: currentE1RM });
+          prs.push({ exercise: exLog.exerciseName, weight: set.weightKg, reps: set.reps, e1rm: currentE1RM, oldE1rm: existingPR?.e1rm });
         }
       }
     }
@@ -1330,10 +1330,24 @@ export default function SplitWorkoutScreen() {
                   <Text style={{ color: '#F59E0B', fontSize: 36, fontWeight: '900', marginBottom: 4 }}>
                     {celebrationPRs[celebrationIndex].weight}kg × {celebrationPRs[celebrationIndex].reps}
                   </Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 20 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                     <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>Est. 1RM</Text>
                     <Text style={{ color: '#10B981', fontSize: 18, fontWeight: '700' }}>~{Math.round(celebrationPRs[celebrationIndex].e1rm)}kg</Text>
                   </View>
+                  {celebrationPRs[celebrationIndex].oldE1rm != null ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 20, backgroundColor: '#10B98120', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 }}>
+                      <Text style={{ color: '#10B981', fontSize: 13, fontWeight: '700' }}>
+                        +{Math.round(celebrationPRs[celebrationIndex].e1rm - (celebrationPRs[celebrationIndex].oldE1rm ?? 0))}kg improvement
+                      </Text>
+                      <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12 }}>
+                        vs prev ~{Math.round(celebrationPRs[celebrationIndex].oldE1rm ?? 0)}kg
+                      </Text>
+                    </View>
+                  ) : (
+                    <View style={{ marginBottom: 20, backgroundColor: '#F59E0B20', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 }}>
+                      <Text style={{ color: '#F59E0B', fontSize: 13, fontWeight: '700' }}>First PR on this exercise! 🎉</Text>
+                    </View>
+                  )}
                 </>
               )}
 
