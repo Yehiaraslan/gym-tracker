@@ -977,6 +977,9 @@ function StrengthProgressionChart({
   const plotW = CHART_W - PAD_L - PAD_R;
   const plotH = CHART_H - PAD_T - PAD_B;
 
+  // Normalize toggle: % of best 1RM vs absolute kg
+  const [normalized, setNormalized] = useState(false);
+
   // Filter each pinned exercise by date range
   const cutoff = dateRange === 0
     ? null
@@ -990,13 +993,24 @@ function StrengthProgressionChart({
     };
   });
 
+  // Per-series best e1RM for normalization
+  const seriesBests = filteredSeries.map(s => s.data.length > 0 ? Math.max(...s.data.map(p => p.e1rm)) : 1);
+
+  // Normalized series: each point expressed as % of that exercise's best e1RM
+  const normalizedSeries = filteredSeries.map((s, si) => ({
+    ...s,
+    data: s.data.map(p => ({ date: p.date, e1rm: (p.e1rm / seriesBests[si]) * 100 })),
+  }));
+
+  const displaySeries = normalized ? normalizedSeries : filteredSeries;
+
   // Compute global Y range across all pinned exercises
-  const allPoints = filteredSeries.flatMap(s => s.data);
+  const allPoints = displaySeries.flatMap(s => s.data);
   const hasData = allPoints.length >= 2;
   const globalMin = hasData ? Math.min(...allPoints.map(p => p.e1rm)) : 0;
-  const globalMax = hasData ? Math.max(...allPoints.map(p => p.e1rm)) : 100;
+  const globalMax = hasData ? Math.max(...allPoints.map(p => p.e1rm)) : (normalized ? 100 : 100);
   const globalRange = globalMax - globalMin || 1;
-  const padded = { min: globalMin - globalRange * 0.1, max: globalMax + globalRange * 0.1 };
+  const padded = { min: Math.max(0, globalMin - globalRange * 0.1), max: globalMax + globalRange * 0.1 };
 
   // Collect all unique dates across all series for X-axis
   const allDates = Array.from(new Set(allPoints.map(p => p.date))).sort();
@@ -1011,7 +1025,9 @@ function StrengthProgressionChart({
   // Y-axis ticks
   const yTicks = [0, 0.25, 0.5, 0.75, 1].map(t => ({
     y: PAD_T + plotH * (1 - t),
-    label: `${Math.round(padded.min + (padded.max - padded.min) * t)}`,
+    label: normalized
+      ? `${Math.round(padded.min + (padded.max - padded.min) * t)}%`
+      : `${Math.round(padded.min + (padded.max - padded.min) * t)}`,
   }));
 
   // X-axis labels (first, middle, last)
@@ -1176,8 +1192,9 @@ function StrengthProgressionChart({
         borderColor: colors.cardBorder,
         padding: 12,
       }}>
-        {/* Date range pills */}
-        <View style={{ flexDirection: 'row', gap: 6, marginBottom: 12 }}>
+        {/* Controls row: date range pills + normalize toggle */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', flex: 1 }}>
           {STRENGTH_RANGE_LABELS.map(({ label, value }) => (
             <TouchableOpacity
               key={label}
@@ -1197,6 +1214,28 @@ function StrengthProgressionChart({
               <Text style={{ fontSize: 12, fontWeight: '600', color: dateRange === value ? '#fff' : colors.cardMuted }}>{label}</Text>
             </TouchableOpacity>
           ))}
+          </View>
+          {/* Normalize toggle */}
+          <TouchableOpacity
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingHorizontal: 10,
+              paddingVertical: 5,
+              borderRadius: 20,
+              backgroundColor: normalized ? CHART_ACCENT + '22' : colors.background,
+              borderWidth: 1,
+              borderColor: normalized ? CHART_ACCENT : colors.cardBorder,
+              marginLeft: 6,
+              gap: 4,
+            }}
+            onPress={() => {
+              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setNormalized(v => !v);
+            }}
+          >
+            <Text style={{ fontSize: 11, fontWeight: '700', color: normalized ? CHART_ACCENT : colors.cardMuted }}>%</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Loading state */}
@@ -1281,7 +1320,7 @@ function StrengthProgressionChart({
               ))}
 
               {/* One line per pinned exercise */}
-              {filteredSeries.map((series, sIdx) => {
+              {displaySeries.map((series, sIdx) => {
                 const color = OVERLAY_COLORS[sIdx];
                 const pts = series.data.length >= 2
                   ? series.data.map(p => `${toX(p.date)},${toY(p.e1rm)}`).join(' ')
@@ -1336,6 +1375,7 @@ function StrengthProgressionChart({
               if (d.length < 2) return null;
               const best = d.reduce((b, p) => p.e1rm > b.e1rm ? p : b);
               const delta = d[d.length - 1].e1rm - d[0].e1rm;
+              const deltaPercent = d[0].e1rm > 0 ? ((delta / d[0].e1rm) * 100) : 0;
               return (
                 <View
                   key={series.name}
@@ -1363,7 +1403,7 @@ function StrengthProgressionChart({
                   </View>
                   <View style={{ alignItems: 'center', flex: 1 }}>
                     <Text style={{ fontSize: 13, fontWeight: '700', color: delta >= 0 ? '#10B981' : '#EF4444' }}>
-                      {delta >= 0 ? '+' : ''}{Math.round(delta)}kg
+                      {delta >= 0 ? '+' : ''}{Math.round(deltaPercent)}%
                     </Text>
                     <Text style={{ fontSize: 9, color: colors.cardMuted }}>Gain</Text>
                   </View>
