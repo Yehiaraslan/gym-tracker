@@ -1073,3 +1073,21 @@
 - [x] Show video thumbnail in exercise list items
 - [x] Update split-workout to prefer gym store videoId over library default
 - [x] getVideoId() helper checks gym store first, then exercise library
+
+## Per-Exercise Volume Bar Chart on PR Board
+- [x] Add expandable inline bar chart to each PR Board exercise row
+- [x] Compute weekly volume (sets × reps × weight) per exercise over last 8 weeks
+- [x] Render bar chart using react-native-svg
+- [x] Tap exercise row to toggle chart expansion
+
+## Missed Workout One-Tap Rescheduling
+- [x] Add "Schedule for today" button to missed workout banner on home screen
+- [x] Swap missed session into today's slot in the schedule store
+- [x] Show confirmation toast after rescheduling
+- [x] Update calendar/week strip to reflect the swap
+
+## Nutrition Macro Donut Ring on Home Screen
+- [x] Read today's nutrition data from nutrition store
+- [x] Render compact donut chart (protein/carbs/fat) using SVG
+- [x] Add to home screen stats grid
+- [x] Show grams and % of daily goal

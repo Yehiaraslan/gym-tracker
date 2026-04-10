@@ -520,6 +520,45 @@ export async function getVolumeHeatmapData(weeks = 12): Promise<Record<string, n
 }
 
 /**
+ * Get weekly volume (sets × reps × weight) for a specific exercise over the last N weeks.
+ * Returns an array of { weekLabel, volume } sorted oldest → newest.
+ */
+export async function getExerciseWeeklyVolume(
+  exerciseName: string,
+  weeksBack = 8
+): Promise<{ weekLabel: string; volume: number }[]> {
+  const workouts = await getSplitWorkouts();
+  const now = new Date();
+  const weeks: { weekLabel: string; volume: number }[] = [];
+
+  for (let i = weeksBack - 1; i >= 0; i--) {
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - (i + 1) * 7);
+    const weekEnd = new Date(now);
+    weekEnd.setDate(now.getDate() - i * 7);
+
+    const startStr = weekStart.toLocaleDateString('en-CA');
+    const endStr = weekEnd.toLocaleDateString('en-CA');
+
+    let vol = 0;
+    for (const w of workouts) {
+      if (!w.completed || w.date < startStr || w.date >= endStr) continue;
+      const exLog = (w.exercises ?? []).find(
+        e => e.exerciseName.toLowerCase() === exerciseName.toLowerCase()
+      );
+      if (!exLog) continue;
+      vol += exLog.sets
+        .filter(s => !s.isWarmup && s.weightKg > 0 && s.reps > 0)
+        .reduce((sum, s) => sum + s.weightKg * s.reps, 0);
+    }
+
+    weeks.push({ weekLabel: `W${weeksBack - i}`, volume: Math.round(vol) });
+  }
+
+  return weeks;
+}
+
+/**
  * Detects whether the last 3 completed sessions each had lower total volume
  * than the one before. Returns decline info if true, else { declining: false }.
  */

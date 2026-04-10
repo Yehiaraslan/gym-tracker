@@ -23,6 +23,9 @@ import {
   getTodaySessionFromSchedule,
   getWeekScheduleFromStore,
   getActiveSchedule,
+  saveScheduleOverride,
+  buildFullSchedule,
+  type DayName,
 } from '@/lib/schedule-store';
 import {
   getRecentSplitWorkouts,
@@ -137,6 +140,8 @@ export default function HomeScreen() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [missedSessions, setMissedSessions] = useState<Array<{ date: string; sessionType: SessionType; sessionName: string; daysAgo: number }>>([]);
   const [dismissedMakeup, setDismissedMakeup] = useState<Set<string>>(new Set());
+  const [reschedulingDate, setReschedulingDate] = useState<string | null>(null);
+  const [rescheduleToast, setRescheduleToast] = useState<string | null>(null);
   const [previewDay, setPreviewDay] = useState<{ date: string; session: SessionType; label: string } | null>(null);
   const [syncState, setSyncState] = useState<PinSyncState | null>(null);
   const [deviceId, setDeviceId] = useState<string | null>(null);
@@ -313,6 +318,39 @@ export default function HomeScreen() {
   // Check if today's workout is already completed
   const todayDone = !isRest && recentWorkouts.some(w => w.date === todayStr && w.completed);
 
+  // Reschedule a missed session into today's slot by swapping the schedule
+  const handleRescheduleToToday = async (missed: { date: string; sessionType: SessionType; sessionName: string }) => {
+    if (reschedulingDate) return; // prevent double-tap
+    setReschedulingDate(missed.date);
+    try {
+      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      const activeSchedule = await getActiveSchedule();
+      const todayDayName = new Date().toLocaleDateString('en-US', { weekday: 'long' }) as DayName;
+      const missedDate = new Date(missed.date + 'T12:00:00');
+      const missedDayName = missedDate.toLocaleDateString('en-US', { weekday: 'long' }) as DayName;
+      // Swap: put missed session on today, put today's session on missed day
+      const todayOriginal = activeSchedule[todayDayName];
+      const newSchedule = { ...activeSchedule, [todayDayName]: missed.sessionType, [missedDayName]: todayOriginal };
+      await saveScheduleOverride({
+        appliedAt: new Date().toISOString(),
+        description: `Rescheduled ${missed.sessionName} from ${missedDayName} to ${todayDayName}`,
+        schedule: newSchedule,
+        appliedByZaki: false,
+      });
+      // Dismiss the missed banner and show toast
+      setDismissedMakeup(prev => new Set([...prev, missed.date]));
+      setRescheduleToast(`${missed.sessionName} moved to today ✓`);
+      setTimeout(() => setRescheduleToast(null), 3000);
+      // Refresh today's session
+      const updated = await getTodaySessionFromSchedule();
+      setTodaySession(updated);
+    } catch (e) {
+      // silently fail — user can still tap "Make it up today"
+    } finally {
+      setReschedulingDate(null);
+    }
+  };
+
   // WHOOP v2 API: snake_case fields (recovery_score, hrv_rmssd_milli, resting_heart_rate)
   const latestRecoveryRecord = (whoopRecoveryQ.data?.records as any[])?.find(
     (r: any) => r.score_state === 'SCORED' && r.score != null
@@ -346,8 +384,12 @@ export default function HomeScreen() {
 
   const calConsumed = nutrition ? nutrition.meals.reduce((s, m) => s + m.calories, 0) : 0;
   const protConsumed = nutrition ? nutrition.meals.reduce((s, m) => s + m.protein, 0) : 0;
+  const carbConsumed = nutrition ? nutrition.meals.reduce((s, m) => s + (m.carbs ?? 0), 0) : 0;
+  const fatConsumed = nutrition ? nutrition.meals.reduce((s, m) => s + (m.fat ?? 0), 0) : 0;
   const calTarget = nutrition?.targetCalories ?? 2750;
   const protTarget = nutrition?.targetProtein ?? 180;
+  const carbTarget = nutrition?.targetCarbs ?? 300;
+  const fatTarget = nutrition?.targetFat ?? 80;
 
   const bg = colors.background;
   const surf = colors.surface;
@@ -456,38 +498,59 @@ export default function HomeScreen() {
         </View>
 
         {/* ── Missed Session Banner (only last missed) ── */}
+        {/* Reschedule toast */}
+        {rescheduleToast != null && (
+          <View style={[s.warningBanner, { backgroundColor: '#22C55E20', borderColor: '#22C55E', marginBottom: 8 }]}>
+            <Text style={s.warningIcon}>✅</Text>
+            <Text style={[s.warningTitle, { color: '#22C55E', flex: 1 }]}>{rescheduleToast}</Text>
+          </View>
+        )}
         {(() => {
           const visible = missedSessions.filter(m => !dismissedMakeup.has(m.date));
           if (visible.length === 0) return null;
           const last = visible[0]; // most recent missed
+          const isRescheduling = reschedulingDate === last.date;
           return (
-            <View style={[s.warningBanner, { backgroundColor: '#F59E0B15', borderColor: '#F59E0B', marginBottom: 8 }]}>
-              <Text style={s.warningIcon}>📅</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={[s.warningTitle, { color: '#F59E0B' }]}>
-                  Missed: {last.sessionName} ({last.daysAgo === 1 ? 'yesterday' : `${last.daysAgo} days ago`})
-                </Text>
+            <View style={[s.warningBanner, { backgroundColor: '#F59E0B15', borderColor: '#F59E0B', marginBottom: 8, flexDirection: 'column', alignItems: 'flex-start', gap: 8 }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%' }}>
+                <Text style={s.warningIcon}>📅</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.warningTitle, { color: '#F59E0B' }]}>
+                    Missed: {last.sessionName} ({last.daysAgo === 1 ? 'yesterday' : `${last.daysAgo} days ago`})
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => {
+                    const allDates = new Set(visible.map(m => m.date));
+                    setDismissedMakeup(prev => new Set([...prev, ...allDates]));
+                  }}
+                  style={{ padding: 4 }}
+                >
+                  <Text style={{ color: screenMut, fontSize: 11 }}>{visible.length > 1 ? `Dismiss All (${visible.length})` : '✕'}</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={{ flexDirection: 'row', gap: 8, paddingLeft: 32 }}>
+                {/* Schedule for today — swaps schedule */}
+                <TouchableOpacity
+                  onPress={() => handleRescheduleToToday(last)}
+                  disabled={isRescheduling}
+                  style={{ backgroundColor: '#F59E0B', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, opacity: isRescheduling ? 0.6 : 1 }}
+                >
+                  <Text style={{ color: '#000', fontSize: 12, fontWeight: '700' }}>
+                    {isRescheduling ? '⏳ Moving…' : '📆 Schedule for today'}
+                  </Text>
+                </TouchableOpacity>
+                {/* Make it up — goes directly to workout */}
                 <TouchableOpacity
                   onPress={() => {
                     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     router.push({ pathname: '/split-workout', params: { sessionType: last.sessionType, date: last.date } } as any);
                   }}
+                  style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: '#F59E0B' }}
                 >
-                  <Text style={{ color: '#F59E0B', fontSize: 12, fontWeight: '700', marginTop: 2 }}>
-                    Make it up today →
-                  </Text>
+                  <Text style={{ color: '#F59E0B', fontSize: 12, fontWeight: '700' }}>Start now →</Text>
                 </TouchableOpacity>
               </View>
-              <TouchableOpacity
-                onPress={() => {
-                  // Dismiss all missed sessions at once
-                  const allDates = new Set(visible.map(m => m.date));
-                  setDismissedMakeup(prev => new Set([...prev, ...allDates]));
-                }}
-                style={{ padding: 4 }}
-              >
-                <Text style={{ color: screenMut, fontSize: 11 }}>{visible.length > 1 ? `Dismiss All (${visible.length})` : '✕'}</Text>
-              </TouchableOpacity>
             </View>
           );
         })()}
@@ -814,6 +877,29 @@ export default function HomeScreen() {
             </View>
             <Text style={[s.metricSub, { color: mut }]}>
               {meso ? `Week ${meso.currentWeek}/${meso.totalWeeks}` : 'Loading...'}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Macro Donut Ring */}
+          <TouchableOpacity
+            style={[s.metricCard, { backgroundColor: surf, borderColor: calConsumed > 0 ? '#F59E0B30' : bord }]}
+            onPress={() => router.push('/(tabs)/nutrition' as any)}
+            activeOpacity={0.8}
+          >
+            <Text style={s.metricChevron}>›</Text>
+            <View style={{ alignItems: 'center', marginBottom: 4 }}>
+              <MacroDonut
+                protein={protConsumed}
+                carbs={carbConsumed}
+                fat={fatConsumed}
+                proteinTarget={protTarget}
+                carbsTarget={carbTarget}
+                fatTarget={fatTarget}
+              />
+            </View>
+            <Text style={[s.metricLabel, { color: mut }]}>Today's Macros</Text>
+            <Text style={[s.metricSub, { color: mut, marginTop: 2 }]}>
+              {Math.round(protConsumed)}g P · {Math.round(carbConsumed)}g C · {Math.round(fatConsumed)}g F
             </Text>
           </TouchableOpacity>
         </View>
@@ -1202,6 +1288,80 @@ function ProgressRing({ score, color, size = 56, strokeWidth = 6 }: { score: num
       />
       <SvgText x={cx} y={cy + 1} textAnchor="middle" alignmentBaseline="central" fontSize={size * 0.28} fontWeight="800" fill={color}>
         {Math.round(score)}
+      </SvgText>
+    </Svg>
+  );
+}
+
+// ── MacroDonut: 3-segment donut chart for protein/carbs/fat ──────────────────
+function MacroDonut({
+  protein, carbs, fat,
+  proteinTarget, carbsTarget, fatTarget,
+  size = 56, strokeWidth = 7,
+}: {
+  protein: number; carbs: number; fat: number;
+  proteinTarget: number; carbsTarget: number; fatTarget: number;
+  size?: number; strokeWidth?: number;
+}) {
+  const r = (size - strokeWidth) / 2;
+  const cx = size / 2;
+  const cy = size / 2;
+  const circ = 2 * Math.PI * r;
+
+  // Clamp each macro to its target, then compute arc proportions
+  const protPct = proteinTarget > 0 ? Math.min(1, protein / proteinTarget) : 0;
+  const carbPct = carbsTarget > 0 ? Math.min(1, carbs / carbsTarget) : 0;
+  const fatPct = fatTarget > 0 ? Math.min(1, fat / fatTarget) : 0;
+
+  // Each segment occupies 1/3 of the ring; filled portion = pct of that third
+  const segLen = circ / 3;
+  const gap = 4; // px gap between segments
+  const protLen = Math.max(0, protPct * segLen - gap);
+  const carbLen = Math.max(0, carbPct * segLen - gap);
+  const fatLen = Math.max(0, fatPct * segLen - gap);
+
+  const totalPct = Math.round(((protein * 4 + carbs * 4 + fat * 9) / Math.max(1, proteinTarget * 4 + carbsTarget * 4 + fatTarget * 9)) * 100);
+
+  return (
+    <Svg width={size} height={size}>
+      {/* Track */}
+      <Circle cx={cx} cy={cy} r={r} stroke="#1E2433" strokeWidth={strokeWidth} fill="none" />
+      {/* Protein segment (blue) */}
+      <Circle
+        cx={cx} cy={cy} r={r}
+        stroke="#3B82F6"
+        strokeWidth={strokeWidth}
+        fill="none"
+        strokeDasharray={`${protLen} ${circ - protLen}`}
+        strokeDashoffset={circ * 0}
+        strokeLinecap="round"
+        transform={`rotate(-90, ${cx}, ${cy})`}
+      />
+      {/* Carbs segment (amber) */}
+      <Circle
+        cx={cx} cy={cy} r={r}
+        stroke="#F59E0B"
+        strokeWidth={strokeWidth}
+        fill="none"
+        strokeDasharray={`${carbLen} ${circ - carbLen}`}
+        strokeDashoffset={-(segLen)}
+        strokeLinecap="round"
+        transform={`rotate(-90, ${cx}, ${cy})`}
+      />
+      {/* Fat segment (rose) */}
+      <Circle
+        cx={cx} cy={cy} r={r}
+        stroke="#F43F5E"
+        strokeWidth={strokeWidth}
+        fill="none"
+        strokeDasharray={`${fatLen} ${circ - fatLen}`}
+        strokeDashoffset={-(segLen * 2)}
+        strokeLinecap="round"
+        transform={`rotate(-90, ${cx}, ${cy})`}
+      />
+      {/* Center label */}
+      <SvgText x={cx} y={cy + 1} textAnchor="middle" alignmentBaseline="central" fontSize={size * 0.24} fontWeight="800" fill="#ECEDEE">
+        {totalPct}%
       </SvgText>
     </Svg>
   );
