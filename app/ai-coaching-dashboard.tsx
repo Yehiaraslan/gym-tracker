@@ -38,7 +38,21 @@ import {
 } from '@/lib/schedule-store';
 import { getSplitWorkouts, savePendingWeights, parseZakiWeightText } from '@/lib/split-workout-store';
 import { getDeviceId } from '@/lib/device-id';
-import { useAudioRecorder, RecordingPresets, requestRecordingPermissionsAsync } from 'expo-audio';
+// expo-audio has no web support — import conditionally
+let useAudioRecorder: any;
+let RecordingPresets: any;
+let requestRecordingPermissionsAsync: any;
+if (Platform.OS !== 'web') {
+  const audioModule = require('expo-audio');
+  useAudioRecorder = audioModule.useAudioRecorder;
+  RecordingPresets = audioModule.RecordingPresets;
+  requestRecordingPermissionsAsync = audioModule.requestRecordingPermissionsAsync;
+} else {
+  // No-op stubs for web
+  useAudioRecorder = () => ({ record: async () => {}, stop: async () => {}, uri: null });
+  RecordingPresets = { HIGH_QUALITY: {} };
+  requestRecordingPermissionsAsync = async () => ({ granted: false });
+}
 import * as FileSystem from 'expo-file-system/legacy';
 import { addCustomExercise, addCustomSession, parseExerciseCommands, type CustomExercise } from '@/lib/custom-exercises-store';
 import { addFoodEntry, getDailyNutrition } from '@/lib/nutrition-store';
