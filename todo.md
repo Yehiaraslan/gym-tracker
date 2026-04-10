@@ -1020,3 +1020,8 @@
 - [x] Replace orange accent #E8600A with lime green #C8F53C (strength/progress signal)
 - [x] Update all card-specific tokens for new surfaces
 - [x] Update tab bar and header to match new palette
+
+## Workout Exercise Swap Fixes (Apr 10 2026)
+- [x] Remove "Skip Exercise" option from workout screen
+- [x] Fix alternative exercise suggestions to only show same muscle group
+- [x] Fix swap-back bug: switching an exercise fails on 2nd/3rd attempt

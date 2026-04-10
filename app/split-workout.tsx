@@ -80,6 +80,9 @@ export default function SplitWorkoutScreen() {
   const defaultExercises = sessionType !== 'rest' ? (PROGRAM_SESSIONS[sessionType] ?? []) : [];
   const [programExercises, setProgramExercises] = useState<ProgramExercise[]>(defaultExercises);
   const [swappableExercises, setSwappableExercises] = useState<ProgramExercise[]>([]);
+  // Tracks the ORIGINAL exercise name for each slot — used for swap lookup so
+  // swapping back works correctly on the 2nd/3rd attempt.
+  const originalExerciseNamesRef = useRef<string[]>([]);
 
   // Load exercises from custom program if available, then apply saved swaps
   useEffect(() => {
@@ -95,7 +98,10 @@ export default function SplitWorkoutScreen() {
         }
       } catch { /* use default */ }
 
-      // 2. Apply saved swaps
+      // 2. Record original exercise names (always from base, never from swaps)
+      originalExerciseNamesRef.current = baseExercises.map(ex => ex.name);
+
+      // 3. Apply saved swaps
       const key = `@gym_swap_${sessionType}`;
       const raw = await AsyncStorage.getItem(key);
       if (raw) {
@@ -256,6 +262,7 @@ export default function SplitWorkoutScreen() {
   const [showSwapModal, setShowSwapModal] = useState(false);
   const [swapTargetIndex, setSwapTargetIndex] = useState<number | null>(null);
   const [swapAlternatives, setSwapAlternatives] = useState<AlternativeExercise[]>([]);
+  const [swapOriginalExercise, setSwapOriginalExercise] = useState<ProgramExercise | null>(null);
   const [nudgeDismissed, setNudgeDismissed] = useState(false);
 
   // Lighter alternative for the recovery nudge (Strength → Volume)
@@ -270,9 +277,20 @@ export default function SplitWorkoutScreen() {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const ex = exercises[exerciseIndex];
     if (!ex || sessionType === 'rest') return;
-    const alts = getAlternativesForExercise(ex.name, sessionType as Exclude<SessionType, 'rest'>);
+    // Always look up alternatives using the ORIGINAL exercise name so that
+    // swapping back works correctly on the 2nd and 3rd attempt.
+    const originalName = originalExerciseNamesRef.current[exerciseIndex] ?? ex.name;
+    const alts = getAlternativesForExercise(originalName, sessionType as Exclude<SessionType, 'rest'>)
+      // Exclude the exercise that is currently in this slot (already selected)
+      .filter(a => a.name !== ex.name);
+    // If the slot is currently swapped, prepend a "Restore original" option
+    const isSwapped = ex.name !== originalName;
+    const originalExercise = isSwapped
+      ? programExercises[exerciseIndex] ?? exercises[exerciseIndex]
+      : null;
     setSwapTargetIndex(exerciseIndex);
     setSwapAlternatives(alts);
+    setSwapOriginalExercise(isSwapped ? originalExercise : null);
     setShowSwapModal(true);
   };
 
@@ -294,6 +312,7 @@ export default function SplitWorkoutScreen() {
     }
     setShowSwapModal(false);
     setSwapTargetIndex(null);
+    setSwapOriginalExercise(null);
   };
 
   const handleZakiModification = async () => {
@@ -1575,17 +1594,6 @@ export default function SplitWorkoutScreen() {
                         );
                       })}
 
-                      {/* Skip button */}
-                      {!isComplete && (
-                        <TouchableOpacity
-                          onPress={() => handleSkip(i)}
-                          className="py-3 rounded-xl items-center flex-row justify-center"
-                          style={{ borderWidth: 1, borderColor: colors.cardBorder, borderStyle: 'dashed' }}
-                        >
-                          <IconSymbol name="forward.fill" size={14} color={colors.cardMuted} />
-                          <Text className="text-sm text-cardMuted ml-2">Skip Exercise</Text>
-                        </TouchableOpacity>
-                      )}
                     </View>
                   </View>
                 )}
@@ -1762,7 +1770,7 @@ export default function SplitWorkoutScreen() {
         visible={showSwapModal}
         transparent
         animationType="slide"
-        onRequestClose={() => setShowSwapModal(false)}
+        onRequestClose={() => { setShowSwapModal(false); setSwapOriginalExercise(null); }}
       >
         <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
           <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 40 }}>
@@ -1770,7 +1778,31 @@ export default function SplitWorkoutScreen() {
             <Text style={{ fontSize: 13, color: colors.cardMuted, marginBottom: 16 }}>
               {swapTargetIndex !== null ? `Replacing: ${exercises[swapTargetIndex]?.name}` : ''}
             </Text>
-            {swapAlternatives.length === 0 ? (
+
+            {/* Restore original option — shown when this slot is currently swapped */}
+            {swapOriginalExercise && (
+              <TouchableOpacity
+                onPress={() => handleConfirmSwap(swapOriginalExercise as AlternativeExercise)}
+                style={{
+                  backgroundColor: colors.primary + '18',
+                  borderRadius: 12,
+                  padding: 14,
+                  marginBottom: 10,
+                  borderWidth: 1.5,
+                  borderColor: colors.primary + '60',
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={{ fontSize: 13, color: colors.primary, fontWeight: '700' }}>↩ Restore original</Text>
+                </View>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: colors.cardForeground, marginTop: 2 }}>{swapOriginalExercise.name}</Text>
+                <Text style={{ fontSize: 12, color: colors.cardMuted, marginTop: 2 }}>
+                  {swapOriginalExercise.sets} sets · {swapOriginalExercise.repsMin}-{swapOriginalExercise.repsMax} reps · {swapOriginalExercise.bodyPart}
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {swapAlternatives.length === 0 && !swapOriginalExercise ? (
               <Text style={{ color: colors.cardMuted, textAlign: 'center', paddingVertical: 20 }}>No alternatives available for this exercise.</Text>
             ) : (
               swapAlternatives.map((alt, idx) => (
@@ -1795,7 +1827,7 @@ export default function SplitWorkoutScreen() {
               ))
             )}
             <TouchableOpacity
-              onPress={() => setShowSwapModal(false)}
+              onPress={() => { setShowSwapModal(false); setSwapOriginalExercise(null); }}
               style={{ marginTop: 8, alignItems: 'center', paddingVertical: 12 }}
             >
               <Text style={{ color: colors.cardMuted, fontSize: 15 }}>Cancel</Text>
