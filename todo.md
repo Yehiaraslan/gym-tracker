@@ -1050,3 +1050,26 @@
 - [ ] Zaki voice input: microphone button in AI Coaching Dashboard for hands-free schedule dictation
 - [ ] Body weight sparkline: 30-day trend line on home screen header card
 - [ ] Workout sharing card: shareable image card after session completion (exercises, volume, PRs, branding)
+
+## Smart Rest Timer & Auto-Advance
+- [x] Auto-advance to next exercise when rest timer hits zero
+- [x] Store next exercise index in ref; fire after rest countdown completes
+- [x] Show "Up Next" exercise preview inside rest timer card (name, sets, reps)
+- [x] Add +30s button to extend rest without cancelling auto-advance
+- [x] "Skip Rest →" button also triggers auto-advance immediately
+
+## Muscle Group Volume Heatmap
+- [x] Add MuscleGroupHeatmap component to Analytics tab
+- [x] 5×3 grid layout mapping 10 muscle groups to body regions
+- [x] Color intensity levels: none / low / moderate / high / peak
+- [x] Day range toggle: 7d / 14d / 30d
+- [x] Legend row showing all intensity levels
+
+## YouTube Video ID in Admin Panel
+- [x] Add optional videoId field to Exercise type
+- [x] Add YouTube Video ID input field in admin exercise form
+- [x] Auto-extract ID from pasted full YouTube URL
+- [x] Live thumbnail preview when 11-char ID is entered
+- [x] Show video thumbnail in exercise list items
+- [x] Update split-workout to prefer gym store videoId over library default
+- [x] getVideoId() helper checks gym store first, then exercise library

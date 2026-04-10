@@ -16,7 +16,16 @@ import {
   Platform,
   Dimensions,
 } from 'react-native';
-import Svg, { Polyline, Line, Circle, Text as SvgText } from 'react-native-svg';
+import Svg, { Polyline, Line, Circle, Text as SvgText, Rect } from 'react-native-svg';
+import {
+  computeMuscleHeatmap,
+  MUSCLE_GROUPS,
+  type MuscleGroup,
+  type MuscleHeatmap,
+  type IntensityLevel,
+} from '@/lib/muscle-heatmap';
+import { getSplitWorkouts } from '@/lib/split-workout-store';
+import { EXERCISE_LIBRARY } from '@/lib/data/exercise-library';
 import { useRouter } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -82,6 +91,9 @@ export default function ProgressScreen() {
   const [deloadDates, setDeloadDates] = useState<string[]>([]);
   const [heatmapData, setHeatmapData] = useState<Record<string, number>>({});
   const [performanceDecline, setPerformanceDecline] = useState<{ declining: boolean; pct: number; sessions: number } | null>(null);
+  // Muscle group volume heatmap
+  const [muscleHeatmap, setMuscleHeatmap] = useState<MuscleHeatmap | null>(null);
+  const [muscleHeatmapDays, setMuscleHeatmapDays] = useState<7 | 14 | 30>(7);
 
   // Strength Progression Chart state
   // Multi-exercise overlay state
@@ -146,13 +158,28 @@ export default function ProgressScreen() {
       setDeloadDates(deloadDatesList);
       setHeatmapData(heatmap);
       setPerformanceDecline(decline);
+      // Compute muscle group heatmap from split workouts
+      try {
+        const allWorkouts = await getSplitWorkouts();
+        // Convert SplitWorkoutSession[] to WorkoutLog[] shape expected by computeMuscleHeatmap
+        const workoutLogs = allWorkouts.map(w => ({
+          id: w.id,
+          date: w.date,
+          exercises: w.exercises.map(ex => ({
+            exerciseName: ex.exerciseName,
+            sets: ex.sets.map(s => ({ weight: s.weightKg, reps: s.reps })),
+          })),
+        })) as any[];
+        const hm = computeMuscleHeatmap(workoutLogs, EXERCISE_LIBRARY as any, muscleHeatmapDays);
+        setMuscleHeatmap(hm);
+      } catch {}
     } catch (e) {
       console.error('Failed to load progress data:', e);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [volumeDateRange]);
+  }, [volumeDateRange, muscleHeatmapDays]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -584,6 +611,14 @@ export default function ProgressScreen() {
             </View>
           </View>
         )}
+
+        {/* Muscle Group Volume Heatmap */}
+        <MuscleGroupHeatmap
+          heatmap={muscleHeatmap}
+          days={muscleHeatmapDays}
+          onChangeDays={(d: 7 | 14 | 30) => setMuscleHeatmapDays(d)}
+          colors={colors}
+        />
 
         {/* Volume Heatmap */}
         <VolumeHeatmap data={heatmapData} colors={colors} />
@@ -1627,6 +1662,152 @@ function VolumeHeatmap({
             </Text>
             <Text style={{ fontSize: 10, color: colors.cardMuted }}>Avg/Session</Text>
           </View>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+// ---- Muscle Group Volume Heatmap ----
+const INTENSITY_COLORS: Record<IntensityLevel, string> = {
+  none: '#1A1D1A',
+  low: '#1A3A1A',
+  moderate: '#2D6A2D',
+  high: '#5AAD5A',
+  overtrained: '#C8F53C',
+};
+const INTENSITY_LABELS: Record<IntensityLevel, string> = {
+  none: 'None',
+  low: 'Low',
+  moderate: 'Moderate',
+  high: 'High',
+  overtrained: 'Peak',
+};
+
+// Body region layout — each entry maps to a muscle group
+const BODY_REGIONS: { group: MuscleGroup; label: string; row: number; col: number }[] = [
+  { group: 'Shoulders', label: 'Shoulders', row: 0, col: 1 },
+  { group: 'Chest',     label: 'Chest',     row: 1, col: 0 },
+  { group: 'Biceps',    label: 'Biceps',    row: 1, col: 2 },
+  { group: 'Core',      label: 'Core',      row: 2, col: 1 },
+  { group: 'Triceps',   label: 'Triceps',   row: 2, col: 2 },
+  { group: 'Back',      label: 'Back',      row: 2, col: 0 },
+  { group: 'Quads',     label: 'Quads',     row: 3, col: 0 },
+  { group: 'Glutes',    label: 'Glutes',    row: 3, col: 1 },
+  { group: 'Hamstrings',label: 'Hams',      row: 3, col: 2 },
+  { group: 'Calves',    label: 'Calves',    row: 4, col: 1 },
+];
+
+function MuscleGroupHeatmap({
+  heatmap,
+  days,
+  onChangeDays,
+  colors,
+}: {
+  heatmap: MuscleHeatmap | null;
+  days: 7 | 14 | 30;
+  onChangeDays: (d: 7 | 14 | 30) => void;
+  colors: ReturnType<typeof useColors>;
+}) {
+  const CELL_SIZE = 90;
+  const CELL_GAP = 8;
+  const COLS = 3;
+  const ROWS = 5;
+
+  return (
+    <View style={{ paddingHorizontal: 24, marginTop: 24 }}>
+      <View
+        style={{
+          backgroundColor: colors.surface,
+          borderRadius: 20,
+          borderWidth: 1,
+          borderColor: colors.cardBorder,
+          padding: 16,
+        }}
+      >
+        {/* Header */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+          <View>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: colors.cardForeground }}>Muscle Volume Map</Text>
+            <Text style={{ fontSize: 11, color: colors.cardMuted, marginTop: 2 }}>Sets per muscle group</Text>
+          </View>
+          {/* Day range toggle */}
+          <View style={{ flexDirection: 'row', gap: 6 }}>
+            {([7, 14, 30] as const).map(d => (
+              <TouchableOpacity
+                key={d}
+                onPress={() => onChangeDays(d)}
+                style={{
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                  borderRadius: 8,
+                  backgroundColor: days === d ? '#C8F53C' : colors.background,
+                  borderWidth: 1,
+                  borderColor: days === d ? '#C8F53C' : colors.cardBorder,
+                }}
+              >
+                <Text style={{ fontSize: 11, fontWeight: '700', color: days === d ? '#000' : colors.cardMuted }}>
+                  {d}d
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* Grid */}
+        {heatmap ? (
+          <View style={{ gap: CELL_GAP }}>
+            {Array.from({ length: ROWS }).map((_, row) => (
+              <View key={row} style={{ flexDirection: 'row', gap: CELL_GAP }}>
+                {Array.from({ length: COLS }).map((_, col) => {
+                  const region = BODY_REGIONS.find(r => r.row === row && r.col === col);
+                  if (!region) {
+                    return <View key={col} style={{ flex: 1, height: 64 }} />;
+                  }
+                  const entry = heatmap[region.group];
+                  const bgColor = INTENSITY_COLORS[entry.intensity];
+                  const textColor = entry.intensity === 'none' ? colors.cardMuted : entry.intensity === 'overtrained' ? '#000' : '#E2E8F0';
+                  return (
+                    <View
+                      key={col}
+                      style={{
+                        flex: 1,
+                        height: 64,
+                        borderRadius: 12,
+                        backgroundColor: bgColor,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderWidth: 1,
+                        borderColor: entry.intensity === 'none' ? colors.cardBorder : bgColor,
+                      }}
+                    >
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: textColor }}>{region.label}</Text>
+                      <Text style={{ fontSize: 10, color: textColor, opacity: 0.8, marginTop: 2 }}>
+                        {Math.round(entry.sets)} sets
+                      </Text>
+                      <Text style={{ fontSize: 9, color: textColor, opacity: 0.6, marginTop: 1 }}>
+                        {INTENSITY_LABELS[entry.intensity]}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            ))}
+          </View>
+        ) : (
+          <View style={{ alignItems: 'center', paddingVertical: 32 }}>
+            <Text style={{ color: colors.cardMuted, fontSize: 13 }}>No workout data yet</Text>
+          </View>
+        )}
+
+        {/* Legend */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.cardBorder }}>
+          {(Object.entries(INTENSITY_COLORS) as [IntensityLevel, string][]).map(([level, color]) => (
+            <View key={level} style={{ alignItems: 'center', gap: 3 }}>
+              <View style={{ width: 20, height: 20, borderRadius: 5, backgroundColor: color, borderWidth: 1, borderColor: colors.cardBorder }} />
+              <Text style={{ fontSize: 8, color: colors.cardMuted }}>{INTENSITY_LABELS[level]}</Text>
+            </View>
+          ))}
         </View>
       </View>
     </View>

@@ -7,6 +7,7 @@ export interface Exercise {
   id: string;
   name: string;
   videoUrl: string;
+  videoId?: string; // YouTube video ID (11-char string, used for in-app player)
   defaultRestSeconds: number;
   defaultReps: string; // e.g., "8-10" or "12" (for reps-based exercises)
   defaultDuration?: number; // seconds (for duration-based exercises)

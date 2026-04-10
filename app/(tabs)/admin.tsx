@@ -97,6 +97,7 @@ function ExercisesTab() {
   const [editingExercise, setEditingExercise] = useState<Exercise | null>(null);
   const [name, setName] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
+  const [videoId, setVideoId] = useState(''); // YouTube 11-char video ID
   const [restSeconds, setRestSeconds] = useState('90');
   const [defaultReps, setDefaultReps] = useState('8-12');
   const [defaultDuration, setDefaultDuration] = useState('60');
@@ -117,6 +118,7 @@ function ExercisesTab() {
     setEditingExercise(null);
     setName('');
     setVideoUrl('');
+    setVideoId('');
     setRestSeconds('90');
     setDefaultReps('8-12');
     setDefaultDuration('60');
@@ -133,6 +135,13 @@ function ExercisesTab() {
     setEditingExercise(exercise);
     setName(exercise.name);
     setVideoUrl(exercise.videoUrl);
+    // Pre-fill videoId from stored value or extract from URL
+    if (exercise.videoId) {
+      setVideoId(exercise.videoId);
+    } else {
+      const match = exercise.videoUrl?.match(/(?:v=|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+      setVideoId(match ? match[1] : '');
+    }
     setRestSeconds(exercise.defaultRestSeconds.toString());
     setDefaultReps(exercise.defaultReps || '8-12');
     setNotes(exercise.notes || '');
@@ -233,16 +242,29 @@ function ExercisesTab() {
     }
     const rest = parseInt(restSeconds) || 90;
     
+    // Derive final videoId: use explicit field, or extract from URL
+    const resolvedVideoId = videoId.trim() ||
+      videoUrl.trim().match(/(?:v=|youtu\.be\/)([A-Za-z0-9_-]{11})/)?.[1] || '';
     if (editingExercise) {
       await updateExercise(editingExercise.id, {
         name: name.trim(),
         videoUrl: videoUrl.trim(),
+        videoId: resolvedVideoId || undefined,
         defaultRestSeconds: rest,
         defaultReps: defaultReps.trim() || '8-12',
         notes: notes.trim(),
       });
     } else {
       await addExercise(name.trim(), videoUrl.trim(), rest, defaultReps.trim() || '8-12', notes.trim());
+      // Update the just-added exercise with videoId if present
+      if (resolvedVideoId) {
+        // The last exercise in store is the one just added
+        // We update via a separate call after add
+        setTimeout(async () => {
+          const lastEx = store.exercises[store.exercises.length - 1];
+          if (lastEx) await updateExercise(lastEx.id, { videoId: resolvedVideoId });
+        }, 100);
+      }
     }
     
     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -288,14 +310,25 @@ function ExercisesTab() {
               </Text>
             </View>
           ) : null}
-          {item.videoUrl ? (
-            <TouchableOpacity 
-              onPress={() => Linking.openURL(item.videoUrl)}
-              className="flex-row items-center mt-2"
-            >
-              <IconSymbol name="video.fill" size={16} color={colors.primary} />
-              <Text className="text-sm ml-1" style={{ color: colors.primary }}>Watch Video</Text>
-            </TouchableOpacity>
+          {(item.videoId || item.videoUrl) ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 8 }}>
+              {item.videoId && (
+                <Image
+                  source={{ uri: `https://img.youtube.com/vi/${item.videoId}/default.jpg` }}
+                  style={{ width: 48, height: 36, borderRadius: 6 }}
+                  contentFit="cover"
+                />
+              )}
+              <TouchableOpacity
+                onPress={() => Linking.openURL(item.videoUrl || `https://www.youtube.com/watch?v=${item.videoId}`)}
+                style={{ flexDirection: 'row', alignItems: 'center' }}
+              >
+                <IconSymbol name="video.fill" size={14} color={colors.primary} />
+                <Text style={{ fontSize: 12, color: colors.primary, marginLeft: 4 }}>
+                  {item.videoId ? 'Watch on YouTube' : 'Watch Video'}
+                </Text>
+              </TouchableOpacity>
+            </View>
           ) : null}
         </View>
         <View className="flex-row">
@@ -473,16 +506,77 @@ function ExercisesTab() {
               <Text className="text-sm text-cardMuted underline">Or enter URL manually</Text>
             </TouchableOpacity>
             {!showVideoSuggestions && !selectedVideo && (
-              <TextInput
-                value={videoUrl}
-                onChangeText={setVideoUrl}
-                placeholder="https://youtube.com/..."
-                placeholderTextColor={colors.muted}
-                className="bg-surface rounded-xl p-4 text-cardForeground mb-4"
-                style={{ borderWidth: 1, borderColor: colors.border }}
-                autoCapitalize="none"
-                keyboardType="url"
-              />
+              <>
+                <TextInput
+                  value={videoUrl}
+                  onChangeText={setVideoUrl}
+                  placeholder="https://youtube.com/watch?v=..."
+                  placeholderTextColor={colors.muted}
+                  className="bg-surface rounded-xl p-4 text-cardForeground mb-3"
+                  style={{ borderWidth: 1, borderColor: colors.border }}
+                  autoCapitalize="none"
+                  keyboardType="url"
+                />
+                {/* YouTube Video ID field for in-app player */}
+                <View style={{ marginBottom: 16 }}>
+                  <Text style={{ fontSize: 12, color: colors.cardMuted, marginBottom: 6 }}>
+                    YouTube Video ID (for in-app player)
+                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <TextInput
+                      value={videoId}
+                      onChangeText={(text) => {
+                        // Strip full URL if pasted — extract just the ID
+                        const match = text.match(/(?:v=|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+                        setVideoId(match ? match[1] : text.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 11));
+                      }}
+                      placeholder="e.g. dQw4w9WgXcQ"
+                      placeholderTextColor={colors.muted}
+                      style={{
+                        flex: 1, backgroundColor: colors.surface, borderRadius: 12,
+                        padding: 14, color: colors.cardForeground,
+                        borderWidth: 1, borderColor: videoId.length === 11 ? '#22C55E' : colors.border,
+                        fontFamily: 'monospace', fontSize: 14,
+                      }}
+                      autoCapitalize="none"
+                      maxLength={11}
+                    />
+                    {videoId.length === 11 && (
+                      <View style={{
+                        width: 36, height: 36, borderRadius: 8,
+                        backgroundColor: '#22C55E20',
+                        alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        <Text style={{ fontSize: 18 }}>✓</Text>
+                      </View>
+                    )}
+                  </View>
+                  {videoId.length === 11 && (
+                    <View style={{ marginTop: 8, borderRadius: 10, overflow: 'hidden' }}>
+                      <Image
+                        source={{ uri: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg` }}
+                        style={{ width: '100%', height: 120 }}
+                        contentFit="cover"
+                      />
+                      <View style={{
+                        position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                        alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        <View style={{
+                          width: 44, height: 44, borderRadius: 22,
+                          backgroundColor: 'rgba(0,0,0,0.7)',
+                          alignItems: 'center', justifyContent: 'center',
+                        }}>
+                          <Text style={{ fontSize: 18, marginLeft: 3 }}>▶</Text>
+                        </View>
+                      </View>
+                    </View>
+                  )}
+                  <Text style={{ fontSize: 10, color: colors.cardMuted, marginTop: 4 }}>
+                    Paste the 11-character ID or full YouTube URL — the thumbnail will preview above.
+                  </Text>
+                </View>
+              </>
             )}
 
             <Text className="text-sm font-medium text-cardMuted mb-2">Default Rest Time (seconds)</Text>

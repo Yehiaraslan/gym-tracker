@@ -62,6 +62,7 @@ import { awardWorkoutXP, awardPRXP } from '@/lib/xp-system';
 import { XPLevelUpOverlay } from '@/components/xp-levelup-overlay';
 import { loadStore, saveStore } from '@/lib/store';
 import { getExerciseByName } from '@/lib/data/exercise-library';
+import type { Exercise } from '@/lib/types';
 import { getTodayRecoveryData, type RecoveryData } from '@/lib/whoop-recovery-service';
 import {
   saveActiveWorkout,
@@ -80,6 +81,9 @@ export default function SplitWorkoutScreen() {
   const params = useLocalSearchParams<{ sessionType?: string; session?: string; deload?: string }>();
   const sessionType = (params.sessionType as SessionType) || (params.session as SessionType) || getTodaySession();
   const [isDeload, setIsDeload] = useState(params.deload === 'true');
+  // Gym store exercises (for custom videoId lookup)
+  const [gymExercises, setGymExercises] = useState<Exercise[]>([]);
+  useEffect(() => { loadStore().then(s => setGymExercises(s.exercises)); }, []);
   const defaultExercises = sessionType !== 'rest' ? (PROGRAM_SESSIONS[sessionType] ?? []) : [];
   const [programExercises, setProgramExercises] = useState<ProgramExercise[]>(defaultExercises);
   const [swappableExercises, setSwappableExercises] = useState<ProgramExercise[]>([]);
@@ -159,6 +163,8 @@ export default function SplitWorkoutScreen() {
   const [restTotal, setRestTotal] = useState(0);
   const [isResting, setIsResting] = useState(false);
   const [restExerciseName, setRestExerciseName] = useState('');
+  // Auto-advance: index of the next exercise to scroll to when rest ends
+  const autoAdvanceToRef = useRef<number | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const restRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -476,7 +482,7 @@ export default function SplitWorkoutScreen() {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [started, startTime]);
 
-  // Rest timer
+  // Rest timer — auto-advances to next exercise when countdown hits zero
   useEffect(() => {
     if (isResting && restTime > 0) {
       restRef.current = setInterval(() => {
@@ -484,6 +490,16 @@ export default function SplitWorkoutScreen() {
           if (prev <= 1) {
             setIsResting(false);
             if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            // Auto-advance: scroll to and activate the next exercise
+            const nextIdx = autoAdvanceToRef.current;
+            if (nextIdx !== null) {
+              setActiveExerciseIndex(nextIdx);
+              autoAdvanceToRef.current = null;
+              // Scroll to the next exercise card after a brief delay
+              setTimeout(() => {
+                scrollRef.current?.scrollTo({ y: nextIdx * 200, animated: true });
+              }, 150);
+            }
             return 0;
           }
           return prev - 1;
@@ -566,9 +582,9 @@ export default function SplitWorkoutScreen() {
       );
       if (rec) saveRecommendation(rec);
 
-      // Auto-advance to next exercise
+      // Store next exercise index — auto-advance fires when rest timer hits zero
       if (exerciseIndex < exercises.length - 1) {
-        setActiveExerciseIndex(exerciseIndex + 1);
+        autoAdvanceToRef.current = exerciseIndex + 1;
       }
     }
   }, [exercises, exerciseLogs, isDeload, recovery]);
@@ -585,12 +601,20 @@ export default function SplitWorkoutScreen() {
   }, [exercises]);
 
   const openVideo = (exerciseName: string) => {
-    const libEntry = getExerciseByName(exerciseName);
-    if (libEntry?.videoId) {
-      setVideoExercise({ name: exerciseName, videoId: libEntry.videoId });
+    // Prefer custom videoId from gym store, then fall back to exercise library
+    const gymEx = gymExercises.find(e => e.name.toLowerCase() === exerciseName.toLowerCase());
+    const resolvedId = gymEx?.videoId || getExerciseByName(exerciseName)?.videoId;
+    if (resolvedId) {
+      setVideoExercise({ name: exerciseName, videoId: resolvedId });
       setVideoPlaying(true);
       setShowVideoModal(true);
     }
+  };
+
+  // Helper to get videoId for any exercise name (gym store > library)
+  const getVideoId = (exerciseName: string): string | undefined => {
+    const gymEx = gymExercises.find(e => e.name.toLowerCase() === exerciseName.toLowerCase());
+    return gymEx?.videoId || getExerciseByName(exerciseName)?.videoId;
   };
 
   // ── Share workout card ──
@@ -1073,6 +1097,7 @@ export default function SplitWorkoutScreen() {
           <View className="px-6 mb-4">
             <Text className="text-sm font-semibold text-cardForeground mb-3">Exercises</Text>
             {exercises.map((ex, i) => {
+              const exVideoId = getVideoId(ex.name);
               const libEntry = getExerciseByName(ex.name);
               const suggestion = weightSuggestions[ex.name];
               const displaySets = isDeload ? Math.ceil(ex.sets / 2) : ex.sets;
@@ -1084,11 +1109,11 @@ export default function SplitWorkoutScreen() {
                   style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.cardBorder }}
                 >
                   {/* Video thumbnail */}
-                  {libEntry?.videoId && (
+                  {exVideoId && (
                     <TouchableOpacity onPress={() => openVideo(ex.name)} activeOpacity={0.8}>
                       <View style={{ position: 'relative' }}>
                         <Image
-                          source={{ uri: `https://img.youtube.com/vi/${libEntry.videoId}/mqdefault.jpg` }}
+                          source={{ uri: `https://img.youtube.com/vi/${exVideoId}/mqdefault.jpg` }}
                           style={{ width: '100%', height: 140, backgroundColor: colors.cardBorder }}
                           contentFit="cover"
                         />
@@ -1490,35 +1515,112 @@ export default function SplitWorkoutScreen() {
 
       <ScrollView ref={scrollRef} className="flex-1 px-4 pt-4" contentContainerStyle={{ paddingBottom: 120 }}>
         {/* Rest timer card */}
-        {isResting && (
-          <View
-            className="rounded-2xl p-6 items-center mb-4"
-            style={{ backgroundColor: '#F59E0B10', borderWidth: 2, borderColor: '#F59E0B40' }}
-          >
-            <Text className="text-xs font-medium text-cardMuted mb-2" style={{ textTransform: 'uppercase', letterSpacing: 1 }}>
-              Rest Timer
-            </Text>
-            <Text className="text-5xl font-bold text-cardForeground">{formatTime(restTime)}</Text>
-            <Text className="text-sm text-cardMuted mt-1">{restExerciseName}</Text>
-            {/* Progress ring (simplified as bar) */}
-            <View className="w-full mt-4 h-2 rounded-full overflow-hidden" style={{ backgroundColor: colors.cardBorder }}>
-              <View
-                className="h-full rounded-full"
-                style={{
-                  width: restTotal > 0 ? `${((restTotal - restTime) / restTotal) * 100}%` : '0%',
-                  backgroundColor: '#F59E0B',
-                }}
-              />
-            </View>
-            <TouchableOpacity
-              onPress={() => { setIsResting(false); setRestTime(0); if (restRef.current) clearInterval(restRef.current); }}
-              className="mt-4 px-8 py-3 rounded-xl"
-              style={{ backgroundColor: colors.primary }}
+        {isResting && (() => {
+          const nextIdx = autoAdvanceToRef.current;
+          const nextEx = nextIdx !== null ? exercises[nextIdx] : null;
+          return (
+            <View
+              className="rounded-2xl p-5 mb-4"
+              style={{ backgroundColor: '#F59E0B10', borderWidth: 2, borderColor: '#F59E0B40' }}
             >
-              <Text className="text-white font-semibold">Skip Rest</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+              {/* Header row */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <Text className="text-xs font-medium text-cardMuted" style={{ textTransform: 'uppercase', letterSpacing: 1 }}>
+                  Rest Timer
+                </Text>
+                {nextEx && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Text style={{ fontSize: 10, color: '#F59E0B', fontWeight: '600' }}>AUTO-ADVANCE</Text>
+                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#F59E0B' }} />
+                  </View>
+                )}
+              </View>
+
+              {/* Big countdown */}
+              <Text className="text-6xl font-bold text-cardForeground text-center">{formatTime(restTime)}</Text>
+              <Text className="text-sm text-cardMuted text-center mt-1">{restExerciseName}</Text>
+
+              {/* Progress bar */}
+              <View className="w-full mt-4 h-2 rounded-full overflow-hidden" style={{ backgroundColor: colors.cardBorder }}>
+                <View
+                  className="h-full rounded-full"
+                  style={{
+                    width: restTotal > 0 ? `${((restTotal - restTime) / restTotal) * 100}%` : '0%',
+                    backgroundColor: '#F59E0B',
+                  }}
+                />
+              </View>
+
+              {/* Next exercise preview */}
+              {nextEx && (
+                <View style={{
+                  marginTop: 14,
+                  paddingTop: 12,
+                  borderTopWidth: 1,
+                  borderTopColor: '#F59E0B20',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 10,
+                }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 10, color: '#F59E0B', fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 2 }}>Up Next</Text>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: colors.cardForeground }}>{nextEx.name}</Text>
+                    <Text style={{ fontSize: 12, color: colors.cardMuted, marginTop: 1 }}>
+                      {isDeload ? Math.ceil(nextEx.sets / 2) : nextEx.sets} sets · {nextEx.repsMin}–{nextEx.repsMax} reps
+                    </Text>
+                  </View>
+                  <View style={{
+                    backgroundColor: sessionColor + '20',
+                    borderRadius: 10,
+                    paddingHorizontal: 10,
+                    paddingVertical: 6,
+                  }}>
+                    <Text style={{ fontSize: 11, color: sessionColor, fontWeight: '600' }}>
+                      {nextEx.restSeconds}s rest
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+              {/* Actions */}
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
+                <TouchableOpacity
+                  onPress={() => {
+                    setIsResting(false);
+                    setRestTime(0);
+                    if (restRef.current) clearInterval(restRef.current);
+                    // Still auto-advance if set is complete
+                    const nextIdx2 = autoAdvanceToRef.current;
+                    if (nextIdx2 !== null) {
+                      setActiveExerciseIndex(nextIdx2);
+                      autoAdvanceToRef.current = null;
+                      setTimeout(() => { scrollRef.current?.scrollTo({ y: nextIdx2 * 200, animated: true }); }, 100);
+                    }
+                  }}
+                  style={{
+                    flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center',
+                    backgroundColor: colors.primary,
+                  }}
+                >
+                  <Text style={{ color: '#000', fontWeight: '700', fontSize: 14 }}>Skip Rest →</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    // Add 30 seconds
+                    setRestTime(prev => prev + 30);
+                    setRestTotal(prev => prev + 30);
+                  }}
+                  style={{
+                    paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, alignItems: 'center',
+                    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.cardBorder,
+                  }}
+                >
+                  <Text style={{ color: colors.cardForeground, fontWeight: '600', fontSize: 14 }}>+30s</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          );
+        })()}
 
         {/* Exercise cards */}
         {exercises.map((ex, i) => {
@@ -1531,7 +1633,7 @@ export default function SplitWorkoutScreen() {
           const suggestion = weightSuggestions[ex.name];
           const showHint = progressionHints[ex.name] || false;
           const isActive = i === activeExerciseIndex;
-          const libEntry = getExerciseByName(ex.name);
+          const exVid = getVideoId(ex.name);
 
           return (
             <View key={ex.name} className="mb-3">
@@ -1601,13 +1703,13 @@ export default function SplitWorkoutScreen() {
                       style={{
                         width: 36, height: 36, borderRadius: 10,
                         backgroundColor: colors.primary + '18', alignItems: 'center', justifyContent: 'center',
-                        marginRight: libEntry?.videoId ? 4 : 0,
+                        marginRight: exVid ? 4 : 0,
                       }}
                     >
                       <Text style={{ fontSize: 16 }}>📊</Text>
                     </TouchableOpacity>
                     {/* Video button */}
-                    {libEntry?.videoId && (
+                    {exVid && (
                       <TouchableOpacity
                         onPress={() => openVideo(ex.name)}
                         style={{
@@ -1625,11 +1727,11 @@ export default function SplitWorkoutScreen() {
                 {isActive && !isSkipped && (
                   <View>
                     {/* Embedded video thumbnail */}
-                    {libEntry?.videoId && (
+                    {exVid && (
                       <TouchableOpacity onPress={() => openVideo(ex.name)} activeOpacity={0.8} className="mx-4 mb-3">
                         <View style={{ position: 'relative', borderRadius: 12, overflow: 'hidden' }}>
                           <Image
-                            source={{ uri: `https://img.youtube.com/vi/${libEntry.videoId}/mqdefault.jpg` }}
+                            source={{ uri: `https://img.youtube.com/vi/${exVid}/mqdefault.jpg` }}
                             style={{ width: '100%', height: 120, backgroundColor: colors.cardBorder }}
                             contentFit="cover"
                           />
