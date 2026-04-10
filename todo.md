@@ -1035,3 +1035,8 @@
 - [x] Zaki body analysis: multimodal LLM analyzes progress photos for posture, muscle imbalance, weak points, recommended focus areas (already fully implemented, verified end-to-end)
 - [x] PR history screen: rewrote pr-board.tsx to use getAllPRs() from split-workout-store with bodyPart grouping, podium, total strength score; added "View All" link in Analytics tab
 - [x] Side-by-side progress photo comparison slider: draggable divider in progress-gallery.tsx (already fully implemented, verified)
+
+## Three Features — Volume Heatmap, Smart Deload, Nutrition Adherence (Apr 10 2026)
+- [x] Workout volume heatmap: GitHub-style 12-week grid in Analytics tab, lime green intensity scale, session count + total/avg volume summary
+- [x] Smart deload trigger: detect 3 consecutive sessions with declining total volume, surface amber warning banner in Analytics tab with % drop
+- [x] Weekly protein adherence score: 7-day bar strip + % score card in Nutrition tab above MEALS, lime green/amber/red based on adherence level

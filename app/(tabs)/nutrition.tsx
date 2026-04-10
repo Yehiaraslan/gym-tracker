@@ -22,6 +22,7 @@ import { DailyNutrition } from '@/lib/nutrition-store';
 import {
   getDailyNutrition,
   saveDailyNutrition,
+  getRecentNutrition,
 } from '@/lib/nutrition-store';
 import { NUTRITION_TARGETS, MEAL_SCHEDULE, SUPPLEMENTS, isTrainingDay } from '@/lib/training-program';
 import * as Haptics from 'expo-haptics';
@@ -144,18 +145,28 @@ export default function NutritionTab() {
   const [customCarbs, setCustomCarbs] = useState('');
   const [customFat, setCustomFat] = useState('');
   const [copyingYesterday, setCopyingYesterday] = useState(false);
+  const [weeklyAdherence, setWeeklyAdherence] = useState<{ daysHit: number; total: number; pct: number } | null>(null);
 
   // ── Load data on mount ───────────────────────────────────
   useEffect(() => {
     let mounted = true;
     const load = async () => {
-      const [log, custom] = await Promise.all([
+      const [log, custom, recent] = await Promise.all([
         getDailyNutrition(today),
         loadCustomFoods(),
+        getRecentNutrition(7),
       ]);
       if (mounted) {
         setTodayLog(log);
         setCustomFoods(custom);
+        // Compute weekly protein adherence
+        const daysWithData = recent.filter(d => d.meals.length > 0);
+        const daysHit = daysWithData.filter(d => {
+          const prot = d.meals.reduce((s, m) => s + m.protein, 0);
+          return prot >= d.targetProtein * 0.9; // 90% threshold
+        }).length;
+        const total = Math.max(daysWithData.length, 1);
+        setWeeklyAdherence({ daysHit, total, pct: Math.round((daysHit / total) * 100) });
       }
     };
     load();
@@ -393,10 +404,43 @@ export default function NutritionTab() {
             ))}
           </View>
         </View>
-
-        {/* ── Meals ──────────────────────────────────────── */}
+        {/* ── Weekly Protein Adherence ────────────────────────── */}
+        {weeklyAdherence && weeklyAdherence.total > 0 && (
+          <View style={[s.macroCard, { backgroundColor: surf, paddingVertical: 12 }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: fg }}>Weekly Protein Adherence</Text>
+              <Text style={{
+                fontSize: 18,
+                fontWeight: '800',
+                color: weeklyAdherence.pct >= 80 ? '#C8F53C' : weeklyAdherence.pct >= 50 ? '#F59E0B' : '#EF4444',
+              }}>
+                {weeklyAdherence.pct}%
+              </Text>
+            </View>
+            <View style={{ flexDirection: 'row', gap: 6 }}>
+              {Array.from({ length: 7 }).map((_, i) => {
+                const hit = i < weeklyAdherence.daysHit;
+                const logged = i < weeklyAdherence.total;
+                return (
+                  <View
+                    key={i}
+                    style={{
+                      flex: 1,
+                      height: 8,
+                      borderRadius: 4,
+                      backgroundColor: hit ? '#C8F53C' : logged ? '#EF4444' : colors.cardBorder,
+                    }}
+                  />
+                );
+              })}
+            </View>
+            <Text style={{ fontSize: 11, color: mut, marginTop: 6 }}>
+              {weeklyAdherence.daysHit}/{weeklyAdherence.total} days hit protein target (≥90%)
+            </Text>
+          </View>
+        )}
+        {/* ── Meals ────────────────────────────────────────────── */}
         <Text style={[s.sectionLabel, { color: mut }]}>MEALS</Text>
-
         {MEAL_SCHEDULE.map(meal => {
           const mealFoods = log.meals.filter(m => m.mealNumber === meal.meal);
           const mealCals = mealFoods.reduce((s, m) => s + m.calories, 0);

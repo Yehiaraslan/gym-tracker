@@ -29,6 +29,8 @@ import {
   getVolumeHistory,
   getDeloadWeekDates,
   get1RMHistory,
+  getVolumeHeatmapData,
+  detectPerformanceDecline,
   type SplitWorkoutSession,
 } from '@/lib/split-workout-store';
 import {
@@ -78,6 +80,8 @@ export default function ProgressScreen() {
   const [weeklyVolumeData, setWeeklyVolumeData] = useState<Record<string, { date: string; volume: number }[]>>({});
   const [volumeDateRange, setVolumeDateRange] = useState<28 | 56 | undefined>(28);
   const [deloadDates, setDeloadDates] = useState<string[]>([]);
+  const [heatmapData, setHeatmapData] = useState<Record<string, number>>({});
+  const [performanceDecline, setPerformanceDecline] = useState<{ declining: boolean; pct: number; sessions: number } | null>(null);
 
   // Strength Progression Chart state
   // Multi-exercise overlay state
@@ -111,7 +115,7 @@ export default function ProgressScreen() {
   const loadData = useCallback(async () => {
     try {
       const [prData, streakData, recent, rec, weekRec, nutri, recs, weekCount, exerciseNames,
-        volUpperA, volLowerA, volUpperB, volLowerB, deloadDatesList] = await Promise.all([
+        volUpperA, volLowerA, volUpperB, volLowerB, deloadDatesList, heatmap, decline] = await Promise.all([
         getAllPRs(),
         getStreakData(),
         getRecentSplitWorkouts(10),
@@ -126,6 +130,8 @@ export default function ProgressScreen() {
         getVolumeHistory('upper-b', volumeDateRange),
         getVolumeHistory('lower-b', volumeDateRange),
         getDeloadWeekDates(),
+        getVolumeHeatmapData(12),
+        detectPerformanceDecline(),
       ]);
       setPrs(prData);
       setStreak(streakData);
@@ -138,6 +144,8 @@ export default function ProgressScreen() {
       setTrackedExercises(exerciseNames);
       setWeeklyVolumeData({ 'upper-a': volUpperA, 'lower-a': volLowerA, 'upper-b': volUpperB, 'lower-b': volLowerB });
       setDeloadDates(deloadDatesList);
+      setHeatmapData(heatmap);
+      setPerformanceDecline(decline);
     } catch (e) {
       console.error('Failed to load progress data:', e);
     } finally {
@@ -577,6 +585,35 @@ export default function ProgressScreen() {
           </View>
         )}
 
+        {/* Volume Heatmap */}
+        <VolumeHeatmap data={heatmapData} colors={colors} />
+        {/* Smart Deload Banner */}
+        {performanceDecline?.declining && (
+          <View className="px-6 mt-4">
+            <View
+              style={{
+                backgroundColor: '#2A1A00',
+                borderWidth: 1,
+                borderColor: '#F59E0B',
+                borderRadius: 16,
+                padding: 16,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 12,
+              }}
+            >
+              <Text style={{ fontSize: 28 }}>⚠️</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: '#F59E0B', marginBottom: 2 }}>
+                  Performance Declining
+                </Text>
+                <Text style={{ fontSize: 12, color: '#D97706', lineHeight: 18 }}>
+                  Your last 3 sessions show a {performanceDecline.pct}% volume drop. A deload week may help you recover and come back stronger.
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
         <View style={{ height: 20 }} />
       </ScrollView>
       )}
@@ -1429,6 +1466,142 @@ function StrengthProgressionChart({
             })}
           </>
         )}
+      </View>
+    </View>
+  );
+}
+
+// ============================================================
+// VOLUME HEATMAP — 12-week GitHub-style training calendar
+// Each cell is colored by total volume lifted that day
+// ============================================================
+function VolumeHeatmap({
+  data,
+  colors,
+}: {
+  data: Record<string, number>;
+  colors: ReturnType<typeof useColors>;
+}) {
+  const WEEKS = 12;
+  const CELL = 20;
+  const GAP = 3;
+  const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+  // Build grid: 12 columns (weeks) × 7 rows (Mon-Sun)
+  const today = new Date();
+  // Find the most recent Sunday as the end anchor
+  const endDate = new Date(today);
+  // Shift to end of current week (Sunday)
+  const dayOfWeek = (today.getDay() + 6) % 7; // 0=Mon, 6=Sun
+  endDate.setDate(today.getDate() + (6 - dayOfWeek));
+
+  const cells: { date: string; vol: number; col: number; row: number }[] = [];
+  for (let w = WEEKS - 1; w >= 0; w--) {
+    for (let d = 0; d < 7; d++) {
+      const date = new Date(endDate);
+      date.setDate(endDate.getDate() - w * 7 - (6 - d));
+      const key = date.toLocaleDateString('en-CA');
+      const vol = data[key] ?? 0;
+      cells.push({ date: key, vol, col: WEEKS - 1 - w, row: d });
+    }
+  }
+
+  const maxVol = Math.max(...Object.values(data), 1);
+
+  const getColor = (vol: number) => {
+    if (vol === 0) return colors.surface;
+    const intensity = vol / maxVol;
+    if (intensity < 0.25) return '#1A3A1A';
+    if (intensity < 0.5) return '#2D6A2D';
+    if (intensity < 0.75) return '#5AAD5A';
+    return '#C8F53C';
+  };
+
+  const totalWorkouts = Object.values(data).filter(v => v > 0).length;
+  const totalVol = Object.values(data).reduce((a, b) => a + b, 0);
+
+  return (
+    <View className="px-6 mt-5">
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <Text style={{ fontSize: 13, fontWeight: '600', color: colors.cardForeground }}>Training Volume — Last 12 Weeks</Text>
+        <Text style={{ fontSize: 11, color: colors.cardMuted }}>{totalWorkouts} sessions</Text>
+      </View>
+      <View
+        style={{
+          backgroundColor: colors.surface,
+          borderRadius: 16,
+          borderWidth: 1,
+          borderColor: colors.cardBorder,
+          padding: 14,
+        }}
+      >
+        {/* Day labels */}
+        <View style={{ flexDirection: 'row', marginBottom: 4 }}>
+          <View style={{ width: 16 }} />
+          {DAY_LABELS.map((l, i) => (
+            <Text
+              key={i}
+              style={{
+                width: CELL,
+                marginRight: GAP,
+                fontSize: 9,
+                color: colors.cardMuted,
+                textAlign: 'center',
+              }}
+            >
+              {l}
+            </Text>
+          ))}
+        </View>
+        {/* Grid — columns = weeks, rows = days */}
+        <View style={{ flexDirection: 'row' }}>
+          {Array.from({ length: WEEKS }).map((_, col) => (
+            <View key={col} style={{ marginRight: GAP }}>
+              {Array.from({ length: 7 }).map((_, row) => {
+                const cell = cells.find(c => c.col === col && c.row === row);
+                return (
+                  <View
+                    key={row}
+                    style={{
+                      width: CELL,
+                      height: CELL,
+                      borderRadius: 4,
+                      backgroundColor: cell ? getColor(cell.vol) : colors.surface,
+                      marginBottom: GAP,
+                      borderWidth: 1,
+                      borderColor: colors.cardBorder,
+                    }}
+                  />
+                );
+              })}
+            </View>
+          ))}
+        </View>
+        {/* Legend */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginTop: 4 }}>
+          <Text style={{ fontSize: 9, color: colors.cardMuted, marginRight: 4 }}>Less</Text>
+          {['#1A3A1A', '#2D6A2D', '#5AAD5A', '#C8F53C'].map((c, i) => (
+            <View key={i} style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: c }} />
+          ))}
+          <Text style={{ fontSize: 9, color: colors.cardMuted, marginLeft: 4 }}>More</Text>
+        </View>
+        {/* Summary row */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.cardBorder }}>
+          <View style={{ alignItems: 'center' }}>
+            <Text style={{ fontSize: 16, fontWeight: '700', color: '#C8F53C' }}>{totalWorkouts}</Text>
+            <Text style={{ fontSize: 10, color: colors.cardMuted }}>Sessions</Text>
+          </View>
+          <View style={{ alignItems: 'center' }}>
+            <Text style={{ fontSize: 16, fontWeight: '700', color: '#C8F53C' }}>{(totalVol / 1000).toFixed(1)}t</Text>
+            <Text style={{ fontSize: 10, color: colors.cardMuted }}>Total Volume</Text>
+          </View>
+          <View style={{ alignItems: 'center' }}>
+            <Text style={{ fontSize: 16, fontWeight: '700', color: '#C8F53C' }}>
+              {totalWorkouts > 0 ? Math.round(totalVol / totalWorkouts / 1000 * 10) / 10 : 0}t
+            </Text>
+            <Text style={{ fontSize: 10, color: colors.cardMuted }}>Avg/Session</Text>
+          </View>
+        </View>
       </View>
     </View>
   );

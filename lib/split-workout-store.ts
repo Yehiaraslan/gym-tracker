@@ -498,3 +498,42 @@ export function parseZakiWeightText(text: string): Record<string, number> {
   }
   return result;
 }
+
+/**
+ * Returns a map of ISO date (YYYY-MM-DD) → total volume (kg) for the last N weeks.
+ * Used to render the volume heatmap calendar on the Analytics tab.
+ */
+export async function getVolumeHeatmapData(weeks = 12): Promise<Record<string, number>> {
+  const all = await getSplitWorkouts();
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - weeks * 7);
+  const map: Record<string, number> = {};
+  for (const w of all) {
+    if (!w.completed) continue;
+    const d = new Date(w.date + 'T00:00:00');
+    if (d < cutoff) continue;
+    const key = w.date.slice(0, 10);
+    const vol = w.totalVolume ?? 0;
+    map[key] = (map[key] ?? 0) + vol;
+  }
+  return map;
+}
+
+/**
+ * Detects whether the last 3 completed sessions each had lower total volume
+ * than the one before. Returns decline info if true, else { declining: false }.
+ */
+export async function detectPerformanceDecline(): Promise<{ declining: boolean; pct: number; sessions: number }> {
+  const all = await getSplitWorkouts();
+  const completed = all
+    .filter(w => w.completed && (w.totalVolume ?? 0) > 0)
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, 4);
+  if (completed.length < 4) return { declining: false, pct: 0, sessions: 0 };
+  const vols = completed.map(w => w.totalVolume ?? 0);
+  // vols[0] = most recent, vols[3] = oldest of the 4
+  const declining = vols[0] < vols[1] && vols[1] < vols[2] && vols[2] < vols[3];
+  if (!declining) return { declining: false, pct: 0, sessions: 0 };
+  const pct = Math.round(((vols[3] - vols[0]) / vols[3]) * 100);
+  return { declining: true, pct, sessions: 3 };
+}
