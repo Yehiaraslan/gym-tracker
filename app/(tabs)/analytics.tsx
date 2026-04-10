@@ -476,13 +476,22 @@ export default function ProgressScreen() {
         {/* Personal Records */}
         {prList.length > 0 && (
           <View className="px-6 mt-5">
-            <Text className="text-sm font-semibold text-cardForeground mb-3">Personal Records</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <Text className="text-sm font-semibold text-cardForeground">Personal Records</Text>
+              <TouchableOpacity
+                onPress={() => router.push('/pr-board')}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+              >
+                <Text style={{ fontSize: 12, color: '#C8F53C', fontWeight: '600' }}>View All</Text>
+                <Text style={{ fontSize: 12, color: '#C8F53C' }}>›</Text>
+              </TouchableOpacity>
+            </View>
             <View className="rounded-2xl overflow-hidden" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.cardBorder }}>
-              {prList.slice(0, 8).map(([name, pr], i) => (
+              {prList.slice(0, 5).map(([name, pr], i) => (
                 <View
                   key={name}
                   className="flex-row items-center px-4 py-3"
-                  style={i < Math.min(prList.length, 8) - 1 ? { borderBottomWidth: 1, borderBottomColor: colors.cardBorder } : {}}
+                  style={i < Math.min(prList.length, 5) - 1 ? { borderBottomWidth: 1, borderBottomColor: colors.cardBorder } : {}}
                 >
                   <Text style={{ fontSize: 16, marginRight: 10 }}>🏆</Text>
                   <View className="flex-1">
@@ -497,6 +506,14 @@ export default function ProgressScreen() {
                   </View>
                 </View>
               ))}
+              {prList.length > 5 && (
+                <TouchableOpacity
+                  onPress={() => router.push('/pr-board')}
+                  style={{ paddingVertical: 12, alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.cardBorder }}
+                >
+                  <Text style={{ fontSize: 13, color: '#C8F53C', fontWeight: '600' }}>View all {prList.length} PRs →</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
         )}

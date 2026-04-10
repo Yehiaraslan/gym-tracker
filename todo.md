@@ -1030,3 +1030,8 @@
 - [x] Deload weight auto-fill: pre-populate sets at 70% of last session working weight when deload mode is active (already implemented, verified)
 - [x] PR celebration: full-screen confetti overlay when a new 1RM is set mid-workout, with lift name, weight, and improvement % (already implemented, verified)
 - [x] Multi-exercise overlay chart: pin up to 3 exercises, color-coded lines, normalized Y-axis (% of best 1RM) — added % normalize toggle button and % gain in stats row
+
+## Three More Features (Apr 10 2026)
+- [x] Zaki body analysis: multimodal LLM analyzes progress photos for posture, muscle imbalance, weak points, recommended focus areas (already fully implemented, verified end-to-end)
+- [x] PR history screen: rewrote pr-board.tsx to use getAllPRs() from split-workout-store with bodyPart grouping, podium, total strength score; added "View All" link in Analytics tab
+- [x] Side-by-side progress photo comparison slider: draggable divider in progress-gallery.tsx (already fully implemented, verified)
