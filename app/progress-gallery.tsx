@@ -29,6 +29,8 @@ import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import * as MediaLibrary from 'expo-media-library';
 import { Platform, Linking } from 'react-native';
+import { trpc } from '@/lib/trpc';
+import { USER_PROFILE } from '@/lib/training-program';
 
 type PhotoCategory = 'front' | 'side' | 'back' | 'other';
 
@@ -64,6 +66,21 @@ export default function ProgressGalleryScreen() {
   // where setTimeout(fn, 300) fires before the Modal animation finishes,
   // causing expo-image-picker to silently fail to present its UI.
   const pendingSourceAction = useRef<'camera' | 'library' | null>(null);
+
+  // Zaki body analysis state
+  const [zakiAnalysisVisible, setZakiAnalysisVisible] = useState(false);
+  const [zakiAnalysisLoading, setZakiAnalysisLoading] = useState(false);
+  const [zakiAnalysisResult, setZakiAnalysisResult] = useState<{
+    overallAssessment: string;
+    postureFindings: string[];
+    muscleImbalances: { area: string; finding: string; severity: string }[];
+    weakPoints: { muscle: string; recommendation: string }[];
+    strengths: string[];
+    priorityActions: string[];
+    estimatedBodyFatRange?: string | null;
+  } | null>(null);
+  const [zakiAnalysisDate, setZakiAnalysisDate] = useState<string | null>(null);
+  const bodyAnalysisMutation = trpc.zaki.bodyAnalysis.useMutation();
 
   // Comparison slider state
   const [compareModalVisible, setCompareModalVisible] = useState(false);
@@ -271,6 +288,79 @@ export default function ProgressGalleryScreen() {
     ]);
   };
 
+  // Zaki body analysis handler
+  const handleZakiBodyAnalysis = async () => {
+    // Gather the most recent photo per category (front, back, side)
+    const byCategory: Partial<Record<PhotoCategory, ProgressPhoto>> = {};
+    for (const photo of photos) {
+      const cat = (photo.category as PhotoCategory) || 'other';
+      if (!byCategory[cat]) byCategory[cat] = photo;
+    }
+    const selected = Object.entries(byCategory)
+      .filter(([, p]) => p && p.uri)
+      .slice(0, 3);
+    if (selected.length === 0) {
+      Alert.alert('No Photos', 'Add at least one progress photo to get a Zaki body analysis.');
+      return;
+    }
+    setZakiAnalysisLoading(true);
+    setZakiAnalysisResult(null);
+    setZakiAnalysisVisible(true);
+    try {
+      // Build base64 for each photo — use stored base64 or fetch from URI
+      const photosPayload: { label: 'front' | 'back' | 'side' | 'other'; base64: string; mimeType: string }[] = [];
+      for (const [cat, photo] of selected) {
+        if (!photo) continue;
+        let b64: string | null = null;
+        if (photo.uri) {
+          // Fetch and convert URI to base64
+          try {
+            const resp = await fetch(photo.uri);
+            const blob = await resp.blob();
+            b64 = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => {
+                const result = reader.result as string;
+                resolve(result.split(',')[1] ?? result);
+              };
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
+          } catch {
+            continue;
+          }
+        }
+        if (!b64) continue;
+        photosPayload.push({
+          label: cat as 'front' | 'back' | 'side' | 'other',
+          base64: b64,
+          mimeType: 'image/jpeg',
+        });
+      }
+      if (photosPayload.length === 0) {
+        Alert.alert('Error', 'Could not read photo data. Try re-adding photos from your library.');
+        setZakiAnalysisLoading(false);
+        setZakiAnalysisVisible(false);
+        return;
+      }
+      const result = await bodyAnalysisMutation.mutateAsync({
+        photos: photosPayload,
+        userContext: {
+          weightKg: USER_PROFILE.startingWeightKg,
+          heightCm: USER_PROFILE.heightCm,
+          goals: USER_PROFILE.goal,
+        },
+      });
+      setZakiAnalysisResult(result.analysis as any);
+      setZakiAnalysisDate(result.analyzedAt);
+    } catch (err) {
+      Alert.alert('Zaki Error', 'Could not complete body analysis. Please try again.');
+      setZakiAnalysisVisible(false);
+    } finally {
+      setZakiAnalysisLoading(false);
+    }
+  };
+
   // Comparison helpers
   const getPhotosForCategory = (cat: PhotoCategory) =>
     photos.filter(p => p.category === cat).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -367,6 +457,14 @@ export default function ProgressGalleryScreen() {
           >
             <Text style={{ fontSize: 16 }}>⚖️</Text>
             <Text style={[styles.actionBtnText, { color: colors.cardForeground }]}>Compare</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleZakiBodyAnalysis}
+            disabled={photos.length === 0}
+            style={[styles.actionBtn, { backgroundColor: '#7C3AED', flex: 1, opacity: photos.length === 0 ? 0.4 : 1 }]}
+          >
+            <Text style={{ fontSize: 16 }}>🤖</Text>
+            <Text style={[styles.actionBtnText, { color: '#fff' }]}>Zaki</Text>
           </TouchableOpacity>
         </View>
 
@@ -647,6 +745,100 @@ export default function ProgressGalleryScreen() {
           >
             <Text style={{ color: colors.cardForeground, fontWeight: '700', fontSize: 16 }}>Close</Text>
           </TouchableOpacity>
+        </View>
+      </Modal>
+
+      {/* ── Zaki Body Analysis Modal ── */}
+      <Modal visible={zakiAnalysisVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.bottomSheet, { backgroundColor: colors.surface, maxHeight: '90%' }]}>
+            <View style={[styles.sheetHandle, { backgroundColor: colors.cardBorder }]} />
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+              <Text style={{ fontSize: 22 }}>🤖</Text>
+              <Text style={[styles.sheetTitle, { color: colors.cardForeground, marginLeft: 8, marginBottom: 0 }]}>Zaki Body Analysis</Text>
+            </View>
+            {zakiAnalysisDate && (
+              <Text style={{ color: colors.cardMuted, fontSize: 12, marginBottom: 12, textAlign: 'center' }}>
+                Analyzed {new Date(zakiAnalysisDate).toLocaleString()}
+              </Text>
+            )}
+            {zakiAnalysisLoading ? (
+              <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+                <ActivityIndicator size="large" color="#7C3AED" />
+                <Text style={{ color: colors.cardMuted, marginTop: 16, fontSize: 14 }}>Zaki is analyzing your photos...</Text>
+                <Text style={{ color: colors.cardMuted, marginTop: 4, fontSize: 12 }}>This may take 15-30 seconds</Text>
+              </View>
+            ) : zakiAnalysisResult ? (
+              <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 520 }}>
+                {/* Overall Assessment */}
+                <View style={{ backgroundColor: '#7C3AED22', borderRadius: 10, padding: 14, marginBottom: 12 }}>
+                  <Text style={{ color: '#7C3AED', fontWeight: '700', fontSize: 13, marginBottom: 6 }}>OVERALL ASSESSMENT</Text>
+                  <Text style={{ color: colors.cardForeground, fontSize: 14, lineHeight: 20 }}>{zakiAnalysisResult.overallAssessment}</Text>
+                  {zakiAnalysisResult.estimatedBodyFatRange && (
+                    <Text style={{ color: colors.cardMuted, fontSize: 12, marginTop: 6 }}>Est. Body Fat: {zakiAnalysisResult.estimatedBodyFatRange}</Text>
+                  )}
+                </View>
+                {/* Strengths */}
+                {zakiAnalysisResult.strengths?.length > 0 && (
+                  <View style={{ marginBottom: 12 }}>
+                    <Text style={{ color: '#22C55E', fontWeight: '700', fontSize: 13, marginBottom: 6 }}>✅ STRENGTHS</Text>
+                    {zakiAnalysisResult.strengths.map((s, i) => (
+                      <Text key={i} style={{ color: colors.cardForeground, fontSize: 13, lineHeight: 20, marginBottom: 2 }}>• {s}</Text>
+                    ))}
+                  </View>
+                )}
+                {/* Posture Findings */}
+                {zakiAnalysisResult.postureFindings?.length > 0 && (
+                  <View style={{ marginBottom: 12 }}>
+                    <Text style={{ color: '#F59E0B', fontWeight: '700', fontSize: 13, marginBottom: 6 }}>🔍 POSTURE FINDINGS</Text>
+                    {zakiAnalysisResult.postureFindings.map((f, i) => (
+                      <Text key={i} style={{ color: colors.cardForeground, fontSize: 13, lineHeight: 20, marginBottom: 2 }}>• {f}</Text>
+                    ))}
+                  </View>
+                )}
+                {/* Muscle Imbalances */}
+                {zakiAnalysisResult.muscleImbalances?.length > 0 && (
+                  <View style={{ marginBottom: 12 }}>
+                    <Text style={{ color: '#EF4444', fontWeight: '700', fontSize: 13, marginBottom: 6 }}>⚖️ MUSCLE IMBALANCES</Text>
+                    {zakiAnalysisResult.muscleImbalances.map((m, i) => (
+                      <View key={i} style={{ marginBottom: 6 }}>
+                        <Text style={{ color: colors.cardForeground, fontSize: 13, fontWeight: '600' }}>{m.area}</Text>
+                        <Text style={{ color: colors.cardMuted, fontSize: 12, lineHeight: 18 }}>{m.finding}</Text>
+                        <Text style={{ color: m.severity === 'significant' ? '#EF4444' : m.severity === 'moderate' ? '#F59E0B' : '#22C55E', fontSize: 11, fontWeight: '600', marginTop: 2 }}>{m.severity?.toUpperCase()}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+                {/* Weak Points */}
+                {zakiAnalysisResult.weakPoints?.length > 0 && (
+                  <View style={{ marginBottom: 12 }}>
+                    <Text style={{ color: '#0EA5E9', fontWeight: '700', fontSize: 13, marginBottom: 6 }}>💪 WEAK POINTS & FIXES</Text>
+                    {zakiAnalysisResult.weakPoints.map((w, i) => (
+                      <View key={i} style={{ marginBottom: 6 }}>
+                        <Text style={{ color: colors.cardForeground, fontSize: 13, fontWeight: '600' }}>{w.muscle}</Text>
+                        <Text style={{ color: colors.cardMuted, fontSize: 12, lineHeight: 18 }}>{w.recommendation}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+                {/* Priority Actions */}
+                {zakiAnalysisResult.priorityActions?.length > 0 && (
+                  <View style={{ marginBottom: 16 }}>
+                    <Text style={{ color: '#7C3AED', fontWeight: '700', fontSize: 13, marginBottom: 6 }}>🎯 PRIORITY ACTIONS</Text>
+                    {zakiAnalysisResult.priorityActions.map((a, i) => (
+                      <Text key={i} style={{ color: colors.cardForeground, fontSize: 13, lineHeight: 20, marginBottom: 4 }}>{i + 1}. {a}</Text>
+                    ))}
+                  </View>
+                )}
+              </ScrollView>
+            ) : null}
+            <TouchableOpacity
+              onPress={() => setZakiAnalysisVisible(false)}
+              style={[styles.sheetBtn, { backgroundColor: '#7C3AED', marginTop: 12 }]}
+            >
+              <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>Close</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </Modal>
     </ScreenContainer>

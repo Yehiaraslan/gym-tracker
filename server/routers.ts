@@ -1054,12 +1054,54 @@ export const appRouter = router({
           '',
           'Be direct. 3-4 sentences max.',
         ].join('\n');
-        const response = (await zaki.callVisionModel(prompt, input.imageBase64, input.mimeType)).response;
+         const response = (await zaki.callVisionModel(prompt, input.imageBase64, input.mimeType)).response;
         const verdict = response.toLowerCase().includes('yes') ? 'yes' : response.toLowerCase().includes('partial') ? 'partial' : 'no';
         return { verdict, feedback: response };
       }),
+    nutritionGoalAdjust: publicProcedure
+      .input(z.object({
+        last7DaysContext: z.string(),
+        currentTargets: z.object({
+          calories: z.number(),
+          protein: z.number(),
+          carbs: z.number(),
+          fat: z.number(),
+        }),
+        userContext: z.string(),
+      }))
+      .mutation(async ({ input }) => {
+        const prompt = [
+          '**NUTRITION GOAL ADJUSTMENT REQUEST**',
+          '',
+          `Current targets: ${input.currentTargets.calories} kcal | ${input.currentTargets.protein}g protein | ${input.currentTargets.carbs}g carbs | ${input.currentTargets.fat}g fat`,
+          '',
+          'Last 7 days nutrition log:',
+          input.last7DaysContext,
+          '',
+          'User context:',
+          input.userContext,
+          '',
+          'Analyze if there is a consistent caloric surplus (avg > target by 10%+) or deficit (avg < target by 10%+).',
+          'Respond with JSON: { "trend": "surplus"|"deficit"|"balanced", "avgDailyCalories": number, "currentTarget": number, "suggestedCalories": number, "suggestedProtein": number, "suggestedCarbs": number, "suggestedFat": number, "reasoning": "string", "confidence": "high"|"medium"|"low" }',
+        ].filter(Boolean).join('\n');
+        const result = await zaki.askZaki(prompt);
+        try {
+          const jsonMatch = result.response.match(/\{[\s\S]*\}/);
+          if (jsonMatch) return JSON.parse(jsonMatch[0]);
+        } catch { /* ignore */ }
+        return {
+          trend: 'balanced',
+          avgDailyCalories: input.currentTargets.calories,
+          currentTarget: input.currentTargets.calories,
+          suggestedCalories: input.currentTargets.calories,
+          suggestedProtein: input.currentTargets.protein,
+          suggestedCarbs: input.currentTargets.carbs,
+          suggestedFat: input.currentTargets.fat,
+          reasoning: 'Not enough data to suggest adjustments.',
+          confidence: 'low',
+        };
+      }),
   }),
-
   aiCoaching: router({
     dailyCoaching: publicProcedure
       .input(z.object({ userContext: z.string() }))
@@ -1107,6 +1149,24 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         return aiCoach.generateSessionDebrief(
           input.sessionNotesContext,
+          input.userContext,
+        );
+      }),
+    nutritionGoalAdjust: publicProcedure
+      .input(z.object({
+        last7DaysContext: z.string(),
+        currentTargets: z.object({
+          calories: z.number(),
+          protein: z.number(),
+          carbs: z.number(),
+          fat: z.number(),
+        }),
+        userContext: z.string(),
+      }))
+      .mutation(async ({ input }) => {
+        return aiCoach.generateNutritionGoalAdjust(
+          input.last7DaysContext,
+          input.currentTargets,
           input.userContext,
         );
       }),

@@ -1154,3 +1154,21 @@
 - [x] User snaps photo of machine/equipment
 - [x] Zaki confirms if it matches the target exercise or suggests adjustments
 - [x] Show Zaki's confirmation inline in the swap sheet
+
+## Zaki Body Composition Analysis from Progress Photos
+- [x] Add "Send to Zaki" button in Progress Gallery after photos are added
+- [x] Zaki analyzes front/back/side photos for posture, muscle imbalances, weak points
+- [x] Written report shown in a dedicated modal card in the gallery
+- [x] Supports multi-photo analysis (front/back/side together)
+
+## Post-Workout Zaki Debrief Card
+- [x] Auto-generate 3-line debrief after finishing a workout (what went well, what to improve, one focus)
+- [x] Based on logged sets, PRs, and session data
+- [x] Show debrief card in the post-workout summary screen
+- [x] Streams in progressively while user reviews summary
+
+## Zaki Nutrition Goal Auto-Adjustment
+- [x] Analyze last 7 days of logged meals for surplus/deficit trend
+- [x] Zaki suggests adjusted daily calorie and macro targets with reasoning
+- [x] Show suggestion card in Zaki Nutrition tab
+- [x] One-tap "Apply These Targets" updates custom program nutrition targets

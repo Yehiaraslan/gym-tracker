@@ -41,7 +41,9 @@ import { getDeviceId } from '@/lib/device-id';
 import { useAudioRecorder, RecordingPresets, requestRecordingPermissionsAsync } from 'expo-audio';
 import * as FileSystem from 'expo-file-system/legacy';
 import { addCustomExercise, addCustomSession, parseExerciseCommands, type CustomExercise } from '@/lib/custom-exercises-store';
-import { addFoodEntry } from '@/lib/nutrition-store';
+import { addFoodEntry, getDailyNutrition } from '@/lib/nutrition-store';
+import { loadCustomProgram, saveCustomProgram } from '@/lib/custom-program-store';
+import { NUTRITION_TARGETS } from '@/lib/training-program';
 
 // ── Storage keys ──────────────────────────────────────────────
 const DAILY_CACHE_KEY = '@zaki_daily_cache';
@@ -97,6 +99,93 @@ export default function AICoachingDashboard() {
   const [nutritionSaved, setNutritionSaved] = useState(false);
   const [nutritionError, setNutritionError] = useState<string | null>(null);
   const logNutritionMutation = trpc.zaki.logNutrition.useMutation();
+  // ── Nutrition goal adjustment state ──────────────────────────
+  const [goalAdjustLoading, setGoalAdjustLoading] = useState(false);
+  const [goalAdjustResult, setGoalAdjustResult] = useState<{
+    trend: 'surplus' | 'deficit' | 'balanced';
+    avgDailyCalories: number;
+    currentTarget: number;
+    suggestedCalories: number;
+    suggestedProtein: number;
+    suggestedCarbs: number;
+    suggestedFat: number;
+    reasoning: string;
+    confidence: 'high' | 'medium' | 'low';
+  } | null>(null);
+  const [goalAdjustApplied, setGoalAdjustApplied] = useState(false);
+  const nutritionGoalAdjustMutation = trpc.zaki.nutritionGoalAdjust.useMutation();
+
+  const handleGoalAdjustCheck = async () => {
+    setGoalAdjustLoading(true);
+    setGoalAdjustResult(null);
+    setGoalAdjustApplied(false);
+    try {
+      // Build 7-day context
+      const today = new Date();
+      const lines: string[] = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(today.getDate() - i);
+        const dateStr = d.toISOString().split('T')[0];
+        const dayData = await getDailyNutrition(dateStr);
+        const totals = dayData.meals.reduce(
+          (acc, m) => ({ cal: acc.cal + m.calories, prot: acc.prot + m.protein, carb: acc.carb + m.carbs, fat: acc.fat + m.fat }),
+          { cal: 0, prot: 0, carb: 0, fat: 0 },
+        );
+        lines.push(`${dateStr}: ${Math.round(totals.cal)} kcal | ${Math.round(totals.prot)}g protein | ${Math.round(totals.carb)}g carbs | ${Math.round(totals.fat)}g fat`);
+      }
+      const customProg = await loadCustomProgram();
+      const baseTargets = NUTRITION_TARGETS.training;
+      const currentTargets = customProg?.nutritionTargets
+        ? customProg.nutritionTargets.training
+        : { calories: baseTargets.calories, protein: baseTargets.protein, carbs: baseTargets.carbs, fat: baseTargets.fat };
+      const result = await nutritionGoalAdjustMutation.mutateAsync({
+        last7DaysContext: lines.join('\n'),
+        currentTargets,
+        userContext: `Athlete: Yehia. Training program: Upper/Lower 4-day split. Goal: muscle gain with controlled body fat.`,
+      });
+      setGoalAdjustResult(result as typeof goalAdjustResult);
+    } catch (e) {
+      console.error('Goal adjust error:', e);
+    } finally {
+      setGoalAdjustLoading(false);
+    }
+  };
+
+  const handleApplyGoalAdjust = async () => {
+    if (!goalAdjustResult) return;
+    try {
+      const customProg = await loadCustomProgram();
+      const updated = customProg ?? {
+        name: 'Custom Program',
+        description: '',
+        sessions: {},
+        sessionNames: {},
+        sessionColors: {},
+        weeklySchedule: {},
+        createdAt: new Date().toISOString(),
+        generatedByZaki: false,
+      };
+      updated.nutritionTargets = {
+        training: {
+          calories: goalAdjustResult.suggestedCalories,
+          protein: goalAdjustResult.suggestedProtein,
+          carbs: goalAdjustResult.suggestedCarbs,
+          fat: goalAdjustResult.suggestedFat,
+        },
+        rest: {
+          calories: Math.round(goalAdjustResult.suggestedCalories * 0.92),
+          protein: goalAdjustResult.suggestedProtein,
+          carbs: Math.round(goalAdjustResult.suggestedCarbs * 0.85),
+          fat: goalAdjustResult.suggestedFat,
+        },
+      };
+      await saveCustomProgram(updated);
+      setGoalAdjustApplied(true);
+    } catch (e) {
+      console.error('Apply goal adjust error:', e);
+    }
+  };
 
   // ── Daily coaching state ──────────────────────────────────
   const [dailyResponse, setDailyResponse] = useState<string | null>(null);
@@ -1696,6 +1785,88 @@ export default function AICoachingDashboard() {
                     </TouchableOpacity>
                   </View>
                 )}
+
+                {/* ── Nutrition Goal Auto-Adjustment ── */}
+                <View style={[styles.responseCard, { marginTop: 8 }]}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    <Text style={{ fontSize: 20 }}>🎯</Text>
+                    <Text style={{ color: colors.cardForeground, fontWeight: '700', fontSize: 15, flex: 1 }}>7-Day Nutrition Trend Check</Text>
+                  </View>
+                  <Text style={{ color: colors.cardMuted, fontSize: 13, marginBottom: 12, lineHeight: 18 }}>
+                    Zaki analyzes your last 7 days of logged meals and suggests whether to adjust your daily calorie and macro targets.
+                  </Text>
+                  <TouchableOpacity
+                    onPress={handleGoalAdjustCheck}
+                    disabled={goalAdjustLoading}
+                    style={[styles.actionBtn, { backgroundColor: '#6366F1', opacity: goalAdjustLoading ? 0.6 : 1 }]}
+                  >
+                    {goalAdjustLoading
+                      ? <ActivityIndicator size="small" color="#fff" />
+                      : <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>Analyze My Nutrition Trend</Text>
+                    }
+                  </TouchableOpacity>
+
+                  {goalAdjustResult && (
+                    <View style={{ marginTop: 12, gap: 8 }}>
+                      {/* Trend badge */}
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <View style={{
+                          paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12,
+                          backgroundColor: goalAdjustResult.trend === 'surplus' ? '#F59E0B20' : goalAdjustResult.trend === 'deficit' ? '#EF444420' : '#10B98120',
+                        }}>
+                          <Text style={{
+                            fontWeight: '700', fontSize: 12,
+                            color: goalAdjustResult.trend === 'surplus' ? '#F59E0B' : goalAdjustResult.trend === 'deficit' ? '#EF4444' : '#10B981',
+                          }}>
+                            {goalAdjustResult.trend === 'surplus' ? '📈 Consistent Surplus' : goalAdjustResult.trend === 'deficit' ? '📉 Consistent Deficit' : '✅ Balanced'}
+                          </Text>
+                        </View>
+                        <Text style={{ color: colors.cardMuted, fontSize: 12 }}>
+                          Avg {Math.round(goalAdjustResult.avgDailyCalories)} kcal/day
+                        </Text>
+                      </View>
+                      {/* Reasoning */}
+                      <Text style={{ color: colors.cardForeground, fontSize: 13, lineHeight: 18 }}>{goalAdjustResult.reasoning}</Text>
+                      {/* Suggested targets */}
+                      {goalAdjustResult.trend !== 'balanced' && (
+                        <View style={{ backgroundColor: colors.surface, borderRadius: 10, padding: 12, gap: 4 }}>
+                          <Text style={{ color: colors.cardMuted, fontSize: 11, fontWeight: '600', marginBottom: 4 }}>SUGGESTED NEW TARGETS</Text>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                            <Text style={{ color: colors.cardForeground, fontSize: 13 }}>Calories</Text>
+                            <Text style={{ color: '#6366F1', fontWeight: '700', fontSize: 13 }}>{goalAdjustResult.suggestedCalories} kcal</Text>
+                          </View>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                            <Text style={{ color: colors.cardForeground, fontSize: 13 }}>Protein</Text>
+                            <Text style={{ color: '#6366F1', fontWeight: '700', fontSize: 13 }}>{goalAdjustResult.suggestedProtein}g</Text>
+                          </View>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                            <Text style={{ color: colors.cardForeground, fontSize: 13 }}>Carbs</Text>
+                            <Text style={{ color: '#6366F1', fontWeight: '700', fontSize: 13 }}>{goalAdjustResult.suggestedCarbs}g</Text>
+                          </View>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                            <Text style={{ color: colors.cardForeground, fontSize: 13 }}>Fat</Text>
+                            <Text style={{ color: '#6366F1', fontWeight: '700', fontSize: 13 }}>{goalAdjustResult.suggestedFat}g</Text>
+                          </View>
+                        </View>
+                      )}
+                      {/* Apply / Applied button */}
+                      {goalAdjustResult.trend !== 'balanced' && !goalAdjustApplied && (
+                        <TouchableOpacity
+                          onPress={handleApplyGoalAdjust}
+                          style={[styles.actionBtn, { backgroundColor: '#10B981' }]}
+                        >
+                          <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>Apply These Targets</Text>
+                        </TouchableOpacity>
+                      )}
+                      {goalAdjustApplied && (
+                        <View style={{ alignItems: 'center', paddingVertical: 8 }}>
+                          <Text style={{ color: '#10B981', fontWeight: '700', fontSize: 14 }}>✅ Targets updated!</Text>
+                          <Text style={{ color: colors.cardMuted, fontSize: 12, marginTop: 2 }}>New targets will apply from tomorrow.</Text>
+                        </View>
+                      )}
+                    </View>
+                  )}
+                </View>
               </View>
             )}
           </ScrollView>

@@ -391,3 +391,77 @@ function getFallbackResponse(): AICoachingResponse {
     weeklyDigest: null,
   };
 }
+
+// ── Nutrition Goal Auto-Adjustment ──────────────────────────
+export interface NutritionGoalAdjustResult {
+  trend: 'surplus' | 'deficit' | 'balanced';
+  avgDailyCalories: number;
+  currentTarget: number;
+  suggestedCalories: number;
+  suggestedProtein: number;
+  suggestedCarbs: number;
+  suggestedFat: number;
+  reasoning: string;
+  confidence: 'high' | 'medium' | 'low';
+}
+
+export async function generateNutritionGoalAdjust(
+  last7DaysContext: string,
+  currentTargets: { calories: number; protein: number; carbs: number; fat: number },
+  userContext: string,
+): Promise<NutritionGoalAdjustResult> {
+  const prompt = `Analyze the last 7 days of nutrition data and suggest whether the athlete's daily macro targets should be adjusted.
+
+Current targets: ${currentTargets.calories} kcal | ${currentTargets.protein}g protein | ${currentTargets.carbs}g carbs | ${currentTargets.fat}g fat
+
+Last 7 days nutrition log:
+${last7DaysContext}
+
+User context:
+${userContext}
+
+Determine if there is a consistent surplus (avg intake > target by 10%+) or deficit (avg intake < target by 10%+) over the 7-day period.
+If balanced, suggest keeping current targets.
+If surplus/deficit, suggest adjusted targets that are realistic and align with the athlete's training goals.
+Keep protein at or above current level (muscle preservation).
+
+Respond with JSON:
+{
+  "trend": "surplus" | "deficit" | "balanced",
+  "avgDailyCalories": number,
+  "currentTarget": number,
+  "suggestedCalories": number,
+  "suggestedProtein": number,
+  "suggestedCarbs": number,
+  "suggestedFat": number,
+  "reasoning": "string - 2 sentence explanation of why this adjustment is recommended",
+  "confidence": "high" | "medium" | "low"
+}`;
+
+  try {
+    const response = await invokeLLM({
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: prompt },
+      ],
+      response_format: { type: 'json_object' },
+    });
+    const rawContent = response.choices?.[0]?.message?.content;
+    if (!rawContent) throw new Error('Empty response');
+    const content = typeof rawContent === 'string' ? rawContent : JSON.stringify(rawContent);
+    return JSON.parse(content) as NutritionGoalAdjustResult;
+  } catch (error) {
+    console.error('[AI Coach] Nutrition goal adjust failed:', error);
+    return {
+      trend: 'balanced',
+      avgDailyCalories: currentTargets.calories,
+      currentTarget: currentTargets.calories,
+      suggestedCalories: currentTargets.calories,
+      suggestedProtein: currentTargets.protein,
+      suggestedCarbs: currentTargets.carbs,
+      suggestedFat: currentTargets.fat,
+      reasoning: 'Not enough data to suggest adjustments. Log meals consistently for 7 days to unlock this feature.',
+      confidence: 'low',
+    };
+  }
+}

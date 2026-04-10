@@ -300,6 +300,9 @@ export default function SplitWorkoutScreen() {
   const [equipVerifyLoading, setEquipVerifyLoading] = useState(false);
   const [equipVerifyResult, setEquipVerifyResult] = useState<{ suitable: boolean; message: string } | null>(null);
   const equipVerifyMutation = trpc.zaki.equipmentVerify.useMutation();
+  const sessionDebriefMutation = trpc.zaki.sessionDebrief.useMutation();
+  const [zakiDebrief, setZakiDebrief] = useState<{ wellDone: string; improve: string; focus: string } | null>(null);
+  const [zakiDebriefLoading, setZakiDebriefLoading] = useState(false);
 
   // Exercise swapp
   const [showSwapModal, setShowSwapModal] = useState(false);
@@ -868,6 +871,39 @@ export default function SplitWorkoutScreen() {
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setShowSummary(true);
     }
+
+    // Auto-generate Zaki debrief in the background (non-blocking)
+    setZakiDebriefLoading(true);
+    setZakiDebrief(null);
+    try {
+      const sessionNotesContext = [
+        `Session: ${sessionType}`,
+        `Duration: ${duration} min`,
+        `Total Volume: ${(totalVolume / 1000).toFixed(1)}t`,
+        `Exercises: ${exercisesCompleted}`,
+        `Sets: ${setsCompleted}`,
+        `PRs: ${prs.length > 0 ? prs.map(p => `${p.exercise} ${p.weight}kg×${p.reps}`).join(', ') : 'none'}`,
+        exerciseLogs.map(ex => {
+          if (ex.skipped) return `${ex.exerciseName}: SKIPPED`;
+          const ws = ex.sets.filter(s => !s.isWarmup);
+          return `${ex.exerciseName}: ${ws.map(s => `${s.weightKg}kg×${s.reps}`).join(', ')}`;
+        }).join('\n'),
+      ].join('\n');
+      const debriefResult = await sessionDebriefMutation.mutateAsync({
+        sessionNotesContext,
+        userContext: `Athlete training ${sessionType} session. ${prs.length} PRs today.`,
+      });
+      // Parse the structured response into 3 lines
+      const lines = debriefResult.response.split('\n').filter((l: string) => l.trim());
+      const wellDone = lines.find((l: string) => l.toLowerCase().includes('well') || l.toLowerCase().includes('great') || l.toLowerCase().includes('strong') || l.includes('1.')) || lines[0] || '';
+      const improve = lines.find((l: string) => l.toLowerCase().includes('improv') || l.toLowerCase().includes('work on') || l.includes('2.')) || lines[1] || '';
+      const focus = lines.find((l: string) => l.toLowerCase().includes('focus') || l.toLowerCase().includes('next') || l.includes('3.')) || lines[2] || '';
+      setZakiDebrief({ wellDone, improve, focus });
+    } catch (e) {
+      console.warn('[split-workout] Zaki debrief failed:', e);
+    } finally {
+      setZakiDebriefLoading(false);
+    }
   };
 
   const formatTime = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
@@ -1141,6 +1177,46 @@ export default function SplitWorkoutScreen() {
               <Text style={{ color: '#6366F1', fontSize: 18 }}>→</Text>
             </TouchableOpacity>
           </View>
+          {/* Zaki Post-Workout Debrief Card */}
+          {(zakiDebriefLoading || zakiDebrief) && (
+            <View className="px-6 mb-4">
+              <View
+                className="rounded-2xl p-4"
+                style={{ backgroundColor: '#7C3AED12', borderWidth: 1, borderColor: '#7C3AED30' }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+                  <Text style={{ fontSize: 20 }}>🤖</Text>
+                  <Text className="text-sm font-bold text-cardForeground ml-2">Zaki's Debrief</Text>
+                  {zakiDebriefLoading && <ActivityIndicator size="small" color="#7C3AED" style={{ marginLeft: 8 }} />}
+                </View>
+                {zakiDebriefLoading ? (
+                  <Text className="text-xs text-cardMuted">Zaki is reviewing your session...</Text>
+                ) : zakiDebrief ? (
+                  <View style={{ gap: 8 }}>
+                    {zakiDebrief.wellDone ? (
+                      <View style={{ flexDirection: 'row', gap: 8 }}>
+                        <Text style={{ fontSize: 14 }}>✅</Text>
+                        <Text className="text-xs text-cardForeground flex-1" style={{ lineHeight: 18 }}>{zakiDebrief.wellDone.replace(/^[\d\.\-\*\s]+/, '')}</Text>
+                      </View>
+                    ) : null}
+                    {zakiDebrief.improve ? (
+                      <View style={{ flexDirection: 'row', gap: 8 }}>
+                        <Text style={{ fontSize: 14 }}>🔧</Text>
+                        <Text className="text-xs text-cardForeground flex-1" style={{ lineHeight: 18 }}>{zakiDebrief.improve.replace(/^[\d\.\-\*\s]+/, '')}</Text>
+                      </View>
+                    ) : null}
+                    {zakiDebrief.focus ? (
+                      <View style={{ flexDirection: 'row', gap: 8 }}>
+                        <Text style={{ fontSize: 14 }}>🎯</Text>
+                        <Text className="text-xs text-cardForeground flex-1" style={{ lineHeight: 18 }}>{zakiDebrief.focus.replace(/^[\d\.\-\*\s]+/, '')}</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                ) : null}
+              </View>
+            </View>
+          )}
+
           {/* Share Workout button */}
           <View className="px-6 mb-3">
             <TouchableOpacity
