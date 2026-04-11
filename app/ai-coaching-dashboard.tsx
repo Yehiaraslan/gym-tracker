@@ -38,21 +38,7 @@ import {
 } from '@/lib/schedule-store';
 import { getSplitWorkouts, savePendingWeights, parseZakiWeightText } from '@/lib/split-workout-store';
 import { getDeviceId } from '@/lib/device-id';
-// expo-audio has no web support — import conditionally
-let useAudioRecorder: any;
-let RecordingPresets: any;
-let requestRecordingPermissionsAsync: any;
-if (Platform.OS !== 'web') {
-  const audioModule = require('expo-audio');
-  useAudioRecorder = audioModule.useAudioRecorder;
-  RecordingPresets = audioModule.RecordingPresets;
-  requestRecordingPermissionsAsync = audioModule.requestRecordingPermissionsAsync;
-} else {
-  // No-op stubs for web
-  useAudioRecorder = () => ({ record: async () => {}, stop: async () => {}, uri: null });
-  RecordingPresets = { HIGH_QUALITY: {} };
-  requestRecordingPermissionsAsync = async () => ({ granted: false });
-}
+import { ZakiVoiceRecorder } from '@/components/ZakiVoiceRecorder';
 import * as FileSystem from 'expo-file-system/legacy';
 import { addCustomExercise, addCustomSession, parseExerciseCommands, type CustomExercise } from '@/lib/custom-exercises-store';
 import { addFoodEntry, getDailyNutrition } from '@/lib/nutrition-store';
@@ -222,7 +208,6 @@ export default function AICoachingDashboard() {
   const zakiSessionIdRef = useRef<string | undefined>(undefined);
 
   // ── Voice input state ─────────────────────────────────────
-  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const transcribeMutation = trpc.voice.transcribeBase64.useMutation();
@@ -813,44 +798,16 @@ export default function AICoachingDashboard() {
     }
   }, [chatInput, chatLoading, chatMessages, zakiAskMutation]);
 
-  // ── Voice input handler ──────────────────────────────────
-  const handleVoiceTap = useCallback(async () => {
-    if (isTranscribing) return;
-    if (isRecording) {
-      // Stop recording and transcribe
-      setIsRecording(false);
-      await recorder.stop();
-      const uri = recorder.uri;
-      if (!uri) return;
-      setIsTranscribing(true);
-      try {
-        const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
-        const mimeType = Platform.OS === 'android' ? 'audio/m4a' : 'audio/m4a';
-        const result = await transcribeMutation.mutateAsync({
-          deviceId: deviceId ?? 'unknown',
-          base64,
-          mimeType,
-          prompt: 'Gym coaching instruction, workout schedule modification, or exercise question',
-        });
-        if (result.text) {
-          setChatInput(prev => (prev ? prev + ' ' + result.text : result.text));
-          if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        }
-      } catch (err) {
-        console.error('[Voice]', err);
-        if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      } finally {
-        setIsTranscribing(false);
-      }
-    } else {
-      // Request permission and start recording
-      const { granted } = await requestRecordingPermissionsAsync();
-      if (!granted) return;
-      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      await recorder.record();
-      setIsRecording(true);
-    }
-  }, [isRecording, isTranscribing, recorder, transcribeMutation, deviceId]);
+  // ── Voice transcribe callback (passed to ZakiVoiceRecorder) ─
+  const transcribeAsync = useCallback(async (base64: string, mimeType: string) => {
+    const result = await transcribeMutation.mutateAsync({
+      deviceId: deviceId ?? 'unknown',
+      base64,
+      mimeType,
+      prompt: 'Gym coaching instruction, workout schedule modification, or exercise question',
+    });
+    return { text: result.text ?? '' };
+  }, [transcribeMutation, deviceId]);
 
   // ── Weekly digest ─────────────────────────────────────────
   const fetchWeeklyDigest = useCallback(async () => {
@@ -1205,47 +1162,24 @@ export default function AICoachingDashboard() {
                 </ScrollView>
               </View>
             )}
-            <View style={[styles.chatInputBar, { backgroundColor: colors.surface, borderTopColor: colors.cardBorder }]}>
-              {/* Microphone button */}
-              <TouchableOpacity
-                onPress={handleVoiceTap}
-                disabled={isTranscribing}
-                style={[
-                  styles.micBtn,
-                  {
-                    backgroundColor: isRecording ? '#EF4444' : isTranscribing ? colors.cardBorder : colors.background,
-                    borderColor: isRecording ? '#EF4444' : colors.cardBorder,
-                  },
-                ]}
-              >
-                {isTranscribing ? (
-                  <ActivityIndicator size="small" color={colors.cardMuted} />
-                ) : (
-                  <Text style={{ fontSize: 18 }}>{isRecording ? '🔴' : '🎤'}</Text>
-                )}
-              </TouchableOpacity>
-              <TextInput
-                style={[styles.chatInput, { color: colors.cardForeground, backgroundColor: colors.background, borderColor: colors.cardBorder }]}
-                value={chatInput}
-                onChangeText={setChatInput}
-                placeholder={isRecording ? 'Recording... tap mic to stop' : 'Ask Zaki anything...'}
-                placeholderTextColor={isRecording ? '#EF4444' : colors.cardMuted}
-                multiline
-                maxLength={500}
-                returnKeyType="send"
-                onSubmitEditing={sendChatMessage}
-              />
-              <TouchableOpacity
-                onPress={sendChatMessage}
-                disabled={!chatInput.trim() || chatLoading}
-                style={[
-                  styles.sendBtn,
-                  { backgroundColor: chatInput.trim() && !chatLoading ? '#6366F1' : colors.cardBorder },
-                ]}
-              >
-                <Text style={{ color: '#FFFFFF', fontSize: 16 }}>↑</Text>
-              </TouchableOpacity>
-            </View>
+            <ZakiVoiceRecorder
+              deviceId={deviceId}
+              chatInput={chatInput}
+              setChatInput={setChatInput}
+              onSend={sendChatMessage}
+              chatLoading={chatLoading}
+              isRecording={isRecording}
+              setIsRecording={setIsRecording}
+              isTranscribing={isTranscribing}
+              setIsTranscribing={setIsTranscribing}
+              transcribeAsync={transcribeAsync}
+              colors={{
+                background: colors.background,
+                cardBorder: colors.cardBorder,
+                cardMuted: colors.cardMuted,
+                foreground: colors.cardForeground,
+              }}
+            />
           </View>
         ) : (
           <ScrollView
