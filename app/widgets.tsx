@@ -83,7 +83,7 @@ export default function WidgetsScreen() {
 
         {/* Configure Widget Stats */}
         <TouchableOpacity
-          onPress={() => router.push('/widget-config')}
+          onPress={() => router.push('/widget-config' as any)}
           style={{
             flexDirection: 'row',
             alignItems: 'center',

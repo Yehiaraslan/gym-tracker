@@ -195,7 +195,34 @@ export const appRouter = router({
   // ── Data Sync (Cloud Persistence) ────────────────────────
   sync: router({
     upsertWorkout: publicProcedure
-      .input(z.object({ deviceId: z.string(), session: z.any() }))
+      .input(z.object({
+        deviceId: z.string(),
+        session: z.object({
+          id: z.string(),
+          date: z.string(),
+          sessionType: z.string(),
+          startTime: z.string(),
+          endTime: z.string().optional(),
+          completed: z.boolean(),
+          durationMinutes: z.number().optional(),
+          totalVolumeKg: z.number().optional(),
+          exercises: z.array(z.object({
+            exerciseName: z.string(),
+            exerciseOrder: z.number(),
+            skipped: z.boolean(),
+            skipReason: z.string().optional(),
+            sets: z.array(z.object({
+              setNumber: z.number(),
+              weightKg: z.number(),
+              reps: z.number(),
+              rpe: z.number().optional(),
+              isWarmup: z.boolean().optional(),
+              e1rm: z.number().optional(),
+              timestamp: z.string().optional(),
+            })),
+          })),
+        }).passthrough(),
+      }))
       .mutation(async ({ input }) => {
         await dataSync.upsertWorkoutSession(input.deviceId, input.session);
         return { success: true };
@@ -208,14 +235,53 @@ export const appRouter = router({
       }),
 
     bulkUpsertWorkouts: publicProcedure
-      .input(z.object({ deviceId: z.string(), sessions: z.array(z.any()) }))
+      .input(z.object({
+        deviceId: z.string(),
+        sessions: z.array(z.object({
+          id: z.string(),
+          date: z.string(),
+          sessionType: z.string(),
+          startTime: z.string(),
+          endTime: z.string().optional(),
+          completed: z.boolean(),
+          durationMinutes: z.number().optional(),
+          totalVolumeKg: z.number().optional(),
+          exercises: z.array(z.object({
+            exerciseName: z.string(),
+            exerciseOrder: z.number(),
+            skipped: z.boolean(),
+            skipReason: z.string().optional(),
+            sets: z.array(z.object({
+              setNumber: z.number(),
+              weightKg: z.number(),
+              reps: z.number(),
+              rpe: z.number().optional(),
+              isWarmup: z.boolean().optional(),
+              e1rm: z.number().optional(),
+              timestamp: z.string().optional(),
+            })),
+          })),
+        }).passthrough()),
+      }))
       .mutation(async ({ input }) => {
         const count = await dataSync.bulkUpsertWorkoutSessions(input.deviceId, input.sessions);
         return { count };
       }),
 
     upsertFormCoach: publicProcedure
-      .input(z.object({ deviceId: z.string(), session: z.any() }))
+      .input(z.object({
+        deviceId: z.string(),
+        session: z.object({
+          id: z.string(),
+          exerciseName: z.string(),
+          date: z.string(),
+          totalReps: z.number(),
+          avgFormScore: z.number().optional(),
+          peakFormScore: z.number().optional(),
+          issues: z.array(z.string()).optional(),
+          durationSeconds: z.number().optional(),
+        }).passthrough(),
+      }))
       .mutation(async ({ input }) => {
         await dataSync.upsertFormCoachSession(input.deviceId, input.session);
         return { success: true };
@@ -228,7 +294,19 @@ export const appRouter = router({
       }),
 
     bulkUpsertFormCoach: publicProcedure
-      .input(z.object({ deviceId: z.string(), sessions: z.array(z.any()) }))
+      .input(z.object({
+        deviceId: z.string(),
+        sessions: z.array(z.object({
+          id: z.string(),
+          exerciseName: z.string(),
+          date: z.string(),
+          totalReps: z.number(),
+          avgFormScore: z.number().optional(),
+          peakFormScore: z.number().optional(),
+          issues: z.array(z.string()).optional(),
+          durationSeconds: z.number().optional(),
+        }).passthrough()),
+      }))
       .mutation(async ({ input }) => {
         let count = 0;
         for (const s of input.sessions) {
@@ -239,7 +317,34 @@ export const appRouter = router({
       }),
 
     upsertNutritionDay: publicProcedure
-      .input(z.object({ deviceId: z.string(), day: z.any() }))
+      .input(z.object({
+        deviceId: z.string(),
+        day: z.object({
+          date: z.string(),
+          isTrainingDay: z.boolean(),
+          targetCalories: z.number().optional(),
+          targetProtein: z.number().optional(),
+          targetCarbs: z.number().optional(),
+          targetFat: z.number().optional(),
+          supplements: z.array(z.object({
+            name: z.string(),
+            dose: z.string(),
+            timing: z.string(),
+            taken: z.boolean(),
+          })).optional(),
+          meals: z.array(z.object({
+            id: z.string(),
+            mealNumber: z.number(),
+            foodName: z.string(),
+            protein: z.number(),
+            carbs: z.number(),
+            fat: z.number(),
+            calories: z.number(),
+            servingGrams: z.number().optional(),
+            timestamp: z.string().optional(),
+          })),
+        }).passthrough(),
+      }))
       .mutation(async ({ input }) => {
         await dataSync.upsertNutritionDay(input.deviceId, input.day);
         return { success: true };
@@ -252,7 +357,34 @@ export const appRouter = router({
       }),
 
     bulkUpsertNutrition: publicProcedure
-      .input(z.object({ deviceId: z.string(), days: z.array(z.any()) }))
+      .input(z.object({
+        deviceId: z.string(),
+        days: z.array(z.object({
+          date: z.string(),
+          isTrainingDay: z.boolean(),
+          targetCalories: z.number().optional(),
+          targetProtein: z.number().optional(),
+          targetCarbs: z.number().optional(),
+          targetFat: z.number().optional(),
+          supplements: z.array(z.object({
+            name: z.string(),
+            dose: z.string(),
+            timing: z.string(),
+            taken: z.boolean(),
+          })).optional(),
+          meals: z.array(z.object({
+            id: z.string(),
+            mealNumber: z.number(),
+            foodName: z.string(),
+            protein: z.number(),
+            carbs: z.number(),
+            fat: z.number(),
+            calories: z.number(),
+            servingGrams: z.number().optional(),
+            timestamp: z.string().optional(),
+          })),
+        }).passthrough()),
+      }))
       .mutation(async ({ input }) => {
         let count = 0;
         for (const d of input.days) {
@@ -263,7 +395,21 @@ export const appRouter = router({
       }),
 
     upsertBodyWeight: publicProcedure
-      .input(z.object({ deviceId: z.string(), entry: z.any() }))
+      .input(z.object({
+        deviceId: z.string(),
+        entry: z.object({
+          id: z.string(),
+          date: z.string(),
+          weightKg: z.number().optional(),
+          bodyFatPercent: z.number().optional(),
+          chestCm: z.number().optional(),
+          waistCm: z.number().optional(),
+          hipsCm: z.number().optional(),
+          armsCm: z.number().optional(),
+          thighsCm: z.number().optional(),
+          notes: z.string().optional(),
+        }).passthrough(),
+      }))
       .mutation(async ({ input }) => {
         await dataSync.upsertBodyWeightEntry(input.deviceId, input.entry);
         return { success: true };
@@ -276,7 +422,21 @@ export const appRouter = router({
       }),
 
     bulkUpsertBodyWeight: publicProcedure
-      .input(z.object({ deviceId: z.string(), entries: z.array(z.any()) }))
+      .input(z.object({
+        deviceId: z.string(),
+        entries: z.array(z.object({
+          id: z.string(),
+          date: z.string(),
+          weightKg: z.number().optional(),
+          bodyFatPercent: z.number().optional(),
+          chestCm: z.number().optional(),
+          waistCm: z.number().optional(),
+          hipsCm: z.number().optional(),
+          armsCm: z.number().optional(),
+          thighsCm: z.number().optional(),
+          notes: z.string().optional(),
+        }).passthrough()),
+      }))
       .mutation(async ({ input }) => {
         let count = 0;
         for (const e of input.entries) {
@@ -287,7 +447,18 @@ export const appRouter = router({
       }),
 
     upsertSleep: publicProcedure
-      .input(z.object({ deviceId: z.string(), entry: z.any() }))
+      .input(z.object({
+        deviceId: z.string(),
+        entry: z.object({
+          id: z.string(),
+          date: z.string(),
+          bedtime: z.string().optional(),
+          wakeTime: z.string().optional(),
+          durationHours: z.number().optional(),
+          qualityRating: z.number().optional(),
+          notes: z.string().optional(),
+        }).passthrough(),
+      }))
       .mutation(async ({ input }) => {
         await dataSync.upsertSleepEntry(input.deviceId, input.entry);
         return { success: true };
@@ -300,7 +471,18 @@ export const appRouter = router({
       }),
 
     bulkUpsertSleep: publicProcedure
-      .input(z.object({ deviceId: z.string(), entries: z.array(z.any()) }))
+      .input(z.object({
+        deviceId: z.string(),
+        entries: z.array(z.object({
+          id: z.string(),
+          date: z.string(),
+          bedtime: z.string().optional(),
+          wakeTime: z.string().optional(),
+          durationHours: z.number().optional(),
+          qualityRating: z.number().optional(),
+          notes: z.string().optional(),
+        }).passthrough()),
+      }))
       .mutation(async ({ input }) => {
         let count = 0;
         for (const e of input.entries) {
@@ -311,7 +493,15 @@ export const appRouter = router({
       }),
 
     upsertStreak: publicProcedure
-      .input(z.object({ deviceId: z.string(), streak: z.any() }))
+      .input(z.object({
+        deviceId: z.string(),
+        streak: z.object({
+          currentStreak: z.number(),
+          bestStreak: z.number(),
+          lastWorkoutDate: z.string().nullable(),
+          workoutDates: z.array(z.string()),
+        }).passthrough(),
+      }))
       .mutation(async ({ input }) => {
         await dataSync.upsertStreak(input.deviceId, input.streak);
         return { success: true };
@@ -324,7 +514,18 @@ export const appRouter = router({
       }),
 
     upsertPersonalRecord: publicProcedure
-      .input(z.object({ deviceId: z.string(), pr: z.any() }))
+      .input(z.object({
+        deviceId: z.string(),
+        pr: z.object({
+          exerciseName: z.string(),
+          weightKg: z.number(),
+          reps: z.number(),
+          estimated1rm: z.number().optional(),
+          sessionType: z.string().optional(),
+          date: z.string(),
+          sessionId: z.string().optional(),
+        }).passthrough(),
+      }))
       .mutation(async ({ input }) => {
         await dataSync.upsertPersonalRecord(input.deviceId, input.pr);
         return { success: true };
@@ -337,9 +538,18 @@ export const appRouter = router({
       }),
 
     upsertScheduleOverride: publicProcedure
-      .input(z.object({ deviceId: z.string(), override: z.any() }))
+      .input(z.object({
+        deviceId: z.string(),
+        override: z.object({
+          scheduleJson: z.record(z.string(), z.string()),
+          description: z.string().optional(),
+          appliedByZaki: z.boolean().optional(),
+          weightAdjustments: z.string().optional(),
+          appliedAt: z.string(),
+        }).passthrough(),
+      }))
       .mutation(async ({ input }) => {
-        await dataSync.upsertScheduleOverride(input.deviceId, input.override);
+        await dataSync.upsertScheduleOverride(input.deviceId, input.override as dataSync.SyncScheduleOverride);
         return { success: true };
       }),
 
@@ -734,14 +944,18 @@ export const appRouter = router({
         // Build exercise progression map with per-week volume tracking for stagnation detection
         const exerciseMap: Record<string, { dates: string[]; maxWeight: number; maxReps: number; totalSets: number; totalVolume: number; weeklyVolume: Record<string, number> }> = {};
         for (const session of sessions) {
-          for (const ex of (session as any).exercises ?? []) {
+          const s = session as Record<string, unknown>;
+          const exercises = Array.isArray(s.exercises) ? s.exercises : [];
+          const sessionDate = typeof s.date === 'string' ? s.date : undefined;
+          for (const ex of exercises) {
             const name: string = ex.exerciseName || ex.name || 'Unknown';
             if (!exerciseMap[name]) exerciseMap[name] = { dates: [], maxWeight: 0, maxReps: 0, totalSets: 0, totalVolume: 0, weeklyVolume: {} };
-            const sessionDate = (session as any).date;
             let sessionVolume = 0;
-            for (const set of (ex as any).sets ?? []) {
+            const sets = Array.isArray(ex.sets) ? ex.sets : [];
+            for (const set of sets) {
               const w = parseFloat(set.weightKg ?? set.weight ?? '0');
               const r = parseInt(set.reps ?? '0', 10);
+              if (isNaN(w) || isNaN(r)) continue;
               if (w > exerciseMap[name].maxWeight) exerciseMap[name].maxWeight = w;
               if (r > exerciseMap[name].maxReps) exerciseMap[name].maxReps = r;
               exerciseMap[name].totalSets++;
@@ -750,11 +964,13 @@ export const appRouter = router({
             }
             if (sessionDate) {
               if (!exerciseMap[name].dates.includes(sessionDate)) exerciseMap[name].dates.push(sessionDate);
-              // Track weekly volume: week key = ISO week (year-Wnn)
+              // Track weekly volume using ISO 8601 week number
               const d = new Date(sessionDate);
-              const startOfYear = new Date(d.getFullYear(), 0, 1);
-              const weekNum = Math.ceil(((d.getTime() - startOfYear.getTime()) / 86400000 + startOfYear.getDay() + 1) / 7);
-              const weekKey = `${d.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+              const tmp = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+              tmp.setUTCDate(tmp.getUTCDate() + 4 - (tmp.getUTCDay() || 7));
+              const yearStart = new Date(Date.UTC(tmp.getUTCFullYear(), 0, 1));
+              const weekNum = Math.ceil(((tmp.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+              const weekKey = `${tmp.getUTCFullYear()}-W${String(weekNum).padStart(2, '0')}`;
               exerciseMap[name].weeklyVolume[weekKey] = (exerciseMap[name].weeklyVolume[weekKey] ?? 0) + sessionVolume;
             }
           }
@@ -765,8 +981,8 @@ export const appRouter = router({
           .map(([name, data]) =>
             `${name}: ${data.dates.length} sessions, max ${data.maxWeight}kg × ${data.maxReps} reps, total volume ${Math.round(data.totalVolume)}kg`
           ).join('\n');
-        const sessionSummary = sessions.slice(0, 20).map((s: any) => {
-          const exCount = (s.exercises ?? []).length;
+        const sessionSummary = sessions.slice(0, 20).map((s: Record<string, unknown>) => {
+          const exCount = Array.isArray(s.exercises) ? s.exercises.length : 0;
           return `${s.date}: ${s.sessionName || 'Workout'} — ${exCount} exercises`;
         }).join('\n');
         const prompt = [
@@ -836,7 +1052,7 @@ export const appRouter = router({
         const uploadedPhotos: { label: string; url: string }[] = [];
         for (const photo of input.photos) {
           const buf = Buffer.from(photo.base64, 'base64');
-          const ext = photo.mimeType.split('/')[1] ?? 'jpg';
+          const ext = (photo.mimeType?.includes('/') ? photo.mimeType.split('/')[1] : 'jpg') ?? 'jpg';
           const key = `body-analysis/${Date.now()}-${photo.label}.${ext}`;
           const { url } = await storagePut(key, buf, photo.mimeType);
           uploadedPhotos.push({ label: photo.label, url });

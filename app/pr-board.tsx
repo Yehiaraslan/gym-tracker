@@ -56,9 +56,7 @@ function VolumeBarChart({ exerciseName, accent }: { exerciseName: string; accent
     );
   }
 
-  const maxVol = Math.max(...weeks.map(w => w.volume), 1);
-  const barW = Math.floor((BAR_CHART_WIDTH - (weeks.length - 1) * 4) / weeks.length);
-  const hasData = weeks.some(w => w.volume > 0);
+  const hasData = weeks.length > 0 && weeks.some(w => w.volume > 0);
 
   if (!hasData) {
     return (
@@ -67,6 +65,9 @@ function VolumeBarChart({ exerciseName, accent }: { exerciseName: string; accent
       </View>
     );
   }
+
+  const maxVol = Math.max(...weeks.map(w => w.volume), 1);
+  const barW = Math.floor((BAR_CHART_WIDTH - (weeks.length - 1) * 4) / weeks.length);
 
   return (
     <View style={{ paddingHorizontal: 14, paddingBottom: 12, paddingTop: 4 }}>

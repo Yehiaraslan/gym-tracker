@@ -571,8 +571,7 @@ export default function SplitWorkoutScreen() {
         { cancelable: false }
       );
     })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [sessionType]);
 
   // Load previous session + suggestions
   useEffect(() => {

@@ -153,8 +153,8 @@ async function getValidAccessToken(userOpenId: string): Promise<string | null> {
   const stored = await whoopDb.getWhoopTokens(userOpenId);
   if (!stored) return null;
 
-  // Check if token is expired (with 5-minute buffer)
-  if (stored.expiresAt < Date.now() + 5 * 60 * 1000) {
+  // Check if token is expired (with 10-minute buffer to account for request latency)
+  if (stored.expiresAt < Date.now() + 10 * 60 * 1000) {
     return refreshAccessToken(userOpenId);
   }
 

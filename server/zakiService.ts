@@ -52,7 +52,8 @@ function parseSSEText(raw: string): string | null {
         if (parsed?.result?.content?.[0]?.text) return parsed.result.content[0].text;
         if (parsed?.error?.message) throw new Error(parsed.error.message);
       } catch (e) {
-        if (e instanceof Error && e.message !== 'Unexpected token') throw e;
+        if (e instanceof Error && !e.message.startsWith('Unexpected token')) throw e;
+        // JSON parse failure on SSE chunk — skip to next line
       }
     }
   }

@@ -90,7 +90,7 @@ export async function notifyOwner(payload: NotificationPayload): Promise<boolean
     });
 
     if (!response.ok) {
-      const detail = await response.text().catch(() => "");
+      const detail = await response.text().catch((e) => `(failed to read body: ${e})`);
       console.warn(
         `[Notification] Failed to notify owner (${response.status} ${response.statusText})${
           detail ? `: ${detail}` : ""

@@ -176,7 +176,10 @@ RULES:
     response_format: { type: 'json_object' },
   });
 
-  const raw = response.choices[0].message.content as string;
+  const raw = response.choices?.[0]?.message?.content;
+  if (!raw || typeof raw !== 'string') {
+    throw new Error('Invalid LLM response: missing content in choices[0].message.content');
+  }
   const parsed = JSON.parse(raw) as ZakiGeneratedProgram;
 
   // Validate and sanitize

@@ -10,6 +10,6 @@ export default function CoachTab() {
   const router = useRouter();
   useEffect(() => {
     router.replace('/ai-coaching-dashboard' as any);
-  }, []);
+  }, [router]);
   return <View style={{ flex: 1 }} />;
 }
