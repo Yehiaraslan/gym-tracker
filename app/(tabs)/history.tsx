@@ -15,14 +15,18 @@ import {
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useColors } from '@/hooks/use-colors';
 import { useGym } from '@/lib/gym-context';
 import { getSplitWorkouts, getSplitWeightHistory, type SplitWorkoutSession } from '@/lib/split-workout-store';
-import { SESSION_NAMES } from '@/lib/training-program';
+import { SESSION_NAMES, SESSION_COLORS, PROGRAM_SESSIONS, type SessionType } from '@/lib/training-program';
 import { loadCustomProgram, type CustomProgram } from '@/lib/custom-program-store';
+import { getTodaySessionFromSchedule } from '@/lib/schedule-store';
+import { getTodayRecoveryData, type RecoveryData } from '@/lib/whoop-recovery-service';
+import { getDailyNutrition } from '@/lib/nutrition-store';
+import { getStreakData } from '@/lib/streak-tracker';
 import { BodyMeasurementsView } from '@/components/body-measurements';
 import * as Haptics from 'expo-haptics';
 
@@ -41,6 +45,7 @@ type ViewMode = 'workouts' | 'exercises' | 'body';
 
 export default function HistoryScreen() {
   const colors = useColors();
+  const router = useRouter();
   const { store } = useGym();
   const [exerciseHistoryMap, setExerciseHistoryMap] = useState<Record<string, { date: string; weight: number; reps: number }[]>>({});
   const [viewMode, setViewMode] = useState<ViewMode>('workouts');
@@ -50,11 +55,21 @@ export default function HistoryScreen() {
   const [splitWorkouts, setSplitWorkouts] = useState<SplitWorkoutSession[]>([]);
   const [workoutSearchQuery, setWorkoutSearchQuery] = useState('');
   const [customProg, setCustomProg] = useState<CustomProgram | null>(null);
+  const [todaySession, setTodaySession] = useState<string>('rest');
+  const [customProgram, setCustomProgram] = useState<CustomProgram | null>(null);
+  const [recoveryData, setRecoveryData] = useState<RecoveryData | null>(null);
+  const [nutritionLogged, setNutritionLogged] = useState(false);
+  const [currentStreak, setCurrentStreak] = useState(0);
   useEffect(() => { loadCustomProgram().then(setCustomProg); }, []);
 
   // Reload split workouts and exercise history every time this tab is focused
   useFocusEffect(
     useCallback(() => {
+      getTodaySessionFromSchedule().then(setTodaySession).catch(() => {});
+      loadCustomProgram().then(setCustomProgram).catch(() => {});
+      getTodayRecoveryData().then(setRecoveryData).catch(() => {});
+      getDailyNutrition().then(n => setNutritionLogged(n ? n.meals.length > 0 : false)).catch(() => {});
+      getStreakData().then(s => setCurrentStreak(s.currentStreak)).catch(() => {});
       getSplitWorkouts().then(sessions => {
         const completed = sessions
           .filter(s => s.completed)
@@ -301,6 +316,28 @@ export default function HistoryScreen() {
     );
   };
 
+  function getSessionEmoji(sessionId: string): string {
+    const emojis: Record<string, string> = { 'upper-a': '💪', 'lower-a': '🦵', 'upper-b': '🏋️', 'lower-b': '🔥', rest: '😴' };
+    if (emojis[sessionId]) return emojis[sessionId];
+    const name = (customProgram?.sessionNames?.[sessionId] || sessionId).toLowerCase();
+    if (name.includes('push')) return '💪';
+    if (name.includes('pull')) return '🦶';
+    if (name.includes('leg')) return '🦵';
+    if (name.includes('upper')) return '🏋️';
+    return '🏋️';
+  }
+
+  function getSessionName(sessionId: string): string {
+    if (customProgram?.sessionNames?.[sessionId]) return customProgram.sessionNames[sessionId];
+    return SESSION_NAMES[sessionId as keyof typeof SESSION_NAMES] || sessionId;
+  }
+
+  function getExerciseCount(sessionId: string): number {
+    if (customProgram?.sessions?.[sessionId]) return customProgram.sessions[sessionId].length;
+    const defaultSessions = PROGRAM_SESSIONS as Record<string, any[]>;
+    return defaultSessions[sessionId]?.length ?? 8;
+  }
+
   return (
     <ScreenContainer className="flex-1">
       {/* Header */}
@@ -312,6 +349,103 @@ export default function HistoryScreen() {
           </Text>
         )}
       </View>
+
+      {/* Mission Briefing */}
+      {todaySession !== 'rest' && (
+        <View style={{
+          backgroundColor: colors.surface,
+          borderRadius: 16,
+          padding: 16,
+          marginBottom: 16,
+          marginHorizontal: 16,
+          borderWidth: 1,
+          borderColor: colors.cardBorder,
+        }}>
+          {/* Mission Header */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+            <Text style={{ fontSize: 28 }}>{getSessionEmoji(todaySession)}</Text>
+            <View style={{ marginLeft: 12, flex: 1 }}>
+              <Text style={{ color: colors.cardMuted, fontSize: 10, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase' }}>
+                TODAY'S MISSION
+              </Text>
+              <Text style={{ color: colors.cardForeground, fontSize: 18, fontWeight: '800' }}>
+                {getSessionName(todaySession)}
+              </Text>
+            </View>
+            <View style={{ backgroundColor: '#C8F53C20', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 }}>
+              <Text style={{ color: '#C8F53C', fontSize: 11, fontWeight: '700' }}>+100 XP</Text>
+            </View>
+          </View>
+
+          {/* Readiness Indicators */}
+          <View style={{ flexDirection: 'row', gap: 12, marginBottom: 14 }}>
+            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={{ fontSize: 14 }}>{recoveryData && recoveryData.recoveryScore >= 67 ? '���' : recoveryData && recoveryData.recoveryScore >= 34 ? '🟡' : '🔴'}</Text>
+              <Text style={{ color: colors.cardMuted, fontSize: 12 }}>Recovery</Text>
+            </View>
+            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={{ fontSize: 14 }}>{nutritionLogged ? '🟢' : '🔴'}</Text>
+              <Text style={{ color: colors.cardMuted, fontSize: 12 }}>Nutrition</Text>
+            </View>
+            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={{ fontSize: 14 }}>🔥</Text>
+              <Text style={{ color: colors.cardMuted, fontSize: 12 }}>{currentStreak}d streak</Text>
+            </View>
+          </View>
+
+          {/* Exercise count + Start button */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.cardMuted, fontSize: 12 }}>
+                {getExerciseCount(todaySession)} exercises · ~60 min
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => {
+                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                const today = new Date();
+                const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+                router.push({ pathname: '/split-workout', params: { sessionType: todaySession, date: todayStr } } as any);
+              }}
+              style={{
+                backgroundColor: '#C8F53C',
+                borderRadius: 12,
+                paddingHorizontal: 20,
+                paddingVertical: 12,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <Text style={{ color: '#0A0B0A', fontSize: 15, fontWeight: '700' }}>Start Quest</Text>
+              <Text style={{ fontSize: 14 }}>⚔️</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {/* Rest Day Mission Briefing */}
+      {todaySession === 'rest' && (
+        <View style={{
+          backgroundColor: colors.surface,
+          borderRadius: 16,
+          padding: 16,
+          marginBottom: 16,
+          marginHorizontal: 16,
+          borderWidth: 1,
+          borderColor: colors.cardBorder,
+          alignItems: 'center',
+        }}>
+          <Text style={{ fontSize: 36, marginBottom: 8 }}>😴</Text>
+          <Text style={{ color: colors.cardForeground, fontSize: 16, fontWeight: '700' }}>Rest Day</Text>
+          <Text style={{ color: colors.cardMuted, fontSize: 13, marginTop: 4, textAlign: 'center' }}>
+            Recovery is where gains are made. Focus on sleep, nutrition, and mobility.
+          </Text>
+          {currentStreak > 0 && (
+            <Text style={{ color: '#F59E0B', fontSize: 12, marginTop: 8 }}>🔥 {currentStreak} day streak — don't break it!</Text>
+          )}
+        </View>
+      )}
 
       {/* View Mode Toggle */}
       <View style={styles.toggleRow}>

@@ -12,11 +12,9 @@ import {
   PanResponder,
   Dimensions,
   StyleSheet,
-  InteractionManager,
 } from 'react-native';
 import { ScreenContainer } from '@/components/screen-container';
 import { useColors } from '@/hooks/use-colors';
-import { IconSymbol } from '@/components/ui/icon-symbol';
 import {
   addProgressPhoto,
   getProgressPhotos,
@@ -59,14 +57,6 @@ export default function ProgressGalleryScreen() {
 
   const [selectedCategory, setSelectedCategory] = useState<PhotoCategory>('front');
 
-  // Photo source picker state (replaces Alert.alert which doesn't work on web)
-  const [sourcePickerVisible, setSourcePickerVisible] = useState(false);
-
-  // Pending action after source picker modal closes — avoids the race condition
-  // where setTimeout(fn, 300) fires before the Modal animation finishes,
-  // causing expo-image-picker to silently fail to present its UI.
-  const pendingSourceAction = useRef<'camera' | 'library' | null>(null);
-
   // Zaki body analysis state
   const [zakiAnalysisVisible, setZakiAnalysisVisible] = useState(false);
   const [zakiAnalysisLoading, setZakiAnalysisLoading] = useState(false);
@@ -101,24 +91,6 @@ export default function ProgressGalleryScreen() {
     loadPhotos();
     loadStats();
   }, []);
-
-  // Fire the pending image-picker action once the source-picker modal has closed.
-  // InteractionManager.runAfterInteractions waits for the Modal dismiss animation
-  // to truly finish, then an extra 300ms buffer ensures expo-image-picker can
-  // present its own UI without silently failing.
-  useEffect(() => {
-    if (!sourcePickerVisible && pendingSourceAction.current) {
-      const action = pendingSourceAction.current;
-      pendingSourceAction.current = null;
-      const handle = InteractionManager.runAfterInteractions(() => {
-        setTimeout(() => {
-          if (action === 'camera') openGalleryCamera();
-          else openGalleryLibrary();
-        }, 300);
-      });
-      return () => handle.cancel();
-    }
-  }, [sourcePickerVisible]);
 
   const loadPhotos = async () => {
     try {
@@ -235,12 +207,6 @@ export default function ProgressGalleryScreen() {
         ]
       );
     }
-  };
-
-  // Step 1: Choose source — uses a Modal instead of Alert.alert (which is broken on web)
-  const handlePickImage = () => {
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setSourcePickerVisible(true);
   };
 
   // Step 2: Confirm category and save
@@ -432,18 +398,38 @@ export default function ProgressGalleryScreen() {
         )}
 
         {/* Action Buttons */}
-        <View style={{ paddingHorizontal: 16, marginBottom: 16, flexDirection: 'row', gap: 8 }}>
+        <View style={{ paddingHorizontal: 16, marginBottom: 16, flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
           <TouchableOpacity
-            onPress={handlePickImage}
+            onPress={() => {
+              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              openGalleryCamera();
+            }}
             disabled={uploading}
-            style={[styles.actionBtn, { backgroundColor: colors.primary, flex: 1, opacity: uploading ? 0.7 : 1 }]}
+            style={[styles.actionBtn, { backgroundColor: colors.primary, flexBasis: '47%', flexGrow: 1, opacity: uploading ? 0.7 : 1 }]}
           >
             {uploading ? (
               <ActivityIndicator color="white" size="small" />
             ) : (
               <>
-                <IconSymbol name="plus" size={18} color="white" />
-                <Text style={styles.actionBtnText}>Add Photo</Text>
+                <Text style={{ fontSize: 16 }}>📷</Text>
+                <Text style={styles.actionBtnText}>Camera</Text>
+              </>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => {
+              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              openGalleryLibrary();
+            }}
+            disabled={uploading}
+            style={[styles.actionBtn, { backgroundColor: colors.primary, flexBasis: '47%', flexGrow: 1, opacity: uploading ? 0.7 : 1 }]}
+          >
+            {uploading ? (
+              <ActivityIndicator color="white" size="small" />
+            ) : (
+              <>
+                <Text style={{ fontSize: 16 }}>🖼</Text>
+                <Text style={styles.actionBtnText}>Gallery</Text>
               </>
             )}
           </TouchableOpacity>
@@ -453,7 +439,7 @@ export default function ProgressGalleryScreen() {
               sliderX.setValue(SCREEN_WIDTH / 2);
               setCompareModalVisible(true);
             }}
-            style={[styles.actionBtn, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.cardBorder, flex: 1 }]}
+            style={[styles.actionBtn, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.cardBorder, flexBasis: '47%', flexGrow: 1 }]}
           >
             <Text style={{ fontSize: 16 }}>⚖️</Text>
             <Text style={[styles.actionBtnText, { color: colors.cardForeground }]}>Compare</Text>
@@ -461,7 +447,7 @@ export default function ProgressGalleryScreen() {
           <TouchableOpacity
             onPress={handleZakiBodyAnalysis}
             disabled={photos.length === 0}
-            style={[styles.actionBtn, { backgroundColor: '#7C3AED', flex: 1, opacity: photos.length === 0 ? 0.4 : 1 }]}
+            style={[styles.actionBtn, { backgroundColor: '#7C3AED', flexBasis: '47%', flexGrow: 1, opacity: photos.length === 0 ? 0.4 : 1 }]}
           >
             <Text style={{ fontSize: 16 }}>🤖</Text>
             <Text style={[styles.actionBtnText, { color: '#fff' }]}>Zaki</Text>
@@ -489,46 +475,6 @@ export default function ProgressGalleryScreen() {
           </View>
         )}
       </ScrollView>
-
-      {/* ── Photo Source Picker Modal ── */}
-      {/* Replaces Alert.alert which doesn't show custom buttons on web */}
-      <Modal visible={sourcePickerVisible} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={[styles.bottomSheet, { backgroundColor: colors.surface }]}>
-            <View style={[styles.sheetHandle, { backgroundColor: colors.cardBorder }]} />
-            <Text style={[styles.sheetTitle, { color: colors.cardForeground }]}>Add Progress Photo</Text>
-            <Text style={{ color: colors.cardMuted, fontSize: 14, marginBottom: 20, textAlign: 'center' }}>
-              Choose a photo source
-            </Text>
-            <TouchableOpacity
-              onPress={() => {
-                pendingSourceAction.current = 'camera';
-                setSourcePickerVisible(false);
-              }}
-              style={[styles.sourceBtn, { backgroundColor: colors.primary }]}
-            >
-              <Text style={{ fontSize: 18 }}>📷</Text>
-              <Text style={[styles.sourceBtnText, { color: '#fff' }]}>Take Photo</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => {
-                pendingSourceAction.current = 'library';
-                setSourcePickerVisible(false);
-              }}
-              style={[styles.sourceBtn, { backgroundColor: colors.primary }]}
-            >
-              <Text style={{ fontSize: 18 }}>🖼</Text>
-              <Text style={[styles.sourceBtnText, { color: '#fff' }]}>Choose from Library</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => setSourcePickerVisible(false)}
-              style={[styles.sheetBtn, { backgroundColor: colors.background, borderWidth: 1, borderColor: colors.cardBorder, marginTop: 8 }]}
-            >
-              <Text style={{ color: colors.cardForeground, fontWeight: '600' }}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
 
       {/* ── Category Picker Modal ── */}
       <Modal visible={categoryModalVisible} transparent animationType="slide">
@@ -863,8 +809,6 @@ const styles = StyleSheet.create({
   categoryChip: { width: 80, height: 80, borderRadius: 16, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   categoryChipSmall: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20 },
   sheetBtn: { paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
-  sourceBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 16, borderRadius: 14, marginBottom: 10 },
-  sourceBtnText: { fontWeight: '700', fontSize: 16 },
   dragHandle: { position: 'absolute', top: '45%', width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.7)', borderWidth: 2, borderColor: 'white', alignItems: 'center', justifyContent: 'center' },
   compareLabel: { position: 'absolute', top: 12, backgroundColor: 'rgba(0,0,0,0.65)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
   compareLabelText: { color: 'white', fontSize: 11, fontWeight: '800', letterSpacing: 1 },
