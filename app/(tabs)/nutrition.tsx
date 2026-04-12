@@ -27,6 +27,7 @@ import {
 import { NUTRITION_TARGETS, MEAL_SCHEDULE, SUPPLEMENTS, isTrainingDay } from '@/lib/training-program';
 import * as Haptics from 'expo-haptics';
 import uaeFoodDb from '@/lib/data/uae-food-database.json';
+import { WaterTracker } from '@/components/water-tracker';
 
 // ── Food database typed ──────────────────────────────────────
 type FoodItem = {
@@ -404,6 +405,32 @@ export default function NutritionTab() {
             ))}
           </View>
         </View>
+
+        {/* ── Macro Remaining Card ───────────────────────────── */}
+        <View style={{ backgroundColor: pri + '10', borderRadius: 14, padding: 14, marginTop: 12, marginHorizontal: 16, borderWidth: 1, borderColor: pri + '20' }}>
+          <Text style={{ color: pri, fontSize: 12, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 8 }}>
+            Still needed today
+          </Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
+            {[
+              { label: 'Calories', remaining: Math.max(0, log.targetCalories - totals.calories), unit: 'kcal', color: '#FF6B6B' },
+              { label: 'Protein', remaining: Math.max(0, log.targetProtein - totals.protein), unit: 'g', color: '#4FC3F7' },
+              { label: 'Carbs', remaining: Math.max(0, log.targetCarbs - totals.carbs), unit: 'g', color: '#81C784' },
+              { label: 'Fat', remaining: Math.max(0, log.targetFat - totals.fat), unit: 'g', color: '#FFB74D' },
+            ].map(m => (
+              <View key={m.label} style={{ alignItems: 'center' }}>
+                <Text style={{ color: m.color, fontSize: 18, fontWeight: '800' }}>{m.remaining}</Text>
+                <Text style={{ color: mut, fontSize: 10 }}>{m.unit} {m.label.toLowerCase()}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* ── Water Tracker ──────────────────────────────────── */}
+        <View style={{ marginHorizontal: 16 }}>
+          <WaterTracker />
+        </View>
+
         {/* ── Weekly Protein Adherence ────────────────────────── */}
         {weeklyAdherence && weeklyAdherence.total > 0 && (
           <View style={[s.macroCard, { backgroundColor: surf, paddingVertical: 12 }]}>

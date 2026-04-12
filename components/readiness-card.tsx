@@ -133,10 +133,18 @@ export function ReadinessCard({ readinessResult }: ReadinessCardProps) {
             <Text style={styles.scoreText}>{readinessResult.score}</Text>
           </View>
 
-          {/* Label and emoji */}
+          {/* Label and emoji with accessible text */}
           <View style={styles.labelContainer}>
             <Text style={styles.emoji}>{readinessResult.emoji}</Text>
             <Text style={styles.labelText}>{readinessResult.label}</Text>
+            <Text style={{
+              fontSize: 12,
+              fontWeight: '600',
+              color: readinessResult.color,
+              marginLeft: 6,
+            }}>
+              {readinessResult.score >= 70 ? 'High' : readinessResult.score >= 40 ? 'Moderate' : 'Low'}
+            </Text>
           </View>
 
           {/* Recommendation */}

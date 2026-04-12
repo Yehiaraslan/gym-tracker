@@ -1,13 +1,20 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { 
-  Text, 
-  View, 
-  TouchableOpacity, 
+import {
+  Text,
+  View,
+  TouchableOpacity,
   FlatList,
   TextInput,
   Platform,
   StyleSheet,
+  LayoutAnimation,
+  UIManager,
 } from 'react-native';
+
+// Enable LayoutAnimation on Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 import { useFocusEffect } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -88,6 +95,7 @@ export default function HistoryScreen() {
 
   const toggleWorkout = (id: string) => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setExpandedWorkout(expandedWorkout === id ? null : id);
   };
 
@@ -229,6 +237,7 @@ export default function HistoryScreen() {
       <TouchableOpacity
         onPress={() => {
           if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
           setSelectedExercise(isSelected ? null : item.id);
         }}
         activeOpacity={0.7}

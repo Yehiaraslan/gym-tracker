@@ -46,6 +46,7 @@ export function SplitSetLogger({
   const [reps, setReps] = useState((targetRepsMin || 1).toString());
   const [rpe, setRpe] = useState<number | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const [setType, setSetType] = useState<string>('working');
 
   useEffect(() => {
     if (suggestedWeight !== undefined) {
@@ -56,6 +57,17 @@ export function SplitSetLogger({
   const weightNum = parseFloat(weight) || 0;
   const repsNum = parseInt(reps) || 0;
   const liveE1RM = weightNum > 0 && repsNum > 0 ? epley1RM(weightNum, repsNum) : null;
+
+  const PLATES = [25, 20, 15, 10, 5, 2.5, 1.25];
+  const calculatePlates = (totalWeight: number, barWeight = 20): string => {
+    let remaining = (totalWeight - barWeight) / 2;
+    if (remaining <= 0) return 'Bar only';
+    const plates: string[] = [];
+    for (const plate of PLATES) {
+      while (remaining >= plate) { plates.push(`${plate}`); remaining -= plate; }
+    }
+    return plates.join(' + ') + ' per side';
+  };
 
   const adjustWeight = (delta: number) => {
     const newW = Math.max(0, Math.round((weightNum + delta) * 10) / 10);
@@ -260,6 +272,7 @@ export function SplitSetLogger({
                 value={weight}
                 onChangeText={setWeight}
                 keyboardType="decimal-pad"
+                placeholder={previousSet ? previousSet.weightKg.toString() : '0'}
                 className="h-14 rounded-xl text-center text-xl font-bold text-cardForeground"
                 style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.cardBorder }}
                 placeholderTextColor={colors.cardMuted}
@@ -288,6 +301,16 @@ export function SplitSetLogger({
             ))}
           </View>
 
+          {/* Plate calculator */}
+          {weightNum > 0 && (
+            <View className="flex-row items-center mt-2 px-1">
+              <Text style={{ fontSize: 12 }}>🏋️</Text>
+              <Text className="text-xs ml-1.5" style={{ color: colors.cardMuted }}>
+                {calculatePlates(weightNum)}
+              </Text>
+            </View>
+          )}
+
           {/* Reps input */}
           <Text className="text-xs font-medium text-cardMuted mt-4 mb-2" style={{ textTransform: 'uppercase', letterSpacing: 1 }}>
             {targetRepsMin === 0 ? 'Hold Time (sec)' : 'Reps Completed'}
@@ -305,6 +328,7 @@ export function SplitSetLogger({
                 value={reps}
                 onChangeText={setReps}
                 keyboardType="number-pad"
+                placeholder={previousSet ? previousSet.reps.toString() : targetRepsMin.toString()}
                 className="h-14 rounded-xl text-center text-xl font-bold text-cardForeground"
                 style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.cardBorder }}
                 placeholderTextColor={colors.cardMuted}
@@ -371,6 +395,43 @@ export function SplitSetLogger({
                   </Text>
                 ) : null;
               })()}
+            </View>
+          )}
+
+          {/* Set type badges */}
+          {!isWarmup && (
+            <View className="flex-row mt-4" style={{ gap: 6 }}>
+              {(['working', 'drop', 'failure', 'paused'] as const).map(type => {
+                const labels: Record<string, string> = {
+                  working: 'Working',
+                  drop: 'Drop Set',
+                  failure: 'Failure',
+                  paused: 'Paused',
+                };
+                const isActive = setType === type;
+                return (
+                  <TouchableOpacity
+                    key={type}
+                    onPress={() => {
+                      setSetType(type);
+                      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }}
+                    className="px-3 py-1.5 rounded-full"
+                    style={{
+                      borderWidth: 1,
+                      borderColor: isActive ? colors.primary : colors.cardBorder,
+                      backgroundColor: isActive ? colors.primary + '15' : 'transparent',
+                    }}
+                  >
+                    <Text
+                      className="text-xs font-medium"
+                      style={{ color: isActive ? colors.primary : colors.cardMuted }}
+                    >
+                      {labels[type]}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           )}
 

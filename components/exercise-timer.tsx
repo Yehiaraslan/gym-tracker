@@ -14,6 +14,9 @@ export function ExerciseTimer({ duration, onComplete, exerciseName }: ExerciseTi
   const colors = useColors();
   const [timeLeft, setTimeLeft] = useState(duration);
   const [isRunning, setIsRunning] = useState(false);
+  const [activePreset, setActivePreset] = useState<number | null>(null);
+
+  const REST_PRESETS = [60, 90, 120, 180];
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | undefined;
@@ -94,6 +97,34 @@ export function ExerciseTimer({ duration, onComplete, exerciseName }: ExerciseTi
             Done
           </Text>
         </TouchableOpacity>
+      </View>
+
+      {/* Rest timer presets */}
+      <View className="flex-row mt-4" style={{ gap: 8 }}>
+        {REST_PRESETS.map(preset => (
+          <TouchableOpacity
+            key={preset}
+            onPress={() => {
+              setActivePreset(preset);
+              setTimeLeft(preset);
+              setIsRunning(true);
+              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }}
+            className="flex-1 py-2 rounded-full items-center justify-center"
+            style={{
+              borderWidth: 1,
+              borderColor: activePreset === preset ? colors.primary : colors.cardBorder,
+              backgroundColor: activePreset === preset ? colors.primary + '15' : 'transparent',
+            }}
+          >
+            <Text
+              className="text-xs font-medium"
+              style={{ color: activePreset === preset ? colors.primary : colors.cardMuted }}
+            >
+              {preset >= 60 ? `${preset / 60}m` : `${preset}s`}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
     </View>
   );

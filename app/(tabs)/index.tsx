@@ -2,6 +2,7 @@
 // HOME SCREEN — Phy-style dark card dashboard
 // ============================================================
 import { useState, useCallback, useEffect } from 'react';
+import type { ReactNode } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Text, View, TouchableOpacity, ScrollView, Platform, StyleSheet, Image, Modal, Dimensions, RefreshControl, TextInput, FlatList } from 'react-native';
 import { loadUserProfile, type UserProfile } from '@/lib/profile-store';
@@ -146,6 +147,9 @@ export default function HomeScreen() {
   const [syncState, setSyncState] = useState<PinSyncState | null>(null);
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [resumableWorkout, setResumableWorkout] = useState<ActiveWorkoutState | null>(null);
+
+  // Banner priority queue state (Enhancement 2)
+  const [bannerIndex, setBannerIndex] = useState(0);
 
   // Progress tab data merged into Home
   const [prs, setPrs] = useState<Record<string, { e1rm: number; weight: number; reps: number; date: string }>>({});
@@ -409,21 +413,220 @@ export default function HomeScreen() {
       >
         {/* ── WHOOP Reconnect Banner (shown when token expired) ── */}
         <WhoopReconnectBanner />
-        {/* ── Profile Completeness Nudge ── */}
-        {userProfile && (!userProfile.name || !userProfile.dateOfBirth || !userProfile.heightCm || !userProfile.weightKg || !userProfile.fitnessGoal) && (
-          <TouchableOpacity
-            style={[s.warningBanner, { backgroundColor: '#3B82F615', borderColor: '#3B82F6', marginBottom: 8 }]}
-            onPress={() => router.push('/profile' as any)}
-            activeOpacity={0.8}
-          >
-            <Text style={s.warningIcon}>👤</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={[s.warningTitle, { color: '#3B82F6' }]}>Complete your profile</Text>
-              <Text style={[s.warningSub, { color: screenMut }]}>Zaki needs your height, weight & goal for personalised coaching</Text>
-            </View>
-            <Text style={{ color: '#3B82F6', fontSize: 18 }}>›</Text>
-          </TouchableOpacity>
+
+        {/* ── Smart Banner Priority Queue ── */}
+        {/* Reschedule toast (always shown independently) */}
+        {rescheduleToast != null && (
+          <View style={[s.warningBanner, { backgroundColor: '#22C55E20', borderColor: '#22C55E', marginBottom: 8 }]}>
+            <Text style={s.warningIcon}>✅</Text>
+            <Text style={[s.warningTitle, { color: '#22C55E', flex: 1 }]}>{rescheduleToast}</Text>
+          </View>
         )}
+        {(() => {
+          // Collect all active banners into a priority-ordered array
+          const banners: { key: string; priority: number; render: () => ReactNode }[] = [];
+
+          // Priority 1: Missed workout
+          const visibleMissed = missedSessions.filter(m => !dismissedMakeup.has(m.date));
+          if (visibleMissed.length > 0) {
+            const last = visibleMissed[0];
+            const isRescheduling = reschedulingDate === last.date;
+            banners.push({
+              key: 'missed_workout',
+              priority: 1,
+              render: () => (
+                <View style={[s.warningBanner, { backgroundColor: '#F59E0B15', borderColor: '#F59E0B', marginBottom: 0, flexDirection: 'column', alignItems: 'flex-start', gap: 8 }]}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%' }}>
+                    <Text style={s.warningIcon}>📅</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[s.warningTitle, { color: '#F59E0B' }]}>
+                        Missed: {last.sessionName} ({last.daysAgo === 1 ? 'yesterday' : `${last.daysAgo} days ago`})
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => {
+                        const allDates = new Set(visibleMissed.map(m => m.date));
+                        setDismissedMakeup(prev => new Set([...prev, ...allDates]));
+                      }}
+                      style={{ padding: 4 }}
+                    >
+                      <Text style={{ color: screenMut, fontSize: 11 }}>{visibleMissed.length > 1 ? `Dismiss All (${visibleMissed.length})` : '✕'}</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <View style={{ flexDirection: 'row', gap: 8, paddingLeft: 32 }}>
+                    <TouchableOpacity
+                      onPress={() => handleRescheduleToToday(last)}
+                      disabled={isRescheduling}
+                      style={{ backgroundColor: '#F59E0B', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, opacity: isRescheduling ? 0.6 : 1 }}
+                    >
+                      <Text style={{ color: '#000', fontSize: 12, fontWeight: '700' }}>
+                        {isRescheduling ? '⏳ Moving…' : '📆 Schedule for today'}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => {
+                        if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        router.push({ pathname: '/split-workout', params: { sessionType: last.sessionType, date: last.date } } as any);
+                      }}
+                      style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: '#F59E0B' }}
+                    >
+                      <Text style={{ color: '#F59E0B', fontSize: 12, fontWeight: '700' }}>Start now →</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ),
+            });
+          }
+
+          // Priority 2: Low recovery
+          if (showLowRecoveryWarning) {
+            banners.push({
+              key: 'low_recovery',
+              priority: 2,
+              render: () => (
+                <View style={[s.warningBanner, { backgroundColor: '#EF444415', borderColor: '#EF4444', marginBottom: 0 }]}>
+                  <Text style={s.warningIcon}>⚠️</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[s.warningTitle, { color: '#EF4444' }]}>Low Recovery ({recoveryScore}%)</Text>
+                    <Text style={[s.warningSub, { color: screenMut }]}>Your body needs rest — deload mode uses 70% weight & half sets</Text>
+                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                      <TouchableOpacity
+                        style={{ backgroundColor: '#EF4444', paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10 }}
+                        onPress={() => {
+                          if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                          router.push({ pathname: '/split-workout', params: { sessionType: todaySession, date: todayStr, deload: 'true' } } as any);
+                        }}
+                      >
+                        <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>🏳️ Switch to Deload</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={{ backgroundColor: '#EF444430', paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10 }}
+                        onPress={handleStartWorkout}
+                      >
+                        <Text style={{ color: '#EF4444', fontWeight: '600', fontSize: 13 }}>Train Anyway</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              ),
+            });
+          }
+
+          // Priority 3: Profile incomplete
+          if (userProfile && (!userProfile.name || !userProfile.dateOfBirth || !userProfile.heightCm || !userProfile.weightKg || !userProfile.fitnessGoal)) {
+            banners.push({
+              key: 'profile_incomplete',
+              priority: 3,
+              render: () => (
+                <TouchableOpacity
+                  style={[s.warningBanner, { backgroundColor: '#3B82F615', borderColor: '#3B82F6', marginBottom: 0 }]}
+                  onPress={() => router.push('/profile' as any)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={s.warningIcon}>👤</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[s.warningTitle, { color: '#3B82F6' }]}>Complete your profile</Text>
+                    <Text style={[s.warningSub, { color: screenMut }]}>Zaki needs your height, weight & goal for personalised coaching</Text>
+                  </View>
+                  <Text style={{ color: '#3B82F6', fontSize: 18 }}>›</Text>
+                </TouchableOpacity>
+              ),
+            });
+          }
+
+          // Priority 4: Program complete
+          if (customProgram) {
+            const progress = getProgramProgress(customProgram);
+            if (progress.isComplete) {
+              const suggestion = suggestNextProgram(
+                customProgram,
+                userProfile?.fitnessGoal || 'muscle_gain',
+                userProfile?.experienceLevel || 'intermediate',
+                userProfile?.equipment || 'full_gym',
+              );
+              banners.push({
+                key: 'program_complete',
+                priority: 4,
+                render: () => (
+                  <View style={[s.warningBanner, { backgroundColor: '#22C55E15', borderColor: '#22C55E', marginBottom: 0 }]}>
+                    <Text style={s.warningIcon}>🌟</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[s.warningTitle, { color: '#22C55E' }]}>Program Complete!</Text>
+                      <Text style={[s.warningSub, { color: screenMut }]}>{suggestion.reason}</Text>
+                      <TouchableOpacity
+                        onPress={() => {
+                          if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                          router.push('/program-setup' as any);
+                        }}
+                        style={{ marginTop: 8 }}
+                      >
+                        <Text style={{ color: '#22C55E', fontSize: 13, fontWeight: '700' }}>
+                          Switch to {suggestion.template.name} →
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ),
+              });
+            }
+          }
+
+          // Sort by priority and render only the current banner
+          banners.sort((a, b) => a.priority - b.priority);
+          if (banners.length === 0) return null;
+          const safeIdx = bannerIndex % banners.length;
+          const currentBanner = banners[safeIdx];
+
+          return (
+            <View style={{ marginBottom: 8, position: 'relative' }}>
+              {currentBanner.render()}
+              {banners.length > 1 && (
+                <TouchableOpacity
+                  onPress={() => {
+                    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setBannerIndex((bannerIndex + 1) % banners.length);
+                  }}
+                  style={{
+                    position: 'absolute',
+                    bottom: 8,
+                    right: 8,
+                    backgroundColor: '#00000040',
+                    paddingHorizontal: 8,
+                    paddingVertical: 3,
+                    borderRadius: 10,
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>
+                    {banners.length - 1} more alert{banners.length - 1 > 1 ? 's' : ''} ▼
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          );
+        })()}
+
+        {/* ── Program Progress Bar (active program, not complete — shown independently) ── */}
+        {(() => {
+          if (!customProgram) return null;
+          const progress = getProgramProgress(customProgram);
+          if (progress.isComplete) return null;
+          return (
+            <View style={[s.card, { backgroundColor: surf, borderColor: bord, padding: 14, marginBottom: 8 }]}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <Text style={{ color: fg, fontSize: 14, fontWeight: '600' }}>{customProgram.name}</Text>
+                <Text style={{ color: mut, fontSize: 12 }}>Week {Math.min(progress.weeksElapsed + 1, progress.totalWeeks)}/{progress.totalWeeks}</Text>
+              </View>
+              <View style={{ height: 6, borderRadius: 3, backgroundColor: bord, overflow: 'hidden' }}>
+                <View style={{ height: 6, borderRadius: 3, backgroundColor: pri, width: `${progress.percentComplete}%` }} />
+              </View>
+              <Text style={{ color: mut, fontSize: 11, marginTop: 6 }}>
+                {progress.daysRemaining} days remaining
+              </Text>
+            </View>
+          );
+        })()}
+
         {/* ── Header with gradient backdrop ── */}
         <View style={{ marginHorizontal: -16, marginTop: -8, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16, marginBottom: 8 }}>
           <Svg width={SCREEN_WIDTH} height={100} style={{ position: 'absolute', top: 0, left: 0 }}>
@@ -497,142 +700,6 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* ── Missed Session Banner (only last missed) ── */}
-        {/* Reschedule toast */}
-        {rescheduleToast != null && (
-          <View style={[s.warningBanner, { backgroundColor: '#22C55E20', borderColor: '#22C55E', marginBottom: 8 }]}>
-            <Text style={s.warningIcon}>✅</Text>
-            <Text style={[s.warningTitle, { color: '#22C55E', flex: 1 }]}>{rescheduleToast}</Text>
-          </View>
-        )}
-        {(() => {
-          const visible = missedSessions.filter(m => !dismissedMakeup.has(m.date));
-          if (visible.length === 0) return null;
-          const last = visible[0]; // most recent missed
-          const isRescheduling = reschedulingDate === last.date;
-          return (
-            <View style={[s.warningBanner, { backgroundColor: '#F59E0B15', borderColor: '#F59E0B', marginBottom: 8, flexDirection: 'column', alignItems: 'flex-start', gap: 8 }]}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%' }}>
-                <Text style={s.warningIcon}>📅</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={[s.warningTitle, { color: '#F59E0B' }]}>
-                    Missed: {last.sessionName} ({last.daysAgo === 1 ? 'yesterday' : `${last.daysAgo} days ago`})
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  onPress={() => {
-                    const allDates = new Set(visible.map(m => m.date));
-                    setDismissedMakeup(prev => new Set([...prev, ...allDates]));
-                  }}
-                  style={{ padding: 4 }}
-                >
-                  <Text style={{ color: screenMut, fontSize: 11 }}>{visible.length > 1 ? `Dismiss All (${visible.length})` : '✕'}</Text>
-                </TouchableOpacity>
-              </View>
-              <View style={{ flexDirection: 'row', gap: 8, paddingLeft: 32 }}>
-                {/* Schedule for today — swaps schedule */}
-                <TouchableOpacity
-                  onPress={() => handleRescheduleToToday(last)}
-                  disabled={isRescheduling}
-                  style={{ backgroundColor: '#F59E0B', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, opacity: isRescheduling ? 0.6 : 1 }}
-                >
-                  <Text style={{ color: '#000', fontSize: 12, fontWeight: '700' }}>
-                    {isRescheduling ? '⏳ Moving…' : '📆 Schedule for today'}
-                  </Text>
-                </TouchableOpacity>
-                {/* Make it up — goes directly to workout */}
-                <TouchableOpacity
-                  onPress={() => {
-                    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    router.push({ pathname: '/split-workout', params: { sessionType: last.sessionType, date: last.date } } as any);
-                  }}
-                  style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: '#F59E0B' }}
-                >
-                  <Text style={{ color: '#F59E0B', fontSize: 12, fontWeight: '700' }}>Start now →</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          );
-        })()}
-
-        {/* ── Low Recovery Warning ── */}
-        {showLowRecoveryWarning && (
-          <View style={[s.warningBanner, { backgroundColor: '#EF444415', borderColor: '#EF4444', marginBottom: 8 }]}>
-            <Text style={s.warningIcon}>⚠️</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={[s.warningTitle, { color: '#EF4444' }]}>Low Recovery ({recoveryScore}%)</Text>
-              <Text style={[s.warningSub, { color: screenMut }]}>Your body needs rest — deload mode uses 70% weight & half sets</Text>
-              <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-                <TouchableOpacity
-                  style={{ backgroundColor: '#EF4444', paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10 }}
-                  onPress={() => {
-                    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                    router.push({ pathname: '/split-workout', params: { sessionType: todaySession, date: todayStr, deload: 'true' } } as any);
-                  }}
-                >
-                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>🏳️ Switch to Deload</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={{ backgroundColor: '#EF444430', paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10 }}
-                  onPress={handleStartWorkout}
-                >
-                  <Text style={{ color: '#EF4444', fontWeight: '600', fontSize: 13 }}>Train Anyway</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        )}
-
-        {/* ── Program Progression Banner ── */}
-        {(() => {
-          if (!customProgram) return null;
-          const progress = getProgramProgress(customProgram);
-          if (!progress.isComplete) {
-            // Show progress bar for active program
-            return (
-              <View style={[s.card, { backgroundColor: surf, borderColor: bord, padding: 14, marginBottom: 8 }]}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <Text style={{ color: fg, fontSize: 14, fontWeight: '600' }}>{customProgram.name}</Text>
-                  <Text style={{ color: mut, fontSize: 12 }}>Week {Math.min(progress.weeksElapsed + 1, progress.totalWeeks)}/{progress.totalWeeks}</Text>
-                </View>
-                <View style={{ height: 6, borderRadius: 3, backgroundColor: bord, overflow: 'hidden' }}>
-                  <View style={{ height: 6, borderRadius: 3, backgroundColor: pri, width: `${progress.percentComplete}%` }} />
-                </View>
-                <Text style={{ color: mut, fontSize: 11, marginTop: 6 }}>
-                  {progress.daysRemaining} days remaining
-                </Text>
-              </View>
-            );
-          }
-          // Program complete — show upgrade banner
-          const suggestion = suggestNextProgram(
-            customProgram,
-            userProfile?.fitnessGoal || 'muscle_gain',
-            userProfile?.experienceLevel || 'intermediate',
-            userProfile?.equipment || 'full_gym',
-          );
-          return (
-            <View style={[s.warningBanner, { backgroundColor: '#22C55E15', borderColor: '#22C55E', marginBottom: 8 }]}>
-              <Text style={s.warningIcon}>🌟</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={[s.warningTitle, { color: '#22C55E' }]}>Program Complete!</Text>
-                <Text style={[s.warningSub, { color: screenMut }]}>{suggestion.reason}</Text>
-                <TouchableOpacity
-                  onPress={() => {
-                    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                    router.push('/program-setup' as any);
-                  }}
-                  style={{ marginTop: 8 }}
-                >
-                  <Text style={{ color: '#22C55E', fontSize: 13, fontWeight: '700' }}>
-                    Switch to {suggestion.template.name} →
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          );
-        })()}
-
         {/* ── 7-Day Week Strip ── */}
         <View style={[s.card, { backgroundColor: surf, borderColor: bord, paddingVertical: 12 }]}>
           <View style={s.weekRow}>
@@ -683,6 +750,40 @@ export default function HomeScreen() {
               );
             })}
           </View>
+          {/* ── Session Color Legend ── */}
+          {(() => {
+            // Deduplicate sessions from the current week (exclude rest)
+            const seen = new Set<string>();
+            const uniqueSessions: { id: string; color: string; name: string; abbrev: string }[] = [];
+            const defaultShortLegend: Record<string, string> = {
+              'upper-a': 'UA', 'lower-a': 'LA', 'upper-b': 'UB', 'lower-b': 'LB',
+            };
+            for (const d of weekDays) {
+              if (d.session === 'rest' || seen.has(d.session)) continue;
+              seen.add(d.session);
+              const abbrev = defaultShortLegend[d.session]
+                || d.session.split(/[-_ ]+/).map(w => w[0]?.toUpperCase() ?? '').join('').slice(0, 3)
+                || d.session.slice(0, 2).toUpperCase();
+              uniqueSessions.push({
+                id: d.session,
+                color: getColor(d.session),
+                name: getName(d.session),
+                abbrev,
+              });
+            }
+            if (uniqueSessions.length === 0) return null;
+            return (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: bord, marginTop: 8, gap: 10 }}>
+                {uniqueSessions.map(sess => (
+                  <View key={sess.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                    <Text style={{ fontSize: 9, fontWeight: '600', color: mut }}>{sess.abbrev}</Text>
+                    <View style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: sess.color }} />
+                    <Text style={{ fontSize: 9, color: mut }}>{sess.name}</Text>
+                  </View>
+                ))}
+              </View>
+            );
+          })()}
         </View>
 
         {/* ── Day Preview Modal ── */}
@@ -1194,6 +1295,35 @@ export default function HomeScreen() {
           </View>
         </View>
       </ScrollView>
+
+      {/* ── Quick Start FAB (only shown when there IS a workout today) ── */}
+      {!isRest && scheduleLoaded && (
+        <TouchableOpacity
+          onPress={() => {
+            if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            router.push({ pathname: '/split-workout', params: { sessionType: todaySession, date: todayStr } } as any);
+          }}
+          activeOpacity={0.85}
+          style={{
+            position: 'absolute',
+            bottom: 90,
+            right: 20,
+            width: 56,
+            height: 56,
+            borderRadius: 28,
+            backgroundColor: pri,
+            alignItems: 'center',
+            justifyContent: 'center',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 8,
+            elevation: 8,
+          }}
+        >
+          <Text style={{ color: '#FFFFFF', fontSize: 22, marginLeft: 2 }}>▶</Text>
+        </TouchableOpacity>
+      )}
     </ScreenContainer>
   );
 }

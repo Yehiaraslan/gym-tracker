@@ -1,8 +1,9 @@
 // ============================================================
-// ONBOARDING SCREEN — 3-step setup for new users
+// ONBOARDING SCREEN — 4-step setup for new users
 // Step 1: Fitness Goal
 // Step 2: Experience Level
 // Step 3: Available Equipment
+// Step 4: Welcome / Celebration
 // Saves to profile-store and feeds into Zaki's context
 // ============================================================
 import { useState, useRef } from 'react';
@@ -54,7 +55,7 @@ const EQUIPMENT: { key: EquipmentAccess; label: string; emoji: string; desc: str
   { key: 'bodyweight', label: 'Bodyweight Only', emoji: '🤸', desc: 'No equipment — just your body and determination' },
 ];
 
-const STEPS = ['Goal', 'Experience', 'Equipment'] as const;
+const STEPS = ['Goal', 'Experience', 'Equipment', 'Welcome'] as const;
 
 export default function OnboardingScreen() {
   const colors = useColors();
@@ -90,7 +91,7 @@ export default function OnboardingScreen() {
 
   const handleNext = () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (step < 2) {
+    if (step < 3) {
       animateTransition('forward', () => setStep(s => s + 1));
     } else {
       handleComplete();
@@ -126,7 +127,7 @@ export default function OnboardingScreen() {
 
   // ── Can proceed? ────────────────────────────────────────────
 
-  const canProceed = step === 0 ? !!goal : step === 1 ? !!experience : !!equipment;
+  const canProceed = step === 0 ? !!goal : step === 1 ? !!experience : step === 2 ? !!equipment : true;
 
   // ── Render Option Card ──────────────────────────────────────
 
@@ -204,6 +205,45 @@ export default function OnboardingScreen() {
             </View>
           </View>
         );
+      case 3: {
+        const goalLabel = GOALS.find(g => g.key === goal)?.label ?? goal;
+        const levelLabel = EXPERIENCE.find(e => e.key === experience)?.label ?? experience;
+        const equipLabel = EQUIPMENT.find(eq => eq.key === equipment)?.label ?? equipment;
+        return (
+          <View style={[s.stepContent, { alignItems: 'center', justifyContent: 'center' }]}>
+            <Text style={{ fontSize: 48, marginBottom: 12 }}>{'\uD83E\uDD16'}</Text>
+            <Text style={[s.stepTitle, { color: fg, textAlign: 'center' }]}>
+              Welcome to Gym Tracker! {'\uD83C\uDF89'}
+            </Text>
+            <Text style={[s.stepSubtitle, { color: mt, textAlign: 'center', marginBottom: 32 }]}>
+              Your personalized program is ready.
+            </Text>
+
+            <View style={{
+              width: '100%',
+              backgroundColor: surf,
+              borderRadius: 16,
+              borderWidth: 1,
+              borderColor: bord,
+              padding: 20,
+              gap: 14,
+            }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ fontSize: 14, color: mt, fontWeight: '500' }}>Goal</Text>
+                <Text style={{ fontSize: 14, color: fg, fontWeight: '700' }}>{goalLabel}</Text>
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ fontSize: 14, color: mt, fontWeight: '500' }}>Level</Text>
+                <Text style={{ fontSize: 14, color: fg, fontWeight: '700' }}>{levelLabel}</Text>
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ fontSize: 14, color: mt, fontWeight: '500' }}>Equipment</Text>
+                <Text style={{ fontSize: 14, color: fg, fontWeight: '700' }}>{equipLabel}</Text>
+              </View>
+            </View>
+          </View>
+        );
+      }
       default:
         return null;
     }
@@ -239,6 +279,7 @@ export default function OnboardingScreen() {
           <View style={s.progressLineWrap}>
             <View style={[s.progressLine, { backgroundColor: step >= 1 ? pr : bord }]} />
             <View style={[s.progressLine, { backgroundColor: step >= 2 ? pr : bord }]} />
+            <View style={[s.progressLine, { backgroundColor: step >= 3 ? pr : bord }]} />
           </View>
         </View>
 
@@ -274,7 +315,7 @@ export default function OnboardingScreen() {
             activeOpacity={0.8}
           >
             <Text style={s.nextBtnText}>
-              {saving ? 'Setting up...' : step === 2 ? "Let's Go" : 'Continue'}
+              {saving ? 'Setting up...' : step === 3 ? "Let's Go!" : 'Continue'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -330,12 +371,12 @@ const s = StyleSheet.create({
   progressLineWrap: {
     position: 'absolute',
     top: 34,
-    left: '20%',
-    right: '20%',
+    left: '12%',
+    right: '12%',
     flexDirection: 'row',
     justifyContent: 'space-between',
     zIndex: 1,
-    gap: 40,
+    gap: 28,
   },
   progressLine: {
     height: 3,

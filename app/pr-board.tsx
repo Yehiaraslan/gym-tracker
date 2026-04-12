@@ -5,7 +5,15 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  LayoutAnimation,
+  UIManager,
+  Platform,
 } from 'react-native';
+
+// Enable LayoutAnimation on Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 import Svg, { Rect, Text as SvgText } from 'react-native-svg';
 import { useRouter } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
@@ -131,7 +139,10 @@ function PRRow({ pr, idx, accent, colors }: {
       }}
     >
       <TouchableOpacity
-        onPress={() => setExpanded(e => !e)}
+        onPress={() => {
+          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+          setExpanded(e => !e);
+        }}
         activeOpacity={0.7}
         style={{
           padding: 14,

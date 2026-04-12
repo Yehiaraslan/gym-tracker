@@ -75,6 +75,15 @@ export function RecoveryBanner({ onSuggestDeload }: RecoveryBannerProps) {
         </View>
       </View>
 
+      {/* Actionable micro-card: contextual explanation */}
+      <Text style={{ fontSize: 11, color: zone.color, marginTop: 6 }}>
+        {score >= 67
+          ? 'Your nervous system is fully recovered \u2014 push heavy today'
+          : score >= 34
+            ? 'Partial recovery \u2014 focus on technique, moderate weights'
+            : 'Low recovery \u2014 consider a light session or active rest'}
+      </Text>
+
       {/* Extra metrics */}
       <View className="flex-row mt-3 pt-3" style={{ borderTopWidth: 1, borderTopColor: zone.color + '20', gap: 16 }}>
         {recovery.strain > 0 && (

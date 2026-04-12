@@ -19,7 +19,7 @@ export default function TabLayout() {
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarLabelStyle: {
-          fontSize: 10,
+          fontSize: 12,
           fontWeight: '500',
         },
         tabBarStyle: {
@@ -67,15 +67,14 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <IconSymbol size={22} name="figure.stand" color={color} />,
         }}
       />
-      {/* Analytics/Progress merged into Home screen */}
       <Tabs.Screen
         name="whoop"
         options={{
-          title: "WHOOP",
-          tabBarIcon: ({ color }) => <IconSymbol size={22} name="waveform.path.ecg" color={color} />,
+          title: "More",
+          tabBarIcon: ({ color }) => <IconSymbol size={22} name="square.grid.2x2.fill" color={color} />,
         }}
       />
-      {/* Hidden tabs — accessible via router.push */}
+      {/* Hidden tabs — accessible via router.push from the More screen */}
       <Tabs.Screen name="analytics" options={{ href: null }} />
       <Tabs.Screen name="sleep" options={{ href: null }} />
       <Tabs.Screen name="calendar" options={{ href: null }} />
