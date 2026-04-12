@@ -9,6 +9,26 @@ import type { SessionType, ProgramExercise } from './training-program';
 import { PROGRAM_SESSIONS } from './training-program';
 import { epley1RM, suggestWeight, calculateVolumeLoad } from './fitness-utils';
 
+// Debounce cloud sync — prevent duplicate syncs when saveSplitWorkout
+// is called multiple times for the same session (e.g., finish + notes)
+const _lastSyncMap = new Map<string, number>();
+const SYNC_DEBOUNCE_MS = 5000;
+
+function shouldSync(sessionId: string): boolean {
+  const lastSync = _lastSyncMap.get(sessionId);
+  const now = Date.now();
+  if (lastSync && now - lastSync < SYNC_DEBOUNCE_MS) return false;
+  _lastSyncMap.set(sessionId, now);
+  // Clean up old entries to prevent memory leak
+  if (_lastSyncMap.size > 50) {
+    const cutoff = now - 60000;
+    for (const [key, ts] of _lastSyncMap) {
+      if (ts < cutoff) _lastSyncMap.delete(key);
+    }
+  }
+  return true;
+}
+
 // ---- Types ----
 
 export interface SplitSetLog {
@@ -75,25 +95,38 @@ export async function saveSplitWorkout(workout: SplitWorkoutSession): Promise<vo
   else workouts.push(workout);
   await AsyncStorage.setItem(SPLIT_WORKOUTS_KEY, JSON.stringify(workouts));
   // Mirror to cloud DB — fire-and-forget, never blocks UX
-  syncWorkoutSession({
-    sessionId: workout.id,
-    splitDay: workout.sessionType,
-    startTime: workout.startTime ?? workout.date,
-    endTime: workout.endTime ?? workout.date,
-    durationMinutes: workout.durationMinutes ?? 0,
-    totalVolume: workout.totalVolume ?? 0,
-    exercises: (workout.exercises ?? []).map(ex => ({
-      exerciseName: ex.exerciseName,
-      muscleGroup: '',
-      sets: ex.sets.map((s, sIdx) => ({
-        setNumber: sIdx + 1,
-        weightKg: s.weightKg,
-        reps: s.reps,
-        rpe: s.rpe,
-        completedAt: s.timestamp ?? workout.date,
+  // Debounced: skip if same session synced within 5 seconds
+  if (shouldSync(workout.id)) {
+    syncWorkoutSession({
+      sessionId: workout.id,
+      splitDay: workout.sessionType,
+      startTime: workout.startTime ?? workout.date,
+      endTime: workout.endTime ?? workout.date,
+      durationMinutes: workout.durationMinutes ?? 0,
+      totalVolume: workout.totalVolume ?? 0,
+      exercises: (workout.exercises ?? []).map(ex => ({
+        exerciseName: ex.exerciseName,
+        muscleGroup: '',
+        sets: ex.sets.map((s, sIdx) => ({
+          setNumber: sIdx + 1,
+          weightKg: s.weightKg,
+          reps: s.reps,
+          rpe: s.rpe,
+          completedAt: s.timestamp ?? workout.date,
+        })),
       })),
-    })),
-  });
+    });
+  }
+}
+
+/** Update only the notes field for a workout — local only, no cloud sync */
+export async function updateWorkoutNotes(workoutId: string, notes: string): Promise<void> {
+  const workouts = await getSplitWorkouts();
+  const idx = workouts.findIndex(w => w.id === workoutId);
+  if (idx >= 0) {
+    workouts[idx].notes = notes;
+    await AsyncStorage.setItem(SPLIT_WORKOUTS_KEY, JSON.stringify(workouts));
+  }
 }
 
 export async function getRecentSplitWorkouts(limit = 20): Promise<SplitWorkoutSession[]> {

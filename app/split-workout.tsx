@@ -1261,8 +1261,7 @@ export default function SplitWorkoutScreen() {
                   const all = await import('@/lib/split-workout-store').then(m => m.getSplitWorkouts());
                   const latest = all[all.length - 1];
                   if (latest) {
-                    latest.notes = workoutNotes.trim();
-                    await import('@/lib/split-workout-store').then(m => m.saveSplitWorkout(latest));
+                    await import('@/lib/split-workout-store').then(m => m.updateWorkoutNotes(latest.id, workoutNotes.trim()));
                   }
                   router.back();
                 } else {

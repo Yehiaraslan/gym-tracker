@@ -212,10 +212,10 @@ export async function buildUserSnapshot(): Promise<UserSnapshot> {
     activeScheduleMap,
     scheduleOverride,
   ] = await Promise.all([
-    getRecentSplitWorkouts(14),
-    getSplitWorkouts().then(s => s.filter(w => w.completed).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())),
-    getStreakData(),
-    getMesocycleStartDate(),
+    getRecentSplitWorkouts(14).catch(() => [] as SplitWorkoutSession[]),
+    getSplitWorkouts().then(s => s.filter(w => w.completed).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())).catch(() => [] as SplitWorkoutSession[]),
+    getStreakData().catch(() => ({ currentStreak: 0, bestStreak: 0, lastWorkoutDate: '', workoutDates: [] })),
+    getMesocycleStartDate().catch(() => null),
     getRecentNutrition(3).catch(() => [] as DailyNutrition[]),
     getTodayRecoveryData().catch(() => null as RecoveryData | null),
     loadUserProfile().catch(() => null as UserProfile | null),
@@ -238,7 +238,7 @@ export async function buildUserSnapshot(): Promise<UserSnapshot> {
     : null;
 
   // Mesocycle info
-  const mesoInfo = getMesocycleInfo(mesoStart);
+  const mesoInfo = getMesocycleInfo(mesoStart ?? new Date().toISOString());
 
   // Build workout summaries (last 7 days)
   const recentWorkouts: WorkoutSummary[] = recentWorkoutSessions
@@ -520,7 +520,7 @@ export function snapshotToPromptContext(snap: UserSnapshot): string {
   // Recovery
   if (snap.recovery.available) {
     const r = snap.recovery;
-    lines.push(`\nWHOOP Recovery: ${r.score}% (${r.zone}) | HRV: ${r.hrv != null ? r.hrv + 'ms' : '--'} | RHR: ${r.rhr != null ? r.rhr + 'bpm' : '--'} | Strain: ${r.strain ?? '?'} | Sleep Score: ${r.sleepScore ?? '?'}%`);
+    lines.push(`\nWHOOP Recovery: ${r.score}% (${r.zone}) | HRV: ${r.hrv != null ? r.hrv + 'ms' : '--'} | RHR: ${r.rhr != null ? r.rhr + 'bpm' : '--'} | Strain: ${r.strain ?? '?'}`);
     // Extended sleep data from RecoveryData
     const rd = snap.recovery as RecoverySummary & {
       sleepDurationHours?: number | null;
@@ -563,15 +563,7 @@ export function snapshotToPromptContext(snap: UserSnapshot): string {
     }
   }
 
-  // Nutrition
-  if (snap.recentNutrition.length > 0) {
-    lines.push(`\n--- NUTRITION (last 3 days) ---`);
-    for (const n of snap.recentNutrition) {
-      lines.push(
-        `${n.date} | ${n.totalCalories}/${n.targetCalories}kcal (${n.adherencePercent}%) | P:${n.totalProtein}g C:${n.totalCarbs}g F:${n.totalFat}g | ${n.mealCount} meals`,
-      );
-    }
-  }
+  // Nutrition excluded from Zaki context (per user request)
 
   // Progress
   if (snap.progressSummaries.length > 0) {

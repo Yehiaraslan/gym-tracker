@@ -76,42 +76,27 @@ export async function upsertWorkoutSession(userOpenId: string, session: SyncWork
     },
   });
 
-  // For each exercise, upsert the exercise log and its sets
+  // Delete all existing exercise data for this session (idempotent re-insert)
+  // First delete sets (they reference exercise logs)
+  await db.delete(workoutSetLogs)
+    .where(eq(workoutSetLogs.sessionId, session.id));
+  // Then delete exercise logs
+  await db.delete(workoutExerciseLogs)
+    .where(eq(workoutExerciseLogs.sessionId, session.id));
+
+  // Re-insert all exercises and their sets
   for (const ex of (session.exercises ?? [])) {
-    // Check if exercise log already exists
-    const existing = await db.select({ id: workoutExerciseLogs.id })
-      .from(workoutExerciseLogs)
-      .where(and(
-        eq(workoutExerciseLogs.sessionId, session.id),
-        eq(workoutExerciseLogs.exerciseName, ex.exerciseName),
-      ))
-      .limit(1);
+    const [inserted] = await db.insert(workoutExerciseLogs).values({
+      sessionId: session.id,
+      userOpenId,
+      exerciseName: ex.exerciseName,
+      exerciseOrder: ex.exerciseOrder,
+      skipped: ex.skipped,
+      skipReason: ex.skipReason,
+    });
+    const exerciseLogId = (inserted as any).insertId;
 
-    let exerciseLogId: number;
-
-    if (existing.length > 0) {
-      exerciseLogId = existing[0].id;
-      // Update skipped status
-      await db.update(workoutExerciseLogs)
-        .set({ skipped: ex.skipped, skipReason: ex.skipReason })
-        .where(eq(workoutExerciseLogs.id, exerciseLogId));
-    } else {
-      const [inserted] = await db.insert(workoutExerciseLogs).values({
-        sessionId: session.id,
-        userOpenId,
-        exerciseName: ex.exerciseName,
-        exerciseOrder: ex.exerciseOrder,
-        skipped: ex.skipped,
-        skipReason: ex.skipReason,
-      });
-      exerciseLogId = (inserted as any).insertId;
-    }
-
-    // Delete and re-insert sets (simpler than per-set upsert)
     if ((ex.sets ?? []).length > 0) {
-      await db.delete(workoutSetLogs)
-        .where(eq(workoutSetLogs.exerciseLogId, exerciseLogId));
-
       await db.insert(workoutSetLogs).values(
         (ex.sets ?? []).map(s => ({
           exerciseLogId,

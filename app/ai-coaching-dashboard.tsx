@@ -527,16 +527,12 @@ function AICoachingDashboardInner() {
         date: w.date,
         notes: w.notes,
       }));
-      const todayNutrition = snapshot.recentNutrition[0];
       const result = await zakiDailyMutation.mutateAsync({
         recoveryScore: recoveryScore ?? undefined,
         hrv: hrv ?? undefined,
         todaySession: snapshot.todaySessionName,
         lastWorkout,
         recentWorkouts,
-        todayCalories: todayNutrition?.totalCalories,
-        todayProtein: todayNutrition?.totalProtein,
-        calorieTarget: todayNutrition?.targetCalories,
         mesocycleWeek: snapshot.mesocycleWeek,
         totalWeeks: snapshot.mesocycleTotalWeeks,
         isDeloadWeek: snapshot.daysUntilDeload === 0,
@@ -545,7 +541,6 @@ function AICoachingDashboardInner() {
       const parts: string[] = [];
       if (recoveryScore != null) parts.push(`Recovery: ${recoveryScore}%`);
       if (snapshot.workoutsThisWeek > 0) parts.push(`${snapshot.workoutsThisWeek} workouts this week`);
-      if (todayNutrition) parts.push(`${todayNutrition.totalCalories}kcal today`);
       const summary = parts.join(' · ');
       setDailyContextSummary(summary);
       const cacheEntry: DailyCacheEntry = {

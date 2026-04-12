@@ -123,7 +123,7 @@ export async function askZaki(
   } catch {}
 
   // Fallback: generate a stable session ID for this conversation
-  if (!returnedSessionId) returnedSessionId = `gym-zaki-${Date.now()}`;
+  if (!returnedSessionId) returnedSessionId = `gym-zaki-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
   return { response: rawText, zakiSessionId: returnedSessionId };
 }
@@ -173,9 +173,7 @@ export async function getZakiDailyCoaching(context: {
     }
   }
 
-  if (context.todayCalories !== undefined) {
-    lines.push(`**Today's nutrition:** ${context.todayCalories}kcal${context.calorieTarget ? ` / ${context.calorieTarget}kcal target` : ''}, ${context.todayProtein ?? 0}g protein${context.proteinTarget ? ` / ${context.proteinTarget}g target` : ''}`);
-  }
+  // Nutrition excluded from Zaki coaching context (per user request)
 
   lines.push('');
   lines.push('Give me your coaching decision for today. Be direct and specific:');

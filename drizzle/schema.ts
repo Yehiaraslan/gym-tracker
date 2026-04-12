@@ -1,4 +1,4 @@
-import { bigint, boolean, decimal, index, int, json, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { bigint, boolean, decimal, index, int, json, mysqlEnum, mysqlTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -151,6 +151,7 @@ export const workoutExerciseLogs = mysqlTable("workout_exercise_logs", {
 }, (table) => ({
   sessionIdx: index("wel_session_idx").on(table.sessionId),
   userExIdx: index("wel_user_ex_idx").on(table.userOpenId, table.exerciseName),
+  sessionExerciseUniq: uniqueIndex("wel_session_exercise_uniq").on(table.sessionId, table.exerciseName),
 }));
 
 export type WorkoutExerciseLog = typeof workoutExerciseLogs.$inferSelect;

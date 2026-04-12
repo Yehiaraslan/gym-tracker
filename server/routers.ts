@@ -1368,24 +1368,6 @@ export const appRouter = router({
           input.userContext,
         );
       }),
-    nutritionGoalAdjust: publicProcedure
-      .input(z.object({
-        last7DaysContext: z.string(),
-        currentTargets: z.object({
-          calories: z.number(),
-          protein: z.number(),
-          carbs: z.number(),
-          fat: z.number(),
-        }),
-        userContext: z.string(),
-      }))
-      .mutation(async ({ input }) => {
-        return aiCoach.generateNutritionGoalAdjust(
-          input.last7DaysContext,
-          input.currentTargets,
-          input.userContext,
-        );
-      }),
   }),
 
   // ── Voice Transcription (Whisper) ──────────────────────────
