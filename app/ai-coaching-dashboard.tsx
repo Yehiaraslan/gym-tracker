@@ -3,7 +3,7 @@
 // Real AI coaching via openclaw-bridge MCP — Agent Zaki
 // Receives actual WHOOP, workout, nutrition data and responds
 // ============================================================
-import { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Text,
   View,
@@ -82,7 +82,63 @@ interface ChatMessage {
   scheduleProposal?: ScheduleProposal;
 }
 
-export default function AICoachingDashboard() {
+// ── Error boundary to catch render crashes and display on screen ───────────
+interface ErrorBoundaryState { error: Error | null }
+class DashboardErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  ErrorBoundaryState
+> {
+  state: ErrorBoundaryState = { error: null };
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error('[AICoachingDashboard] Crash:', error, info.componentStack);
+  }
+  render() {
+    if (this.state.error) {
+      const err = this.state.error;
+      return (
+        <View style={{ flex: 1, backgroundColor: '#0A0B0A', padding: 20, justifyContent: 'center' }}>
+          <View style={{
+            backgroundColor: '#1A1D1A', borderRadius: 16, padding: 20,
+            borderWidth: 1, borderColor: '#F8717140',
+          }}>
+            <Text style={{ color: '#F87171', fontSize: 18, fontWeight: '700', marginBottom: 12 }}>
+              AI Coach Dashboard Crashed
+            </Text>
+            <Text style={{ color: '#F5F5F5', fontSize: 14, fontWeight: '600', marginBottom: 8 }}>
+              {err.name}: {err.message}
+            </Text>
+            <ScrollView style={{ maxHeight: 200, marginBottom: 16 }}>
+              <Text style={{ color: '#7A8070', fontSize: 11, fontFamily: 'monospace' }}>
+                {err.stack || 'No stack trace available'}
+              </Text>
+            </ScrollView>
+            <TouchableOpacity
+              onPress={() => this.setState({ error: null })}
+              style={{
+                backgroundColor: '#C8F53C', borderRadius: 12,
+                paddingVertical: 14, alignItems: 'center',
+              }}
+            >
+              <Text style={{ color: '#0A0B0A', fontSize: 15, fontWeight: '700' }}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+export default function AICoachingDashboardWrapper() {
+  return (
+    <DashboardErrorBoundary>
+      <AICoachingDashboardInner />
+    </DashboardErrorBoundary>
+  );
+}
+
+function AICoachingDashboardInner() {
   const colors = useColors();
   const router = useRouter();
   const scrollRef = useRef<ScrollView>(null);
