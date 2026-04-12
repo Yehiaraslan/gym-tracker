@@ -184,6 +184,18 @@ export default function RootLayout() {
             <Stack.Screen name="ai-coaching-dashboard" options={{ presentation: 'modal' }} />
             <Stack.Screen name="progress-pictures" options={{ presentation: 'modal' }} />
             <Stack.Screen name="progress-gallery" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="body-measurements" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="muscle-heatmap" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="profile" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="exercise-library" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="exercise-detail" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="insights" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="readiness" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="rep-history" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="pin-sync" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="program-setup" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="widget-config" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="widgets" options={{ presentation: 'modal' }} />
             <Stack.Screen name="oauth/callback" />
           </Stack>
           <StatusBar style="auto" />

@@ -19,16 +19,16 @@ interface MoreItem {
 }
 
 const MORE_ITEMS: MoreItem[] = [
-  { emoji: '\u{1F49A}', title: 'WHOOP Recovery', subtitle: 'Recovery & strain', route: '/whoop' },
-  { emoji: '\u{1F4CA}', title: 'Analytics', subtitle: 'Stats & trends', route: '/(tabs)/analytics' },
-  { emoji: '\u{1F4C5}', title: 'Calendar', subtitle: 'Training calendar', route: '/(tabs)/calendar' },
-  { emoji: '\u{1F634}', title: 'Sleep Tracker', subtitle: 'Sleep quality', route: '/(tabs)/sleep' },
-  { emoji: '\u{1F3C6}', title: 'PR Board', subtitle: 'Personal records', route: '/pr-board' },
-  { emoji: '\u{1F4F8}', title: 'Progress Photos', subtitle: 'Photo timeline', route: '/progress-pictures' },
-  { emoji: '\u{1F4CB}', title: 'Weekly Report', subtitle: 'Weekly summary', route: '/weekly-report' },
-  { emoji: '\u{1F4CF}', title: 'Body Measurements', subtitle: 'Track measurements', route: '/body-measurements' },
-  { emoji: '\u{1F525}', title: 'Muscle Heatmap', subtitle: 'Volume heatmap', route: '/muscle-heatmap' },
-  { emoji: '\u{2699}\u{FE0F}', title: 'Settings / Profile', subtitle: 'Preferences', route: '/profile' },
+  { emoji: '\u{1F49A}', title: 'WHOOP Recovery', subtitle: 'Recovery & strain', route: '../whoop' },
+  { emoji: '\u{1F4CA}', title: 'Analytics', subtitle: 'Stats & trends', route: './analytics' },
+  { emoji: '\u{1F4C5}', title: 'Calendar', subtitle: 'Training calendar', route: './calendar' },
+  { emoji: '\u{1F634}', title: 'Sleep Tracker', subtitle: 'Sleep quality', route: './sleep' },
+  { emoji: '\u{1F3C6}', title: 'PR Board', subtitle: 'Personal records', route: '../pr-board' },
+  { emoji: '\u{1F4F8}', title: 'Progress Photos', subtitle: 'Photo timeline', route: '../progress-pictures' },
+  { emoji: '\u{1F4CB}', title: 'Weekly Report', subtitle: 'Weekly summary', route: '../weekly-report' },
+  { emoji: '\u{1F4CF}', title: 'Body Measurements', subtitle: 'Track measurements', route: '../body-measurements' },
+  { emoji: '\u{1F525}', title: 'Muscle Heatmap', subtitle: 'Volume heatmap', route: '../muscle-heatmap' },
+  { emoji: '\u{2699}\u{FE0F}', title: 'Settings / Profile', subtitle: 'Preferences', route: '../profile' },
 ];
 
 export default function MoreScreen() {
