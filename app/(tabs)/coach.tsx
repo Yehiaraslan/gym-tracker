@@ -5,19 +5,19 @@
 import { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useColors } from '@/hooks/use-colors';
 
 function CoachRedirect() {
   const router = useRouter();
   useEffect(() => {
-    router.replace('/ai-coaching-dashboard' as any);
+    // Use the correct Expo Router path — file is at app/ai-coaching-dashboard.tsx
+    // so the route is '../ai-coaching-dashboard' relative to (tabs)
+    router.replace('../ai-coaching-dashboard' as any);
   }, [router]);
   return <View style={{ flex: 1 }} />;
 }
 
 export default function CoachTab() {
   const [error, setError] = useState<Error | null>(null);
-  const colors = useColors();
 
   if (error) {
     return (
@@ -56,10 +56,5 @@ export default function CoachTab() {
     );
   }
 
-  try {
-    return <CoachRedirect />;
-  } catch (e) {
-    setError(e instanceof Error ? e : new Error(String(e)));
-    return null;
-  }
+  return <CoachRedirect />;
 }
