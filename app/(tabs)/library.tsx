@@ -5,6 +5,14 @@ import { useRouter } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
 import { useColors } from '@/hooks/use-colors';
 import { getAllPRs, getRecentSplitWorkouts, type SplitWorkoutSession } from '@/lib/split-workout-store';
+import {
+  Space,
+  Gutter,
+  Radius,
+  FontSize,
+  FontWeight,
+  ActiveOpacity,
+} from '@/lib/design-tokens';
 
 const MEDAL_COLORS = ['#FFD700', '#C0C0C0', '#CD7F32'];
 const MEDALS = ['🥇', '🥈', '🥉'];
@@ -66,34 +74,34 @@ export default function LibraryScreen() {
     <ScreenContainer edges={['top', 'left', 'right', 'bottom']}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 40 }}
+        contentContainerStyle={{ paddingHorizontal: Gutter, paddingTop: Space._4, paddingBottom: Space._10 }}
       >
         {/* Header */}
-        <Text style={{ color: colors.cardForeground, fontSize: 28, fontWeight: '900', marginBottom: 4 }}>
+        <Text style={{ color: colors.foreground, fontSize: 28, fontWeight: FontWeight.heavy, letterSpacing: -0.5, marginBottom: Space._1 }}>
           ⚔️ Arsenal
         </Text>
-        <Text style={{ color: colors.cardMuted, fontSize: 14, marginBottom: 20 }}>
+        <Text style={{ color: colors.muted, fontSize: FontSize.body, marginBottom: Space._5 }}>
           Your exercises, records, and training tools
         </Text>
 
         {/* Top PRs Board */}
         <View style={{
           backgroundColor: colors.surface,
-          borderRadius: 16,
-          padding: 16,
-          marginBottom: 16,
+          borderRadius: Radius.hero,
+          padding: Space._4,
+          marginBottom: Space._4,
           borderWidth: 1,
-          borderColor: (colors as any).cardBorder ?? '#2A2D2A',
+          borderColor: colors.cardBorder,
         }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-            <Text style={{ color: colors.cardForeground, fontSize: 16, fontWeight: '700' }}>🏆 Personal Records</Text>
-            <TouchableOpacity onPress={() => router.push('/pr-board' as any)}>
-              <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '600' }}>View All →</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Space._3 + 2 }}>
+            <Text style={{ color: colors.cardForeground, fontSize: FontSize.section, fontWeight: FontWeight.bold }}>🏆 Personal Records</Text>
+            <TouchableOpacity onPress={() => router.push('/pr-board' as any)} activeOpacity={ActiveOpacity.secondary}>
+              <Text style={{ color: colors.primary, fontSize: FontSize.bodySm, fontWeight: FontWeight.semi }}>View All →</Text>
             </TouchableOpacity>
           </View>
 
           {prs.length === 0 ? (
-            <Text style={{ color: colors.cardMuted, fontSize: 13, textAlign: 'center', paddingVertical: 20 }}>
+            <Text style={{ color: colors.cardMuted, fontSize: FontSize.bodySm, textAlign: 'center', paddingVertical: Space._5 }}>
               Complete workouts to see your PRs here
             </Text>
           ) : (
@@ -103,23 +111,23 @@ export default function LibraryScreen() {
                 style={{
                   flexDirection: 'row',
                   alignItems: 'center',
-                  paddingVertical: 10,
+                  paddingVertical: Space._2 + 2,
                   borderTopWidth: idx > 0 ? 1 : 0,
-                  borderTopColor: (colors as any).cardBorder ?? '#2A2D2A',
+                  borderTopColor: colors.cardBorder,
                 }}
               >
                 <Text style={{ fontSize: 20, width: 32 }}>{idx < 3 ? MEDALS[idx] : ''}</Text>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: colors.cardForeground, fontSize: 14, fontWeight: '600' }}>{pr.name}</Text>
-                  <Text style={{ color: colors.cardMuted, fontSize: 11, marginTop: 2 }}>
+                  <Text style={{ color: colors.cardForeground, fontSize: FontSize.body, fontWeight: FontWeight.semi }}>{pr.name}</Text>
+                  <Text style={{ color: colors.cardMuted, fontSize: FontSize.eyebrow, marginTop: 2 }}>
                     {pr.weight}kg × {pr.reps} · {new Date(pr.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
                   </Text>
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={{ color: idx < 3 ? MEDAL_COLORS[idx] : colors.primary, fontSize: 18, fontWeight: '800' }}>
+                  <Text style={{ color: idx < 3 ? MEDAL_COLORS[idx] : colors.primary, fontSize: FontSize.title, fontWeight: FontWeight.heavy }}>
                     {pr.e1rm}
                   </Text>
-                  <Text style={{ color: colors.cardMuted, fontSize: 9 }}>est. 1RM</Text>
+                  <Text style={{ color: colors.cardMuted, fontSize: FontSize.tiny }}>est. 1RM</Text>
                 </View>
               </View>
             ))
@@ -129,40 +137,40 @@ export default function LibraryScreen() {
         {/* Recently Used Exercises */}
         <View style={{
           backgroundColor: colors.surface,
-          borderRadius: 16,
-          padding: 16,
-          marginBottom: 16,
+          borderRadius: Radius.hero,
+          padding: Space._4,
+          marginBottom: Space._4,
           borderWidth: 1,
-          borderColor: (colors as any).cardBorder ?? '#2A2D2A',
+          borderColor: colors.cardBorder,
         }}>
-          <Text style={{ color: colors.cardForeground, fontSize: 16, fontWeight: '700', marginBottom: 14 }}>
+          <Text style={{ color: colors.cardForeground, fontSize: FontSize.section, fontWeight: FontWeight.bold, marginBottom: Space._3 + 2 }}>
             ⏱️ Recently Used
           </Text>
 
           {recentExercises.length === 0 ? (
-            <Text style={{ color: colors.cardMuted, fontSize: 13, textAlign: 'center', paddingVertical: 20 }}>
+            <Text style={{ color: colors.cardMuted, fontSize: FontSize.bodySm, textAlign: 'center', paddingVertical: Space._5 }}>
               Complete workouts to see recent exercises
             </Text>
           ) : (
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: Space._2 }}>
               {recentExercises.map(ex => (
                 <View
                   key={ex.name}
                   style={{
-                    backgroundColor: '#0A0B0A',
-                    borderRadius: 10,
-                    paddingHorizontal: 12,
-                    paddingVertical: 8,
+                    backgroundColor: colors.background,
+                    borderRadius: Radius.pill,
+                    paddingHorizontal: Space._3,
+                    paddingVertical: Space._2,
                     borderWidth: 1,
-                    borderColor: '#2A2D2A',
+                    borderColor: colors.cardBorder,
                     flexBasis: '47%',
                     flexGrow: 1,
                   }}
                 >
-                  <Text style={{ color: colors.cardForeground, fontSize: 12, fontWeight: '600' }} numberOfLines={1}>
+                  <Text style={{ color: colors.cardForeground, fontSize: FontSize.meta, fontWeight: FontWeight.semi }} numberOfLines={1}>
                     {ex.name}
                   </Text>
-                  <Text style={{ color: colors.cardMuted, fontSize: 10, marginTop: 2 }}>
+                  <Text style={{ color: colors.cardMuted, fontSize: FontSize.tiny + 1, marginTop: 2 }}>
                     Last: {ex.lastWeight}kg × {ex.lastReps}
                   </Text>
                 </View>
@@ -174,11 +182,12 @@ export default function LibraryScreen() {
         {/* Browse Exercise Library */}
         <TouchableOpacity
           onPress={() => router.push('/exercise-library' as any)}
+          activeOpacity={ActiveOpacity.secondary}
           style={{
             backgroundColor: colors.surface,
-            borderRadius: 16,
-            padding: 20,
-            marginBottom: 16,
+            borderRadius: Radius.hero,
+            padding: Space._5,
+            marginBottom: Space._4,
             borderWidth: 1,
             borderColor: colors.primary + '40',
             flexDirection: 'row',
@@ -186,8 +195,8 @@ export default function LibraryScreen() {
           }}
         >
           <View style={{ flex: 1 }}>
-            <Text style={{ color: colors.cardForeground, fontSize: 16, fontWeight: '700' }}>📚 Exercise Library</Text>
-            <Text style={{ color: colors.cardMuted, fontSize: 13, marginTop: 4 }}>
+            <Text style={{ color: colors.cardForeground, fontSize: FontSize.section, fontWeight: FontWeight.bold }}>📚 Exercise Library</Text>
+            <Text style={{ color: colors.cardMuted, fontSize: FontSize.bodySm, marginTop: Space._1 }}>
               Browse all exercises by muscle group
             </Text>
           </View>
@@ -195,38 +204,40 @@ export default function LibraryScreen() {
         </TouchableOpacity>
 
         {/* Quick Links */}
-        <View style={{ flexDirection: 'row', gap: 8 }}>
+        <View style={{ flexDirection: 'row', gap: Space._2 }}>
           <TouchableOpacity
             onPress={() => router.push('/muscle-heatmap' as any)}
+            activeOpacity={ActiveOpacity.secondary}
             style={{
               flex: 1,
               backgroundColor: colors.surface,
-              borderRadius: 14,
-              padding: 16,
+              borderRadius: Radius.card,
+              padding: Space._4,
               borderWidth: 1,
-              borderColor: (colors as any).cardBorder ?? '#2A2D2A',
+              borderColor: colors.cardBorder,
               alignItems: 'center',
-              gap: 8,
+              gap: Space._2,
             }}
           >
             <Text style={{ fontSize: 28 }}>🔥</Text>
-            <Text style={{ color: colors.cardForeground, fontSize: 13, fontWeight: '600' }}>Muscle Heatmap</Text>
+            <Text style={{ color: colors.cardForeground, fontSize: FontSize.bodySm, fontWeight: FontWeight.semi }}>Muscle Heatmap</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => router.push('/pr-board' as any)}
+            activeOpacity={ActiveOpacity.secondary}
             style={{
               flex: 1,
               backgroundColor: colors.surface,
-              borderRadius: 14,
-              padding: 16,
+              borderRadius: Radius.card,
+              padding: Space._4,
               borderWidth: 1,
-              borderColor: (colors as any).cardBorder ?? '#2A2D2A',
+              borderColor: colors.cardBorder,
               alignItems: 'center',
-              gap: 8,
+              gap: Space._2,
             }}
           >
             <Text style={{ fontSize: 28 }}>🏆</Text>
-            <Text style={{ color: colors.cardForeground, fontSize: 13, fontWeight: '600' }}>PR Board</Text>
+            <Text style={{ color: colors.cardForeground, fontSize: FontSize.bodySm, fontWeight: FontWeight.semi }}>PR Board</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

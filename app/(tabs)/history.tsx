@@ -29,6 +29,15 @@ import { getDailyNutrition } from '@/lib/nutrition-store';
 import { getStreakData } from '@/lib/streak-tracker';
 import { BodyMeasurementsView } from '@/components/body-measurements';
 import * as Haptics from 'expo-haptics';
+import {
+  Space,
+  Gutter,
+  Radius,
+  FontSize,
+  FontWeight,
+  Shadow,
+  ActiveOpacity,
+} from '@/lib/design-tokens';
 
 function formatSessionDate(iso: string): string {
   const d = new Date(iso);
@@ -354,26 +363,26 @@ export default function HistoryScreen() {
       {todaySession !== 'rest' && (
         <View style={{
           backgroundColor: colors.surface,
-          borderRadius: 16,
-          padding: 16,
-          marginBottom: 16,
-          marginHorizontal: 16,
+          borderRadius: Radius.hero,
+          padding: Space._4,
+          marginBottom: Space._4,
+          marginHorizontal: Gutter,
           borderWidth: 1,
           borderColor: colors.cardBorder,
         }}>
           {/* Mission Header */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Space._3 }}>
             <Text style={{ fontSize: 28 }}>{getSessionEmoji(todaySession)}</Text>
-            <View style={{ marginLeft: 12, flex: 1 }}>
-              <Text style={{ color: colors.cardMuted, fontSize: 10, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase' }}>
+            <View style={{ marginLeft: Space._3, flex: 1 }}>
+              <Text style={{ color: colors.cardMuted, fontSize: FontSize.tiny + 1, fontWeight: FontWeight.bold, letterSpacing: 1.2, textTransform: 'uppercase' }}>
                 TODAY'S MISSION
               </Text>
-              <Text style={{ color: colors.cardForeground, fontSize: 18, fontWeight: '800' }}>
+              <Text style={{ color: colors.cardForeground, fontSize: FontSize.title, fontWeight: FontWeight.heavy }}>
                 {getSessionName(todaySession)}
               </Text>
             </View>
-            <View style={{ backgroundColor: '#C8F53C20', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 }}>
-              <Text style={{ color: '#C8F53C', fontSize: 11, fontWeight: '700' }}>+100 XP</Text>
+            <View style={{ backgroundColor: 'rgba(200, 245, 60, 0.14)', borderRadius: Radius.chip, paddingHorizontal: Space._2, paddingVertical: Space._1 }}>
+              <Text style={{ color: colors.primary, fontSize: FontSize.eyebrow, fontWeight: FontWeight.bold }}>+100 XP</Text>
             </View>
           </View>
 
@@ -407,18 +416,20 @@ export default function HistoryScreen() {
                 const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
                 router.push({ pathname: '/split-workout', params: { sessionType: todaySession, date: todayStr } } as any);
               }}
+              activeOpacity={ActiveOpacity.primary}
               style={{
-                backgroundColor: '#C8F53C',
-                borderRadius: 12,
-                paddingHorizontal: 20,
-                paddingVertical: 12,
+                backgroundColor: colors.primary,
+                borderRadius: Radius.button,
+                paddingHorizontal: Space._5,
+                paddingVertical: Space._3,
                 flexDirection: 'row',
                 alignItems: 'center',
-                gap: 6,
+                gap: Space._2,
+                ...Shadow.cta(),
               }}
             >
-              <Text style={{ color: '#0A0B0A', fontSize: 15, fontWeight: '700' }}>Start Quest</Text>
-              <Text style={{ fontSize: 14 }}>⚔️</Text>
+              <Text style={{ color: colors.primaryInk, fontSize: FontSize.body + 1, fontWeight: FontWeight.bold }}>Start Quest</Text>
+              <Text style={{ fontSize: FontSize.body }}>⚔️</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -428,21 +439,21 @@ export default function HistoryScreen() {
       {todaySession === 'rest' && (
         <View style={{
           backgroundColor: colors.surface,
-          borderRadius: 16,
-          padding: 16,
-          marginBottom: 16,
-          marginHorizontal: 16,
+          borderRadius: Radius.hero,
+          padding: Space._4,
+          marginBottom: Space._4,
+          marginHorizontal: Gutter,
           borderWidth: 1,
           borderColor: colors.cardBorder,
           alignItems: 'center',
         }}>
-          <Text style={{ fontSize: 36, marginBottom: 8 }}>😴</Text>
-          <Text style={{ color: colors.cardForeground, fontSize: 16, fontWeight: '700' }}>Rest Day</Text>
-          <Text style={{ color: colors.cardMuted, fontSize: 13, marginTop: 4, textAlign: 'center' }}>
+          <Text style={{ fontSize: 36, marginBottom: Space._2 }}>😴</Text>
+          <Text style={{ color: colors.cardForeground, fontSize: FontSize.section, fontWeight: FontWeight.bold }}>Rest Day</Text>
+          <Text style={{ color: colors.cardMuted, fontSize: FontSize.bodySm, marginTop: Space._1, textAlign: 'center' }}>
             Recovery is where gains are made. Focus on sleep, nutrition, and mobility.
           </Text>
           {currentStreak > 0 && (
-            <Text style={{ color: '#F59E0B', fontSize: 12, marginTop: 8 }}>🔥 {currentStreak} day streak — don't break it!</Text>
+            <Text style={{ color: '#F59E0B', fontSize: FontSize.meta, marginTop: Space._2 }}>🔥 {currentStreak} day streak — don't break it!</Text>
           )}
         </View>
       )}
@@ -458,7 +469,7 @@ export default function HistoryScreen() {
             }}
             style={[styles.toggleBtn, { backgroundColor: viewMode === mode ? colors.primary : colors.surface }]}
           >
-            <Text style={[styles.toggleLabel, { color: viewMode === mode ? '#FFFFFF' : colors.cardForeground }]}>
+            <Text style={[styles.toggleLabel, { color: viewMode === mode ? colors.primaryInk : colors.cardForeground }]}>
               {mode === 'workouts' ? 'Workouts' : mode === 'exercises' ? 'Exercises' : 'Body'}
             </Text>
           </TouchableOpacity>
@@ -535,29 +546,29 @@ export default function HistoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 },
+  header: { paddingHorizontal: Gutter, paddingTop: Space._2, paddingBottom: Space._3 },
   headerTitle: { fontSize: 24, fontWeight: '700' },
-  headerSub: { fontSize: 13, marginTop: 2 },
-  toggleRow: { flexDirection: 'row', paddingHorizontal: 16, marginBottom: 12, gap: 6 },
-  toggleBtn: { flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center' },
-  toggleLabel: { fontSize: 13, fontWeight: '600' },
-  searchRow: { paddingHorizontal: 16, marginBottom: 12 },
-  searchInput: { borderRadius: 12, padding: 14, borderWidth: 1, fontSize: 15 },
-  card: { marginHorizontal: 16, marginBottom: 10, borderRadius: 14, borderWidth: 1, overflow: 'hidden' },
-  cardHeader: { flexDirection: 'row', alignItems: 'flex-start', padding: 14 },
-  sessionName: { fontSize: 16, fontWeight: '600' },
-  sessionDate: { fontSize: 13, marginTop: 2 },
-  badge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20 },
-  badgeText: { fontSize: 12, fontWeight: '600' },
-  setsText: { fontSize: 11, marginTop: 2 },
-  expandedArea: { borderTopWidth: 1, paddingHorizontal: 14, paddingTop: 8, paddingBottom: 4 },
-  exerciseRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth },
-  exerciseName: { fontSize: 14, fontWeight: '500', flex: 1, marginRight: 8 },
-  skipReason: { fontSize: 12, marginTop: 2 },
-  setDetail: { fontSize: 13, marginBottom: 2 },
-  chevronRow: { borderTopWidth: StyleSheet.hairlineWidth, paddingVertical: 8, alignItems: 'center' },
-  chevronText: { fontSize: 12 },
-  emptyState: { alignItems: 'center', paddingVertical: 60, paddingHorizontal: 32 },
-  emptyTitle: { fontSize: 18, fontWeight: '600', marginTop: 16 },
-  emptyBody: { fontSize: 14, textAlign: 'center', marginTop: 8, lineHeight: 20 },
+  headerSub: { fontSize: FontSize.bodySm, marginTop: 2 },
+  toggleRow: { flexDirection: 'row', paddingHorizontal: Gutter, marginBottom: Space._3, gap: Space._2 - 2 },
+  toggleBtn: { flex: 1, paddingVertical: Space._2 + 2, borderRadius: Radius.pill, alignItems: 'center' },
+  toggleLabel: { fontSize: FontSize.bodySm, fontWeight: '600' },
+  searchRow: { paddingHorizontal: Gutter, marginBottom: Space._3 },
+  searchInput: { borderRadius: Radius.button, padding: Space._3 + 2, borderWidth: 1, fontSize: FontSize.body + 1 },
+  card: { marginHorizontal: Gutter, marginBottom: Space._2 + 2, borderRadius: Radius.card, borderWidth: 1, overflow: 'hidden' },
+  cardHeader: { flexDirection: 'row', alignItems: 'flex-start', padding: Space._3 + 2 },
+  sessionName: { fontSize: FontSize.section, fontWeight: '600' },
+  sessionDate: { fontSize: FontSize.bodySm, marginTop: 2 },
+  badge: { paddingHorizontal: Space._2 + 2, paddingVertical: 3, borderRadius: Radius.modal },
+  badgeText: { fontSize: FontSize.meta, fontWeight: '600' },
+  setsText: { fontSize: FontSize.eyebrow, marginTop: 2 },
+  expandedArea: { borderTopWidth: 1, paddingHorizontal: Space._3 + 2, paddingTop: Space._2, paddingBottom: Space._1 },
+  exerciseRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingVertical: Space._2, borderBottomWidth: StyleSheet.hairlineWidth },
+  exerciseName: { fontSize: FontSize.body, fontWeight: '500', flex: 1, marginRight: Space._2 },
+  skipReason: { fontSize: FontSize.meta, marginTop: 2 },
+  setDetail: { fontSize: FontSize.bodySm, marginBottom: 2 },
+  chevronRow: { borderTopWidth: StyleSheet.hairlineWidth, paddingVertical: Space._2, alignItems: 'center' },
+  chevronText: { fontSize: FontSize.meta },
+  emptyState: { alignItems: 'center', paddingVertical: 60, paddingHorizontal: Space._8 },
+  emptyTitle: { fontSize: FontSize.title, fontWeight: '600', marginTop: Space._4 },
+  emptyBody: { fontSize: FontSize.body, textAlign: 'center', marginTop: Space._2, lineHeight: 20 },
 });

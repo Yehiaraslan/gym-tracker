@@ -1,5 +1,12 @@
 import { View, Text, ScrollView } from 'react-native';
 import { useColors } from '@/hooks/use-colors';
+import {
+  RarityColors,
+  Radius,
+  Space,
+  FontSize,
+  FontWeight,
+} from '@/lib/design-tokens';
 
 interface AchievementStripProps {
   unlockedAchievements: Array<{
@@ -12,13 +19,6 @@ interface AchievementStripProps {
   totalAchievements: number;
 }
 
-const rarityColors: Record<string, string> = {
-  common: '#9CA3AF',
-  rare: '#3B82F6',
-  epic: '#8B5CF6',
-  legendary: '#F59E0B',
-};
-
 export function AchievementStrip({
   unlockedAchievements,
   totalAchievements,
@@ -27,12 +27,52 @@ export function AchievementStrip({
 
   const hasUnlocked = unlockedAchievements.length > 0;
 
+  const renderBadge = (
+    icon: string,
+    name: string,
+    borderColor: string,
+    key: string,
+    locked = false,
+  ) => (
+    <View key={key} style={{ alignItems: 'center', marginRight: Space._3 }}>
+      <View
+        style={{
+          width: 56,
+          height: 56,
+          borderRadius: Radius.full,
+          backgroundColor: colors.background,
+          borderWidth: 3,
+          borderColor,
+          alignItems: 'center',
+          justifyContent: 'center',
+          ...(locked ? { opacity: 0.6 } : {}),
+        }}
+      >
+        <Text style={{ fontSize: 24 }}>{icon}</Text>
+      </View>
+      <Text
+        numberOfLines={1}
+        style={{
+          color: colors.cardMuted,
+          fontSize: FontSize.tiny,
+          fontWeight: FontWeight.semi,
+          marginTop: Space._1,
+          maxWidth: 60,
+          textAlign: 'center',
+          letterSpacing: 0.2,
+        }}
+      >
+        {name}
+      </Text>
+    </View>
+  );
+
   return (
     <View
       style={{
         backgroundColor: colors.surface,
-        borderRadius: 16,
-        padding: 16,
+        borderRadius: Radius.hero,
+        padding: Space._4,
         borderWidth: 1,
         borderColor: colors.cardBorder,
       }}
@@ -43,14 +83,14 @@ export function AchievementStrip({
           flexDirection: 'row',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: 12,
+          marginBottom: Space._3,
         }}
       >
         <Text
           style={{
             color: colors.cardForeground,
-            fontSize: 14,
-            fontWeight: '700',
+            fontSize: FontSize.body,
+            fontWeight: FontWeight.bold,
           }}
         >
           Achievements
@@ -58,7 +98,8 @@ export function AchievementStrip({
         <Text
           style={{
             color: colors.cardMuted,
-            fontSize: 12,
+            fontSize: FontSize.meta,
+            fontWeight: FontWeight.semi,
           }}
         >
           {unlockedAchievements.length}/{totalAchievements} unlocked
@@ -69,117 +110,26 @@ export function AchievementStrip({
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingRight: 4 }}
+        contentContainerStyle={{ paddingRight: Space._1 }}
       >
         {hasUnlocked ? (
           <>
-            {unlockedAchievements.map((achievement) => (
-              <View
-                key={achievement.id}
-                style={{
-                  alignItems: 'center',
-                  marginRight: 12,
-                }}
-              >
-                <View
-                  style={{
-                    width: 56,
-                    height: 56,
-                    borderRadius: 28,
-                    backgroundColor: '#0A0B0A',
-                    borderWidth: 3,
-                    borderColor: rarityColors[achievement.rarity] ?? '#9CA3AF',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Text style={{ fontSize: 24 }}>{achievement.icon}</Text>
-                </View>
-                <Text
-                  numberOfLines={1}
-                  style={{
-                    color: colors.cardMuted,
-                    fontSize: 9,
-                    marginTop: 4,
-                    maxWidth: 60,
-                    textAlign: 'center',
-                  }}
-                >
-                  {achievement.name}
-                </Text>
-              </View>
-            ))}
-
-            {/* Locked next badge */}
-            <View style={{ alignItems: 'center', marginRight: 12 }}>
-              <View
-                style={{
-                  width: 56,
-                  height: 56,
-                  borderRadius: 28,
-                  backgroundColor: '#0A0B0A',
-                  borderWidth: 3,
-                  borderColor: '#3A3D3A',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Text style={{ fontSize: 24 }}>🔒</Text>
-              </View>
-              <Text
-                numberOfLines={1}
-                style={{
-                  color: colors.cardMuted,
-                  fontSize: 9,
-                  marginTop: 4,
-                  maxWidth: 60,
-                  textAlign: 'center',
-                }}
-              >
-                ???
-              </Text>
-            </View>
+            {unlockedAchievements.map((achievement) =>
+              renderBadge(
+                achievement.icon,
+                achievement.name,
+                RarityColors[achievement.rarity] ?? RarityColors.common,
+                achievement.id,
+              )
+            )}
+            {/* Locked next badge as motivation */}
+            {renderBadge('🔒', '???', colors.surface3, 'locked-next', true)}
           </>
         ) : (
-          <>
-            {/* Empty state: 3 locked badges */}
-            {[0, 1, 2].map((i) => (
-              <View
-                key={`locked-${i}`}
-                style={{
-                  alignItems: 'center',
-                  marginRight: 12,
-                }}
-              >
-                <View
-                  style={{
-                    width: 56,
-                    height: 56,
-                    borderRadius: 28,
-                    backgroundColor: '#0A0B0A',
-                    borderWidth: 3,
-                    borderColor: '#3A3D3A',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Text style={{ fontSize: 24 }}>🔒</Text>
-                </View>
-                <Text
-                  numberOfLines={1}
-                  style={{
-                    color: colors.cardMuted,
-                    fontSize: 9,
-                    marginTop: 4,
-                    maxWidth: 60,
-                    textAlign: 'center',
-                  }}
-                >
-                  ???
-                </Text>
-              </View>
-            ))}
-          </>
+          /* Empty state: 3 locked badges */
+          [0, 1, 2].map((i) =>
+            renderBadge('🔒', '???', colors.surface3, `locked-${i}`, true)
+          )
         )}
       </ScrollView>
 
@@ -188,9 +138,9 @@ export function AchievementStrip({
         <Text
           style={{
             color: colors.cardMuted,
-            fontSize: 11,
+            fontSize: FontSize.eyebrow,
             textAlign: 'center',
-            marginTop: 10,
+            marginTop: Space._2,
           }}
         >
           Complete workouts to earn badges

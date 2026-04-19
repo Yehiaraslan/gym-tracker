@@ -1,5 +1,13 @@
 import { View, Text } from 'react-native';
 import { useColors } from '@/hooks/use-colors';
+import {
+  Radius,
+  Space,
+  FontSize,
+  FontWeight,
+  Shadow,
+  StatColors,
+} from '@/lib/design-tokens';
 
 interface RPGStatsCardProps {
   strength: number;   // 0-100, based on top PR e1RM
@@ -9,10 +17,10 @@ interface RPGStatsCardProps {
 }
 
 const STATS = [
-  { key: 'strength', label: 'STR', fullName: 'Strength', icon: '⚡', color: '#EF4444' },
-  { key: 'endurance', label: 'END', fullName: 'Endurance', icon: '🔥', color: '#F59E0B' },
-  { key: 'recovery', label: 'REC', fullName: 'Recovery', icon: '💚', color: '#22C55E' },
-  { key: 'nutrition', label: 'NUT', fullName: 'Nutrition', icon: '🥩', color: '#3B82F6' },
+  { key: 'strength', label: 'STR', fullName: 'Strength', icon: '⚡', color: StatColors.STR },
+  { key: 'endurance', label: 'END', fullName: 'Endurance', icon: '🔥', color: StatColors.END },
+  { key: 'recovery', label: 'REC', fullName: 'Recovery', icon: '💚', color: StatColors.REC },
+  { key: 'nutrition', label: 'NUT', fullName: 'Nutrition', icon: '🥩', color: StatColors.NUT },
 ] as const;
 
 export function RPGStatsCard(props: RPGStatsCardProps) {
@@ -21,25 +29,25 @@ export function RPGStatsCard(props: RPGStatsCardProps) {
   return (
     <View
       style={{
-        backgroundColor: '#1A1D1A',
-        borderRadius: 16,
-        padding: 16,
+        backgroundColor: colors.surface,
+        borderRadius: Radius.hero,
+        padding: Space._4,
         borderWidth: 1,
-        borderColor: '#2A2D2A',
+        borderColor: colors.cardBorder,
       }}
     >
       <Text
         style={{
-          fontSize: 16,
-          fontWeight: 'bold',
-          color: '#F5F5F5',
-          marginBottom: 16,
+          fontSize: FontSize.section,
+          fontWeight: FontWeight.bold,
+          color: colors.cardForeground,
+          marginBottom: Space._4,
         }}
       >
         ⚔️ Athlete Stats
       </Text>
 
-      <View style={{ gap: 12 }}>
+      <View style={{ gap: Space._3 }}>
         {STATS.map((stat) => {
           const value = props[stat.key as keyof RPGStatsCardProps];
           const isHighValue = value >= 80;
@@ -54,20 +62,22 @@ export function RPGStatsCard(props: RPGStatsCardProps) {
               }}
             >
               {/* Label + Icon */}
-              <View style={{ width: 80 }}>
+              <View style={{ width: 60 }}>
                 <Text
                   style={{
-                    fontSize: 13,
-                    fontWeight: 'bold',
-                    color: '#F5F5F5',
+                    fontSize: FontSize.eyebrow,
+                    fontWeight: FontWeight.heavy,
+                    letterSpacing: 0.4,
+                    textTransform: 'uppercase',
+                    color: colors.cardForeground,
                   }}
                 >
                   {stat.label} {stat.icon}
                 </Text>
                 <Text
                   style={{
-                    fontSize: 9,
-                    color: '#6B6B6B',
+                    fontSize: FontSize.tiny,
+                    color: colors.mute3,
                     marginTop: 1,
                   }}
                 >
@@ -81,8 +91,9 @@ export function RPGStatsCard(props: RPGStatsCardProps) {
                   flex: 1,
                   height: 10,
                   borderRadius: 5,
-                  backgroundColor: '#2A2D2A',
+                  backgroundColor: colors.cardBorder,
                   overflow: 'hidden',
+                  marginHorizontal: Space._2,
                 }}
               >
                 {value > 0 && (
@@ -92,27 +103,19 @@ export function RPGStatsCard(props: RPGStatsCardProps) {
                       height: '100%',
                       borderRadius: 5,
                       backgroundColor: stat.color,
-                      ...(isHighValue
-                        ? {
-                            shadowColor: stat.color,
-                            shadowOffset: { width: 0, height: 0 },
-                            shadowOpacity: 0.6,
-                            shadowRadius: 6,
-                            elevation: 4,
-                          }
-                        : {}),
+                      ...(isHighValue ? Shadow.glow(stat.color) : {}),
                     }}
                   />
                 )}
               </View>
 
               {/* Numeric Value */}
-              <View style={{ width: 40, alignItems: 'flex-end' }}>
+              <View style={{ width: 32, alignItems: 'flex-end' }}>
                 <Text
                   style={{
-                    fontSize: 14,
-                    fontWeight: 'bold',
-                    color: isEmpty ? '#6B6B6B' : stat.color,
+                    fontSize: FontSize.body,
+                    fontWeight: FontWeight.heavy,
+                    color: isEmpty ? colors.mute3 : stat.color,
                   }}
                 >
                   {isEmpty ? '—' : value}

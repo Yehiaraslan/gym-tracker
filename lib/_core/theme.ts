@@ -37,28 +37,56 @@ type RuntimePalette = SchemePaletteItem & {
   tabIconDefault: string;
   tabIconSelected: string;
   border: string;
-  // Two-surface model: near-black background + elevated charcoal cards
-  // foreground / muted    → text on dark background (near-white / warm grey)
-  // cardForeground / cardMuted → text inside elevated card surfaces (soft white / muted grey)
+  // Extended design system tokens
+  surface2: string;
+  surface3: string;
+  fg3: string;
+  mute3: string;
   cardForeground: string;
   cardMuted: string;
   cardBorder: string;
+  primaryInk: string;
+  // Semantic colors
+  successStrong: string;
+  warningStrong: string;
+  errorStrong: string;
+  info: string;
+  infoStrong: string;
 };
+
+/** Safe accessor — returns value or fallback if key not in base palette */
+function pick(base: Record<string, string>, key: string, fallback: string): string {
+  return (base as any)[key] ?? fallback;
+}
 
 function buildRuntimePalette(scheme: ColorScheme): RuntimePalette {
   const base = SchemeColors[scheme];
   return {
     ...base,
+    // Legacy aliases
     text: base.foreground,
     background: base.background,
-    tint: base.tint ?? base.primary,
+    tint: pick(base, 'tint', base.primary),
     icon: base.muted,
     tabIconDefault: base.muted,
     tabIconSelected: base.primary,
     border: base.border,
-    cardForeground: base.cardForeground ?? base.foreground,
-    cardMuted: base.cardMuted ?? base.muted,
-    cardBorder: base.cardBorder ?? base.border,
+    // Three-tier surface model
+    surface2: pick(base, 'surface2', '#1A1D1A'),
+    surface3: pick(base, 'surface3', '#23272A'),
+    // Foreground tiers
+    fg3: pick(base, 'fg3', '#C9CCC3'),
+    mute3: pick(base, 'mute3', '#555A4E'),
+    cardForeground: pick(base, 'cardForeground', base.foreground),
+    cardMuted: pick(base, 'cardMuted', base.muted),
+    cardBorder: pick(base, 'cardBorder', base.border),
+    primaryInk: pick(base, 'primaryInk', '#0A0B0A'),
+    // Semantic
+    successStrong: pick(base, 'successStrong', '#22C55E'),
+    warningStrong: pick(base, 'warningStrong', '#F59E0B'),
+    errorStrong: pick(base, 'errorStrong', '#EF4444'),
+    info: pick(base, 'info', '#60A5FA'),
+    infoStrong: pick(base, 'infoStrong', '#3B82F6'),
   };
 }
 

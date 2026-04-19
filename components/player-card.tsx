@@ -1,7 +1,15 @@
 import { View, Text, Image } from 'react-native';
 import { useColors } from '@/hooks/use-colors';
 import { getLevelInfo, getLevelProgress } from '@/lib/xp-system';
-import type { XPState, PlayerLevel } from '@/lib/types';
+import {
+  LevelColors,
+  Radius,
+  Space,
+  FontSize,
+  FontWeight,
+  Shadow,
+} from '@/lib/design-tokens';
+import type { XPState } from '@/lib/types';
 
 interface PlayerCardProps {
   userName: string;
@@ -10,15 +18,6 @@ interface PlayerCardProps {
   streak: number;
   shields: number;
 }
-
-const LEVEL_COLORS: Record<string, string> = {
-  Beginner: '#22C55E',
-  Novice: '#3B82F6',
-  Intermediate: '#8B5CF6',
-  Advanced: '#F59E0B',
-  Elite: '#EF4444',
-  Legend: '#F97316',
-};
 
 export function PlayerCard({
   userName,
@@ -30,7 +29,7 @@ export function PlayerCard({
   const colors = useColors();
   const levelInfo = getLevelInfo(xpState.level);
   const levelProgress = getLevelProgress(xpState);
-  const levelColor = LEVEL_COLORS[xpState.level as string] ?? '#22C55E';
+  const levelColor = LevelColors[xpState.level as string] ?? LevelColors.Beginner;
 
   const currentXP = xpState.totalXP;
   const nextLevelXP = levelInfo.nextLevelXP ?? currentXP;
@@ -40,25 +39,25 @@ export function PlayerCard({
   return (
     <View
       style={{
-        backgroundColor: '#1A1D1A',
-        borderRadius: 16,
-        padding: 16,
+        backgroundColor: colors.surface,
+        borderRadius: Radius.hero,
+        padding: Space._4,
         borderWidth: 1,
-        borderColor: '#2A2D2A',
+        borderColor: colors.cardBorder,
       }}
     >
       {/* Top row: Avatar + Info */}
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        {/* Avatar */}
+        {/* Avatar with level-colored ring */}
         <View
           style={{
             width: 56,
             height: 56,
-            borderRadius: 28,
+            borderRadius: Radius.full,
             borderWidth: 3,
             borderColor: levelColor,
             overflow: 'hidden',
-            backgroundColor: '#2A2D2A',
+            backgroundColor: colors.surface3,
           }}
         >
           {profilePhoto ? (
@@ -75,7 +74,7 @@ export function PlayerCard({
                 justifyContent: 'center',
               }}
             >
-              <Text style={{ fontSize: 24 }}>
+              <Text style={{ fontSize: 24, color: colors.cardForeground }}>
                 {userName.charAt(0).toUpperCase()}
               </Text>
             </View>
@@ -83,12 +82,12 @@ export function PlayerCard({
         </View>
 
         {/* Name + Level badge */}
-        <View style={{ flex: 1, marginLeft: 12 }}>
+        <View style={{ flex: 1, marginLeft: Space._3 }}>
           <Text
             style={{
-              color: '#F5F5F5',
-              fontSize: 18,
-              fontWeight: 'bold',
+              color: colors.foreground,
+              fontSize: FontSize.title,
+              fontWeight: FontWeight.bold,
             }}
             numberOfLines={1}
           >
@@ -100,34 +99,65 @@ export function PlayerCard({
               alignSelf: 'flex-start',
               flexDirection: 'row',
               alignItems: 'center',
-              backgroundColor: levelColor + '33',
-              borderRadius: 12,
-              paddingHorizontal: 8,
+              backgroundColor: levelColor + '22',
+              borderWidth: 1,
+              borderColor: levelColor,
+              borderRadius: Radius.pill,
+              paddingHorizontal: Space._2,
               paddingVertical: 3,
-              marginTop: 4,
+              marginTop: Space._1,
             }}
           >
-            <Text style={{ fontSize: 12 }}>{levelInfo.icon} </Text>
+            <Text style={{ fontSize: FontSize.meta }}>{levelInfo.icon} </Text>
             <Text
               style={{
                 color: levelColor,
-                fontSize: 12,
-                fontWeight: '600',
+                fontSize: FontSize.meta,
+                fontWeight: FontWeight.semi,
               }}
             >
               {xpState.level}
             </Text>
           </View>
         </View>
+
+        {/* Streak + Shield counters */}
+        <View style={{ alignItems: 'flex-end', gap: Space._1 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Text style={{ fontSize: FontSize.bodySm }}>🔥</Text>
+            <Text
+              style={{
+                color: streak >= 3 ? '#F59E0B' : colors.muted,
+                fontSize: FontSize.body,
+                fontWeight: FontWeight.bold,
+                ...(streak >= 7 ? Shadow.fire : {}),
+              }}
+            >
+              {streak}
+            </Text>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Text style={{ fontSize: FontSize.bodySm }}>🛡️</Text>
+            <Text
+              style={{
+                color: shields > 0 ? '#3B82F6' : colors.muted,
+                fontSize: FontSize.body,
+                fontWeight: FontWeight.bold,
+              }}
+            >
+              {shields}
+            </Text>
+          </View>
+        </View>
       </View>
 
       {/* XP Progress bar */}
-      <View style={{ marginTop: 14 }}>
+      <View style={{ marginTop: Space._3 }}>
         <View
           style={{
             height: 8,
-            borderRadius: 4,
-            backgroundColor: '#2A2D2A',
+            borderRadius: Radius.bar,
+            backgroundColor: colors.cardBorder,
             overflow: 'hidden',
           }}
         >
@@ -135,39 +165,41 @@ export function PlayerCard({
             style={{
               height: '100%',
               width: `${Math.min(Math.max(levelProgress, 0), 100)}%`,
-              borderRadius: 4,
-              backgroundColor: '#C8F53C',
+              borderRadius: Radius.bar,
+              backgroundColor: colors.primary,
             }}
           />
         </View>
 
-        <Text
+        <View
           style={{
-            color: '#7A8070',
-            fontSize: 11,
-            marginTop: 4,
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginTop: Space._1,
           }}
         >
-          {formatNumber(currentXP)} / {formatNumber(nextLevelXP)} XP
-        </Text>
-      </View>
-
-      {/* Streak + Shields row */}
-      <View
-        style={{
-          flexDirection: 'row',
-          justifyContent: 'flex-end',
-          alignItems: 'center',
-          marginTop: 10,
-          gap: 12,
-        }}
-      >
-        <Text style={{ color: '#7A8070', fontSize: 13 }}>
-          {streak} days
-        </Text>
-        <Text style={{ color: '#7A8070', fontSize: 13 }}>
-          {shields}
-        </Text>
+          <Text
+            style={{
+              color: colors.cardMuted,
+              fontSize: FontSize.eyebrow,
+              fontWeight: FontWeight.semi,
+              letterSpacing: 1,
+              textTransform: 'uppercase',
+            }}
+          >
+            XP to next level
+          </Text>
+          <Text
+            style={{
+              color: colors.primary,
+              fontSize: FontSize.eyebrow,
+              fontWeight: FontWeight.semi,
+            }}
+          >
+            {formatNumber(currentXP)} / {formatNumber(nextLevelXP)}
+          </Text>
+        </View>
       </View>
     </View>
   );

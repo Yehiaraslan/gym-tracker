@@ -71,6 +71,20 @@ import { getAvailableShields } from '@/lib/streak-shield';
 import { getProgressPhotos } from '@/lib/progress-photos';
 import { getUnlockedAchievements, ALL_ACHIEVEMENTS } from '@/lib/achievements';
 import { getRewardProgress } from '@/lib/milestone-rewards';
+import {
+  Space,
+  Radius,
+  FontSize,
+  FontWeight,
+  Shadow,
+  ActiveOpacity,
+  ColorPool,
+  SemanticColors,
+  Gutter,
+  Stack,
+  StackLg,
+  CardPadLg,
+} from '@/lib/design-tokens';
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -124,8 +138,8 @@ function guessSessionSubtitle(sessionId: string, program: CustomProgram | null):
   return bodyParts.slice(0, 4).join(' \u00b7 ') || `${exercises.length} exercises`;
 }
 
-// Color pool for custom sessions that don't have a preset color
-const COLOR_POOL = ['#3B82F6', '#8B5CF6', '#06B6D4', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#14B8A6'];
+// Color pool for custom sessions — imported from design tokens
+const COLOR_POOL = ColorPool;
 
 export default function HomeScreen() {
   const colors = useColors();
@@ -422,18 +436,21 @@ export default function HomeScreen() {
 
   const bg = colors.background;
   const surf = colors.surface;
-  const bord = (colors as any).cardBorder ?? colors.border;
-  const fg = (colors as any).cardForeground ?? colors.foreground;   // dark text inside white cards
-  const mut = (colors as any).cardMuted ?? colors.muted;             // grey secondary inside white cards
-  const screenFg = colors.foreground;                                // white text on navy background
-  const screenMut = colors.muted;                                    // soft blue-white on navy
+  const surf2 = colors.surface2;
+  const surf3 = colors.surface3;
+  const bord = colors.cardBorder;
+  const fg = colors.cardForeground;
+  const mut = colors.cardMuted;
+  const screenFg = colors.foreground;
+  const screenMut = colors.muted;
   const pri = colors.primary;
+  const ink = colors.primaryInk;
 
   return (
     <ScreenContainer containerClassName="bg-background">
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 40 }}
+        contentContainerStyle={{ paddingHorizontal: Gutter, paddingTop: Space._2, paddingBottom: Space._10 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); loadSchedule(); }} tintColor={pri} />}
       >
         {/* ── WHOOP Reconnect Banner (shown when token expired) ── */}
@@ -632,7 +649,7 @@ export default function HomeScreen() {
         })()}
 
         {/* ── Header with gradient backdrop ── */}
-        <View style={{ marginHorizontal: -16, marginTop: -8, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16, marginBottom: 8 }}>
+        <View style={{ marginHorizontal: -Gutter, marginTop: -Space._2, paddingHorizontal: Gutter, paddingTop: Space._2, paddingBottom: Space._4, marginBottom: Space._2 }}>
           <Svg width={SCREEN_WIDTH} height={100} style={{ position: 'absolute', top: 0, left: 0 }}>
             <Defs>
               <SvgGradient id="headerGrad" x1="0" y1="0" x2="0" y2="1">
@@ -715,48 +732,63 @@ export default function HomeScreen() {
         <TouchableOpacity
           style={[s.heroCard, { backgroundColor: surf, borderColor: getColor(todaySession) + '40', overflow: 'hidden', padding: 0 }]}
           onPress={handleStartWorkout}
-          activeOpacity={0.85}
+          activeOpacity={ActiveOpacity.secondary}
         >
           {/* Gradient background */}
           <Svg width="100%" height="100%" style={{ position: 'absolute', top: 0, left: 0 }}>
             <Defs>
               <SvgGradient id="heroGrad" x1="0" y1="0" x2="1" y2="1">
-                <Stop offset="0" stopColor={getColor(todaySession)} stopOpacity="0.15" />
-                <Stop offset="1" stopColor={getColor(todaySession)} stopOpacity="0.03" />
+                <Stop offset="0" stopColor={getColor(todaySession)} stopOpacity="0.18" />
+                <Stop offset="1" stopColor={getColor(todaySession)} stopOpacity="0.02" />
               </SvgGradient>
             </Defs>
-            <Rect x="0" y="0" width="100%" height="100%" rx="16" fill="url(#heroGrad)" />
+            <Rect x="0" y="0" width="100%" height="100%" rx={Radius.hero} fill="url(#heroGrad)" />
           </Svg>
-          <View style={{ padding: 20 }}>
-            <Text style={{ color: mut, fontSize: 11, fontWeight: '600', letterSpacing: 1, marginBottom: 8 }}>TODAY'S QUEST</Text>
+          <View style={{ padding: CardPadLg }}>
+            <Text style={{
+              color: colors.muted,
+              fontSize: FontSize.eyebrow,
+              fontWeight: FontWeight.semi,
+              letterSpacing: 1,
+              textTransform: 'uppercase',
+              marginBottom: Space._2,
+            }}>TODAY'S QUEST</Text>
             <View style={s.heroRow}>
-              <Text style={[s.heroEmoji, { fontSize: 48, marginRight: 14 }]}>{getEmoji(todaySession)}</Text>
+              <Text style={{ fontSize: 48, marginRight: Space._3 }}>{getEmoji(todaySession)}</Text>
               <View style={{ flex: 1 }}>
-                <Text style={[s.heroTitle, { color: fg, fontSize: 22, fontWeight: '800' }]}>{getName(todaySession)}</Text>
-                <Text style={[s.heroSub, { color: mut, fontSize: 14 }]}>{getSubtitle(todaySession)}</Text>
+                <Text style={{
+                  color: fg,
+                  fontSize: FontSize.hero,
+                  fontWeight: FontWeight.heavy,
+                  letterSpacing: -0.2,
+                }}>{getName(todaySession)}</Text>
+                <Text style={{
+                  color: mut,
+                  fontSize: FontSize.body,
+                  lineHeight: 20,
+                  marginTop: 2,
+                }}>{getSubtitle(todaySession)}</Text>
               </View>
             </View>
             {!isRest && (
               <TouchableOpacity
-                style={[s.startBtn, {
-                  backgroundColor: todayDone ? '#22C55E' : getColor(todaySession),
-                  shadowColor: todayDone ? '#22C55E' : getColor(todaySession),
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.35,
-                  shadowRadius: 12,
-                  elevation: 8,
-                  paddingVertical: 14,
-                  borderRadius: 14,
-                }]}
+                style={{
+                  backgroundColor: todayDone ? colors.successStrong : getColor(todaySession),
+                  borderRadius: Radius.button,
+                  paddingVertical: Space._3 + 2,
+                  alignItems: 'center',
+                  ...Shadow.cta(todayDone ? colors.successStrong : getColor(todaySession)),
+                }}
                 onPress={handleStartWorkout}
+                activeOpacity={ActiveOpacity.primary}
               >
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                  <Text style={{ color: '#0A0B0A', fontSize: 15, fontWeight: '700' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Space._2 }}>
+                  <Text style={{ color: ink, fontSize: FontSize.body + 1, fontWeight: FontWeight.bold }}>
                     {todayDone ? '✓ Completed' : isRest ? 'Log Recovery' : 'Start Quest'}
                   </Text>
                   {!todayDone && !isRest && (
-                    <View style={{ backgroundColor: '#0A0B0A20', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 }}>
-                      <Text style={{ color: '#0A0B0A', fontSize: 11, fontWeight: '600' }}>+100 XP</Text>
+                    <View style={{ backgroundColor: ink + '20', borderRadius: Radius.chip, paddingHorizontal: Space._2, paddingVertical: 2 }}>
+                      <Text style={{ color: ink, fontSize: FontSize.eyebrow, fontWeight: FontWeight.semi }}>+100 XP</Text>
                     </View>
                   )}
                 </View>
@@ -766,13 +798,13 @@ export default function HomeScreen() {
         </TouchableOpacity>
 
         {/* ── Daily Challenges ── */}
-        <View style={{ marginTop: 16 }}>
+        <View style={{ marginTop: StackLg }}>
           <DailyChallengesCard />
         </View>
 
         {/* ── Streak Shield Row ── */}
         {streak && (
-          <View style={{ marginTop: 16 }}>
+          <View style={{ marginTop: StackLg }}>
             <StreakShieldRow
               streak={streak.currentStreak}
               bestStreak={streak.bestStreak}
@@ -785,7 +817,7 @@ export default function HomeScreen() {
         )}
 
         {/* ── Transformation Journey ── */}
-        <View style={{ marginTop: 16 }}>
+        <View style={{ marginTop: StackLg }}>
           <TransformationJourneyCard
             earliestPhoto={progressPhotos.length > 0 ? { uri: progressPhotos[progressPhotos.length - 1].uri, date: progressPhotos[progressPhotos.length - 1].date } : null}
             latestPhoto={progressPhotos.length > 1 ? { uri: progressPhotos[0].uri, date: progressPhotos[0].date } : null}
@@ -797,7 +829,7 @@ export default function HomeScreen() {
         </View>
 
         {/* ── Achievement Strip ── */}
-        <View style={{ marginTop: 16 }}>
+        <View style={{ marginTop: StackLg }}>
           <AchievementStrip
             unlockedAchievements={achievements}
             totalAchievements={ALL_ACHIEVEMENTS.length}
@@ -812,7 +844,7 @@ export default function HomeScreen() {
           const recoveryScoreVal = recoveryScore ?? (recovery?.recoveryScore ?? 50);
           const proteinAdherence = protTarget > 0 ? Math.min(100, Math.round((protConsumed / protTarget) * 100)) : 0;
           return (
-            <View style={{ marginTop: 16 }}>
+            <View style={{ marginTop: StackLg }}>
               <RPGStatsCard
                 strength={strengthScore}
                 endurance={enduranceScore}
@@ -824,7 +856,7 @@ export default function HomeScreen() {
         })()}
 
         {/* ── 7-Day Week Strip ── */}
-        <View style={[s.card, { backgroundColor: surf, borderColor: bord, paddingVertical: 12, marginTop: 16 }]}>
+        <View style={[s.card, { backgroundColor: surf, borderColor: bord, paddingVertical: Space._3, marginTop: StackLg }]}>
           <View style={s.weekRow}>
             {weekDays.map((d, i) => {
               const dateStr = `${d.date.getFullYear()}-${String(d.date.getMonth() + 1).padStart(2, '0')}-${String(d.date.getDate()).padStart(2, '0')}`;
@@ -921,25 +953,21 @@ export default function HomeScreen() {
             if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             router.push({ pathname: '/split-workout', params: { sessionType: todaySession, date: todayStr } } as any);
           }}
-          activeOpacity={0.85}
+          activeOpacity={ActiveOpacity.secondary}
           style={{
             position: 'absolute',
             bottom: 90,
-            right: 20,
+            right: Space._5,
             width: 56,
             height: 56,
-            borderRadius: 28,
+            borderRadius: Radius.fab,
             backgroundColor: pri,
             alignItems: 'center',
             justifyContent: 'center',
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.3,
-            shadowRadius: 8,
-            elevation: 8,
+            ...Shadow.fab,
           }}
         >
-          <Text style={{ color: '#FFFFFF', fontSize: 22, marginLeft: 2 }}>▶</Text>
+          <Text style={{ color: ink, fontSize: 22, marginLeft: 2 }}>▶</Text>
         </TouchableOpacity>
       )}
     </ScreenContainer>
@@ -1134,65 +1162,60 @@ const s = StyleSheet.create({
   avatarEmoji: { fontSize: 20 },
   iconBtn: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
 
-  heroCard: { borderRadius: 16, borderWidth: 1, padding: 16, marginBottom: 14 },
-  heroRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  heroEmoji: { fontSize: 36, marginRight: 12 },
-  heroTitle: { fontSize: 18, fontWeight: '700', marginBottom: 2 },
-  heroSub: { fontSize: 13, lineHeight: 18 },
-  startBtn: { borderRadius: 12, paddingVertical: 12, alignItems: 'center' },
-  startBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 15 },
+  heroCard: { borderRadius: Radius.hero, borderWidth: 1, padding: Space._4, marginBottom: Space._3 + 2 },
+  heroRow: { flexDirection: 'row', alignItems: 'center', marginBottom: Space._3 },
 
-  card: { borderRadius: 16, borderWidth: 1, padding: 16, marginBottom: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 3 },
+  card: { borderRadius: Radius.hero, borderWidth: 1, padding: Space._4, marginBottom: Space._3 + 2, ...Shadow.card },
 
   weekRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  dayCol: { alignItems: 'center', gap: 6 },
-  dayLabel: { fontSize: 12 },
+  dayCol: { alignItems: 'center', gap: Space._2 - 2 },
+  dayLabel: { fontSize: FontSize.meta },
   dayDot: { width: 14, height: 14, borderRadius: 7 },
   checkDot: { width: 6, height: 6, borderRadius: 3, marginTop: -2 },
 
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 14 },
-  metricCard: { width: '48%', borderRadius: 16, borderWidth: 1, padding: 14, position: 'relative', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 6, elevation: 2 },
-  metricIcon: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
-  metricIconText: { fontSize: 18 },
-  metricChevron: { position: 'absolute', top: 14, right: 14, fontSize: 18 },
-  metricLabel: { fontSize: 12, marginBottom: 4 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: Space._3, marginBottom: Space._3 + 2 },
+  metricCard: { width: '48%', borderRadius: Radius.hero, borderWidth: 1, padding: Space._3 + 2, position: 'relative', ...Shadow.card },
+  metricIcon: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center', marginBottom: Space._2 },
+  metricIconText: { fontSize: FontSize.title },
+  metricChevron: { position: 'absolute', top: Space._3 + 2, right: Space._3 + 2, fontSize: FontSize.title },
+  metricLabel: { fontSize: FontSize.meta, marginBottom: Space._1 },
   metricValueRow: { flexDirection: 'row', alignItems: 'baseline' },
   metricValue: { fontSize: 20, fontWeight: '700' },
   metricValueLg: { fontSize: 28, fontWeight: '700' },
-  metricUnit: { fontSize: 13 },
-  metricDash: { width: 20, height: 3, borderRadius: 2, marginBottom: 4 },
-  metricSub: { fontSize: 11, marginTop: 2 },
+  metricUnit: { fontSize: FontSize.bodySm },
+  metricDash: { width: 20, height: 3, borderRadius: 2, marginBottom: Space._1 },
+  metricSub: { fontSize: FontSize.eyebrow, marginTop: 2 },
 
-  sectionLabel: { fontSize: 11, fontWeight: '600', letterSpacing: 1 },
-  link: { fontSize: 13, fontWeight: '600' },
-  macroLabel: { fontSize: 14 },
-  macroValue: { fontSize: 14, fontWeight: '600' },
-  progressBar: { height: 4, borderRadius: 2, overflow: 'hidden' },
-  progressFill: { height: 4, borderRadius: 2 },
+  sectionLabel: { fontSize: FontSize.eyebrow, fontWeight: '600', letterSpacing: 1 },
+  link: { fontSize: FontSize.bodySm, fontWeight: '600' },
+  macroLabel: { fontSize: FontSize.body },
+  macroValue: { fontSize: FontSize.body, fontWeight: '600' },
+  progressBar: { height: 4, borderRadius: Radius.bar, overflow: 'hidden' },
+  progressFill: { height: 4, borderRadius: Radius.bar },
 
-  whoopIcon: { fontSize: 14, fontWeight: '700' },
+  whoopIcon: { fontSize: FontSize.body, fontWeight: '700' },
   whoopScore: { fontSize: 40, fontWeight: '800', lineHeight: 44 },
-  whoopStatus: { fontSize: 13, marginTop: 2 },
-  whoopMetricVal: { fontSize: 16, fontWeight: '700' },
+  whoopStatus: { fontSize: FontSize.bodySm, marginTop: 2 },
+  whoopMetricVal: { fontSize: FontSize.section, fontWeight: '700' },
 
-  coachCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: 16, borderWidth: 1, padding: 14, marginBottom: 12 },
-  coachLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
+  coachCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: Radius.hero, borderWidth: 1, padding: Space._3 + 2, marginBottom: Space._3 },
+  coachLeft: { flexDirection: 'row', alignItems: 'center', gap: Space._3, flex: 1 },
   coachIconWrap: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
   coachIcon: { fontSize: 22 },
-  coachTitle: { fontSize: 15, fontWeight: '700', marginBottom: 2 },
-  coachSub: { fontSize: 12, lineHeight: 16 },
-  coachBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
-  coachBadgeText: { fontSize: 12, fontWeight: '700' },
+  coachTitle: { fontSize: FontSize.section - 1, fontWeight: '700', marginBottom: 2 },
+  coachSub: { fontSize: FontSize.meta, lineHeight: 16 },
+  coachBadge: { paddingHorizontal: Space._2 + 2, paddingVertical: 5, borderRadius: Radius.modal },
+  coachBadgeText: { fontSize: FontSize.meta, fontWeight: '700' },
 
-  warningBanner: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, borderWidth: 1.5, padding: 12, marginBottom: 12 },
+  warningBanner: { flexDirection: 'row', alignItems: 'center', gap: Space._2 + 2, borderRadius: Radius.button, borderWidth: 1.5, padding: Space._3, marginBottom: Space._3 },
   warningIcon: { fontSize: 20 },
-  warningTitle: { fontSize: 13, fontWeight: '700', marginBottom: 2 },
-  warningSub: { fontSize: 12, lineHeight: 16 },
-  syncPill: { width: 32, height: 32, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  syncDotSmall: { width: 8, height: 8, borderRadius: 4 },
-  deloadBanner: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, borderWidth: 1.5, padding: 12, marginBottom: 12 },
+  warningTitle: { fontSize: FontSize.bodySm, fontWeight: '700', marginBottom: 2 },
+  warningSub: { fontSize: FontSize.meta, lineHeight: 16 },
+  syncPill: { width: 32, height: 32, borderRadius: Radius.hero, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  syncDotSmall: { width: 8, height: 8, borderRadius: Radius.bar },
+  deloadBanner: { flexDirection: 'row', alignItems: 'center', gap: Space._2 + 2, borderRadius: Radius.button, borderWidth: 1.5, padding: Space._3, marginBottom: Space._3 },
   deloadBannerEmoji: { fontSize: 20 },
-  deloadBannerTitle: { fontSize: 13, fontWeight: '700', marginBottom: 2 },
-  deloadBannerSub: { fontSize: 12, lineHeight: 16 },
+  deloadBannerTitle: { fontSize: FontSize.bodySm, fontWeight: '700', marginBottom: 2 },
+  deloadBannerSub: { fontSize: FontSize.meta, lineHeight: 16 },
   deloadBannerArrow: { fontSize: 20, fontWeight: '700' },
 });

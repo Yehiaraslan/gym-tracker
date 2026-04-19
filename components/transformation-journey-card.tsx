@@ -1,5 +1,13 @@
 import { View, Text, Image, TouchableOpacity } from 'react-native';
 import { useColors } from '@/hooks/use-colors';
+import {
+  Radius,
+  Space,
+  FontSize,
+  FontWeight,
+  Shadow,
+  ActiveOpacity,
+} from '@/lib/design-tokens';
 
 interface TransformationJourneyCardProps {
   earliestPhoto: { uri: string; date: string } | null;
@@ -25,15 +33,15 @@ export function TransformationJourneyCard({
   const weightColor = weightChange != null && weightChange < 0 ? '#22C55E' : '#F59E0B';
   const weightLabel =
     weightChange != null
-      ? `${weightChange > 0 ? '+' : ''}${weightChange} lbs`
+      ? `${weightChange > 0 ? '+' : ''}${weightChange.toFixed(1)} kg`
       : null;
 
   return (
     <View
       style={{
         backgroundColor: colors.surface,
-        borderRadius: 16,
-        padding: 16,
+        borderRadius: Radius.hero,
+        padding: Space._4,
         borderWidth: 1,
         borderColor: colors.cardBorder,
       }}
@@ -44,9 +52,9 @@ export function TransformationJourneyCard({
           <Text
             style={{
               color: colors.cardForeground,
-              fontSize: 15,
-              fontWeight: '700',
-              marginBottom: 14,
+              fontSize: FontSize.section,
+              fontWeight: FontWeight.bold,
+              marginBottom: Space._3,
             }}
           >
             📈 Transformation Journey
@@ -58,7 +66,7 @@ export function TransformationJourneyCard({
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'center',
-              marginBottom: 14,
+              marginBottom: Space._3,
             }}
           >
             {/* Earliest photo */}
@@ -68,7 +76,7 @@ export function TransformationJourneyCard({
                 style={{
                   width: 120,
                   height: 160,
-                  borderRadius: 12,
+                  borderRadius: Radius.button,
                   borderWidth: 1,
                   borderColor: colors.cardBorder,
                 }}
@@ -76,9 +84,9 @@ export function TransformationJourneyCard({
               <Text
                 style={{
                   color: colors.cardForeground,
-                  fontSize: 12,
-                  fontWeight: '600',
-                  marginTop: 6,
+                  fontSize: FontSize.meta,
+                  fontWeight: FontWeight.semi,
+                  marginTop: Space._2,
                 }}
               >
                 Day 1
@@ -86,7 +94,7 @@ export function TransformationJourneyCard({
               <Text
                 style={{
                   color: colors.cardMuted,
-                  fontSize: 10,
+                  fontSize: FontSize.tiny + 1,
                   marginTop: 2,
                 }}
               >
@@ -97,9 +105,9 @@ export function TransformationJourneyCard({
             {/* Arrow */}
             <Text
               style={{
-                color: colors.cardMuted,
+                color: colors.mute3,
                 fontSize: 22,
-                marginHorizontal: 14,
+                marginHorizontal: Space._3,
               }}
             >
               →
@@ -112,7 +120,7 @@ export function TransformationJourneyCard({
                 style={{
                   width: 120,
                   height: 160,
-                  borderRadius: 12,
+                  borderRadius: Radius.button,
                   borderWidth: 1,
                   borderColor: colors.cardBorder,
                 }}
@@ -120,9 +128,9 @@ export function TransformationJourneyCard({
               <Text
                 style={{
                   color: colors.cardForeground,
-                  fontSize: 12,
-                  fontWeight: '600',
-                  marginTop: 6,
+                  fontSize: FontSize.meta,
+                  fontWeight: FontWeight.semi,
+                  marginTop: Space._2,
                 }}
               >
                 Now
@@ -130,7 +138,7 @@ export function TransformationJourneyCard({
               <Text
                 style={{
                   color: colors.cardMuted,
-                  fontSize: 10,
+                  fontSize: FontSize.tiny + 1,
                   marginTop: 2,
                 }}
               >
@@ -145,39 +153,57 @@ export function TransformationJourneyCard({
               flexDirection: 'row',
               justifyContent: 'center',
               alignItems: 'center',
-              gap: 16,
-              marginBottom: 12,
+              gap: Space._4,
+              marginBottom: Space._3,
             }}
           >
-            <Text
+            <View
               style={{
-                color: colors.cardMuted,
-                fontSize: 12,
-                fontWeight: '500',
+                backgroundColor: 'rgba(59, 130, 246, 0.14)',
+                paddingHorizontal: Space._2,
+                paddingVertical: Space._1,
+                borderRadius: Radius.full,
               }}
             >
-              {daysSinceStart} days tracked
-            </Text>
-            {weightLabel != null && (
               <Text
                 style={{
-                  color: weightColor,
-                  fontSize: 12,
-                  fontWeight: '600',
+                  color: '#60A5FA',
+                  fontSize: FontSize.eyebrow,
+                  fontWeight: FontWeight.semi,
                 }}
               >
-                {weightLabel}
+                {daysSinceStart} days tracked
               </Text>
+            </View>
+            {weightLabel != null && (
+              <View
+                style={{
+                  backgroundColor: weightColor + '1A',
+                  paddingHorizontal: Space._2,
+                  paddingVertical: Space._1,
+                  borderRadius: Radius.full,
+                }}
+              >
+                <Text
+                  style={{
+                    color: weightColor,
+                    fontSize: FontSize.eyebrow,
+                    fontWeight: FontWeight.semi,
+                  }}
+                >
+                  {weightLabel}
+                </Text>
+              </View>
             )}
           </View>
 
           {/* View journey button */}
-          <TouchableOpacity onPress={onViewJourney}>
+          <TouchableOpacity onPress={onViewJourney} activeOpacity={ActiveOpacity.secondary}>
             <Text
               style={{
                 color: colors.primary,
-                fontSize: 13,
-                fontWeight: '600',
+                fontSize: FontSize.bodySm,
+                fontWeight: FontWeight.semi,
                 textAlign: 'center',
               }}
             >
@@ -191,9 +217,9 @@ export function TransformationJourneyCard({
           <Text
             style={{
               color: colors.cardForeground,
-              fontSize: 15,
-              fontWeight: '700',
-              marginBottom: 14,
+              fontSize: FontSize.section,
+              fontWeight: FontWeight.bold,
+              marginBottom: Space._3,
               textAlign: 'center',
             }}
           >
@@ -204,7 +230,7 @@ export function TransformationJourneyCard({
             style={{
               fontSize: 48,
               textAlign: 'center',
-              marginBottom: 10,
+              marginBottom: Space._2,
             }}
           >
             📸
@@ -213,9 +239,9 @@ export function TransformationJourneyCard({
           <Text
             style={{
               color: colors.cardMuted,
-              fontSize: 13,
+              fontSize: FontSize.bodySm,
               textAlign: 'center',
-              marginBottom: 16,
+              marginBottom: Space._4,
             }}
           >
             Take your Day 1 photo to track your progress
@@ -223,18 +249,20 @@ export function TransformationJourneyCard({
 
           <TouchableOpacity
             onPress={onTakePhoto}
+            activeOpacity={ActiveOpacity.primary}
             style={{
               backgroundColor: colors.primary,
-              borderRadius: 10,
-              paddingVertical: 12,
+              borderRadius: Radius.button,
+              paddingVertical: Space._3,
               alignItems: 'center',
+              ...Shadow.cta(),
             }}
           >
             <Text
               style={{
-                color: '#0A0B0A',
-                fontSize: 14,
-                fontWeight: '700',
+                color: colors.primaryInk,
+                fontSize: FontSize.body,
+                fontWeight: FontWeight.bold,
               }}
             >
               Take Photo
