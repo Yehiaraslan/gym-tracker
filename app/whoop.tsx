@@ -264,15 +264,42 @@ export default function WhoopScreen() {
               </TouchableOpacity>
             </View>
           ) : isConnected ? (
-            <TouchableOpacity
-              onPress={handleDisconnect}
-              disabled={disconnectMutation.isPending}
-              style={{ backgroundColor: colors.error + '20', paddingVertical: 12, borderRadius: 12 }}
-            >
-              <Text style={{ textAlign: 'center', fontWeight: '600', color: colors.error }}>
-                {disconnectMutation.isPending ? 'Disconnecting...' : 'Disconnect'}
-              </Text>
-            </TouchableOpacity>
+            <View style={{ gap: 10 }}>
+              {/* Re-authenticate: always visible when connected so user can force token refresh */}
+              <TouchableOpacity
+                onPress={handleConnect}
+                disabled={authUrlQuery.isFetching}
+                style={{
+                  backgroundColor: colors.primary + '18',
+                  opacity: authUrlQuery.isFetching ? 0.7 : 1,
+                  paddingVertical: 12,
+                  borderRadius: 12,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderWidth: 1,
+                  borderColor: colors.primary + '40',
+                }}
+              >
+                {authUrlQuery.isFetching ? (
+                  <ActivityIndicator color={colors.primary} size="small" />
+                ) : (
+                  <>
+                    <Text style={{ fontSize: 16, marginRight: 8 }}>🔄</Text>
+                    <Text style={{ fontWeight: '600', color: colors.primary, fontSize: 14 }}>Re-authenticate WHOOP</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleDisconnect}
+                disabled={disconnectMutation.isPending}
+                style={{ backgroundColor: colors.error + '20', paddingVertical: 12, borderRadius: 12 }}
+              >
+                <Text style={{ textAlign: 'center', fontWeight: '600', color: colors.error }}>
+                  {disconnectMutation.isPending ? 'Disconnecting...' : 'Disconnect'}
+                </Text>
+              </TouchableOpacity>
+            </View>
           ) : (
             <TouchableOpacity
               onPress={handleConnect}
