@@ -1,0 +1,1 @@
+ALTER TABLE `workout_exercise_logs` ADD CONSTRAINT `wel_session_exercise_uniq` UNIQUE(`sessionId`,`exerciseName`);

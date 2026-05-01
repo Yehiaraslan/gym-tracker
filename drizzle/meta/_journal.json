@@ -43,6 +43,13 @@
       "when": 1774633709951,
       "tag": "0005_blue_black_bird",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1777660748575,
+      "tag": "0006_goofy_supreme_intelligence",
+      "breakpoints": true
     }
   ]
 }
