@@ -20,7 +20,10 @@ import {
   Share,
   StyleSheet,
   ActivityIndicator,
+  AppState,
+  type AppStateStatus,
 } from 'react-native';
+import * as Speech from 'expo-speech';
 import ViewShot from 'react-native-view-shot';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -165,6 +168,8 @@ export default function SplitWorkoutScreen() {
   const [restTotal, setRestTotal] = useState(0);
   const [isResting, setIsResting] = useState(false);
   const [restExerciseName, setRestExerciseName] = useState('');
+  // Timestamp-based rest timer: stores the absolute end time so backgrounding doesn't break it
+  const restEndTimestampRef = useRef<number | null>(null);
   // Auto-advance: index of the next exercise to scroll to when rest ends
   const autoAdvanceToRef = useRef<number | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -272,7 +277,7 @@ export default function SplitWorkoutScreen() {
   const [zakiCheckInSessionId, setZakiCheckInSessionId] = useState<string | undefined>(undefined);
   const zakiMidWorkoutMutation = trpc.zaki.midWorkoutCheckIn.useMutation();
   // Warm-up plan
-  const [warmupItems, setWarmupItems] = useState<{ name: string; sets: number; reps: string; note: string }[]>([]);
+  const [warmupItems, setWarmupItems] = useState<{ name: string; sets: number; reps: string; note: string; youtubeId?: string }[]>([]);
   const [warmupLoading, setWarmupLoading] = useState(false);
   const [warmupDone, setWarmupDone] = useState(false);
   const [warmupChecked, setWarmupChecked] = useState<boolean[]>([]);
@@ -619,32 +624,64 @@ export default function SplitWorkoutScreen() {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [started, startTime]);
 
-  // Rest timer — auto-advances to next exercise when countdown hits zero
+  // Fires when rest timer reaches zero — beep + haptic
+  const handleRestFinished = useCallback(() => {
+    setIsResting(false);
+    setRestTime(0);
+    restEndTimestampRef.current = null;
+    if (Platform.OS !== 'web') {
+      // Triple haptic pulse
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 300);
+      setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 600);
+      // Spoken announcement — audible through headphones
+      Speech.speak('Workout starts now', { language: 'en', rate: 0.9, pitch: 1.1 });
+    }
+    // Auto-advance: scroll to and activate the next exercise
+    const nextIdx = autoAdvanceToRef.current;
+    if (nextIdx !== null) {
+      setActiveExerciseIndex(nextIdx);
+      autoAdvanceToRef.current = null;
+      setTimeout(() => {
+        scrollRef.current?.scrollTo({ y: nextIdx * 200, animated: true });
+      }, 150);
+    }
+  }, []);
+
+  // Rest timer — timestamp-based so it survives app backgrounding
   useEffect(() => {
     if (isResting && restTime > 0) {
+      // Set the absolute end timestamp when rest starts (or when restTime changes)
+      if (!restEndTimestampRef.current) {
+        restEndTimestampRef.current = Date.now() + restTime * 1000;
+      }
       restRef.current = setInterval(() => {
-        setRestTime(prev => {
-          if (prev <= 1) {
-            setIsResting(false);
-            if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            // Auto-advance: scroll to and activate the next exercise
-            const nextIdx = autoAdvanceToRef.current;
-            if (nextIdx !== null) {
-              setActiveExerciseIndex(nextIdx);
-              autoAdvanceToRef.current = null;
-              // Scroll to the next exercise card after a brief delay
-              setTimeout(() => {
-                scrollRef.current?.scrollTo({ y: nextIdx * 200, animated: true });
-              }, 150);
-            }
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
+        const remaining = Math.max(0, Math.ceil((restEndTimestampRef.current! - Date.now()) / 1000));
+        setRestTime(remaining);
+        if (remaining <= 0) {
+          if (restRef.current) clearInterval(restRef.current);
+          handleRestFinished();
+        }
+      }, 500); // Poll every 500ms for accuracy
     }
     return () => { if (restRef.current) clearInterval(restRef.current); };
-  }, [isResting, restTime]);
+  }, [isResting, handleRestFinished]);
+
+  // AppState listener — recalculate remaining time when app comes back to foreground
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (nextState: AppStateStatus) => {
+      if (nextState === 'active' && isResting && restEndTimestampRef.current) {
+        const remaining = Math.max(0, Math.ceil((restEndTimestampRef.current - Date.now()) / 1000));
+        if (remaining <= 0) {
+          if (restRef.current) clearInterval(restRef.current);
+          handleRestFinished();
+        } else {
+          setRestTime(remaining);
+        }
+      }
+    });
+    return () => sub.remove();
+  }, [isResting, handleRestFinished]);
 
   const startWorkout = () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -1818,55 +1855,93 @@ export default function SplitWorkoutScreen() {
             ) : (
               <View style={{ gap: 8 }}>
                 {warmupItems.map((item, idx) => (
-                  <TouchableOpacity
+                  <View
                     key={idx}
-                    onPress={() => {
-                      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setWarmupChecked(prev => {
-                        const next = [...prev];
-                        next[idx] = !next[idx];
-                        return next;
-                      });
-                    }}
                     style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 10,
                       backgroundColor: warmupChecked[idx] ? '#10B98115' : colors.surface,
                       borderRadius: 12,
-                      padding: 12,
                       borderWidth: 1,
                       borderColor: warmupChecked[idx] ? '#10B98140' : colors.cardBorder,
+                      overflow: 'hidden',
                     }}
                   >
-                    <View
+                    {/* Video thumbnail row — only shown if youtubeId is available */}
+                    {item.youtubeId ? (
+                      <TouchableOpacity
+                        onPress={() => {
+                          setVideoExercise({ name: item.name, videoId: item.youtubeId! });
+                          setVideoPlaying(false);
+                          setShowVideoModal(true);
+                        }}
+                        style={{ position: 'relative' }}
+                      >
+                        <Image
+                          source={{ uri: `https://img.youtube.com/vi/${item.youtubeId}/mqdefault.jpg` }}
+                          style={{ width: '100%', height: 90, borderTopLeftRadius: 11, borderTopRightRadius: 11 }}
+                          contentFit="cover"
+                        />
+                        {/* Play button overlay */}
+                        <View style={{
+                          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                          alignItems: 'center', justifyContent: 'center',
+                          backgroundColor: 'rgba(0,0,0,0.25)',
+                        }}>
+                          <View style={{
+                            width: 36, height: 36, borderRadius: 18,
+                            backgroundColor: 'rgba(0,0,0,0.6)',
+                            alignItems: 'center', justifyContent: 'center',
+                          }}>
+                            <Text style={{ color: '#fff', fontSize: 14, marginLeft: 2 }}>▶</Text>
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+                    ) : null}
+                    {/* Checkbox row */}
+                    <TouchableOpacity
+                      onPress={() => {
+                        if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        setWarmupChecked(prev => {
+                          const next = [...prev];
+                          next[idx] = !next[idx];
+                          return next;
+                        });
+                      }}
                       style={{
-                        width: 24, height: 24, borderRadius: 12,
-                        backgroundColor: warmupChecked[idx] ? '#10B981' : 'transparent',
-                        borderWidth: 2,
-                        borderColor: warmupChecked[idx] ? '#10B981' : colors.cardMuted,
-                        alignItems: 'center', justifyContent: 'center',
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 10,
+                        padding: 12,
                       }}
                     >
-                      {warmupChecked[idx] && <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>✓</Text>}
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <Text style={{
-                          color: warmupChecked[idx] ? colors.cardMuted : colors.cardForeground,
-                          fontWeight: '600',
-                          fontSize: 14,
-                          textDecorationLine: warmupChecked[idx] ? 'line-through' : 'none',
-                        }}>
-                          {item.name}
-                        </Text>
-                        <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700' }}>
-                          {item.sets}×{item.reps}
-                        </Text>
+                      <View
+                        style={{
+                          width: 24, height: 24, borderRadius: 12,
+                          backgroundColor: warmupChecked[idx] ? '#10B981' : 'transparent',
+                          borderWidth: 2,
+                          borderColor: warmupChecked[idx] ? '#10B981' : colors.cardMuted,
+                          alignItems: 'center', justifyContent: 'center',
+                        }}
+                      >
+                        {warmupChecked[idx] && <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>✓</Text>}
                       </View>
-                      <Text style={{ color: colors.cardMuted, fontSize: 12, marginTop: 2 }}>{item.note}</Text>
-                    </View>
-                  </TouchableOpacity>
+                      <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <Text style={{
+                            color: warmupChecked[idx] ? colors.cardMuted : colors.cardForeground,
+                            fontWeight: '600',
+                            fontSize: 14,
+                            textDecorationLine: warmupChecked[idx] ? 'line-through' : 'none',
+                          }}>
+                            {item.name}
+                          </Text>
+                          <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700' }}>
+                            {item.sets}×{item.reps}
+                          </Text>
+                        </View>
+                        <Text style={{ color: colors.cardMuted, fontSize: 12, marginTop: 2 }}>{item.note}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  </View>
                 ))}
                 <TouchableOpacity
                   onPress={() => setWarmupDone(true)}
@@ -1952,6 +2027,7 @@ export default function SplitWorkoutScreen() {
                   onPress={() => {
                     setIsResting(false);
                     setRestTime(0);
+                    restEndTimestampRef.current = null;
                     if (restRef.current) clearInterval(restRef.current);
                     // Still auto-advance if set is complete
                     const nextIdx2 = autoAdvanceToRef.current;
@@ -1970,9 +2046,12 @@ export default function SplitWorkoutScreen() {
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => {
-                    // Add 30 seconds
+                    // Add 30 seconds — extend both state and the end timestamp
                     setRestTime(prev => prev + 30);
                     setRestTotal(prev => prev + 30);
+                    if (restEndTimestampRef.current) {
+                      restEndTimestampRef.current += 30000;
+                    }
                   }}
                   style={{
                     paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, alignItems: 'center',
@@ -2552,24 +2631,66 @@ export default function SplitWorkoutScreen() {
               <Text style={{ color: colors.cardMuted, textAlign: 'center', paddingVertical: 20 }}>No alternatives available for this exercise.</Text>
             ) : (
               swapAlternatives.map((alt, idx) => (
-                <TouchableOpacity
+                <View
                   key={idx}
-                  onPress={() => handleConfirmSwap(alt)}
                   style={{
                     backgroundColor: colors.background,
                     borderRadius: 12,
-                    padding: 14,
                     marginBottom: 10,
                     borderWidth: 1,
                     borderColor: colors.cardBorder,
+                    overflow: 'hidden',
                   }}
                 >
-                  <Text style={{ fontSize: 15, fontWeight: '600', color: colors.cardForeground }}>{alt.name}</Text>
-                  <Text style={{ fontSize: 12, color: colors.cardMuted, marginTop: 2 }}>
-                    {alt.sets} sets · {alt.repsMin}-{alt.repsMax} reps · {alt.bodyPart}
-                  </Text>
-                  {alt.notes ? <Text style={{ fontSize: 11, color: colors.cardMuted, fontStyle: 'italic', marginTop: 2 }}>{alt.notes}</Text> : null}
-                </TouchableOpacity>
+                  {/* Video thumbnail — tappable to preview the exercise */}
+                  {alt.youtubeId ? (
+                    <TouchableOpacity
+                      onPress={() => {
+                        setVideoExercise({ name: alt.name, videoId: alt.youtubeId! });
+                        setVideoPlaying(false);
+                        setShowVideoModal(true);
+                      }}
+                      style={{ position: 'relative' }}
+                    >
+                      <Image
+                        source={{ uri: `https://img.youtube.com/vi/${alt.youtubeId}/mqdefault.jpg` }}
+                        style={{ width: '100%', height: 80 }}
+                        contentFit="cover"
+                      />
+                      <View style={{
+                        position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                        alignItems: 'center', justifyContent: 'center',
+                        backgroundColor: 'rgba(0,0,0,0.2)',
+                      }}>
+                        <View style={{
+                          width: 32, height: 32, borderRadius: 16,
+                          backgroundColor: 'rgba(0,0,0,0.55)',
+                          alignItems: 'center', justifyContent: 'center',
+                        }}>
+                          <Text style={{ color: '#fff', fontSize: 12, marginLeft: 2 }}>▶</Text>
+                        </View>
+                      </View>
+                      <View style={{
+                        position: 'absolute', top: 6, right: 6,
+                        backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2,
+                      }}>
+                        <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>Watch</Text>
+                      </View>
+                    </TouchableOpacity>
+                  ) : null}
+                  {/* Tap main area to select this alternative */}
+                  <TouchableOpacity
+                    onPress={() => handleConfirmSwap(alt)}
+                    style={{ padding: 14 }}
+                  >
+                    <Text style={{ fontSize: 15, fontWeight: '600', color: colors.cardForeground }}>{alt.name}</Text>
+                    <Text style={{ fontSize: 12, color: colors.cardMuted, marginTop: 2 }}>
+                      {alt.sets} sets · {alt.repsMin}-{alt.repsMax} reps · {alt.bodyPart}
+                    </Text>
+                    {alt.notes ? <Text style={{ fontSize: 11, color: colors.cardMuted, fontStyle: 'italic', marginTop: 2 }}>{alt.notes}</Text> : null}
+                    <Text style={{ fontSize: 11, color: colors.primary, fontWeight: '600', marginTop: 4 }}>Tap to swap →</Text>
+                  </TouchableOpacity>
+                </View>
               ))
             )}
             {/* Zaki equipment verify shortcut */}
