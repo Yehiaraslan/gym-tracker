@@ -23,7 +23,7 @@ import {
   AppState,
   type AppStateStatus,
 } from 'react-native';
-import * as Speech from 'expo-speech';
+import { useAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import ViewShot from 'react-native-view-shot';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -624,6 +624,20 @@ export default function SplitWorkoutScreen() {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [started, startTime]);
 
+  // Beep player — loaded once, replayed on each rest finish
+  const beepPlayer = useAudioPlayer(
+    Platform.OS !== 'web' ? require('../assets/sounds/rest-complete.wav') : null
+  );
+
+  // Enable audio in iOS silent mode once on mount
+  useEffect(() => {
+    if (Platform.OS !== 'web') {
+      setAudioModeAsync({ playsInSilentMode: true }).catch(() => {});
+    }
+    return () => { beepPlayer.release(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Fires when rest timer reaches zero — beep + haptic
   const handleRestFinished = useCallback(() => {
     setIsResting(false);
@@ -634,8 +648,11 @@ export default function SplitWorkoutScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 300);
       setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 600);
-      // Spoken announcement — audible through headphones
-      Speech.speak('Workout starts now', { language: 'en', rate: 0.9, pitch: 1.1 });
+      // Play gym-style triple beep through headphones
+      try {
+        beepPlayer.seekTo(0);
+        beepPlayer.play();
+      } catch { /* ignore if audio not ready */ }
     }
     // Auto-advance: scroll to and activate the next exercise
     const nextIdx = autoAdvanceToRef.current;
@@ -646,7 +663,8 @@ export default function SplitWorkoutScreen() {
         scrollRef.current?.scrollTo({ y: nextIdx * 200, animated: true });
       }, 150);
     }
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [beepPlayer]);
 
   // Rest timer — timestamp-based so it survives app backgrounding
   useEffect(() => {
