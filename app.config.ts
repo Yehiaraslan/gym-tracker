@@ -16,7 +16,7 @@ const env = {
   appSlug: "gym-tracker",
   // S3 URL of the app logo - set this to the URL returned by generate_image when creating custom logo
   // Leave empty to use the default icon from assets/images/icon.png
-  logoUrl: "https://d2xsxph8kpxj0f.cloudfront.net/120683425/cZHK9Nh6oC3jkbpfFUDiCK/gym-tracker-icon-nB3sESCnqUSkSEM3eTqDUx.png",
+  logoUrl: "https://files.manuscdn.com/user_upload_by_module/session_file/120683425/YVQeWugabBDmXViR.png",
   scheme: schemeFromBundleId,
   iosBundleId: bundleId,
   androidPackage: bundleId,
