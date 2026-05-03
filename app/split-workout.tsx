@@ -628,13 +628,19 @@ export default function SplitWorkoutScreen() {
   const beepPlayer = useAudioPlayer(
     Platform.OS !== 'web' ? require('../assets/sounds/rest-complete.wav') : null
   );
+  // Countdown tick player — short 660Hz tick played at 3, 2, 1 seconds remaining
+  const tickPlayer = useAudioPlayer(
+    Platform.OS !== 'web' ? require('../assets/sounds/countdown-tick.wav') : null
+  );
+  // Tracks which countdown seconds have already been beeped to avoid double-firing
+  const countdownBeeped = useRef<Set<number>>(new Set());
 
   // Enable audio in iOS silent mode once on mount
   useEffect(() => {
     if (Platform.OS !== 'web') {
       setAudioModeAsync({ playsInSilentMode: true }).catch(() => {});
     }
-    return () => { beepPlayer.release(); };
+    return () => { beepPlayer.release(); tickPlayer.release(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -673,9 +679,20 @@ export default function SplitWorkoutScreen() {
       if (!restEndTimestampRef.current) {
         restEndTimestampRef.current = Date.now() + restTime * 1000;
       }
+      // Reset countdown beep tracker when a new rest period starts
+      countdownBeeped.current.clear();
       restRef.current = setInterval(() => {
         const remaining = Math.max(0, Math.ceil((restEndTimestampRef.current! - Date.now()) / 1000));
         setRestTime(remaining);
+        // Countdown beeps at 3, 2, 1 seconds remaining
+        if (Platform.OS !== 'web' && remaining > 0 && remaining <= 3 && !countdownBeeped.current.has(remaining)) {
+          countdownBeeped.current.add(remaining);
+          try {
+            tickPlayer.seekTo(0);
+            tickPlayer.play();
+          } catch { /* ignore */ }
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+        }
         if (remaining <= 0) {
           if (restRef.current) clearInterval(restRef.current);
           handleRestFinished();
