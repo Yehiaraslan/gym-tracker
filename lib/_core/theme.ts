@@ -48,10 +48,45 @@ type RuntimePalette = SchemePaletteItem & {
   primaryInk: string;
   // Semantic colors
   successStrong: string;
+  successSoft: string;
   warningStrong: string;
+  warningSoft: string;
   errorStrong: string;
+  errorSoft: string;
   info: string;
   infoStrong: string;
+  infoSoft: string;
+  // Brand soft tints
+  primarySoft: string;
+  primaryEdge: string;
+  onPrimary: string;
+  bgSunken: string;
+  // Session colors
+  sessionUpperA: string;
+  sessionLowerA: string;
+  sessionUpperB: string;
+  sessionLowerB: string;
+  sessionPush: string;
+  sessionPull: string;
+  sessionLegs: string;
+  sessionFull: string;
+  sessionRest: string;
+  // Rarity
+  rarityCommon: string;
+  rarityRare: string;
+  rarityEpic: string;
+  rarityLegendary: string;
+  // Levels
+  levelBeginner: string;
+  levelNovice: string;
+  levelIntermediate: string;
+  levelAdvanced: string;
+  levelElite: string;
+  levelLegend: string;
+  // Recovery zones
+  recoveryHigh: string;
+  recoveryMid: string;
+  recoveryLow: string;
 };
 
 /** Safe accessor — returns value or fallback if key not in base palette */
@@ -83,10 +118,45 @@ function buildRuntimePalette(scheme: ColorScheme): RuntimePalette {
     primaryInk: pick(base, 'primaryInk', '#0A0B0A'),
     // Semantic
     successStrong: pick(base, 'successStrong', '#22C55E'),
+    successSoft: pick(base, 'successSoft', 'rgba(74,222,128,0.12)'),
     warningStrong: pick(base, 'warningStrong', '#F59E0B'),
+    warningSoft: pick(base, 'warningSoft', 'rgba(245,158,11,0.14)'),
     errorStrong: pick(base, 'errorStrong', '#EF4444'),
+    errorSoft: pick(base, 'errorSoft', 'rgba(239,68,68,0.14)'),
     info: pick(base, 'info', '#60A5FA'),
     infoStrong: pick(base, 'infoStrong', '#3B82F6'),
+    infoSoft: pick(base, 'infoSoft', 'rgba(59,130,246,0.14)'),
+    // Brand soft tints
+    primarySoft: pick(base, 'primarySoft', 'rgba(200,245,60,0.14)'),
+    primaryEdge: pick(base, 'primaryEdge', 'rgba(200,245,60,0.35)'),
+    onPrimary: pick(base, 'onPrimary', '#0A0B0A'),
+    bgSunken: pick(base, 'bgSunken', '#05060A'),
+    // Session colors
+    sessionUpperA: pick(base, 'sessionUpperA', '#3B82F6'),
+    sessionLowerA: pick(base, 'sessionLowerA', '#8B5CF6'),
+    sessionUpperB: pick(base, 'sessionUpperB', '#06B6D4'),
+    sessionLowerB: pick(base, 'sessionLowerB', '#10B981'),
+    sessionPush: pick(base, 'sessionPush', '#EC4899'),
+    sessionPull: pick(base, 'sessionPull', '#14B8A6'),
+    sessionLegs: pick(base, 'sessionLegs', '#F59E0B'),
+    sessionFull: pick(base, 'sessionFull', '#EF4444'),
+    sessionRest: pick(base, 'sessionRest', '#374151'),
+    // Rarity
+    rarityCommon: pick(base, 'rarityCommon', '#9CA3AF'),
+    rarityRare: pick(base, 'rarityRare', '#3B82F6'),
+    rarityEpic: pick(base, 'rarityEpic', '#8B5CF6'),
+    rarityLegendary: pick(base, 'rarityLegendary', '#F59E0B'),
+    // Levels
+    levelBeginner: pick(base, 'levelBeginner', '#22C55E'),
+    levelNovice: pick(base, 'levelNovice', '#3B82F6'),
+    levelIntermediate: pick(base, 'levelIntermediate', '#8B5CF6'),
+    levelAdvanced: pick(base, 'levelAdvanced', '#F59E0B'),
+    levelElite: pick(base, 'levelElite', '#EF4444'),
+    levelLegend: pick(base, 'levelLegend', '#F97316'),
+    // Recovery zones
+    recoveryHigh: pick(base, 'recoveryHigh', '#22C55E'),
+    recoveryMid: pick(base, 'recoveryMid', '#F59E0B'),
+    recoveryLow: pick(base, 'recoveryLow', '#EF4444'),
   };
 }
 

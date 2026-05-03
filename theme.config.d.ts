@@ -1,17 +1,67 @@
+type Swatch = { light: string; dark: string };
+
 export const themeColors: {
-  primary:        { light: string; dark: string };
-  background:     { light: string; dark: string };
-  surface:        { light: string; dark: string };
-  foreground:     { light: string; dark: string };
-  muted:          { light: string; dark: string };
-  cardForeground: { light: string; dark: string };
-  cardMuted:      { light: string; dark: string };
-  border:         { light: string; dark: string };
-  cardBorder:     { light: string; dark: string };
-  tint:           { light: string; dark: string };
-  success:        { light: string; dark: string };
-  warning:        { light: string; dark: string };
-  error:          { light: string; dark: string };
+  // Surfaces
+  background:        Swatch;
+  bgSunken:          Swatch;
+  surface:           Swatch;
+  surface2:          Swatch;
+  surface3:          Swatch;
+  border:            Swatch;
+  cardBorder:        Swatch;
+  // Foreground
+  foreground:        Swatch;
+  cardForeground:    Swatch;
+  fg3:               Swatch;
+  muted:             Swatch;
+  cardMuted:         Swatch;
+  mute3:             Swatch;
+  primaryInk:        Swatch;
+  // Brand
+  primary:           Swatch;
+  tint:              Swatch;
+  primarySoft:       Swatch;
+  primaryEdge:       Swatch;
+  onPrimary:         Swatch;
+  // Semantic
+  success:           Swatch;
+  successStrong:     Swatch;
+  successSoft:       Swatch;
+  warning:           Swatch;
+  warningStrong:     Swatch;
+  warningSoft:       Swatch;
+  error:             Swatch;
+  errorStrong:       Swatch;
+  errorSoft:         Swatch;
+  info:              Swatch;
+  infoStrong:        Swatch;
+  infoSoft:          Swatch;
+  // Session colors
+  sessionUpperA:     Swatch;
+  sessionLowerA:     Swatch;
+  sessionUpperB:     Swatch;
+  sessionLowerB:     Swatch;
+  sessionPush:       Swatch;
+  sessionPull:       Swatch;
+  sessionLegs:       Swatch;
+  sessionFull:       Swatch;
+  sessionRest:       Swatch;
+  // Rarity
+  rarityCommon:      Swatch;
+  rarityRare:        Swatch;
+  rarityEpic:        Swatch;
+  rarityLegendary:   Swatch;
+  // Levels
+  levelBeginner:     Swatch;
+  levelNovice:       Swatch;
+  levelIntermediate: Swatch;
+  levelAdvanced:     Swatch;
+  levelElite:        Swatch;
+  levelLegend:       Swatch;
+  // Recovery zones
+  recoveryHigh:      Swatch;
+  recoveryMid:       Swatch;
+  recoveryLow:       Swatch;
 };
 
 declare const themeConfig: {

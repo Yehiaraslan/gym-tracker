@@ -8,8 +8,8 @@ import { useColors } from "@/hooks/use-colors";
 export default function TabLayout() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const bottomPadding = Platform.OS === "web" ? 10 : Math.max(insets.bottom, 6);
-  const tabBarHeight = 52 + bottomPadding;
+  const bottomPadding = Platform.OS === "web" ? 10 : Math.max(insets.bottom, 8);
+  const tabBarHeight = 56 + bottomPadding;
 
   return (
     <Tabs
@@ -19,16 +19,18 @@ export default function TabLayout() {
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '500',
+          fontSize: 11,
+          fontWeight: '600',
+          letterSpacing: 0.2,
         },
         tabBarStyle: {
-          paddingTop: 6,
+          paddingTop: 8,
           paddingBottom: bottomPadding,
           height: tabBarHeight,
-          backgroundColor: colors.background,
-          borderTopColor: colors.border,
-          borderTopWidth: 1,
+          // Banana Pro: tab bar sits on surface (#14171A), slightly elevated above bg
+          backgroundColor: colors.surface,
+          borderTopColor: colors.cardBorder,
+          borderTopWidth: 0.5,
         },
       }}
     >
