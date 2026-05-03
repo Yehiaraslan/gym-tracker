@@ -1151,11 +1151,13 @@ export const appRouter = router({
           '- Scales intensity if recovery is low (<50%)',
           '',
           'Respond ONLY with a raw JSON array (no markdown, no explanation):',
-          '[{"name":"...","sets":2,"reps":"10","note":"..."}]',
+          '[{"name":"...","sets":2,"reps":"10","note":"...","youtubeId":"VIDEO_ID_HERE"}]',
+          '',
+          'For youtubeId: provide a real 11-character YouTube video ID of a short form-demonstration video for that specific warm-up exercise. Use well-known fitness channels (AthleanX, Jeff Nippard, Alan Thrall, Renaissance Periodization). If you cannot find a reliable ID, use an empty string "".',
         ].filter(Boolean).join('\n');
 
         const result = await zaki.askZaki(prompt);
-        let items: { name: string; sets: number; reps: string; note: string }[] = [];
+        let items: { name: string; sets: number; reps: string; note: string; youtubeId?: string }[] = [];
         try {
           const raw = result.response.trim().replace(/^```[\w]*\n?/, '').replace(/\n?```$/, '').trim();
           items = JSON.parse(raw);
