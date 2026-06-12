@@ -140,6 +140,7 @@ export default function ProfileScreen() {
     }
     const isWeb = Platform.OS === 'web';
     const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'] as any,
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,

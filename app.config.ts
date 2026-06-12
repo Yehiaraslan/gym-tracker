@@ -136,18 +136,9 @@ const config: ExpoConfig = {
         cameraPermission: "Allow $(PRODUCT_NAME) to access your camera for progress photos.",
       },
     ],
-    [
-      "react-native-vision-camera",
-      {
-        cameraPermissionText: "$(PRODUCT_NAME) needs camera access for AI form coaching during exercises.",
-        enableFrameProcessors: true,
-      },
-    ],
-    // Custom plugin: ensures react-native-worklets-core is registered as a Gradle
-    // project so VisionCamera's build.gradle finds it and enables frame processors.
-    // Without this, findProject(":react-native-worklets-core") returns null and
-    // frame processors are disabled at compile time (Frames: 0 / FPS: 0 on device).
-    "./plugins/withWorkletsCore",
+    // vision-camera + mediapipe + worklets-core removed 2026-06-13: old-bridge mediapipe
+    // breaks under New Architecture and the pose stack had no consumers on main.
+    // Full implementation preserved on branch feat/mediapipe-pose.
     // Android home screen widget
     [
       "react-native-android-widget",

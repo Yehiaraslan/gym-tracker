@@ -906,7 +906,7 @@ function AICoachingDashboardInner() {
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: 'images',
+      mediaTypes: ['images'] as any,
       quality: 0.7,
       base64: true,
     });
@@ -925,6 +925,7 @@ function AICoachingDashboardInner() {
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'] as any,
       quality: 0.7,
       base64: true,
     });

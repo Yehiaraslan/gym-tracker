@@ -395,7 +395,8 @@ export default function SplitWorkoutScreen() {
     }
     const launchFn = source === 'camera' ? ImagePicker.launchCameraAsync : ImagePicker.launchImageLibraryAsync;
     const result = await launchFn({
-      mediaTypes: 'livePhotos',
+      // 'livePhotos' is iOS-only and breaks the Android picker entirely
+      mediaTypes: ['images', 'videos'] as any,
       quality: 0.6,
       base64: true,
       videoMaxDuration: 30,
@@ -444,7 +445,7 @@ export default function SplitWorkoutScreen() {
       Alert.alert('Permission needed', 'Allow camera access to snap the equipment.');
       return;
     }
-    const result = await ImagePicker.launchCameraAsync({ quality: 0.7, base64: true });
+    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'] as any, quality: 0.7, base64: true });
     if (!result.canceled && result.assets[0]) {
       setEquipImageUri(result.assets[0].uri);
       setEquipImageBase64(result.assets[0].base64 ?? null);

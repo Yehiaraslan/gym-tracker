@@ -708,7 +708,7 @@ export default function ProgressPicturesScreen() {
         return;
       }
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'] as any,
         quality: 0.85,
         allowsEditing: true,
         base64: false,
@@ -805,7 +805,7 @@ export default function ProgressPicturesScreen() {
 
       const isWeb = Platform.OS === 'web';
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'] as any,
         quality: 0.85,
         allowsMultipleSelection: false,
         // allowsEditing launches a separate crop Activity on Android which crashes
