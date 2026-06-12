@@ -267,7 +267,10 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
   } = params;
 
   const payload: Record<string, unknown> = {
-    model: "gemini-2.5-flash",
+    // Self-hosted: point BUILT_IN_FORGE_API_URL at any OpenAI-compatible API
+    // and pick the model via LLM_MODEL (vision-capable model required for
+    // bodyAnalysis / formReview / equipmentVerify).
+    model: process.env.LLM_MODEL ?? "gemini-2.5-flash",
     messages: messages.map(normalizeMessage),
   };
 
@@ -280,10 +283,9 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     payload.tool_choice = normalizedToolChoice;
   }
 
-  payload.max_tokens = 32768;
-  payload.thinking = {
-    budget_tokens: 128,
-  };
+  // `thinking` is a Manus-Forge-only extension; OpenAI-compatible APIs reject it.
+  // 4096 output tokens is plenty for every route in this app and works on all models.
+  payload.max_tokens = 4096;
 
   const normalizedResponseFormat = normalizeResponseFormat({
     responseFormat,
@@ -294,6 +296,13 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
 
   if (normalizedResponseFormat) {
     payload.response_format = normalizedResponseFormat;
+  }
+
+  if (process.env.LLM_DEBUG === "1") {
+    const preview = JSON.stringify(payload, (k, v) =>
+      typeof v === "string" && v.length > 200 ? v.slice(0, 120) + `…(${v.length})` : v,
+    );
+    console.log("[LLM_DEBUG] outgoing payload:", preview.slice(0, 2000));
   }
 
   const response = await fetch(resolveApiUrl(), {

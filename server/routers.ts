@@ -1048,15 +1048,12 @@ export const appRouter = router({
         }).optional(),
       }))
       .mutation(async ({ input }) => {
-        // 1. Upload each photo to S3 so the LLM can access a public URL
-        const uploadedPhotos: { label: string; url: string }[] = [];
-        for (const photo of input.photos) {
-          const buf = Buffer.from(photo.base64, 'base64');
-          const ext = (photo.mimeType?.includes('/') ? photo.mimeType.split('/')[1] : 'jpg') ?? 'jpg';
-          const key = `body-analysis/${Date.now()}-${photo.label}.${ext}`;
-          const { url } = await storagePut(key, buf, photo.mimeType);
-          uploadedPhotos.push({ label: photo.label, url });
-        }
+        // 1. Inline each photo as a base64 data URL — works with any
+        //    OpenAI-compatible vision API and needs no storage proxy.
+        const uploadedPhotos: { label: string; url: string }[] = input.photos.map((photo) => ({
+          label: photo.label,
+          url: `data:${photo.mimeType};base64,${photo.base64}`,
+        }));
 
         // 2. Build multimodal LLM prompt
         const ctx = input.userContext;
@@ -1073,6 +1070,7 @@ export const appRouter = router({
           'You are Zaki — an elite strength & conditioning coach with expertise in biomechanics, physique assessment, and corrective exercise.',
           'You are analyzing progress photos to provide actionable, evidence-based feedback.',
           'Be specific, data-driven, and constructive. Avoid generic advice.',
+          'If no human physique is clearly visible in the photos, state that in overallAssessment and return empty arrays — never fabricate findings.',
           'Return your analysis as a JSON object with the exact schema specified.',
         ].join(' ');
 
