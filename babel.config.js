@@ -1,14 +1,11 @@
 module.exports = function (api) {
   api.cache(true);
-  let plugins = [];
 
-  // react-native-worklets-core/plugin is required by VisionCamera v4 and MediaPipe
-  // to compile "worklet" directives in frame processors.
-  // DO NOT use "react-native-worklets/plugin" — that is a different unrelated package.
-  plugins.push("react-native-worklets-core/plugin");
-
+  // react-native-worklets-core/plugin was removed with the VisionCamera/MediaPipe
+  // pose stack (2026-06-13). Reanimated 4 worklets are handled automatically by
+  // babel-preset-expo (react-native-worklets/plugin).
   return {
     presets: [["babel-preset-expo", { jsxImportSource: "nativewind" }], "nativewind/babel"],
-    plugins,
+    plugins: [],
   };
 };
