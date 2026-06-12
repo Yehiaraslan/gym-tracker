@@ -30,10 +30,10 @@ const config: ExpoConfig = {
   icon: "./assets/images/icon.png",
   scheme: env.scheme,
   userInterfaceStyle: "automatic",
-  // Disabled: react-native-mediapipe uses old NativeModules bridge (not TurboModules).
-  // New Architecture breaks createDetector() and the frame processor plugin registry.
-  // Re-enable only after upgrading to a mediapipe version with TurboModule support.
-  newArchEnabled: false,
+  // Reanimated 4 requires New Architecture (Gradle assertNewArchitectureEnabledTask fails otherwise).
+  // Trade-off: react-native-mediapipe (old bridge) breaks at runtime under new arch, but
+  // use-pose-camera has no consumers on main — revisit when the pose coach feature returns.
+  newArchEnabled: true,
   ios: {
     supportsTablet: true,
     bundleIdentifier: env.iosBundleId,
