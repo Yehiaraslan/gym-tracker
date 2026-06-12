@@ -779,6 +779,10 @@ export default function SplitWorkoutScreen() {
     }
     setRestTime(adjustedRest);
     setRestTotal(adjustedRest);
+    // Reset the absolute end timestamp here so a new rest period starts correctly
+    // even if a rest is already running (effect won't re-run since isResting stays true)
+    restEndTimestampRef.current = Date.now() + adjustedRest * 1000;
+    countdownBeeped.current.clear();
     setIsResting(true);
     setRestExerciseName(exercise.name);
 

@@ -75,7 +75,7 @@ export interface JointAlertState {
 export class JointLossAlertManager {
   private jointStatus: Map<number, JointTrackingStatus> = new Map();
   private pendingLossAlerts: JointLossEvent[] = [];
-  private batchAlertTimeout: number | null = null;
+  private batchAlertTimeout: ReturnType<typeof setTimeout> | null = null;
   private audioEnabled: boolean = true;
   private hapticEnabled: boolean = true;
   private isActive: boolean = false;

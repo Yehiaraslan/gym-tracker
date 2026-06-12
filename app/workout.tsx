@@ -232,6 +232,24 @@ export default function WorkoutScreen() {
       }
     };
   }, [isResting, currentExercise?.name]);
+
+  // Load favorite tips and heart rate data on complete phase
+  // (must stay above all early returns — hooks can't be conditional)
+  useEffect(() => {
+    if (phase === 'complete') {
+      getFavoriteTips().then(favorites => {
+        setFavoritedTipIds(new Set(favorites.map(f => f.tip.id)));
+      });
+
+      // Load demo heart rate data (in production, fetch from WHOOP API)
+      const duration = workoutLog?.startedAt && workoutLog?.completedAt
+        ? Math.round((workoutLog.completedAt - workoutLog.startedAt) / 60000)
+        : 45;
+      const demoData = getDemoHeartRateData(duration);
+      setHeartRateData(demoData);
+    }
+  }, [phase, workoutLog]);
+
   const lastWeightValue = currentDayExercise ? getLastWeight(currentDayExercise.exerciseId) : null;
   const bestWeight = currentDayExercise ? getBestWeight(currentDayExercise.exerciseId) : null;
 
@@ -742,22 +760,6 @@ export default function WorkoutScreen() {
       </ScreenContainer>
     );
   }
-
-  // Load favorite tips and heart rate data on complete phase
-  useEffect(() => {
-    if (phase === 'complete') {
-      getFavoriteTips().then(favorites => {
-        setFavoritedTipIds(new Set(favorites.map(f => f.tip.id)));
-      });
-      
-      // Load demo heart rate data (in production, fetch from WHOOP API)
-      const duration = workoutLog?.startedAt && workoutLog?.completedAt 
-        ? Math.round((workoutLog.completedAt - workoutLog.startedAt) / 60000)
-        : 45;
-      const demoData = getDemoHeartRateData(duration);
-      setHeartRateData(demoData);
-    }
-  }, [phase, workoutLog]);
 
   // Render Complete Phase with Summary
   if (phase === 'complete') {
