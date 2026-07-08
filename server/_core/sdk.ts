@@ -251,6 +251,22 @@ class SDKServer {
     const signedInAt = new Date();
     let user = await db.getUserByOpenId(sessionUserId);
 
+    // Guest sessions and DB-less deployments authenticate from the verified JWT
+    // alone — there is no Manus OAuth server to sync from in self-hosted mode.
+    if (!user && (sessionUserId.startsWith("guest-") || !process.env.DATABASE_URL)) {
+      return {
+        id: 0,
+        openId: sessionUserId,
+        name: session.name || null,
+        email: null,
+        loginMethod: "guest",
+        role: sessionUserId === ENV.ownerOpenId ? "admin" : "user",
+        createdAt: signedInAt,
+        updatedAt: signedInAt,
+        lastSignedIn: signedInAt,
+      };
+    }
+
     // If user not in DB, sync from OAuth server automatically
     if (!user) {
       try {

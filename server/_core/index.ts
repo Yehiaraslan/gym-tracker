@@ -1,11 +1,16 @@
 import "dotenv/config";
+import { randomUUID } from "crypto";
 import express from "express";
 import { createServer } from "http";
 import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
+import { COOKIE_NAME, ONE_YEAR_MS } from "../../shared/const.js";
 import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
+import { getSessionCookieOptions } from "./cookies";
+import { sdk } from "./sdk";
+import * as db from "../db";
 import * as whoopStateDb from "../whoopStateDb";
 import * as whoopService from "../whoopService";
 import { startDailyDigestScheduler } from "../zakiDailyDigest";
@@ -137,6 +142,52 @@ async function startServer() {
 
   app.get("/api/health", (_req, res) => {
     res.json({ ok: true, timestamp: Date.now() });
+  });
+
+  // Guest sign-in for self-hosted deployments: mints a session JWT without the
+  // Manus OAuth portal. Gated by GUEST_AUTH_ENABLED + shared invite code.
+  app.post("/api/auth/guest", async (req, res) => {
+    if (process.env.GUEST_AUTH_ENABLED !== "1") {
+      res.status(404).json({ error: "not_found" });
+      return;
+    }
+    try {
+      const requiredCode = process.env.GUEST_AUTH_CODE ?? "";
+      const body = (req.body ?? {}) as { name?: unknown; code?: unknown; openId?: unknown };
+      if (requiredCode && body.code !== requiredCode) {
+        res.status(403).json({ error: "invalid_code" });
+        return;
+      }
+      // Reuse a previously issued guest identity when the client sends one back;
+      // the prefix check stops callers from claiming arbitrary (e.g. owner) openIds.
+      const openId =
+        typeof body.openId === "string" && /^guest-[0-9a-f-]{8,64}$/.test(body.openId)
+          ? body.openId
+          : `guest-${randomUUID()}`;
+      const name =
+        typeof body.name === "string" && body.name.trim() ? body.name.trim().slice(0, 64) : "Guest";
+      const now = new Date();
+      const sessionToken = await sdk.createSessionToken(openId, { name });
+      await db.upsertUser({ openId, name, loginMethod: "guest", lastSignedIn: now });
+      res.cookie(COOKIE_NAME, sessionToken, {
+        ...getSessionCookieOptions(req),
+        maxAge: ONE_YEAR_MS,
+      });
+      res.json({
+        sessionToken,
+        user: {
+          id: 0,
+          openId,
+          name,
+          email: null,
+          loginMethod: "guest",
+          lastSignedIn: now.toISOString(),
+        },
+      });
+    } catch (error) {
+      console.error("[GuestAuth] Failed to create guest session:", error);
+      res.status(500).json({ error: "guest_auth_failed" });
+    }
   });
 
   // WHOOP debug endpoint (safe - no secrets exposed)

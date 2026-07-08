@@ -23,6 +23,8 @@ export const APP_ID = env.appId;
 export const OWNER_OPEN_ID = env.ownerId;
 export const OWNER_NAME = env.ownerName;
 export const API_BASE_URL = env.apiBaseUrl;
+// Invite code for self-hosted guest sign-in (must match the server's GUEST_AUTH_CODE)
+export const GUEST_CODE = process.env.EXPO_PUBLIC_GUEST_CODE ?? "";
 
 /**
  * Get the API base URL, deriving from current hostname if not set.

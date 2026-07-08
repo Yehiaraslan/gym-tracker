@@ -89,6 +89,22 @@ export async function apiCall<T>(endpoint: string, options: RequestInit = {}): P
   }
 }
 
+// Guest sign-in for self-hosted deployments — no OAuth portal involved.
+// Server mints a session JWT when GUEST_AUTH_ENABLED=1 and the invite code matches.
+export async function guestLogin(
+  name?: string,
+  code?: string,
+): Promise<{ sessionToken: string; user: any }> {
+  const result = await apiCall<{ sessionToken: string; user: any }>("/api/auth/guest", {
+    method: "POST",
+    body: JSON.stringify({ name, code }),
+  });
+  if (!result.sessionToken) {
+    throw new Error("Guest sign-in failed: no session token returned");
+  }
+  return result;
+}
+
 // OAuth callback handler - exchange code for session token
 // Calls /api/oauth/mobile endpoint which returns JSON with app_session_id and user
 export async function exchangeOAuthCode(

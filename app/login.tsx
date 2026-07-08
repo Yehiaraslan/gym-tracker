@@ -1,7 +1,8 @@
 // ============================================================
 // LOGIN SCREEN
 // First screen shown to unauthenticated users.
-// Uses Manus OAuth for sign-in with persistent session.
+// Self-hosted deployments have no Manus OAuth portal, so sign-in
+// mints a guest session from our own backend instead.
 // ============================================================
 import { useState } from 'react';
 import {
@@ -10,43 +11,42 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
-  Platform,
+  Alert,
   Image,
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import * as WebBrowser from 'expo-web-browser';
-import * as Linking from 'expo-linking';
 import { ScreenContainer } from '@/components/screen-container';
 import { useColors } from '@/hooks/use-colors';
-import { getLoginUrl } from '@/constants/oauth';
+import { GUEST_CODE } from '@/constants/oauth';
+import * as Api from '@/lib/_core/api';
+import * as Auth from '@/lib/_core/auth';
+import { notifyAuthChanged } from '@/hooks/use-auth';
 
 export default function LoginScreen() {
   const colors = useColors();
-  const router = useRouter();
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
     try {
       setLoading(true);
-      const loginUrl = getLoginUrl();
+      const { sessionToken, user } = await Api.guestLogin(undefined, GUEST_CODE);
 
-      if (Platform.OS === 'web') {
-        // Web: redirect directly
-        window.location.href = loginUrl;
-      } else {
-        // Native: open auth session in browser
-        const result = await WebBrowser.openAuthSessionAsync(
-          loginUrl,
-          Linking.createURL('/oauth/callback'),
-        );
+      await Auth.setSessionToken(sessionToken);
+      await Auth.setUserInfo({
+        id: user.id ?? 0,
+        openId: user.openId,
+        name: user.name ?? null,
+        email: user.email ?? null,
+        loginMethod: user.loginMethod ?? 'guest',
+        lastSignedIn: new Date(user.lastSignedIn || Date.now()),
+      });
 
-        if (result.type === 'success' && result.url) {
-          // The deep link will be handled by the oauth/callback screen
-          // which stores the token and redirects to (tabs)
-        }
-      }
+      // Wake the root AuthGate so it re-reads storage and routes to
+      // onboarding / tabs — this screen doesn't navigate itself.
+      notifyAuthChanged();
     } catch (error) {
       console.error('[Login] Error:', error);
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      Alert.alert('Sign-in failed', `Could not reach the server.\n\n${message}`);
     } finally {
       setLoading(false);
     }

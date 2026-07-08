@@ -7,6 +7,14 @@ type UseAuthOptions = {
   autoFetch?: boolean;
 };
 
+// useAuth keeps per-instance state, so a sign-in performed on one screen must
+// tell every other mounted instance (e.g. the root AuthGate) to re-read storage.
+const authListeners = new Set<() => void>();
+
+export function notifyAuthChanged() {
+  authListeners.forEach((listener) => listener());
+}
+
 export function useAuth(options?: UseAuthOptions) {
   const { autoFetch = true } = options ?? {};
   const [user, setUser] = useState<Auth.User | null>(null);
@@ -95,6 +103,16 @@ export function useAuth(options?: UseAuthOptions) {
   }, []);
 
   const isAuthenticated = useMemo(() => Boolean(user), [user]);
+
+  useEffect(() => {
+    const listener = () => {
+      fetchUser();
+    };
+    authListeners.add(listener);
+    return () => {
+      authListeners.delete(listener);
+    };
+  }, [fetchUser]);
 
   useEffect(() => {
     console.log("[useAuth] useEffect triggered, autoFetch:", autoFetch, "platform:", Platform.OS);
