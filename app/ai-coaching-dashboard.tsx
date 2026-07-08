@@ -203,6 +203,7 @@ function AICoachingDashboardInner() {
       setGoalAdjustResult(result as typeof goalAdjustResult);
     } catch (e) {
       console.error('Goal adjust error:', e);
+      Alert.alert('Adjustment failed', 'Zaki could not analyze your nutrition goals. Please try again.');
     } finally {
       setGoalAdjustLoading(false);
     }
@@ -240,6 +241,7 @@ function AICoachingDashboardInner() {
       setGoalAdjustApplied(true);
     } catch (e) {
       console.error('Apply goal adjust error:', e);
+      Alert.alert('Apply failed', 'Could not save the new nutrition targets. Please try again.');
     }
   };
 

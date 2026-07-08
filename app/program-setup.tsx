@@ -16,6 +16,7 @@ import {
   TextInput,
   Modal,
   KeyboardAvoidingView,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -143,6 +144,7 @@ export default function ProgramSetupScreen() {
       router.replace('/(tabs)');
     } catch (e) {
       console.error('[ProgramSetup] Apply error:', e);
+      Alert.alert('Apply failed', 'Could not apply the program. Please try again.');
     }
     setApplying(false);
   };
@@ -174,6 +176,7 @@ export default function ProgramSetupScreen() {
       router.replace('/(tabs)');
     } catch (e) {
       console.error('[ProgramSetup] Apply AI error:', e);
+      Alert.alert('Apply failed', 'Could not save the generated program. Please try again.');
     }
     setApplying(false);
   };

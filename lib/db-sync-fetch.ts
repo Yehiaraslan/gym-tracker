@@ -14,15 +14,22 @@
  *   sync.upsertPersonalRecord ← syncPersonalRecord
  */
 import { getDeviceId } from './device-id';
-
-const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? 'http://127.0.0.1:3000';
+import { getApiBaseUrl } from '@/constants/oauth';
+import * as Auth from '@/lib/_core/auth';
 
 async function trpcMutation(path: string, input: unknown): Promise<void> {
   try {
-    const url = `${API_BASE}/trpc/${path}`;
+    // Same base URL the rest of the app uses (EXPO_PUBLIC_API_BASE_URL);
+    // the server mounts tRPC at /api/trpc, and sync routes need the session.
+    const url = `${getApiBaseUrl()}/api/trpc/${path}`;
+    const token = await Auth.getSessionToken();
     await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      credentials: 'include',
       body: JSON.stringify({ json: input }),
     });
   } catch {

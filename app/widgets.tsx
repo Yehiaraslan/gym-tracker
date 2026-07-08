@@ -5,6 +5,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
@@ -55,6 +56,7 @@ export default function WidgetsScreen() {
       }
     } catch (error) {
       console.error('Error updating widget data:', error);
+      Alert.alert('Refresh failed', 'Could not update widget data. Please try again.');
     } finally {
       setIsRefreshing(false);
     }

@@ -122,11 +122,17 @@ export default function WhoopScreen() {
       if (result.data?.url) {
         await Linking.openURL(result.data.url);
       } else {
-        Alert.alert('Error', 'Could not generate WHOOP authorization URL. Please try again.');
+        Alert.alert(
+          'WHOOP not available',
+          'WHOOP integration is not set up on this server yet (it needs WHOOP developer credentials and a database). Everything else in the app works without it.',
+        );
       }
     } catch (error) {
       console.error('Error initiating WHOOP OAuth:', error);
-      Alert.alert('Connection Error', 'Could not initiate WHOOP connection. Please try again.');
+      Alert.alert(
+        'WHOOP not available',
+        'WHOOP integration is not set up on this server yet. Everything else in the app works without it.',
+      );
     }
   };
 

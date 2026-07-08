@@ -16,6 +16,7 @@ import {
   Platform,
   Animated,
   Image,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -121,6 +122,7 @@ export default function OnboardingScreen() {
       router.replace('/program-setup');
     } catch (e) {
       console.error('[Onboarding] Save error:', e);
+      Alert.alert('Save failed', 'Could not save your profile. Please try again.');
     }
     setSaving(false);
   };

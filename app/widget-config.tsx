@@ -7,6 +7,7 @@ import {
   Switch,
   StyleSheet,
   Platform,
+  Alert,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
@@ -85,6 +86,7 @@ export default function WidgetConfigScreen() {
       setTimeout(() => router.back(), 800);
     } catch (e) {
       console.error('Widget config save failed:', e);
+      Alert.alert('Save failed', 'Could not save widget settings. Please try again.');
     } finally {
       setIsSaving(false);
     }

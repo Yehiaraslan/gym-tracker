@@ -2,7 +2,7 @@ import { z } from "zod";
 import { COOKIE_NAME } from "../shared/const.js";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, router } from "./_core/trpc";
+import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import * as whoopService from "./whoopService";
 import * as whoopStateDb from "./whoopStateDb";
 import * as whoopDb from "./whoopDb";
@@ -562,7 +562,7 @@ export const appRouter = router({
 
   // ── AI Coaching ───────────────────────────────────────────
   zaki: router({
-    dailyCoaching: publicProcedure
+    dailyCoaching: protectedProcedure
       .input(z.object({
         recoveryScore: z.number().optional(),
         hrv: z.number().optional(),
@@ -584,7 +584,7 @@ export const appRouter = router({
         return { response };
       }),
 
-    workoutModification: publicProcedure
+    workoutModification: protectedProcedure
       .input(z.object({
         sessionName: z.string(),
         recoveryScore: z.number(),
@@ -602,7 +602,7 @@ export const appRouter = router({
       }),
 
     // Chat with session continuity — pass zakiSessionId to maintain conversation context
-    ask: publicProcedure
+    ask: protectedProcedure
       .input(z.object({
         message: z.string(),
         zakiSessionId: z.string().optional(),
@@ -612,7 +612,7 @@ export const appRouter = router({
         return { response: result.response, zakiSessionId: result.zakiSessionId };
       }),
 
-    sessionDebrief: publicProcedure
+    sessionDebrief: protectedProcedure
       .input(z.object({
         sessionNotesContext: z.string(),
         userContext: z.string(),
@@ -640,7 +640,7 @@ export const appRouter = router({
         return { response: result.response };
       }),
 
-    weeklyDigest: publicProcedure
+    weeklyDigest: protectedProcedure
       .input(z.object({ userContext: z.string() }))
       .mutation(async ({ input }) => {
         const prompt = [
@@ -662,18 +662,18 @@ export const appRouter = router({
       }),
 
     // Manually trigger the daily digest (for testing or on-demand)
-    triggerDailyDigest: publicProcedure
+    triggerDailyDigest: protectedProcedure
       .mutation(async () => {
         const result = await zakiDigest.triggerDailyDigestNow();
         return result;
       }),
-    triggerStagnationCheck: publicProcedure
+    triggerStagnationCheck: protectedProcedure
       .mutation(async () => {
         const result = await checkAndNotifyStagnation();
         return result;
       }),
     // Generate a fully custom AI training program
-    generateProgram: publicProcedure
+    generateProgram: protectedProcedure
       .input(z.object({
         goal: z.string(),
         experience: z.string(),
@@ -699,7 +699,7 @@ export const appRouter = router({
       }),
 
     // Propose a new training schedule based on user's request and full context
-    proposeSchedule: publicProcedure
+    proposeSchedule: protectedProcedure
       .input(z.object({
         userRequest: z.string(),
         currentContext: z.string(),
@@ -806,7 +806,7 @@ export const appRouter = router({
       }),
 
     // Mid-workout check-in: Zaki evaluates current progress and advises on remaining sets
-    midWorkoutCheckIn: publicProcedure
+    midWorkoutCheckIn: protectedProcedure
       .input(z.object({
         sessionName: z.string(),
         elapsedMinutes: z.number(),
@@ -854,7 +854,7 @@ export const appRouter = router({
       }),
 
     // Personalised daily digest with real workout data from client
-    personalizedDigest: publicProcedure
+    personalizedDigest: protectedProcedure
       .input(z.object({
         yesterdayWorkout: z.object({
           sessionName: z.string(),
@@ -873,14 +873,14 @@ export const appRouter = router({
       }),
 
     // Server-side Zaki session ID persistence (survives app restarts)
-    getSession: publicProcedure
+    getSession: protectedProcedure
       .input(z.object({ deviceId: z.string() }))
       .query(async ({ input }) => {
         const sessionId = await db.getZakiSession(input.deviceId);
         return { zakiSessionId: sessionId };
       }),
 
-    saveSession: publicProcedure
+    saveSession: protectedProcedure
       .input(z.object({ deviceId: z.string(), zakiSessionId: z.string() }))
       .mutation(async ({ input }) => {
         await db.upsertZakiSession(input.deviceId, input.zakiSessionId);
@@ -888,7 +888,7 @@ export const appRouter = router({
       }),
 
     // Upload a base64-encoded progress photo to S3 and return a public URL
-    uploadProgressPhoto: publicProcedure
+    uploadProgressPhoto: protectedProcedure
       .input(z.object({
         deviceId: z.string(),
         base64: z.string(),
@@ -906,7 +906,7 @@ export const appRouter = router({
       }),
 
     // Analyze body composition from progress photos using Zaki
-    analyzeBodyComposition: publicProcedure
+    analyzeBodyComposition: protectedProcedure
       .input(z.object({
         deviceId: z.string(),
         photoUrls: z.array(z.object({
@@ -927,7 +927,7 @@ export const appRouter = router({
       }),
 
     // ── Historical Performance Analysis (queries PostgreSQL workout history) ──
-    performanceAnalysis: publicProcedure
+    performanceAnalysis: protectedProcedure
       .input(z.object({
         deviceId: z.string(),
         weeksBack: z.number().min(1).max(12).default(4).optional(),
@@ -1030,7 +1030,7 @@ export const appRouter = router({
     // ── Body Analysis from Progress Photos ────────────────────
     // Accepts up to 3 base64-encoded images (front/back/side) and returns
     // a structured analysis covering posture, muscle balance, and weak points.
-    bodyAnalysis: publicProcedure
+    bodyAnalysis: protectedProcedure
       .input(z.object({
         // Each photo is { label: 'front'|'back'|'side'|'other', base64: string, mimeType: string }
         photos: z.array(z.object({
@@ -1127,7 +1127,7 @@ export const appRouter = router({
       }),
 
     // ── Zaki Warm-Up Plan Generator ──
-    warmupPlan: publicProcedure
+    warmupPlan: protectedProcedure
       .input(z.object({
         sessionType: z.string(),
         sessionName: z.string(),
@@ -1166,7 +1166,7 @@ export const appRouter = router({
         return { items, zakiSessionId: result.zakiSessionId };
       }),
 
-    logNutrition: publicProcedure
+    logNutrition: protectedProcedure
       .input(z.object({
         description: z.string(),
         imageBase64: z.string().optional(),
@@ -1216,7 +1216,7 @@ export const appRouter = router({
         return { success: true, entry: { ...entry, mealNumber: input.mealNumber as 1|2|3|4|5, date: input.date }, error: null };
       }),
 
-    formReview: publicProcedure
+    formReview: protectedProcedure
       .input(z.object({
         exerciseName: z.string(),
         imageBase64: z.string().optional(),
@@ -1250,7 +1250,7 @@ export const appRouter = router({
         return { feedback: response };
       }),
 
-    equipmentVerify: publicProcedure
+    equipmentVerify: protectedProcedure
       .input(z.object({
         targetExercise: z.string(),
         imageBase64: z.string(),
@@ -1274,7 +1274,7 @@ export const appRouter = router({
         const verdict = response.toLowerCase().includes('yes') ? 'yes' : response.toLowerCase().includes('partial') ? 'partial' : 'no';
         return { verdict, feedback: response };
       }),
-    nutritionGoalAdjust: publicProcedure
+    nutritionGoalAdjust: protectedProcedure
       .input(z.object({
         last7DaysContext: z.string(),
         currentTargets: z.object({
@@ -1319,19 +1319,19 @@ export const appRouter = router({
       }),
   }),
   aiCoaching: router({
-    dailyCoaching: publicProcedure
+    dailyCoaching: protectedProcedure
       .input(z.object({ userContext: z.string() }))
       .mutation(async ({ input }) => {
         return aiCoach.generateDailyCoaching(input.userContext);
       }),
 
-    weeklyDigest: publicProcedure
+    weeklyDigest: protectedProcedure
       .input(z.object({ userContext: z.string() }))
       .mutation(async ({ input }) => {
         return aiCoach.generateWeeklyDigest(input.userContext);
       }),
 
-    substituteExercise: publicProcedure
+    substituteExercise: protectedProcedure
       .input(z.object({
         exerciseName: z.string(),
         reason: z.string(),
@@ -1345,7 +1345,7 @@ export const appRouter = router({
         );
       }),
 
-    postWorkoutAnalysis: publicProcedure
+    postWorkoutAnalysis: protectedProcedure
       .input(z.object({
         workoutSummary: z.string(),
         userContext: z.string(),
@@ -1357,7 +1357,7 @@ export const appRouter = router({
         );
       }),
 
-    sessionDebrief: publicProcedure
+    sessionDebrief: protectedProcedure
       .input(z.object({
         sessionNotesContext: z.string(),
         userContext: z.string(),
@@ -1373,7 +1373,7 @@ export const appRouter = router({
   // ── Voice Transcription (Whisper) ──────────────────────────
   voice: router({
     // Accept base64 audio, upload to S3, then transcribe via Whisper
-    transcribeBase64: publicProcedure
+    transcribeBase64: protectedProcedure
       .input(z.object({
         deviceId: z.string(),
         base64: z.string(),
