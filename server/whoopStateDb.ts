@@ -5,6 +5,7 @@ import crypto from "crypto";
 import { eq, lt } from "drizzle-orm";
 import { getDb } from "./db";
 import { whoopOAuthState } from "../drizzle/schema";
+import { fileCreateState, fileConsumeState } from "./whoopFileStore";
 
 const STATE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
@@ -13,7 +14,11 @@ export async function createState(userOpenId?: string): Promise<string> {
   const expiresAt = Date.now() + STATE_TTL_MS;
 
   const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  if (!db) {
+    // DB-less deployment: file-backed state store
+    fileCreateState(state, userOpenId ?? null, expiresAt);
+    return state;
+  }
 
   await db.insert(whoopOAuthState).values({
     state,
@@ -26,7 +31,7 @@ export async function createState(userOpenId?: string): Promise<string> {
 
 export async function validateAndConsumeState(state: string): Promise<{ valid: boolean; userOpenId?: string }> {
   const db = await getDb();
-  if (!db) return { valid: false };
+  if (!db) return fileConsumeState(state);
 
   const rows = await db
     .select()

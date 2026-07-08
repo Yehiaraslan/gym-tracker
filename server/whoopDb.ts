@@ -4,6 +4,10 @@
 import { eq, and, gte, desc } from "drizzle-orm";
 import { getDb } from "./db";
 import {
+  fileSaveTokens, fileGetTokens, fileDeleteTokens,
+  fileSaveCache, fileGetCache, fileUpsertRecoveryHistory, fileGetRecoveryHistory,
+} from "./whoopFileStore";
+import {
   whoopTokens,
   whoopDataCache,
   whoopRecoveryHistory,
@@ -14,7 +18,10 @@ import {
 // ── Token helpers ────────────────────────────────────────────
 export async function saveWhoopTokens(data: InsertWhoopToken) {
   const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  if (!db) {
+    fileSaveTokens(data as Parameters<typeof fileSaveTokens>[0]);
+    return;
+  }
   await db.insert(whoopTokens).values(data).onDuplicateKeyUpdate({
     set: {
       accessToken: data.accessToken,
@@ -27,7 +34,7 @@ export async function saveWhoopTokens(data: InsertWhoopToken) {
 
 export async function getWhoopTokens(userOpenId: string) {
   const db = await getDb();
-  if (!db) return null;
+  if (!db) return fileGetTokens(userOpenId) as any;
   const rows = await db
     .select()
     .from(whoopTokens)
@@ -38,7 +45,10 @@ export async function getWhoopTokens(userOpenId: string) {
 
 export async function deleteWhoopTokens(userOpenId: string) {
   const db = await getDb();
-  if (!db) return;
+  if (!db) {
+    fileDeleteTokens(userOpenId);
+    return;
+  }
   await db.delete(whoopTokens).where(eq(whoopTokens.userOpenId, userOpenId));
   await db.delete(whoopDataCache).where(eq(whoopDataCache.userOpenId, userOpenId));
 }
@@ -54,7 +64,10 @@ export async function saveWhoopCache(
   }
 ) {
   const db = await getDb();
-  if (!db) return;
+  if (!db) {
+    fileSaveCache(userOpenId, data);
+    return;
+  }
   await db
     .insert(whoopDataCache)
     .values({
@@ -78,7 +91,7 @@ export async function saveWhoopCache(
 
 export async function getWhoopCache(userOpenId: string) {
   const db = await getDb();
-  if (!db) return null;
+  if (!db) return fileGetCache(userOpenId) as any;
   const rows = await db
     .select()
     .from(whoopDataCache)
@@ -90,7 +103,10 @@ export async function getWhoopCache(userOpenId: string) {
 // ── Recovery History helpers ─────────────────────────────────
 export async function upsertRecoveryHistory(data: InsertWhoopRecoveryHistory) {
   const db = await getDb();
-  if (!db) return;
+  if (!db) {
+    fileUpsertRecoveryHistory(data as any);
+    return;
+  }
   await db
     .delete(whoopRecoveryHistory)
     .where(
@@ -104,7 +120,7 @@ export async function upsertRecoveryHistory(data: InsertWhoopRecoveryHistory) {
 
 export async function getRecoveryHistory(userOpenId: string, days = 7) {
   const db = await getDb();
-  if (!db) return [];
+  if (!db) return fileGetRecoveryHistory(userOpenId, days) as any;
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - days);
   const cutoffStr = cutoff.toISOString().split("T")[0];

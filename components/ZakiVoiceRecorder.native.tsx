@@ -6,7 +6,15 @@
 // ============================================================
 import { useCallback, useState } from 'react';
 import { TouchableOpacity, Text, TextInput, View, StyleSheet, ActivityIndicator } from 'react-native';
-import { useAudioRecorder, RecordingPresets, requestRecordingPermissionsAsync } from 'expo-audio';
+// expo-audio is loaded defensively: if its native module is missing from a
+// build, a static import would throw at require time and take the whole app
+// down with it. With the guard, chat still works — only the mic is disabled.
+let audio: typeof import('expo-audio') | null = null;
+try {
+  audio = require('expo-audio');
+} catch (e) {
+  console.error('[ZakiVoiceRecorder] expo-audio unavailable:', e);
+}
 import * as Haptics from 'expo-haptics';
 import * as FileSystem from 'expo-file-system/legacy';
 
@@ -29,7 +37,39 @@ export interface ZakiVoiceRecorderProps {
   };
 }
 
-export function ZakiVoiceRecorder({
+export function ZakiVoiceRecorder(props: ZakiVoiceRecorderProps) {
+  // audio module availability is fixed for the app's lifetime, so the
+  // conditional render keeps hook order consistent across mounts
+  if (!audio) return <VoiceRecorderNoMic {...props} />;
+  return <ZakiVoiceRecorderInner {...props} />;
+}
+
+function VoiceRecorderNoMic({ chatInput, setChatInput, onSend, chatLoading, colors }: ZakiVoiceRecorderProps) {
+  return (
+    <View style={styles.row}>
+      <TextInput
+        style={[styles.input, { backgroundColor: colors.cardBorder, color: colors.foreground }]}
+        value={chatInput}
+        onChangeText={setChatInput}
+        placeholder="Ask Zaki anything..."
+        placeholderTextColor={colors.cardMuted}
+        multiline
+        returnKeyType="send"
+        onSubmitEditing={onSend}
+        editable={!chatLoading}
+      />
+      <TouchableOpacity
+        onPress={onSend}
+        disabled={chatLoading || !chatInput.trim()}
+        style={[styles.sendBtn, { opacity: chatLoading || !chatInput.trim() ? 0.4 : 1 }]}
+      >
+        {chatLoading ? <ActivityIndicator size="small" color="#000" /> : <Text style={styles.sendText}>↑</Text>}
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+function ZakiVoiceRecorderInner({
   deviceId,
   chatInput,
   setChatInput,
@@ -42,7 +82,7 @@ export function ZakiVoiceRecorder({
   transcribeAsync,
   colors,
 }: ZakiVoiceRecorderProps) {
-  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const recorder = audio!.useAudioRecorder(audio!.RecordingPresets.HIGH_QUALITY);
 
   const handleVoiceTap = useCallback(async () => {
     if (isTranscribing) return;
@@ -68,7 +108,7 @@ export function ZakiVoiceRecorder({
         setIsTranscribing(false);
       }
     } else {
-      const { granted } = await requestRecordingPermissionsAsync();
+      const { granted } = await audio!.requestRecordingPermissionsAsync();
       if (!granted) return;
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       await recorder.record();

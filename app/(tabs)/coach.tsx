@@ -1,25 +1,36 @@
 // ============================================================
 // AI COACH TAB — Redirects directly to Zaki AI Coaching Dashboard
-// Wrapped in error boundary to catch crashes and show error on screen
+// Wrapped in a REAL error boundary (componentDidCatch) so dashboard
+// crashes show an on-screen error instead of killing the app.
 // ============================================================
-import { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 
 function CoachRedirect() {
   const router = useRouter();
   useEffect(() => {
-    // Use the correct Expo Router path — file is at app/ai-coaching-dashboard.tsx
-    // so the route is '../ai-coaching-dashboard' relative to (tabs)
     router.replace('../ai-coaching-dashboard' as any);
   }, [router]);
   return <View style={{ flex: 1 }} />;
 }
 
-export default function CoachTab() {
-  const [error, setError] = useState<Error | null>(null);
+type BoundaryState = { error: Error | null };
 
-  if (error) {
+class CoachErrorBoundary extends React.Component<React.PropsWithChildren, BoundaryState> {
+  state: BoundaryState = { error: null };
+
+  static getDerivedStateFromError(error: Error): BoundaryState {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error('[CoachBoundary]', error, info?.componentStack);
+  }
+
+  render() {
+    const { error } = this.state;
+    if (!error) return this.props.children;
     return (
       <View style={{ flex: 1, backgroundColor: '#0A0B0A', padding: 20, justifyContent: 'center' }}>
         <View style={{
@@ -30,18 +41,18 @@ export default function CoachTab() {
           borderColor: '#F8717140',
         }}>
           <Text style={{ color: '#F87171', fontSize: 18, fontWeight: '700', marginBottom: 12 }}>
-            AI Coach Crashed
+            AI Coach hit an error
           </Text>
           <Text style={{ color: '#F5F5F5', fontSize: 14, fontWeight: '600', marginBottom: 8 }}>
             {error.name}: {error.message}
           </Text>
-          <ScrollView style={{ maxHeight: 200, marginBottom: 16 }}>
+          <ScrollView style={{ maxHeight: 220, marginBottom: 16 }}>
             <Text style={{ color: '#7A8070', fontSize: 11, fontFamily: 'monospace' }}>
               {error.stack || 'No stack trace available'}
             </Text>
           </ScrollView>
           <TouchableOpacity
-            onPress={() => setError(null)}
+            onPress={() => this.setState({ error: null })}
             style={{
               backgroundColor: '#C8F53C',
               borderRadius: 12,
@@ -55,6 +66,12 @@ export default function CoachTab() {
       </View>
     );
   }
+}
 
-  return <CoachRedirect />;
+export default function CoachTab() {
+  return (
+    <CoachErrorBoundary>
+      <CoachRedirect />
+    </CoachErrorBoundary>
+  );
 }

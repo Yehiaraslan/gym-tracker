@@ -45,6 +45,10 @@ import { addFoodEntry, getDailyNutrition } from '@/lib/nutrition-store';
 import { loadCustomProgram, saveCustomProgram } from '@/lib/custom-program-store';
 import { NUTRITION_TARGETS } from '@/lib/training-program';
 
+// Route-level error boundary: dashboard crashes render on-screen with a
+// stack trace instead of closing the whole app.
+export { RouteErrorBoundary as ErrorBoundary } from '@/components/route-error-boundary';
+
 // ── Storage keys ──────────────────────────────────────────────
 const DAILY_CACHE_KEY = '@zaki_daily_cache';
 const DAILY_CACHE_TTL = 4 * 60 * 60 * 1000; // 4 hours
