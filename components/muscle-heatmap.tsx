@@ -8,6 +8,7 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useColors } from '@/hooks/use-colors';
 import type { MuscleGroup, IntensityLevel } from '@/lib/muscle-heatmap';
 import { MUSCLE_GROUPS } from '@/lib/muscle-heatmap';
+import { BodyMuscleMap } from '@/components/body-muscle-map';
 
 interface MuscleHeatmapProps {
   heatmapData: Record<string, { sets: number; intensity: string }>;
@@ -38,95 +39,21 @@ export function MuscleHeatmap({ heatmapData, neglectedMuscles }: MuscleHeatmapPr
       {/* Title */}
       <Text style={[styles.title, { color: colors.cardForeground }]}>Muscle Activity Map</Text>
 
-      {/* Body visualization with muscle groups arranged as badges */}
-      <View style={styles.bodyContainer}>
-        {/* Top: Shoulders */}
-        <View style={styles.row}>
-          <View style={styles.spacer} />
-          <MuscleBadge
-            muscle="Shoulders"
-            data={heatmapData['Shoulders']}
-          />
-          <View style={styles.spacer} />
-        </View>
-
-        {/* Shoulders spacing */}
-        <View style={{ height: 8 }} />
-
-        {/* Second row: Chest, Back */}
-        <View style={styles.row}>
-          <MuscleBadge
-            muscle="Chest"
-            data={heatmapData['Chest']}
-          />
-          <View style={styles.spacer} />
-          <MuscleBadge
-            muscle="Back"
-            data={heatmapData['Back']}
-          />
-        </View>
-
-        {/* Chest/Back spacing */}
-        <View style={{ height: 8 }} />
-
-        {/* Third row: Biceps, Triceps */}
-        <View style={styles.row}>
-          <MuscleBadge
-            muscle="Biceps"
-            data={heatmapData['Biceps']}
-          />
-          <View style={styles.spacer} />
-          <MuscleBadge
-            muscle="Triceps"
-            data={heatmapData['Triceps']}
-          />
-        </View>
-
-        {/* Arms spacing */}
-        <View style={{ height: 8 }} />
-
-        {/* Fourth row: Core */}
-        <View style={styles.row}>
-          <View style={styles.spacer} />
-          <MuscleBadge
-            muscle="Core"
-            data={heatmapData['Core']}
-          />
-          <View style={styles.spacer} />
-        </View>
-
-        {/* Core spacing */}
-        <View style={{ height: 12 }} />
-
-        {/* Fifth row: Quads, Glutes, Hamstrings */}
-        <View style={styles.row}>
-          <MuscleBadge
-            muscle="Quads"
-            data={heatmapData['Quads']}
-          />
-          <View style={styles.spacer} />
-          <MuscleBadge
-            muscle="Glutes"
-            data={heatmapData['Glutes']}
-          />
-          <View style={styles.spacer} />
-          <MuscleBadge
-            muscle="Hamstrings"
-            data={heatmapData['Hamstrings']}
-          />
-        </View>
-
-        {/* Legs spacing */}
-        <View style={{ height: 8 }} />
-
-        {/* Bottom row: Calves */}
-        <View style={styles.row}>
-          <View style={styles.spacer} />
-          <MuscleBadge
-            muscle="Calves"
-            data={heatmapData['Calves']}
-          />
-          <View style={styles.spacer} />
+      {/* Anatomical body map */}
+      <View style={{ paddingVertical: 12 }}>
+        <BodyMuscleMap heatmapData={heatmapData} intensityColors={INTENSITY_COLORS} scale={1.0} />
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6, marginTop: 16, paddingHorizontal: 12 }}>
+          {(Object.keys(MUSCLE_GROUPS) as MuscleGroup[]).map((muscle) => {
+            const entry = heatmapData[muscle];
+            if (!entry || entry.sets <= 0) return null;
+            return (
+              <View key={muscle} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.cardBorder }}>
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: INTENSITY_COLORS[entry.intensity as IntensityLevel] }} />
+                <Text style={{ fontSize: 11, color: colors.cardForeground, fontWeight: '600' }}>{MUSCLE_GROUPS[muscle].label}</Text>
+                <Text style={{ fontSize: 11, color: colors.cardMuted }}>{Math.round(entry.sets)} sets</Text>
+              </View>
+            );
+          })}
         </View>
       </View>
 

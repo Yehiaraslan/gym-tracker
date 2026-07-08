@@ -54,7 +54,7 @@ export function WhoopReconnectBanner() {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
-    router.push('/(tabs)/whoop' as any);
+    router.push('/whoop' as any);
   };
 
   const handleDismiss = () => {

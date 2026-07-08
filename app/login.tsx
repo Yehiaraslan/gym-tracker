@@ -28,7 +28,7 @@ export default function LoginScreen() {
   const handleLogin = async () => {
     try {
       setLoading(true);
-      const { sessionToken, user } = await Api.guestLogin(undefined, GUEST_CODE);
+      const { sessionToken, user } = await Api.guestLogin('Yehia', GUEST_CODE);
 
       await Auth.setSessionToken(sessionToken);
       await Auth.setUserInfo({

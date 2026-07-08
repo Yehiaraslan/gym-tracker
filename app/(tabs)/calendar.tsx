@@ -14,6 +14,8 @@ import { useGym } from '@/lib/gym-context';
 import { getDayName } from '@/lib/types';
 import * as Haptics from 'expo-haptics';
 import { getSplitWorkouts } from '@/lib/split-workout-store';
+import { loadCustomProgram } from '@/lib/custom-program-store';
+import { getActiveSchedule, type DayName } from '@/lib/schedule-store';
 import type { BodyPart } from '@/lib/types';
 
 // Derive a fun emoji from the body parts of a program day's exercises
@@ -38,6 +40,12 @@ export default function CalendarScreen() {
   const [selectedWeek, setSelectedWeek] = useState(currentCycleInfo.week);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [completedDates, setCompletedDates] = useState<Set<string>>(new Set());
+  // Fallback source when the legacy 8-week programDays store is empty:
+  // project the applied custom program's weekly schedule across the cycle.
+  const [customWeek, setCustomWeek] = useState<Record<number, {
+    sessionName: string;
+    exercises: { name: string; sets: number; reps: string; restSeconds: number }[];
+  }> | null>(null);
 
   // Load completed workout dates whenever the tab is focused
   useFocusEffect(
@@ -46,6 +54,36 @@ export default function CalendarScreen() {
         const dates = new Set(sessions.filter(s => s.completed).map(s => s.date));
         setCompletedDates(dates);
       });
+    }, [])
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      (async () => {
+        const [program, schedule] = await Promise.all([loadCustomProgram(), getActiveSchedule()]);
+        if (!program) {
+          setCustomWeek(null);
+          return;
+        }
+        const dayNames: DayName[] = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        const week: Record<number, { sessionName: string; exercises: { name: string; sets: number; reps: string; restSeconds: number }[] }> = {};
+        dayNames.forEach((dn, i) => {
+          const sessionType = schedule[dn];
+          if (!sessionType || sessionType === 'rest') return;
+          const sessionExercises = program.sessions[sessionType];
+          if (!sessionExercises || sessionExercises.length === 0) return;
+          week[i + 1] = {
+            sessionName: program.sessionNames[sessionType] || sessionType,
+            exercises: sessionExercises.map(ex => ({
+              name: ex.name,
+              sets: ex.sets,
+              reps: ex.repsMin === 0 ? 'max' : `${ex.repsMin}-${ex.repsMax}`,
+              restSeconds: ex.restSeconds,
+            })),
+          };
+        });
+        setCustomWeek(Object.keys(week).length ? week : null);
+      })();
     }, [])
   );
 
@@ -59,20 +97,24 @@ export default function CalendarScreen() {
       const d = new Date(start);
       d.setDate(d.getDate() + offsetDays);
       const isoDate = d.toLocaleDateString('en-CA');
+      const custom = (!program || program.exercises.length === 0) ? customWeek?.[day] : undefined;
       days.push({
         dayNumber: day,
         dayName: getDayName(day),
-        hasWorkout: !!(program && program.exercises.length > 0),
-        exerciseCount: program?.exercises.length || 0,
+        hasWorkout: !!(program && program.exercises.length > 0) || !!custom,
+        exerciseCount: program?.exercises.length || custom?.exercises.length || 0,
         exercises: program?.exercises || [],
-        workoutEmoji: getWorkoutEmoji(
-          (program?.exercises ?? []).map(ex => getExerciseById(ex.exerciseId)?.bodyPart).filter(Boolean) as BodyPart[]
-        ),
+        custom,
+        workoutEmoji: custom
+          ? '🏋️'
+          : getWorkoutEmoji(
+              (program?.exercises ?? []).map(ex => getExerciseById(ex.exerciseId)?.bodyPart).filter(Boolean) as BodyPart[]
+            ),
         isoDate,
       });
     }
     return days;
-  }, [selectedWeek, store.programDays, store.settings.cycleStartDate]);
+  }, [selectedWeek, store.programDays, store.settings.cycleStartDate, customWeek]);
 
   // Calculate total workouts in the 8-week cycle
   const cycleStats = useMemo(() => {
@@ -85,12 +127,15 @@ export default function CalendarScreen() {
         if (program && program.exercises.length > 0) {
           totalWorkouts++;
           totalExercises += program.exercises.length;
+        } else if (customWeek?.[day]) {
+          totalWorkouts++;
+          totalExercises += customWeek[day].exercises.length;
         }
       }
     }
     
     return { totalWorkouts, totalExercises };
-  }, [store.programDays]);
+  }, [store.programDays, customWeek]);
 
   // Compute the ISO date string for any week/day combination using cycleStartDate
   const getDateForWeekDay = useCallback((week: number, day: number): string => {
@@ -329,7 +374,27 @@ export default function CalendarScreen() {
               )}
             </View>
 
-            {selectedDayProgram.hasWorkout ? (
+            {selectedDayProgram.hasWorkout && selectedDayProgram.custom ? (
+              <View>
+                <Text className="text-sm font-semibold mb-1" style={{ color: colors.primary }}>
+                  {selectedDayProgram.custom.sessionName}
+                </Text>
+                {selectedDayProgram.custom.exercises.map((ex, index) => (
+                  <View
+                    key={index}
+                    className="py-3 border-b"
+                    style={{ borderBottomColor: colors.cardBorder }}
+                  >
+                    <Text className="font-medium text-cardForeground">
+                      {index + 1}. {ex.name}
+                    </Text>
+                    <Text className="text-sm text-cardMuted mt-1">
+                      {ex.sets} sets × {ex.reps} reps • Rest: {ex.restSeconds}s
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            ) : selectedDayProgram.hasWorkout ? (
               <View>
                 {selectedDayProgram.exercises.map((ex, index) => {
                   const exercise = getExerciseById(ex.exerciseId);

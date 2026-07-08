@@ -30,6 +30,7 @@ import { useRouter } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useColors } from '@/hooks/use-colors';
+import { BodyMuscleMap } from '@/components/body-muscle-map';
 import * as Haptics from 'expo-haptics';
 import {
   getAllPRs,
@@ -1754,45 +1755,23 @@ function MuscleGroupHeatmap({
           </View>
         </View>
 
-        {/* Grid */}
+        {/* Anatomical body map */}
         {heatmap ? (
-          <View style={{ gap: CELL_GAP }}>
-            {Array.from({ length: ROWS }).map((_, row) => (
-              <View key={row} style={{ flexDirection: 'row', gap: CELL_GAP }}>
-                {Array.from({ length: COLS }).map((_, col) => {
-                  const region = BODY_REGIONS.find(r => r.row === row && r.col === col);
-                  if (!region) {
-                    return <View key={col} style={{ flex: 1, height: 64 }} />;
-                  }
-                  const entry = heatmap[region.group];
-                  const bgColor = INTENSITY_COLORS[entry.intensity];
-                  const textColor = entry.intensity === 'none' ? colors.cardMuted : entry.intensity === 'overtrained' ? '#000' : '#E2E8F0';
-                  return (
-                    <View
-                      key={col}
-                      style={{
-                        flex: 1,
-                        height: 64,
-                        borderRadius: 12,
-                        backgroundColor: bgColor,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        borderWidth: 1,
-                        borderColor: entry.intensity === 'none' ? colors.cardBorder : bgColor,
-                      }}
-                    >
-                      <Text style={{ fontSize: 12, fontWeight: '700', color: textColor }}>{region.label}</Text>
-                      <Text style={{ fontSize: 10, color: textColor, opacity: 0.8, marginTop: 2 }}>
-                        {Math.round(entry.sets)} sets
-                      </Text>
-                      <Text style={{ fontSize: 9, color: textColor, opacity: 0.6, marginTop: 1 }}>
-                        {INTENSITY_LABELS[entry.intensity]}
-                      </Text>
-                    </View>
-                  );
-                })}
-              </View>
-            ))}
+          <View>
+            <BodyMuscleMap heatmapData={heatmap} intensityColors={INTENSITY_COLORS} />
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6, marginTop: 14 }}>
+              {BODY_REGIONS.map(({ group, label }) => {
+                const entry = heatmap[group];
+                if (!entry || entry.sets <= 0) return null;
+                return (
+                  <View key={group} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.cardBorder }}>
+                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: INTENSITY_COLORS[entry.intensity] }} />
+                    <Text style={{ fontSize: 10, color: colors.cardForeground, fontWeight: '600' }}>{label}</Text>
+                    <Text style={{ fontSize: 10, color: colors.cardMuted }}>{Math.round(entry.sets)}</Text>
+                  </View>
+                );
+              })}
+            </View>
           </View>
         ) : (
           <View style={{ alignItems: 'center', paddingVertical: 32 }}>

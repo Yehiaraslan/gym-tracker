@@ -61,6 +61,19 @@ export function subscribeProfileChanges(listener: () => void): () => void {
 
 export async function saveUserProfile(profile: UserProfile): Promise<void> {
   await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+  // Keep the signed-in identity's display name in step with the profile so
+  // the account never shows as a generic "Guest".
+  if (profile.name && profile.name.trim()) {
+    try {
+      const Auth = await import('@/lib/_core/auth');
+      const info = await Auth.getUserInfo();
+      if (info && info.name !== profile.name.trim()) {
+        await Auth.setUserInfo({ ...info, name: profile.name.trim() });
+      }
+    } catch {
+      // non-fatal — profile save already succeeded
+    }
+  }
   profileListeners.forEach((listener) => listener());
 }
 

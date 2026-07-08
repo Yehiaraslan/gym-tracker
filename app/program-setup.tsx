@@ -21,6 +21,7 @@ import {
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { ScreenContainer } from '@/components/screen-container';
+import { useGym } from '@/lib/gym-context';
 import { useColors } from '@/hooks/use-colors';
 import { loadUserProfile } from '@/lib/profile-store';
 import {
@@ -80,6 +81,7 @@ function templateToCustomProgram(template: ProgramTemplate): CustomProgram {
 }
 
 export default function ProgramSetupScreen() {
+  const { updateSettings } = useGym();
   const colors = useColors();
   const router = useRouter();
   const [template, setTemplate] = useState<ProgramTemplate | null>(null);
@@ -140,6 +142,8 @@ export default function ProgramSetupScreen() {
     setApplying(true);
     try {
       await applyProgramTemplate(template);
+      // A newly applied program starts a fresh training cycle at Week 1
+      await updateSettings({ cycleStartDate: new Date().toLocaleDateString('en-CA') });
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace('/(tabs)');
     } catch (e) {
@@ -172,6 +176,8 @@ export default function ProgramSetupScreen() {
         schedule,
         appliedByZaki: true,
       });
+      // A newly applied program starts a fresh training cycle at Week 1
+      await updateSettings({ cycleStartDate: new Date().toLocaleDateString('en-CA') });
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace('/(tabs)');
     } catch (e) {
