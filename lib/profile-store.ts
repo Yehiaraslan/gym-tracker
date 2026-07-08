@@ -47,8 +47,21 @@ export async function loadUserProfile(): Promise<UserProfile> {
   }
 }
 
+// The root AuthGate caches "needs onboarding" from a one-time profile read;
+// saves must notify it (and any other subscriber) or completing onboarding
+// bounces the user back to step 1.
+const profileListeners = new Set<() => void>();
+
+export function subscribeProfileChanges(listener: () => void): () => void {
+  profileListeners.add(listener);
+  return () => {
+    profileListeners.delete(listener);
+  };
+}
+
 export async function saveUserProfile(profile: UserProfile): Promise<void> {
   await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+  profileListeners.forEach((listener) => listener());
 }
 
 export function calculateAge(dob: string): number | null {

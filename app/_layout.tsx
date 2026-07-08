@@ -25,7 +25,7 @@ import { milestoneNotificationMonitor } from "@/lib/milestone-notification-monit
 import { runCoachingChecks } from "@/lib/ai-coaching-notifications";
 import { runMigrationIfNeeded } from "@/lib/migration-service";
 import { useAuth } from "@/hooks/use-auth";
-import { loadUserProfile } from "@/lib/profile-store";
+import { loadUserProfile, subscribeProfileChanges } from "@/lib/profile-store";
 
 const DEFAULT_WEB_INSETS: EdgeInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 const DEFAULT_WEB_FRAME: Rect = { x: 0, y: 0, width: 0, height: 0 };
@@ -49,21 +49,31 @@ function AuthGate() {
     }
     // Check if user has completed onboarding
     // Existing users with profile data (name or fitnessGoal) are treated as onboarded
-    loadUserProfile().then(profile => {
-      const hasExistingData = !!(profile.name || profile.fitnessGoal);
-      setNeedsOnboarding(!profile.onboardingCompleted && !hasExistingData);
-      setProfileChecked(true);
-    }).catch(() => {
-      setNeedsOnboarding(true);
-      setProfileChecked(true);
-    });
+    const checkProfile = () => {
+      loadUserProfile().then(profile => {
+        const hasExistingData = !!(profile.name || profile.fitnessGoal);
+        setNeedsOnboarding(!profile.onboardingCompleted && !hasExistingData);
+        setProfileChecked(true);
+      }).catch(() => {
+        setNeedsOnboarding(true);
+        setProfileChecked(true);
+      });
+    };
+    checkProfile();
+    // Re-check whenever the profile is saved (e.g. onboarding completes) —
+    // a stale needsOnboarding here loops the user back to onboarding step 1.
+    const unsubscribe = subscribeProfileChanges(checkProfile);
+    return unsubscribe;
   }, [isAuthenticated, loading]);
 
   useEffect(() => {
     if (loading) return;
 
     const inAuthGroup = segments[0] === 'login' || segments[0] === 'oauth';
-    const inOnboarding = segments[0] === 'onboarding';
+    // program-setup is the step right after onboarding; the profile re-read may
+    // still be in flight when it mounts, so it must count as "in onboarding" or
+    // the gate bounces the user back to step 1.
+    const inOnboarding = segments[0] === 'onboarding' || segments[0] === 'program-setup';
 
     if (!isAuthenticated && !inAuthGroup) {
       // Not authenticated → redirect to login
