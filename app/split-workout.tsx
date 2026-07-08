@@ -59,6 +59,7 @@ import {
   consumePendingWeights,
 } from '@/lib/split-workout-store';
 import { calculateVolumeLoad, deloadWeight, getWarmupSets, epley1RM } from '@/lib/fitness-utils';
+import { HowtoModal } from '@/components/howto-modal';
 import { localDateStr } from '@/lib/utils';
 import { checkProgressiveOverload, saveRecommendation } from '@/lib/coach-engine';
 import { recordWorkout } from '@/lib/streak-tracker';
@@ -179,6 +180,7 @@ export default function SplitWorkoutScreen() {
   const [activeExerciseIndex, setActiveExerciseIndex] = useState(0);
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [videoExercise, setVideoExercise] = useState<{ name: string; videoId: string } | null>(null);
+  const [howtoExercise, setHowtoExercise] = useState<string | null>(null);
   const [videoPlaying, setVideoPlaying] = useState(false);
 
   // Completion state
@@ -844,6 +846,9 @@ export default function SplitWorkoutScreen() {
       setVideoExercise({ name: exerciseName, videoId: resolvedId });
       setVideoPlaying(true);
       setShowVideoModal(true);
+    } else {
+      // No curated video — show the free-exercise-db demo + instructions
+      setHowtoExercise(exerciseName);
     }
   };
 
@@ -1469,6 +1474,16 @@ export default function SplitWorkoutScreen() {
                               {suggestion ? ` · ${suggestion.weight}kg` : ''}
                             </Text>
                           </View>
+                          <TouchableOpacity
+                            onPress={() => openVideo(ex.name)}
+                            style={{
+                              width: 34, height: 34, borderRadius: 10, marginLeft: 8,
+                              backgroundColor: colors.primary + '18',
+                              alignItems: 'center', justifyContent: 'center',
+                            }}
+                          >
+                            <Text style={{ fontSize: 14 }}>📖</Text>
+                          </TouchableOpacity>
                         </View>
                         {ex.notes ? (
                           <Text className="text-xs text-cardMuted italic mt-2 ml-10">{ex.notes}</Text>
@@ -1735,6 +1750,7 @@ export default function SplitWorkoutScreen() {
           onTogglePlay={() => setVideoPlaying(p => !p)}
           colors={colors}
         />
+        <HowtoModal exerciseName={howtoExercise} onClose={() => setHowtoExercise(null)} />
 
         {/* Zaki Modification Result Modal */}
         <Modal
@@ -1974,9 +1990,21 @@ export default function SplitWorkoutScreen() {
                           }}>
                             {item.name}
                           </Text>
-                          <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700' }}>
-                            {item.sets}×{item.reps}
-                          </Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700' }}>
+                              {item.sets}×{item.reps}
+                            </Text>
+                            <TouchableOpacity
+                              onPress={() => setHowtoExercise(item.name)}
+                              style={{
+                                width: 28, height: 28, borderRadius: 8,
+                                backgroundColor: colors.primary + '18',
+                                alignItems: 'center', justifyContent: 'center',
+                              }}
+                            >
+                              <Text style={{ fontSize: 12 }}>📖</Text>
+                            </TouchableOpacity>
+                          </View>
                         </View>
                         <Text style={{ color: colors.cardMuted, fontSize: 12, marginTop: 2 }}>{item.note}</Text>
                       </View>
@@ -2191,19 +2219,20 @@ export default function SplitWorkoutScreen() {
                     >
                       <Text style={{ fontSize: 16 }}>📊</Text>
                     </TouchableOpacity>
-                    {/* Video button */}
-                    {exVid && (
-                      <TouchableOpacity
-                        onPress={() => openVideo(ex.name)}
-                        style={{
-                          width: 36, height: 36, borderRadius: 10,
-                          backgroundColor: '#FF000015', alignItems: 'center', justifyContent: 'center',
-                          marginRight: 4,
-                        }}
-                      >
-                        <IconSymbol name="play.fill" size={16} color="#FF0000" />
-                      </TouchableOpacity>
-                    )}
+                    {/* Video / how-to button */}
+                    <TouchableOpacity
+                      onPress={() => openVideo(ex.name)}
+                      style={{
+                        width: 36, height: 36, borderRadius: 10,
+                        backgroundColor: exVid ? '#FF000015' : colors.primary + '18',
+                        alignItems: 'center', justifyContent: 'center',
+                        marginRight: 4,
+                      }}
+                    >
+                      {exVid
+                        ? <IconSymbol name="play.fill" size={16} color="#FF0000" />
+                        : <Text style={{ fontSize: 15 }}>📖</Text>}
+                    </TouchableOpacity>
                     {/* Zaki form review button */}
                     {started && (
                       <TouchableOpacity
@@ -2630,6 +2659,7 @@ export default function SplitWorkoutScreen() {
           onTogglePlay={() => setVideoPlaying(p => !p)}
           colors={colors}
         />
+        <HowtoModal exerciseName={howtoExercise} onClose={() => setHowtoExercise(null)} />
       {/* Exercise Swap Modal */}
       <Modal
         visible={showSwapModal}

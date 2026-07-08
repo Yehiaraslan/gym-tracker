@@ -17,6 +17,7 @@ import { ENV } from './_core/env';
 import { transcribeAudio } from './_core/voiceTranscription';
 import * as dataSync from "./data-sync-service";
 import * as db from "./db";
+import { lookupHowto } from "./exerciseHowto";
 import * as pinIdentity from "./pin-identity-service";
 
 // All WHOOP and sync procedures use a device-level identifier (deviceId) instead of
@@ -1125,6 +1126,11 @@ export const appRouter = router({
 
         return { analysis, analyzedAt: new Date().toISOString() };
       }),
+
+    // ── Exercise how-to lookup (bundled free-exercise-db, no external API) ──
+    exerciseHowto: protectedProcedure
+      .input(z.object({ name: z.string().min(2).max(120) }))
+      .query(({ input }) => lookupHowto(input.name)),
 
     // ── Zaki Warm-Up Plan Generator ──
     warmupPlan: protectedProcedure
