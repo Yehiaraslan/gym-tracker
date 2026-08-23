@@ -8,12 +8,21 @@ export const users = mysqlTable("users", {
   openId: varchar("openId", { length: 64 }).notNull().unique(),
   name: text("name"),
   email: varchar("email", { length: 320 }),
+  // Lowercased/trimmed email used as the login lookup key. NULL for guest accounts,
+  // and MySQL permits many NULLs under a unique index, so guests do not collide.
+  emailNormalized: varchar("emailNormalized", { length: 320 }),
+  // scrypt hash, self-describing: scrypt$N$r$p$salt$hash. NULL for guest accounts.
+  passwordHash: varchar("passwordHash", { length: 255 }),
+  emailVerifiedAt: timestamp("emailVerifiedAt"),
   loginMethod: varchar("loginMethod", { length: 64 }),
-  role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
+  role: mysqlEnum("role", ["user", "trainer", "admin"]).default("user").notNull(),
+  disabledAt: timestamp("disabledAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
-});
+}, (table) => ({
+  emailNormIdx: uniqueIndex("users_email_norm_idx").on(table.emailNormalized),
+}));
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
@@ -405,3 +414,97 @@ export const scheduleOverrides = mysqlTable("schedule_overrides", {
 }));
 export type ScheduleOverride = typeof scheduleOverrides.$inferSelect;
 export type InsertScheduleOverride = typeof scheduleOverrides.$inferInsert;
+
+// ── Auth: sessions, verification, reset, rate limiting ──────────────
+// Tokens are stored HASHED. A database leak must not hand an attacker a
+// live session or a usable password-reset link.
+
+export const authSessions = mysqlTable("auth_sessions", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  userId: int("userId").notNull(),
+  tokenHash: varchar("tokenHash", { length: 128 }).notNull(),
+  userAgent: varchar("userAgent", { length: 255 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  expiresAt: timestamp("expiresAt").notNull(),
+  revokedAt: timestamp("revokedAt"),
+}, (table) => ({
+  userIdx: index("as_user_idx").on(table.userId),
+  tokenIdx: uniqueIndex("as_token_idx").on(table.tokenHash),
+}));
+
+export const emailVerifications = mysqlTable("email_verifications", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  userId: int("userId").notNull(),
+  tokenHash: varchar("tokenHash", { length: 128 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  expiresAt: timestamp("expiresAt").notNull(),
+  usedAt: timestamp("usedAt"),
+}, (table) => ({
+  userIdx: index("ev_user_idx").on(table.userId),
+  tokenIdx: uniqueIndex("ev_token_idx").on(table.tokenHash),
+}));
+
+export const passwordResets = mysqlTable("password_resets", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  userId: int("userId").notNull(),
+  tokenHash: varchar("tokenHash", { length: 128 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  expiresAt: timestamp("expiresAt").notNull(),
+  usedAt: timestamp("usedAt"),
+}, (table) => ({
+  userIdx: index("pr_user_idx").on(table.userId),
+  tokenIdx: uniqueIndex("pr_token_idx").on(table.tokenHash),
+}));
+
+// Drives login throttling. Keyed by identifier (email) AND by ip so that
+// neither a single account nor a single source can be hammered.
+export const loginAttempts = mysqlTable("login_attempts", {
+  id: bigint("id", { mode: "number" }).autoincrement().primaryKey(),
+  identifier: varchar("identifier", { length: 320 }).notNull(),
+  ip: varchar("ip", { length: 64 }),
+  success: boolean("success").notNull().default(false),
+  attemptedAt: timestamp("attemptedAt").defaultNow().notNull(),
+}, (table) => ({
+  idIdx: index("la_identifier_idx").on(table.identifier, table.attemptedAt),
+  ipIdx: index("la_ip_idx").on(table.ip, table.attemptedAt),
+}));
+
+// ── Trainer ↔ trainee ───────────────────────────────────────────────
+// The link is the authorization boundary: a trainer may read a trainee's
+// data only while an ACTIVE row exists here. Checked server-side per request.
+
+export const trainerInvites = mysqlTable("trainer_invites", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  trainerId: int("trainerId").notNull(),
+  code: varchar("code", { length: 16 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  expiresAt: timestamp("expiresAt").notNull(),
+  usedByUserId: int("usedByUserId"),
+  usedAt: timestamp("usedAt"),
+}, (table) => ({
+  codeIdx: uniqueIndex("ti_code_idx").on(table.code),
+  trainerIdx: index("ti_trainer_idx").on(table.trainerId),
+}));
+
+export const trainerTrainees = mysqlTable("trainer_trainees", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  trainerId: int("trainerId").notNull(),
+  traineeId: int("traineeId").notNull(),
+  status: mysqlEnum("status", ["pending", "active", "revoked"]).default("pending").notNull(),
+  // Trainee consent is explicit and separately revocable from the link itself.
+  photosSharedAt: timestamp("photosSharedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  respondedAt: timestamp("respondedAt"),
+  revokedAt: timestamp("revokedAt"),
+}, (table) => ({
+  pairIdx: uniqueIndex("tt_pair_idx").on(table.trainerId, table.traineeId),
+  trainerIdx: index("tt_trainer_idx").on(table.trainerId),
+  traineeIdx: index("tt_trainee_idx").on(table.traineeId),
+}));
+
+export type AuthSession = typeof authSessions.$inferSelect;
+export type EmailVerification = typeof emailVerifications.$inferSelect;
+export type PasswordReset = typeof passwordResets.$inferSelect;
+export type LoginAttempt = typeof loginAttempts.$inferSelect;
+export type TrainerInvite = typeof trainerInvites.$inferSelect;
+export type TrainerTrainee = typeof trainerTrainees.$inferSelect;
