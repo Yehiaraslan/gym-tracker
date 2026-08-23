@@ -11,6 +11,7 @@ import { createContext } from "./context";
 import { getSessionCookieOptions } from "./cookies";
 import { sdk } from "./sdk";
 import * as db from "../db";
+import * as accounts from "../account-service";
 import * as whoopStateDb from "../whoopStateDb";
 import * as whoopService from "../whoopService";
 import { startDailyDigestScheduler } from "../zakiDailyDigest";
@@ -187,6 +188,73 @@ async function startServer() {
     } catch (error) {
       console.error("[GuestAuth] Failed to create guest session:", error);
       res.status(500).json({ error: "guest_auth_failed" });
+    }
+  });
+
+  // ── Real accounts (email + password) ──────────────────────────────
+  // Additive: guest auth above is untouched so the installed APK keeps working.
+  // Email verification and password reset are deliberately not wired yet —
+  // there is no mail delivery route, and a reset link that cannot be sent is
+  // worse than an absent one.
+
+  // X-Forwarded-For is attacker-controllable: a client may send its own value
+  // and Cloudflare APPENDS to it, so the leftmost entry is untrusted input and
+  // would let one source rotate IPs at will to dodge per-IP throttling.
+  // CF-Connecting-IP is set by Cloudflare and stripped from client input;
+  // otherwise take the RIGHTMOST hop, which is the one our own proxy added.
+  const clientIp = (req: import("express").Request): string | null => {
+    const cf = req.headers["cf-connecting-ip"];
+    if (typeof cf === "string" && cf.trim()) return cf.trim().slice(0, 64);
+    const fwd = req.headers["x-forwarded-for"];
+    if (typeof fwd === "string" && fwd.trim()) {
+      const hops = fwd.split(",").map((h) => h.trim()).filter(Boolean);
+      if (hops.length > 0) return hops[hops.length - 1].slice(0, 64);
+    }
+    return (req.ip ?? null)?.slice(0, 64) ?? null;
+  };
+
+  app.post("/api/auth/signup", async (req, res) => {
+    try {
+      const body = (req.body ?? {}) as Record<string, unknown>;
+      const user = await accounts.signup({
+        email: String(body.email ?? ""),
+        password: String(body.password ?? ""),
+        name: typeof body.name === "string" ? body.name : undefined,
+        role: body.role === "trainer" ? "trainer" : "user",
+      });
+      const sessionToken = await sdk.createSessionToken(user.openId, { name: user.name });
+      await accounts.recordSession(user.id, sessionToken, req.headers["user-agent"] ?? null);
+      res.cookie(COOKIE_NAME, sessionToken, { ...getSessionCookieOptions(req), maxAge: ONE_YEAR_MS });
+      res.json({ sessionToken, user });
+    } catch (error) {
+      if (error instanceof accounts.AccountError) {
+        res.status(error.status).json({ error: error.code, message: error.message });
+        return;
+      }
+      console.error("[Accounts] signup failed:", error);
+      res.status(500).json({ error: "signup_failed", message: "Could not create the account." });
+    }
+  });
+
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const body = (req.body ?? {}) as Record<string, unknown>;
+      const user = await accounts.login({
+        email: String(body.email ?? ""),
+        password: String(body.password ?? ""),
+        ip: clientIp(req),
+      });
+      const sessionToken = await sdk.createSessionToken(user.openId, { name: user.name });
+      await accounts.recordSession(user.id, sessionToken, req.headers["user-agent"] ?? null);
+      res.cookie(COOKIE_NAME, sessionToken, { ...getSessionCookieOptions(req), maxAge: ONE_YEAR_MS });
+      res.json({ sessionToken, user });
+    } catch (error) {
+      if (error instanceof accounts.AccountError) {
+        res.status(error.status).json({ error: error.code, message: error.message });
+        return;
+      }
+      console.error("[Accounts] login failed:", error);
+      res.status(500).json({ error: "login_failed", message: "Could not sign in." });
     }
   });
 
