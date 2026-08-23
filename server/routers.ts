@@ -95,7 +95,7 @@ export const appRouter = router({
   // ── WHOOP Integration ─────────────────────────────────────
   whoop: router({
     // Get WHOOP connection status
-    status: publicProcedure
+    status: protectedProcedure
       .input(deviceIdInput)
       .query(async ({ input }) => {
         const stored = await whoopDb.getWhoopTokens(input.deviceId);
@@ -113,7 +113,7 @@ export const appRouter = router({
       }),
 
     // Start OAuth flow - returns auth URL
-    authUrl: publicProcedure
+    authUrl: protectedProcedure
       .input(deviceIdInput)
       .query(async ({ input }) => {
         const state = await whoopStateDb.createState(input.deviceId);
@@ -122,7 +122,7 @@ export const appRouter = router({
       }),
 
     // Exchange OAuth code for tokens
-    callback: publicProcedure
+    callback: protectedProcedure
       .input(z.object({ code: z.string(), state: z.string() }))
       .mutation(async ({ input }) => {
         const stateResult = await whoopStateDb.validateAndConsumeState(input.state);
@@ -137,7 +137,7 @@ export const appRouter = router({
       }),
 
     // Disconnect WHOOP
-    disconnect: publicProcedure
+    disconnect: protectedProcedure
       .input(deviceIdInput)
       .mutation(async ({ input }) => {
         await whoopService.disconnect(input.deviceId);
@@ -145,7 +145,7 @@ export const appRouter = router({
       }),
 
     // Get recovery data (latest + history)
-    recovery: publicProcedure
+    recovery: protectedProcedure
       .input(deviceIdInput.extend({ days: z.number().min(1).max(30).default(7).optional() }))
       .query(async ({ input }) => {
         const days = input.days ?? 7;
@@ -183,7 +183,7 @@ export const appRouter = router({
       }),
 
     // Get sleep data
-    sleep: publicProcedure
+    sleep: protectedProcedure
       .input(deviceIdInput.extend({ days: z.number().min(1).max(30).default(7).optional() }))
       .query(async ({ input }) => {
         const days = input.days ?? 7;
@@ -200,7 +200,7 @@ export const appRouter = router({
       }),
 
     // Get strain/cycle data
-    cycles: publicProcedure
+    cycles: protectedProcedure
       .input(deviceIdInput.extend({ days: z.number().min(1).max(30).default(7).optional() }))
       .query(async ({ input }) => {
         const days = input.days ?? 7;
@@ -216,7 +216,7 @@ export const appRouter = router({
       }),
 
     // Get workout data
-    workouts: publicProcedure
+    workouts: protectedProcedure
       .input(deviceIdInput.extend({ limit: z.number().min(1).max(50).default(10).optional() }))
       .query(async ({ input }) => {
         const limit = input.limit ?? 10;
@@ -232,14 +232,14 @@ export const appRouter = router({
       }),
 
     // Get body measurement
-    bodyMeasurement: publicProcedure
+    bodyMeasurement: protectedProcedure
       .input(deviceIdInput)
       .query(async ({ input }) => {
         return whoopService.getBodyMeasurement(input.deviceId);
       }),
 
     // Get recovery history from DB
-    recoveryHistory: publicProcedure
+    recoveryHistory: protectedProcedure
       .input(deviceIdInput.extend({ days: z.number().min(1).max(90).default(7).optional() }))
       .query(async ({ input }) => {
         const days = input.days ?? 7;
@@ -249,7 +249,7 @@ export const appRouter = router({
 
   // ── Data Sync (Cloud Persistence) ────────────────────────
   sync: router({
-    upsertWorkout: publicProcedure
+    upsertWorkout: protectedProcedure
       .input(z.object({
         deviceId: z.string(),
         session: z.object({
@@ -278,18 +278,18 @@ export const appRouter = router({
           })),
         }).passthrough(),
       }))
-      .mutation(async ({ input }) => {
-        await dataSync.upsertWorkoutSession(input.deviceId, input.session);
+      .mutation(async ({ ctx, input }) => {
+        await dataSync.upsertWorkoutSession(ctx.user.openId, input.session);
         return { success: true };
       }),
 
-    getWorkouts: publicProcedure
+    getWorkouts: protectedProcedure
       .input(deviceIdInput.extend({ limit: z.number().min(1).max(200).default(50).optional() }))
-      .query(async ({ input }) => {
-        return dataSync.getWorkoutSessions(input.deviceId, input.limit ?? 50);
+      .query(async ({ ctx, input }) => {
+        return dataSync.getWorkoutSessions(ctx.user.openId, input.limit ?? 50);
       }),
 
-    bulkUpsertWorkouts: publicProcedure
+    bulkUpsertWorkouts: protectedProcedure
       .input(z.object({
         deviceId: z.string(),
         sessions: z.array(z.object({
@@ -318,12 +318,12 @@ export const appRouter = router({
           })),
         }).passthrough()),
       }))
-      .mutation(async ({ input }) => {
-        const count = await dataSync.bulkUpsertWorkoutSessions(input.deviceId, input.sessions);
+      .mutation(async ({ ctx, input }) => {
+        const count = await dataSync.bulkUpsertWorkoutSessions(ctx.user.openId, input.sessions);
         return { count };
       }),
 
-    upsertFormCoach: publicProcedure
+    upsertFormCoach: protectedProcedure
       .input(z.object({
         deviceId: z.string(),
         session: z.object({
@@ -337,18 +337,18 @@ export const appRouter = router({
           durationSeconds: z.number().optional(),
         }).passthrough(),
       }))
-      .mutation(async ({ input }) => {
-        await dataSync.upsertFormCoachSession(input.deviceId, input.session);
+      .mutation(async ({ ctx, input }) => {
+        await dataSync.upsertFormCoachSession(ctx.user.openId, input.session);
         return { success: true };
       }),
 
-    getFormCoachSessions: publicProcedure
+    getFormCoachSessions: protectedProcedure
       .input(deviceIdInput.extend({ limit: z.number().min(1).max(100).default(50).optional() }))
-      .query(async ({ input }) => {
-        return dataSync.getFormCoachSessions(input.deviceId, input.limit ?? 50);
+      .query(async ({ ctx, input }) => {
+        return dataSync.getFormCoachSessions(ctx.user.openId, input.limit ?? 50);
       }),
 
-    bulkUpsertFormCoach: publicProcedure
+    bulkUpsertFormCoach: protectedProcedure
       .input(z.object({
         deviceId: z.string(),
         sessions: z.array(z.object({
@@ -362,16 +362,16 @@ export const appRouter = router({
           durationSeconds: z.number().optional(),
         }).passthrough()),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
         let count = 0;
         for (const s of input.sessions) {
-          await dataSync.upsertFormCoachSession(input.deviceId, s);
+          await dataSync.upsertFormCoachSession(ctx.user.openId, s);
           count++;
         }
         return { count };
       }),
 
-    upsertNutritionDay: publicProcedure
+    upsertNutritionDay: protectedProcedure
       .input(z.object({
         deviceId: z.string(),
         day: z.object({
@@ -400,18 +400,18 @@ export const appRouter = router({
           })),
         }).passthrough(),
       }))
-      .mutation(async ({ input }) => {
-        await dataSync.upsertNutritionDay(input.deviceId, input.day);
+      .mutation(async ({ ctx, input }) => {
+        await dataSync.upsertNutritionDay(ctx.user.openId, input.day);
         return { success: true };
       }),
 
-    getNutritionDays: publicProcedure
+    getNutritionDays: protectedProcedure
       .input(deviceIdInput.extend({ days: z.number().min(1).max(365).default(30).optional() }))
-      .query(async ({ input }) => {
-        return dataSync.getNutritionDays(input.deviceId, input.days ?? 30);
+      .query(async ({ ctx, input }) => {
+        return dataSync.getNutritionDays(ctx.user.openId, input.days ?? 30);
       }),
 
-    bulkUpsertNutrition: publicProcedure
+    bulkUpsertNutrition: protectedProcedure
       .input(z.object({
         deviceId: z.string(),
         days: z.array(z.object({
@@ -440,16 +440,16 @@ export const appRouter = router({
           })),
         }).passthrough()),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
         let count = 0;
         for (const d of input.days) {
-          await dataSync.upsertNutritionDay(input.deviceId, d);
+          await dataSync.upsertNutritionDay(ctx.user.openId, d);
           count++;
         }
         return { count };
       }),
 
-    upsertBodyWeight: publicProcedure
+    upsertBodyWeight: protectedProcedure
       .input(z.object({
         deviceId: z.string(),
         entry: z.object({
@@ -465,18 +465,18 @@ export const appRouter = router({
           notes: z.string().optional(),
         }).passthrough(),
       }))
-      .mutation(async ({ input }) => {
-        await dataSync.upsertBodyWeightEntry(input.deviceId, input.entry);
+      .mutation(async ({ ctx, input }) => {
+        await dataSync.upsertBodyWeightEntry(ctx.user.openId, input.entry);
         return { success: true };
       }),
 
-    getBodyWeightEntries: publicProcedure
+    getBodyWeightEntries: protectedProcedure
       .input(deviceIdInput.extend({ limit: z.number().min(1).max(365).default(90).optional() }))
-      .query(async ({ input }) => {
-        return dataSync.getBodyWeightEntries(input.deviceId, input.limit ?? 90);
+      .query(async ({ ctx, input }) => {
+        return dataSync.getBodyWeightEntries(ctx.user.openId, input.limit ?? 90);
       }),
 
-    bulkUpsertBodyWeight: publicProcedure
+    bulkUpsertBodyWeight: protectedProcedure
       .input(z.object({
         deviceId: z.string(),
         entries: z.array(z.object({
@@ -492,16 +492,16 @@ export const appRouter = router({
           notes: z.string().optional(),
         }).passthrough()),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
         let count = 0;
         for (const e of input.entries) {
-          await dataSync.upsertBodyWeightEntry(input.deviceId, e);
+          await dataSync.upsertBodyWeightEntry(ctx.user.openId, e);
           count++;
         }
         return { count };
       }),
 
-    upsertSleep: publicProcedure
+    upsertSleep: protectedProcedure
       .input(z.object({
         deviceId: z.string(),
         entry: z.object({
@@ -514,18 +514,18 @@ export const appRouter = router({
           notes: z.string().optional(),
         }).passthrough(),
       }))
-      .mutation(async ({ input }) => {
-        await dataSync.upsertSleepEntry(input.deviceId, input.entry);
+      .mutation(async ({ ctx, input }) => {
+        await dataSync.upsertSleepEntry(ctx.user.openId, input.entry);
         return { success: true };
       }),
 
-    getSleepEntries: publicProcedure
+    getSleepEntries: protectedProcedure
       .input(deviceIdInput.extend({ limit: z.number().min(1).max(90).default(30).optional() }))
-      .query(async ({ input }) => {
-        return dataSync.getSleepEntries(input.deviceId, input.limit ?? 30);
+      .query(async ({ ctx, input }) => {
+        return dataSync.getSleepEntries(ctx.user.openId, input.limit ?? 30);
       }),
 
-    bulkUpsertSleep: publicProcedure
+    bulkUpsertSleep: protectedProcedure
       .input(z.object({
         deviceId: z.string(),
         entries: z.array(z.object({
@@ -538,16 +538,16 @@ export const appRouter = router({
           notes: z.string().optional(),
         }).passthrough()),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
         let count = 0;
         for (const e of input.entries) {
-          await dataSync.upsertSleepEntry(input.deviceId, e);
+          await dataSync.upsertSleepEntry(ctx.user.openId, e);
           count++;
         }
         return { count };
       }),
 
-    upsertStreak: publicProcedure
+    upsertStreak: protectedProcedure
       .input(z.object({
         deviceId: z.string(),
         streak: z.object({
@@ -557,18 +557,18 @@ export const appRouter = router({
           workoutDates: z.array(z.string()),
         }).passthrough(),
       }))
-      .mutation(async ({ input }) => {
-        await dataSync.upsertStreak(input.deviceId, input.streak);
+      .mutation(async ({ ctx, input }) => {
+        await dataSync.upsertStreak(ctx.user.openId, input.streak);
         return { success: true };
       }),
 
-    getStreak: publicProcedure
+    getStreak: protectedProcedure
       .input(deviceIdInput)
-      .query(async ({ input }) => {
-        return dataSync.getStreak(input.deviceId);
+      .query(async ({ ctx, input }) => {
+        return dataSync.getStreak(ctx.user.openId);
       }),
 
-    upsertPersonalRecord: publicProcedure
+    upsertPersonalRecord: protectedProcedure
       .input(z.object({
         deviceId: z.string(),
         pr: z.object({
@@ -581,18 +581,18 @@ export const appRouter = router({
           sessionId: z.string().optional(),
         }).passthrough(),
       }))
-      .mutation(async ({ input }) => {
-        await dataSync.upsertPersonalRecord(input.deviceId, input.pr);
+      .mutation(async ({ ctx, input }) => {
+        await dataSync.upsertPersonalRecord(ctx.user.openId, input.pr);
         return { success: true };
       }),
 
-    getPersonalRecords: publicProcedure
+    getPersonalRecords: protectedProcedure
       .input(deviceIdInput)
-      .query(async ({ input }) => {
-        return dataSync.getPersonalRecords(input.deviceId);
+      .query(async ({ ctx, input }) => {
+        return dataSync.getPersonalRecords(ctx.user.openId);
       }),
 
-    upsertScheduleOverride: publicProcedure
+    upsertScheduleOverride: protectedProcedure
       .input(z.object({
         deviceId: z.string(),
         override: z.object({
@@ -603,15 +603,15 @@ export const appRouter = router({
           appliedAt: z.string(),
         }).passthrough(),
       }))
-      .mutation(async ({ input }) => {
-        await dataSync.upsertScheduleOverride(input.deviceId, input.override as dataSync.SyncScheduleOverride);
+      .mutation(async ({ ctx, input }) => {
+        await dataSync.upsertScheduleOverride(ctx.user.openId, input.override as dataSync.SyncScheduleOverride);
         return { success: true };
       }),
 
-    getScheduleOverride: publicProcedure
+    getScheduleOverride: protectedProcedure
       .input(deviceIdInput)
-      .query(async ({ input }) => {
-        return dataSync.getLatestScheduleOverride(input.deviceId);
+      .query(async ({ ctx, input }) => {
+        return dataSync.getLatestScheduleOverride(ctx.user.openId);
       }),
   }),
 
