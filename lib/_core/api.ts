@@ -63,7 +63,9 @@ export async function apiCall<T>(endpoint: string, options: RequestInit = {}): P
       let errorMessage = errorText;
       try {
         const errorJson = JSON.parse(errorText);
-        errorMessage = errorJson.error || errorJson.message || errorText;
+        // Prefer the human-readable message; `error` is a machine code such as
+        // "weak_password", which is not something to show a user.
+        errorMessage = errorJson.message || errorJson.error || errorText;
       } catch {
         // Not JSON, use text as is
       }
@@ -103,6 +105,43 @@ export async function guestLogin(
     throw new Error("Guest sign-in failed: no session token returned");
   }
   return result;
+}
+
+export type AccountUser = {
+  id: number;
+  openId: string;
+  name: string;
+  email: string | null;
+  role: string;
+  loginMethod: string;
+  emailVerified: boolean;
+  lastSignedIn: string;
+};
+
+/**
+ * Real-account signup. The server decides the stored role: requesting
+ * anything other than "trainer" yields a normal trainee account.
+ */
+export async function signupWithPassword(params: {
+  email: string;
+  password: string;
+  name?: string;
+  role?: "user" | "trainer";
+}): Promise<{ sessionToken: string; user: AccountUser }> {
+  return apiCall<{ sessionToken: string; user: AccountUser }>("/api/auth/signup", {
+    method: "POST",
+    body: JSON.stringify(params),
+  });
+}
+
+export async function loginWithPassword(params: {
+  email: string;
+  password: string;
+}): Promise<{ sessionToken: string; user: AccountUser }> {
+  return apiCall<{ sessionToken: string; user: AccountUser }>("/api/auth/login", {
+    method: "POST",
+    body: JSON.stringify(params),
+  });
 }
 
 // OAuth callback handler - exchange code for session token

@@ -19,6 +19,7 @@ interface MoreItem {
 }
 
 const MORE_ITEMS: MoreItem[] = [
+  { emoji: '\u{1F91D}', title: 'Coaching', subtitle: 'Coach & athletes', route: '/coaching' },
   { emoji: '\u{1F49A}', title: 'WHOOP Recovery', subtitle: 'Recovery & strain', route: '/whoop' },
   { emoji: '\u{1F4CA}', title: 'Analytics', subtitle: 'Stats & trends', route: '/(tabs)/analytics' },
   { emoji: '\u{1F4C5}', title: 'Calendar', subtitle: 'Training calendar', route: '/(tabs)/calendar' },

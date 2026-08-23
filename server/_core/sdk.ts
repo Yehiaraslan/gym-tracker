@@ -261,6 +261,12 @@ class SDKServer {
         email: null,
         loginMethod: "guest",
         role: sessionUserId === ENV.ownerOpenId ? "admin" : "user",
+        // A guest has no account columns by definition — no email to normalize,
+        // no password, nothing to verify or disable.
+        emailNormalized: null,
+        passwordHash: null,
+        emailVerifiedAt: null,
+        disabledAt: null,
         createdAt: signedInAt,
         updatedAt: signedInAt,
         lastSignedIn: signedInAt,

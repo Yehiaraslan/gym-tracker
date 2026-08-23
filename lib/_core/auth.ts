@@ -8,6 +8,8 @@ export type User = {
   name: string | null;
   email: string | null;
   loginMethod: string | null;
+  /** "user" (trainee) | "trainer" | "admin". Absent on legacy guest sessions. */
+  role?: string | null;
   lastSignedIn: Date;
 };
 
