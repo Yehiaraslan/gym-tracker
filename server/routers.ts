@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
+import * as trainerLink from "./trainer-link-service";
 import { COOKIE_NAME } from "../shared/const.js";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
@@ -27,8 +29,60 @@ import * as pinIdentity from "./pin-identity-service";
 
 const deviceIdInput = z.object({ deviceId: z.string().min(1) });
 
+
+/** Surfaces LinkError codes as tRPC errors instead of opaque 500s. */
+async function wrapLink<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (error) {
+    if (error instanceof trainerLink.LinkError) {
+      const map: Record<number, "BAD_REQUEST" | "FORBIDDEN" | "NOT_FOUND" | "CONFLICT" | "PRECONDITION_FAILED" | "INTERNAL_SERVER_ERROR"> = {
+        400: "BAD_REQUEST", 403: "FORBIDDEN", 404: "NOT_FOUND",
+        409: "CONFLICT", 410: "PRECONDITION_FAILED", 503: "INTERNAL_SERVER_ERROR",
+      };
+      throw new TRPCError({ code: map[error.status] ?? "INTERNAL_SERVER_ERROR", message: error.message });
+    }
+    throw error;
+  }
+}
+
 export const appRouter = router({
   system: systemRouter,
+  // Trainer ↔ trainee link. Every procedure is protected and takes its actor
+  // from ctx.user — never from the request body. Passing someone else's id is
+  // not a supported operation, it is simply impossible here.
+  trainerLink: router({
+    createInvite: protectedProcedure.mutation(async ({ ctx }) => {
+      return wrapLink(() => trainerLink.createInvite({ id: ctx.user.id, role: ctx.user.role }));
+    }),
+
+    redeem: protectedProcedure
+      .input(z.object({ code: z.string().min(1).max(16) }))
+      .mutation(async ({ ctx, input }) => {
+        return wrapLink(() => trainerLink.redeemInvite(input.code, { id: ctx.user.id }));
+      }),
+
+    myTrainees: protectedProcedure.query(async ({ ctx }) => {
+      return wrapLink(() => trainerLink.listTrainees(ctx.user.id));
+    }),
+
+    myTrainers: protectedProcedure.query(async ({ ctx }) => {
+      return wrapLink(() => trainerLink.listTrainers(ctx.user.id));
+    }),
+
+    revoke: protectedProcedure
+      .input(z.object({ linkId: z.string().min(1).max(64) }))
+      .mutation(async ({ ctx, input }) => {
+        return wrapLink(() => trainerLink.revokeLink(ctx.user.id, input.linkId));
+      }),
+
+    setPhotoConsent: protectedProcedure
+      .input(z.object({ linkId: z.string().min(1).max(64), shared: z.boolean() }))
+      .mutation(async ({ ctx, input }) => {
+        return wrapLink(() => trainerLink.setPhotoConsent(ctx.user.id, input.linkId, input.shared));
+      }),
+  }),
+
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {
