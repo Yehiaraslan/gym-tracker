@@ -319,6 +319,15 @@ const en = {
   monthJan: 'January', monthFeb: 'February', monthMar: 'March', monthApr: 'April', monthMay: 'May', monthJun: 'June',
   monthJul: 'July', monthAug: 'August', monthSep: 'September', monthOct: 'October', monthNov: 'November', monthDec: 'December',
   dayMonS: 'M', dayTueS: 'T', dayWedS: 'W', dayThuS: 'T', dayFriS: 'F', daySatS: 'S', daySunS: 'S',
+  homeChangeSession: 'Change session',
+  homeTrainInstead: 'Train on this day instead',
+  homePickSession: 'Choose a session for {date}',
+  homePickHint: 'Puts this session on that day only. Your weekly plan stays the same.',
+  homeBackToPlan: 'Back to plan',
+  homeRescheduledTag: 'Rescheduled',
+  homeMissedTag: 'Missed',
+  homeMakeUp: 'Make up',
+  homeSetRest: 'Make it a rest day',
 };
 
 const ar: typeof en = {
@@ -608,6 +617,15 @@ const ar: typeof en = {
   monthJan: 'يناير', monthFeb: 'فبراير', monthMar: 'مارس', monthApr: 'أبريل', monthMay: 'مايو', monthJun: 'يونيو',
   monthJul: 'يوليو', monthAug: 'أغسطس', monthSep: 'سبتمبر', monthOct: 'أكتوبر', monthNov: 'نوفمبر', monthDec: 'ديسمبر',
   dayMonS: 'ن', dayTueS: 'ث', dayWedS: 'ر', dayThuS: 'خ', dayFriS: 'ج', daySatS: 'س', daySunS: 'ح',
+  homeChangeSession: 'تغيير الحصة',
+  homeTrainInstead: 'تدرّب في هذا اليوم بدلًا من ذلك',
+  homePickSession: 'اختر حصة ليوم {date}',
+  homePickHint: 'يضع هذه الحصة في هذا اليوم فقط. خطتك الأسبوعية لا تتغيّر.',
+  homeBackToPlan: 'الرجوع إلى الخطة',
+  homeRescheduledTag: 'أُعيدت جدولتها',
+  homeMissedTag: 'فائتة',
+  homeMakeUp: 'تعويض',
+  homeSetRest: 'اجعله يوم راحة',
 };
 
 export type StringKey = keyof typeof en;

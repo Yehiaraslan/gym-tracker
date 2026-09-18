@@ -63,6 +63,21 @@ const WORKOUTS = [
     await page.getByLabel('today').click();
     await page.waitForTimeout(400);
 
+    // Reschedule flow: today is selected; open the picker, put upper-a on today, expect Start button.
+    await page.getByLabel('change-session').click();
+    await page.waitForTimeout(700);
+    await page.screenshot({ path: path.join(OUT, `home-picker-${lang}.png`) });
+    await page.getByLabel('pick-upper-a').click();
+    await page.waitForTimeout(900);
+    const startAfterPick = await page.getByLabel('start-session').count();
+    await page.screenshot({ path: path.join(OUT, `home-rescheduled-today-${lang}.png`) });
+    // Reset to plan
+    await page.getByLabel('change-session').click();
+    await page.waitForTimeout(500);
+    await page.getByLabel('pick-reset').click();
+    await page.waitForTimeout(700);
+    const startAfterReset = await page.getByLabel('start-session').count();
+
     // Start button → /split-workout?date=<selected>. Walk this week until a training day is found.
     let nav = 'no-training-day-found';
     let picked = null;
@@ -80,7 +95,7 @@ const WORKOUTS = [
         break;
       }
     }
-    results.push({ lang, picked, nav, errors });
+    results.push({ lang, startAfterPick, startAfterReset, picked, nav, errors });
     await ctx.close();
   }
   await browser.close();

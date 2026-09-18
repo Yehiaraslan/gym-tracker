@@ -258,3 +258,48 @@ export async function resetToDefaultSchedule(): Promise<void> {
     appliedByZaki: false,
   });
 }
+
+// ── Per-date overrides ────────────────────────────────────────
+// A one-off session placed on a specific calendar date (e.g. the athlete
+// missed Monday's Lower A and does it on Friday instead). Overrides sit on
+// top of the weekly schedule and never change the weekly pattern itself.
+
+const DATE_OVERRIDES_KEY = '@schedule_date_overrides_v1';
+
+export type DateOverrides = Record<string, SessionType>; // 'YYYY-MM-DD' → session ('rest' allowed)
+
+export async function loadDateOverrides(): Promise<DateOverrides> {
+  try {
+    const raw = await AsyncStorage.getItem(DATE_OVERRIDES_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? (parsed as DateOverrides) : {};
+  } catch {
+    return {};
+  }
+}
+
+/** Set (or clear with null) the session for one calendar date. Prunes entries older than 90 days. */
+export async function setDateOverride(dateStr: string, session: SessionType | null): Promise<DateOverrides> {
+  const all = await loadDateOverrides();
+  if (session == null) delete all[dateStr];
+  else all[dateStr] = session;
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 90);
+  const cutoffStr = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, '0')}-${String(cutoff.getDate()).padStart(2, '0')}`;
+  for (const k of Object.keys(all)) if (k < cutoffStr) delete all[k];
+  await AsyncStorage.setItem(DATE_OVERRIDES_KEY, JSON.stringify(all));
+  return all;
+}
+
+/** Resolve the session for a date: date override first, then the weekly schedule. */
+export function resolveSessionForDate(
+  dateStr: string,
+  schedule: CustomSchedule,
+  overrides: DateOverrides,
+): SessionType {
+  if (overrides[dateStr] != null) return overrides[dateStr];
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const dayName = ALL_DAYS[new Date(y, m - 1, d, 12).getDay()];
+  return schedule[dayName] ?? 'rest';
+}

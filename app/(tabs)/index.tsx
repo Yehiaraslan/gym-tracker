@@ -8,7 +8,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Text, View, TouchableOpacity, ScrollView, Platform, StyleSheet, Image, RefreshControl } from 'react-native';
+import { Text, View, TouchableOpacity, ScrollView, Platform, StyleSheet, Image, RefreshControl, Modal } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { syncCoachPlans } from '@/lib/coach-plan-sync';
 import { isCoachRole } from './_layout';
@@ -26,9 +26,11 @@ import {
 import { loadCustomProgram, getProgramProgress, suggestNextProgram, type CustomProgram } from '@/lib/custom-program-store';
 import {
   getActiveSchedule,
-  saveScheduleOverride,
+  loadDateOverrides,
+  setDateOverride,
+  resolveSessionForDate,
   type CustomSchedule,
-  type DayName,
+  type DateOverrides,
 } from '@/lib/schedule-store';
 import { getSplitWorkouts, type SplitWorkoutSession } from '@/lib/split-workout-store';
 import { WhoopReconnectBanner } from '@/components/whoop-reconnect-banner';
@@ -50,8 +52,6 @@ import {
   StackLg,
   CardPadLg,
 } from '@/lib/design-tokens';
-
-const DAY_NAMES: DayName[] = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 // Default lookup tables for the hardcoded Upper/Lower split
 const DEFAULT_DOT_COLORS: Record<string, string> = {
@@ -94,6 +94,8 @@ export default function HomeScreen() {
 
   // ── Schedule + program ──
   const [schedule, setSchedule] = useState<CustomSchedule | null>(null);
+  const [overrides, setOverrides] = useState<DateOverrides>({});
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [customProgram, setCustomProgram] = useState<CustomProgram | null>(null);
   const [workouts, setWorkouts] = useState<SplitWorkoutSession[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
@@ -126,18 +128,21 @@ export default function HomeScreen() {
 
   const loadAll = useCallback(async () => {
     try {
-      const [sched, program, all, resumable] = await Promise.all([
+      const [sched, program, all, resumable, ov] = await Promise.all([
         getActiveSchedule(),
         loadCustomProgram(),
         getSplitWorkouts().catch(() => [] as SplitWorkoutSession[]),
         hasResumableWorkout(),
+        loadDateOverrides(),
       ]);
       setSchedule(sched);
       setCustomProgram(program);
       setWorkouts(all);
       setResumableWorkout(resumable);
+      setOverrides(ov);
       const completedDates = all.filter(w => w.completed).map(w => w.date);
-      setMissedSessions(getMissedSessions(completedDates, 7, sched as Record<string, SessionType>));
+      // A date with an override was deliberately moved/changed — it is no longer "missed".
+      setMissedSessions(getMissedSessions(completedDates, 7, sched as Record<string, SessionType>).filter(m => ov[m.date] == null));
     } catch (_) {}
     setRefreshing(false);
   }, []);
@@ -160,9 +165,22 @@ export default function HomeScreen() {
   // ── Lookups ──
   const sessionForDate = useCallback((dateStr: string): SessionType => {
     if (!schedule) return 'rest';
-    const dayName = DAY_NAMES[fromDateStr(dateStr).getDay()];
-    return schedule[dayName] ?? 'rest';
-  }, [schedule]);
+    return resolveSessionForDate(dateStr, schedule, overrides);
+  }, [schedule, overrides]);
+
+  // Every session the athlete can place on a day: the program's sessions, or the default split.
+  const availableSessions: SessionType[] = customProgram?.sessionNames
+    ? Object.keys(customProgram.sessionNames)
+    : (Object.keys(PROGRAM_SESSIONS) as SessionType[]);
+
+  /** Put `session` on `dateStr` (one-off). `null` clears the override, back to the weekly plan. */
+  const placeSession = async (dateStr: string, session: SessionType | null) => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const next = await setDateOverride(dateStr, session);
+    setOverrides({ ...next });
+    setPickerOpen(false);
+    await loadAll();
+  };
 
   const getColor = useCallback((sessionId: string): string => {
     if (sessionId === 'rest') return DEFAULT_DOT_COLORS.rest;
@@ -225,23 +243,16 @@ export default function HomeScreen() {
     router.push({ pathname: '/split-workout', params: { sessionType, date, ...extra } } as any);
   };
 
-  // Reschedule a missed session into today's slot by swapping the schedule
+  // Make up a missed session today: one-off override on today, and the missed
+  // date becomes a rest day so it stops nagging. The weekly plan is untouched.
   const handleRescheduleToToday = async (missed: { date: string; sessionType: SessionType; sessionName: string }) => {
     if (reschedulingDate) return;
     setReschedulingDate(missed.date);
     try {
       if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      const activeSchedule = await getActiveSchedule();
-      const todayDayName = DAY_NAMES[new Date().getDay()];
-      const missedDayName = DAY_NAMES[fromDateStr(missed.date).getDay()];
-      const todayOriginal = activeSchedule[todayDayName];
-      const newSchedule = { ...activeSchedule, [todayDayName]: missed.sessionType, [missedDayName]: todayOriginal };
-      await saveScheduleOverride({
-        appliedAt: new Date().toISOString(),
-        description: `Rescheduled ${missed.sessionName} from ${missedDayName} to ${todayDayName}`,
-        schedule: newSchedule,
-        appliedByZaki: false,
-      });
+      await setDateOverride(missed.date, 'rest');
+      const next = await setDateOverride(todayStr, missed.sessionType);
+      setOverrides({ ...next });
       setDismissedMakeup(prev => new Set([...prev, missed.date]));
       setRescheduleToast(t('homeMovedToToday', { name: missed.sessionName }));
       setTimeout(() => setRescheduleToast(null), 3000);
@@ -510,11 +521,18 @@ export default function HomeScreen() {
               <Text style={{ color: mut, fontSize: FontSize.eyebrow, fontWeight: FontWeight.semi, letterSpacing: 1 }}>
                 {(relLabel ? `${relLabel} · ` : '') + longDate}
               </Text>
-              {selDone && (
-                <View style={{ backgroundColor: colors.successStrong + '22', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
-                  <Text style={{ color: colors.successStrong, fontSize: 10, fontWeight: '800' }}>✓ {t('homeCompleted').toUpperCase()}</Text>
-                </View>
-              )}
+              <View style={{ flexDirection: rowDir, gap: 6 }}>
+                {overrides[selectedDate] != null && !selDone && (
+                  <View style={{ backgroundColor: '#F59E0B22', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
+                    <Text style={{ color: '#F59E0B', fontSize: 10, fontWeight: '800' }}>{t('homeRescheduledTag').toUpperCase()}</Text>
+                  </View>
+                )}
+                {selDone && (
+                  <View style={{ backgroundColor: colors.successStrong + '22', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
+                    <Text style={{ color: colors.successStrong, fontSize: 10, fontWeight: '800' }}>✓ {t('homeCompleted').toUpperCase()}</Text>
+                  </View>
+                )}
+              </View>
             </View>
 
             {customProgram?.assignedByCoach && !selIsRest ? (
@@ -582,9 +600,73 @@ export default function HomeScreen() {
                 <Text style={{ color: '#fff', fontSize: FontSize.body + 1, fontWeight: FontWeight.bold }}>{startLabel}</Text>
               </TouchableOpacity>
             )}
+            {!selDone && (
+              <TouchableOpacity
+                style={{ marginTop: Space._2 + 2, borderRadius: Radius.button, paddingVertical: Space._3, alignItems: 'center', borderWidth: 1, borderColor: selIsRest ? pri : bord, backgroundColor: selIsRest ? pri + '14' : 'transparent' }}
+                onPress={() => { if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setPickerOpen(true); }}
+                activeOpacity={ActiveOpacity.secondary}
+                accessibilityLabel="change-session"
+              >
+                <Text style={{ color: selIsRest ? pri : fg, fontSize: FontSize.bodySm, fontWeight: '700' }}>
+                  {selIsRest ? `🏋️ ${t('homeTrainInstead')}` : `⇄ ${t('homeChangeSession')}`}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </ScrollView>
+
+      {/* ── Session picker: put any session on the selected day ── */}
+      <Modal visible={pickerOpen} transparent animationType="slide" onRequestClose={() => setPickerOpen(false)}>
+        <TouchableOpacity style={{ flex: 1, backgroundColor: '#00000088', justifyContent: 'flex-end' }} activeOpacity={1} onPress={() => setPickerOpen(false)}>
+          <View style={{ backgroundColor: surf, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: CardPadLg, paddingBottom: Space._8, borderWidth: 1, borderColor: bord }} onStartShouldSetResponder={() => true}>
+            <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: bord, alignSelf: 'center', marginBottom: Space._3 }} />
+            <Text style={{ color: fg, fontSize: FontSize.section, fontWeight: FontWeight.heavy, textAlign: txtAlign }}>{t('homePickSession', { date: longDate })}</Text>
+            <Text style={{ color: mut, fontSize: FontSize.meta, marginTop: 4, marginBottom: Space._3, textAlign: txtAlign }}>{t('homePickHint')}</Text>
+            <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
+              {availableSessions.map((sid) => {
+                const missed = missedSessions.find(m => m.sessionType === sid);
+                const active = sid === selSession;
+                const c = getColor(sid);
+                return (
+                  <TouchableOpacity
+                    key={sid}
+                    onPress={() => placeSession(selectedDate, sid)}
+                    activeOpacity={0.8}
+                    accessibilityLabel={`pick-${sid}`}
+                    style={{ flexDirection: rowDir, alignItems: 'center', gap: 12, padding: Space._3, borderRadius: Radius.button, borderWidth: 1, borderColor: active ? c : bord, backgroundColor: active ? c + '18' : colors.surface2, marginBottom: 8 }}
+                  >
+                    <Text style={{ fontSize: 26 }}>{getEmoji(sid)}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: fg, fontSize: FontSize.body, fontWeight: '700', textAlign: txtAlign }}>{getName(sid)}</Text>
+                      <Text style={{ color: mut, fontSize: FontSize.meta, textAlign: txtAlign }}>{t('homeExercises', { n: localizeDigits(getExercises(sid).length, lang) })}</Text>
+                    </View>
+                    {missed && (
+                      <View style={{ backgroundColor: '#F59E0B22', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
+                        <Text style={{ color: '#F59E0B', fontSize: 10, fontWeight: '800' }}>{t('homeMissedTag').toUpperCase()}</Text>
+                      </View>
+                    )}
+                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: c }} />
+                  </TouchableOpacity>
+                );
+              })}
+              {!selIsRest && (
+                <TouchableOpacity onPress={() => placeSession(selectedDate, 'rest')} activeOpacity={0.8} accessibilityLabel="pick-rest"
+                  style={{ flexDirection: rowDir, alignItems: 'center', gap: 12, padding: Space._3, borderRadius: Radius.button, borderWidth: 1, borderColor: bord, marginBottom: 8 }}>
+                  <Text style={{ fontSize: 26 }}>😴</Text>
+                  <Text style={{ color: fg, fontSize: FontSize.body, fontWeight: '700', flex: 1, textAlign: txtAlign }}>{t('homeSetRest')}</Text>
+                </TouchableOpacity>
+              )}
+              {overrides[selectedDate] != null && (
+                <TouchableOpacity onPress={() => placeSession(selectedDate, null)} activeOpacity={0.8} accessibilityLabel="pick-reset"
+                  style={{ alignItems: 'center', padding: Space._3 }}>
+                  <Text style={{ color: pri, fontSize: FontSize.bodySm, fontWeight: '700' }}>↺ {t('homeBackToPlan')}</Text>
+                </TouchableOpacity>
+              )}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </ScreenContainer>
   );
 }
