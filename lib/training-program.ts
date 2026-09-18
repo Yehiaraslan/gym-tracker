@@ -373,11 +373,11 @@ export const SLEEP_TARGETS = {
 /**
  * Get training sessions that were scheduled but not completed in the last N days.
  * Compares the weekly schedule against the list of completed session dates.
- * If a scheduleOverride is provided (from Zaki), it uses that instead of the hardcoded default.
+ * If a scheduleOverride is provided (from MY Assistant), it uses that instead of the hardcoded default.
  *
  * @param completedDates   - ISO date strings of days a workout was completed (e.g. ["2026-03-20"])
  * @param lookbackDays     - How many past days to check (default 7)
- * @param scheduleOverride - Optional 7-day schedule map from Zaki's schedule store
+ * @param scheduleOverride - Optional 7-day schedule map from MY Assistant's schedule store
  * @returns Array of missed sessions sorted by date ascending
  */
 export function getMissedSessions(

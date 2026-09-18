@@ -1,5 +1,5 @@
 // ============================================================
-// ZAKI VOICE RECORDER — Web fallback (no audio recording)
+// COACH VOICE RECORDER — Web fallback (no audio recording)
 // Just renders the text input + send button for web.
 // The .native.tsx version is used on iOS/Android.
 // ============================================================
@@ -37,7 +37,7 @@ export function ZakiVoiceRecorder({
         style={[styles.input, { backgroundColor: colors.cardBorder, color: colors.foreground }]}
         value={chatInput}
         onChangeText={setChatInput}
-        placeholder="Ask Zaki anything..."
+        placeholder="Ask Coach anything..."
         placeholderTextColor={colors.cardMuted}
         multiline
         returnKeyType="send"
@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#C8F53C',
+    backgroundColor: '#2EBFBF',
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -518,8 +518,8 @@ export default function ProgressScreen() {
                 onPress={() => router.push('/pr-board')}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
               >
-                <Text style={{ fontSize: 12, color: '#C8F53C', fontWeight: '600' }}>View All</Text>
-                <Text style={{ fontSize: 12, color: '#C8F53C' }}>›</Text>
+                <Text style={{ fontSize: 12, color: '#2EBFBF', fontWeight: '600' }}>View All</Text>
+                <Text style={{ fontSize: 12, color: '#2EBFBF' }}>›</Text>
               </TouchableOpacity>
             </View>
             <View className="rounded-2xl overflow-hidden" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.cardBorder }}>
@@ -547,7 +547,7 @@ export default function ProgressScreen() {
                   onPress={() => router.push('/pr-board')}
                   style={{ paddingVertical: 12, alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.cardBorder }}
                 >
-                  <Text style={{ fontSize: 13, color: '#C8F53C', fontWeight: '600' }}>View all {prList.length} PRs →</Text>
+                  <Text style={{ fontSize: 13, color: '#2EBFBF', fontWeight: '600' }}>View all {prList.length} PRs →</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -673,7 +673,7 @@ export default function ProgressScreen() {
                 <Text style={{ fontSize: 12, color: colors.cardMuted, marginTop: 2 }}>Past mesocycles · PRs · Volume per block</Text>
               </View>
             </View>
-            <Text style={{ fontSize: 20, color: '#C8F53C', fontWeight: '600' }}>›</Text>
+            <Text style={{ fontSize: 20, color: '#2EBFBF', fontWeight: '600' }}>›</Text>
           </TouchableOpacity>
         </View>
         <View style={{ height: 20 }} />
@@ -1576,7 +1576,7 @@ function VolumeHeatmap({
     if (intensity < 0.25) return '#1A3A1A';
     if (intensity < 0.5) return '#2D6A2D';
     if (intensity < 0.75) return '#5AAD5A';
-    return '#C8F53C';
+    return '#2EBFBF';
   };
 
   const totalWorkouts = Object.values(data).filter(v => v > 0).length;
@@ -1642,7 +1642,7 @@ function VolumeHeatmap({
         {/* Legend */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginTop: 4 }}>
           <Text style={{ fontSize: 9, color: colors.cardMuted, marginRight: 4 }}>Less</Text>
-          {['#1A3A1A', '#2D6A2D', '#5AAD5A', '#C8F53C'].map((c, i) => (
+          {['#1A3A1A', '#2D6A2D', '#5AAD5A', '#2EBFBF'].map((c, i) => (
             <View key={i} style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: c }} />
           ))}
           <Text style={{ fontSize: 9, color: colors.cardMuted, marginLeft: 4 }}>More</Text>
@@ -1650,15 +1650,15 @@ function VolumeHeatmap({
         {/* Summary row */}
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.cardBorder }}>
           <View style={{ alignItems: 'center' }}>
-            <Text style={{ fontSize: 16, fontWeight: '700', color: '#C8F53C' }}>{totalWorkouts}</Text>
+            <Text style={{ fontSize: 16, fontWeight: '700', color: '#2EBFBF' }}>{totalWorkouts}</Text>
             <Text style={{ fontSize: 10, color: colors.cardMuted }}>Sessions</Text>
           </View>
           <View style={{ alignItems: 'center' }}>
-            <Text style={{ fontSize: 16, fontWeight: '700', color: '#C8F53C' }}>{(totalVol / 1000).toFixed(1)}t</Text>
+            <Text style={{ fontSize: 16, fontWeight: '700', color: '#2EBFBF' }}>{(totalVol / 1000).toFixed(1)}t</Text>
             <Text style={{ fontSize: 10, color: colors.cardMuted }}>Total Volume</Text>
           </View>
           <View style={{ alignItems: 'center' }}>
-            <Text style={{ fontSize: 16, fontWeight: '700', color: '#C8F53C' }}>
+            <Text style={{ fontSize: 16, fontWeight: '700', color: '#2EBFBF' }}>
               {totalWorkouts > 0 ? Math.round(totalVol / totalWorkouts / 1000 * 10) / 10 : 0}t
             </Text>
             <Text style={{ fontSize: 10, color: colors.cardMuted }}>Avg/Session</Text>
@@ -1675,7 +1675,7 @@ const INTENSITY_COLORS: Record<IntensityLevel, string> = {
   low: '#1A3A1A',
   moderate: '#2D6A2D',
   high: '#5AAD5A',
-  overtrained: '#C8F53C',
+  overtrained: '#2EBFBF',
 };
 const INTENSITY_LABELS: Record<IntensityLevel, string> = {
   none: 'None',
@@ -1742,9 +1742,9 @@ function MuscleGroupHeatmap({
                   paddingHorizontal: 8,
                   paddingVertical: 4,
                   borderRadius: 8,
-                  backgroundColor: days === d ? '#C8F53C' : colors.background,
+                  backgroundColor: days === d ? '#2EBFBF' : colors.background,
                   borderWidth: 1,
-                  borderColor: days === d ? '#C8F53C' : colors.cardBorder,
+                  borderColor: days === d ? '#2EBFBF' : colors.cardBorder,
                 }}
               >
                 <Text style={{ fontSize: 11, fontWeight: '700', color: days === d ? '#000' : colors.cardMuted }}>

@@ -429,7 +429,7 @@ const tlStyles = StyleSheet.create({
   saveBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' },
 });
 
-// ─── Zaki Body Analysis Result Types ────────────────────────
+// ─── MY Assistant Body Analysis Result Types ────────────────────────
 interface BodyAnalysis {
   overallAssessment: string;
   postureFindings: string[];
@@ -440,7 +440,7 @@ interface BodyAnalysis {
   estimatedBodyFatRange?: string | null;
 }
 
-// ─── Zaki Body Analysis Modal ────────────────────────────────
+// ─── MY Assistant Body Analysis Modal ────────────────────────────────
 function ZakiAnalysisModal({ analysis, onClose, colors }: {
   analysis: BodyAnalysis;
   onClose: () => void;
@@ -457,7 +457,7 @@ function ZakiAnalysisModal({ analysis, onClose, colors }: {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <Text style={{ fontSize: 22 }}>🤖</Text>
             <View>
-              <Text style={{ fontSize: 17, fontWeight: '700', color: colors.cardForeground }}>Zaki Body Analysis</Text>
+              <Text style={{ fontSize: 17, fontWeight: '700', color: colors.cardForeground }}>MY Assistant Body Analysis</Text>
               <Text style={{ fontSize: 12, color: colors.cardMuted }}>AI-powered physique assessment</Text>
             </View>
           </View>
@@ -773,7 +773,7 @@ export default function ProgressPicturesScreen() {
             canAskAgain ? 'Permission Required' : 'Photo Library Permission Blocked',
             canAskAgain
               ? 'Please allow access to your photo library to pick a progress photo.'
-              : 'Photo library access was permanently denied. Open Settings → Apps → Banana Pro Gym → Permissions and enable Photos & Videos.',
+              : 'Photo library access was permanently denied. Open Settings → Apps → MY Lifestyle → Permissions and enable Photos & Videos.',
             canAskAgain
               ? [{ text: 'OK' }]
               : [
@@ -918,8 +918,8 @@ export default function ProgressPicturesScreen() {
       const result = await bodyAnalysisMutation.mutateAsync({ photos: photoPayload });
       setZakiAnalysis(result.analysis as unknown as BodyAnalysis);
     } catch (err) {
-      console.error('[Zaki body analysis]', err);
-      Alert.alert('Analysis Failed', 'Zaki could not analyse your photos. Please try again.');
+      console.error('[MY Assistant body analysis]', err);
+      Alert.alert('Analysis Failed', 'MY Assistant could not analyse your photos. Please try again.');
     } finally {
       setIsAnalyzing(false);
     }
@@ -1040,7 +1040,7 @@ export default function ProgressPicturesScreen() {
         </View>
       )}
 
-      {/* Zaki Body Analysis button — shown when there are photos */}
+      {/* MY Assistant Body Analysis button — shown when there are photos */}
       {pictures.length > 0 && (
         <TouchableOpacity
           style={[styles.zakiBtn, { backgroundColor: '#6366F1', opacity: isAnalyzing ? 0.7 : 1 }]}
@@ -1054,7 +1054,7 @@ export default function ProgressPicturesScreen() {
           )}
           <View style={{ flex: 1 }}>
             <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>
-              {isAnalyzing ? 'Analysing your physique…' : 'Analyse with Zaki'}
+              {isAnalyzing ? 'Analysing your physique…' : 'Analyse with MY Assistant'}
             </Text>
             <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, marginTop: 1 }}>
               {isAnalyzing ? 'This may take 15–30 seconds' : 'AI body composition & posture assessment'}
@@ -1308,7 +1308,7 @@ export default function ProgressPicturesScreen() {
               Track Your Transformation
             </Text>
             <Text style={{ fontSize: 15, color: colors.cardMuted, textAlign: 'center', lineHeight: 22, marginBottom: 28 }}>
-              Banana Pro Gym needs access to your{' '}
+              MY Lifestyle needs access to your{' '}
               <Text style={{ fontWeight: '700', color: colors.cardForeground }}>Camera</Text> and{' '}
               <Text style={{ fontWeight: '700', color: colors.cardForeground }}>Photo Library</Text>{' '}
               to let you log progress photos.{`\n\n`}Photos are stored{' '}
@@ -1355,7 +1355,7 @@ export default function ProgressPicturesScreen() {
         </View>
       </Modal>
 
-      {/* Zaki Body Analysis modal */}
+      {/* MY Assistant Body Analysis modal */}
       {zakiAnalysis && (
         <ZakiAnalysisModal
           analysis={zakiAnalysis}

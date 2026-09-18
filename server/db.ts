@@ -89,9 +89,9 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-// ── Zaki Session Persistence ────────────────────────────────
+// ── MY Assistant Session Persistence ────────────────────────────────
 // Stores the openclaw-bridge session_id against a device ID so
-// Zaki remembers conversation context across app restarts.
+// MY Assistant remembers conversation context across app restarts.
 
 export async function getZakiSession(deviceId: string): Promise<string | null> {
   const db = await getDb();
@@ -122,7 +122,7 @@ export async function upsertZakiSession(
         set: { zakiSessionId, lastUsedAt: new Date() },
       });
   } catch (err) {
-    console.error('[Database] Failed to upsert Zaki session:', err);
+    console.error('[Database] Failed to upsert MY Assistant session:', err);
   }
 }
 

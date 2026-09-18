@@ -112,7 +112,7 @@ export function HowtoModal({ exerciseName, onClose }: Props) {
             <View style={s.center}>
               <Text style={{ fontSize: 40 }}>🤷</Text>
               <Text style={[s.loadingText, { color: colors.muted, textAlign: 'center' }]}>
-                No demo found for this exercise yet.{'\n'}Ask Zaki in the Coach tab for form cues.
+                No demo found for this exercise yet.{'\n'}Ask Coach in the Coach tab for form cues.
               </Text>
             </View>
           )}

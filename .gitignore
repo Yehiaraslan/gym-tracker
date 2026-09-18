@@ -60,3 +60,9 @@ Thumbs.db
 *.tgz
 *.tar.gz
 .cache/
+
+# QA screenshot dumps
+artifacts/
+
+# local credentials notes
+notes/coach-account-*.md

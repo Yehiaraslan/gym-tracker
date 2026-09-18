@@ -1,5 +1,5 @@
 // ============================================================
-// ZAKI VOICE RECORDER — Native only (Android / iOS)
+// COACH VOICE RECORDER — Native only (Android / iOS)
 // Uses static import of expo-audio so hooks work correctly
 // with the New Architecture (TurboModules).
 // This file is ONLY bundled on native (Metro resolves .native.tsx first).
@@ -51,7 +51,7 @@ function VoiceRecorderNoMic({ chatInput, setChatInput, onSend, chatLoading, colo
         style={[styles.input, { backgroundColor: colors.cardBorder, color: colors.foreground }]}
         value={chatInput}
         onChangeText={setChatInput}
-        placeholder="Ask Zaki anything..."
+        placeholder="Ask Coach anything..."
         placeholderTextColor={colors.cardMuted}
         multiline
         returnKeyType="send"
@@ -138,7 +138,7 @@ function ZakiVoiceRecorderInner({
         style={[styles.input, { backgroundColor: colors.cardBorder, color: colors.foreground }]}
         value={chatInput}
         onChangeText={setChatInput}
-        placeholder={isRecording ? 'Recording... tap mic to stop' : 'Ask Zaki anything...'}
+        placeholder={isRecording ? 'Recording... tap mic to stop' : 'Ask Coach anything...'}
         placeholderTextColor={isRecording ? '#EF4444' : colors.cardMuted}
         multiline
         returnKeyType="send"
@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#C8F53C',
+    backgroundColor: '#2EBFBF',
     alignItems: 'center',
     justifyContent: 'center',
   },

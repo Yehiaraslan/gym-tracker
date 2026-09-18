@@ -33,6 +33,7 @@ import {
   type EquipmentAccess,
 } from '@/lib/profile-store';
 import { useAuth } from '@/hooks/use-auth';
+import { useI18n, type Language } from '@/lib/i18n';
 import { loadPinSyncState, type PinSyncState } from '@/lib/pin-sync-store';
 import { persistImage } from '@/lib/image-store';
 import { loadCustomProgram, clearCustomProgram, type CustomProgram } from '@/lib/custom-program-store';
@@ -42,6 +43,11 @@ const GOALS: { key: UserProfile['fitnessGoal']; label: string; emoji: string }[]
   { key: 'fat_loss', label: 'Fat Loss', emoji: '🔥' },
   { key: 'strength', label: 'Strength', emoji: '🏋️' },
   { key: 'endurance', label: 'Endurance', emoji: '🏃' },
+];
+
+const LANGUAGES: { key: Language; label: string }[] = [
+  { key: 'en', label: 'English' },
+  { key: 'ar', label: 'العربية' },
 ];
 
 const GENDERS: { key: UserProfile['gender']; label: string }[] = [
@@ -69,14 +75,21 @@ const DEFAULT_PROFILE: UserProfile = {
   gender: '',
   heightCm: '',
   weightKg: '',
+  heightUnit: 'cm',
+  weightUnit: 'kg',
   fitnessGoal: '',
+  activityLevel: 0,
   experienceLevel: '',
+  focusMuscles: [],
+  trainingDaysPerWeek: 0,
   equipment: '',
+  reminders: { enabled: false, times: {} },
   onboardingCompleted: false,
 };
 
 export default function ProfileScreen() {
   const colors = useColors();
+  const { lang, setLang } = useI18n();
   const router = useRouter();
   const { user: authUser, logout } = useAuth();
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
@@ -253,6 +266,30 @@ export default function ProfileScreen() {
             {age !== null && (
               <Text style={[styles.hint, { color: colors.primary }]}>Age: {age} years old</Text>
             )}
+          </View>
+
+          {/* Language */}
+          <View style={styles.fieldGroup}>
+            <Text style={[styles.label, { color: colors.cardMuted }]}>LANGUAGE</Text>
+            <View style={styles.chipRow}>
+              {LANGUAGES.map(l => (
+                <TouchableOpacity
+                  key={l.key}
+                  onPress={() => setLang(l.key)}
+                  style={[
+                    styles.chip,
+                    {
+                      backgroundColor: lang === l.key ? colors.primary : colors.surface,
+                      borderColor: lang === l.key ? colors.primary : colors.cardBorder,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.chipText, { color: lang === l.key ? colors.onPrimary : colors.cardForeground }]}>
+                    {l.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
 
           {/* Gender */}

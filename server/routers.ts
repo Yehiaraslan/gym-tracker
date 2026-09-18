@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import * as trainerLink from "./trainer-link-service";
+import * as coachSvc from "./coach-service";
 import { COOKIE_NAME } from "../shared/const.js";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
@@ -81,6 +82,56 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         return wrapLink(() => trainerLink.setPhotoConsent(ctx.user.id, input.linkId, input.shared));
       }),
+  }),
+
+  // Coach ↔ trainee: plans, meals, messages, progress. Actor always from ctx.
+  coach: router({
+    // — coach side —
+    roster: protectedProcedure.query(async ({ ctx }) => {
+      return wrapLink(() => coachSvc.rosterOverview(ctx.user.id));
+    }),
+    traineeProgress: protectedProcedure
+      .input(z.object({ traineeId: z.number().int().positive() }))
+      .query(async ({ ctx, input }) => {
+        return wrapLink(() => coachSvc.traineeProgress(ctx.user.id, input.traineeId));
+      }),
+    traineePlans: protectedProcedure
+      .input(z.object({ traineeId: z.number().int().positive() }))
+      .query(async ({ ctx, input }) => {
+        return wrapLink(() => coachSvc.plansForTraineeAsCoach(ctx.user.id, input.traineeId));
+      }),
+    assignWorkoutPlan: protectedProcedure
+      .input(z.object({ traineeId: z.number().int().positive(), plan: coachSvc.workoutPlanSchema }))
+      .mutation(async ({ ctx, input }) => {
+        return wrapLink(() => coachSvc.assignWorkoutPlan({ id: ctx.user.id, name: ctx.user.name }, input.traineeId, input.plan));
+      }),
+    assignMealPlan: protectedProcedure
+      .input(z.object({ traineeId: z.number().int().positive(), plan: coachSvc.mealPlanSchema }))
+      .mutation(async ({ ctx, input }) => {
+        return wrapLink(() => coachSvc.assignMealPlan({ id: ctx.user.id, name: ctx.user.name }, input.traineeId, input.plan));
+      }),
+    // — trainee side —
+    myPlans: protectedProcedure.query(async ({ ctx }) => {
+      return wrapLink(() => coachSvc.myPlans(ctx.user.id));
+    }),
+    // — both sides —
+    threads: protectedProcedure.query(async ({ ctx }) => {
+      const iAmCoach = ctx.user.role === "trainer" || ctx.user.role === "admin";
+      return wrapLink(() => coachSvc.threads(ctx.user.id, iAmCoach));
+    }),
+    thread: protectedProcedure
+      .input(z.object({ peerId: z.number().int().positive() }))
+      .query(async ({ ctx, input }) => {
+        return wrapLink(() => coachSvc.thread(ctx.user.id, input.peerId));
+      }),
+    sendMessage: protectedProcedure
+      .input(z.object({ peerId: z.number().int().positive(), body: z.string().min(1).max(4000) }))
+      .mutation(async ({ ctx, input }) => {
+        return wrapLink(() => coachSvc.sendMessage(ctx.user.id, input.peerId, input.body));
+      }),
+    unreadCount: protectedProcedure.query(async ({ ctx }) => {
+      return coachSvc.unreadCount(ctx.user.id);
+    }),
   }),
 
   auth: router({
@@ -860,7 +911,7 @@ export const appRouter = router({
         }
       }),
 
-    // Mid-workout check-in: Zaki evaluates current progress and advises on remaining sets
+    // Mid-workout check-in: MY Assistant evaluates current progress and advises on remaining sets
     midWorkoutCheckIn: protectedProcedure
       .input(z.object({
         sessionName: z.string(),
@@ -927,7 +978,7 @@ export const appRouter = router({
         return result;
       }),
 
-    // Server-side Zaki session ID persistence (survives app restarts)
+    // Server-side MY Assistant session ID persistence (survives app restarts)
     getSession: protectedProcedure
       .input(z.object({ deviceId: z.string() }))
       .query(async ({ input }) => {
@@ -960,7 +1011,7 @@ export const appRouter = router({
         return { url, key };
       }),
 
-    // Analyze body composition from progress photos using Zaki
+    // Analyze body composition from progress photos using MY Assistant
     analyzeBodyComposition: protectedProcedure
       .input(z.object({
         deviceId: z.string(),
@@ -1050,7 +1101,7 @@ export const appRouter = router({
           '**Top Exercises by Volume:**',
           exerciseSummary,
           '',
-          'As Zaki, provide a structured performance review with:',
+          'As MY Assistant, provide a structured performance review with:',
           '1. **Overall Progress Grade** (A–F) with 2-sentence justification',
           '2. **Top 3 Strength Wins** — specific exercises where load or volume increased',
           '3. **Top 3 Weak Points** — exercises with stagnation or insufficient volume',
@@ -1122,7 +1173,7 @@ export const appRouter = router({
         }
 
         const systemPrompt = [
-          'You are Zaki — an elite strength & conditioning coach with expertise in biomechanics, physique assessment, and corrective exercise.',
+          'You are MY Assistant — an elite strength & conditioning coach with expertise in biomechanics, physique assessment, and corrective exercise.',
           'You are analyzing progress photos to provide actionable, evidence-based feedback.',
           'Be specific, data-driven, and constructive. Avoid generic advice.',
           'If no human physique is clearly visible in the photos, state that in overallAssessment and return empty arrays — never fabricate findings.',
@@ -1186,7 +1237,7 @@ export const appRouter = router({
       .input(z.object({ name: z.string().min(2).max(120) }))
       .query(({ input }) => lookupHowto(input.name)),
 
-    // ── Zaki Warm-Up Plan Generator ──
+    // ── MY Assistant Warm-Up Plan Generator ──
     warmupPlan: protectedProcedure
       .input(z.object({
         sessionType: z.string(),

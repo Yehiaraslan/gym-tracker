@@ -502,6 +502,59 @@ export const trainerTrainees = mysqlTable("trainer_trainees", {
   traineeIdx: index("tt_trainee_idx").on(table.traineeId),
 }));
 
+// ── Coach-authored plans + messaging ────────────────────────────────
+// A coach writes a workout plan and a meal plan FOR a trainee. Only one of
+// each is active per (trainer, trainee) pair; assigning a new one archives
+// the previous. Every write goes through assertCanCoach() first.
+
+export const coachWorkoutPlans = mysqlTable("coach_workout_plans", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  trainerId: int("trainerId").notNull(),
+  traineeId: int("traineeId").notNull(),
+  name: varchar("name", { length: 128 }).notNull(),
+  planJson: json("planJson").notNull(),
+  status: mysqlEnum("status", ["active", "archived"]).default("active").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  traineeIdx: index("cwp_trainee_idx").on(table.traineeId, table.status),
+  trainerIdx: index("cwp_trainer_idx").on(table.trainerId),
+}));
+
+export const coachMealPlans = mysqlTable("coach_meal_plans", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  trainerId: int("trainerId").notNull(),
+  traineeId: int("traineeId").notNull(),
+  name: varchar("name", { length: 128 }).notNull(),
+  planJson: json("planJson").notNull(),
+  status: mysqlEnum("status", ["active", "archived"]).default("active").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  traineeIdx: index("cmp_trainee_idx").on(table.traineeId, table.status),
+  trainerIdx: index("cmp_trainer_idx").on(table.trainerId),
+}));
+
+// Direct messages between a coach and a trainee. Sending requires an ACTIVE
+// link in either direction; history stays readable after a revoke.
+export const coachMessages = mysqlTable("coach_messages", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  senderId: int("senderId").notNull(),
+  recipientId: int("recipientId").notNull(),
+  body: text("body").notNull(),
+  // Millisecond precision so two messages sent in the same second still sort
+  // in the order they were written (the service also sets it explicitly).
+  createdAt: timestamp("createdAt", { fsp: 3 }).defaultNow().notNull(),
+  readAt: timestamp("readAt"),
+}, (table) => ({
+  pairIdx: index("cm_pair_idx").on(table.senderId, table.recipientId, table.createdAt),
+  inboxIdx: index("cm_inbox_idx").on(table.recipientId, table.readAt),
+}));
+
+export type CoachWorkoutPlanRow = typeof coachWorkoutPlans.$inferSelect;
+export type CoachMealPlanRow = typeof coachMealPlans.$inferSelect;
+export type CoachMessageRow = typeof coachMessages.$inferSelect;
+
 export type AuthSession = typeof authSessions.$inferSelect;
 export type EmailVerification = typeof emailVerifications.$inferSelect;
 export type PasswordReset = typeof passwordResets.$inferSelect;

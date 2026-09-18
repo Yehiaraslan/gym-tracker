@@ -4,7 +4,7 @@
 // - Total workouts completed during the mesocycle
 // - PRs hit during the program period
 // - Duration and dates
-// - Whether it was Zaki-generated or a template
+// - Whether it was MY Assistant-generated or a template
 // ============================================================
 import { useState, useEffect, useCallback } from 'react';
 import {
@@ -178,7 +178,7 @@ export default function ProgramHistoryScreen() {
                       </Text>
                       {entry.program.generatedByZaki && (
                         <View style={[s.zakiBadge, { backgroundColor: pr + '20' }]}>
-                          <Text style={{ color: pr, fontSize: 10, fontWeight: '700' }}>🤖 ZAKI</Text>
+                          <Text style={{ color: pr, fontSize: 10, fontWeight: '700' }}>🤖 COACH</Text>
                         </View>
                       )}
                     </View>

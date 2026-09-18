@@ -1,8 +1,8 @@
 /**
- * Agent Zaki Service
- * Connects to the openclaw-bridge MCP server to communicate with Agent Zaki.
+ * Agent MY Assistant Service
+ * Connects to the openclaw-bridge MCP server to communicate with Agent MY Assistant.
  * Handles session initialization, message sending, and response parsing.
- * Supports conversation continuity via Zaki session_id.
+ * Supports conversation continuity via MY Assistant session_id.
  */
 
 import https from 'https';
@@ -81,10 +81,10 @@ async function initMcpSession(): Promise<string> {
 }
 
 /**
- * Ask Agent Zaki a question.
+ * Ask Agent MY Assistant a question.
  *
- * @param message - The message to send to Zaki
- * @param zakiSessionId - Optional Zaki conversation session ID for continuity.
+ * @param message - The message to send to MY Assistant
+ * @param zakiSessionId - Optional MY Assistant conversation session ID for continuity.
  *   Pass the same ID across calls to maintain context within a conversation.
  * @returns { response, zakiSessionId } — response text and session ID to reuse
  */
@@ -104,7 +104,7 @@ export async function askZaki(
   }, mcpSessionId);
 
   const rawText = parseSSEText(resp.data);
-  if (!rawText) throw new Error('No response from Agent Zaki');
+  if (!rawText) throw new Error('No response from Agent MY Assistant');
 
   // Try to extract session_id from response metadata
   let returnedSessionId = zakiSessionId ?? '';
@@ -129,7 +129,7 @@ export async function askZaki(
 }
 
 /**
- * Build a structured coaching prompt from user data and send to Zaki.
+ * Build a structured coaching prompt from user data and send to MY Assistant.
  */
 export async function getZakiDailyCoaching(context: {
   recoveryScore?: number;
@@ -173,7 +173,7 @@ export async function getZakiDailyCoaching(context: {
     }
   }
 
-  // Nutrition excluded from Zaki coaching context (per user request)
+  // Nutrition excluded from MY Assistant coaching context (per user request)
 
   lines.push('');
   lines.push('Give me your coaching decision for today. Be direct and specific:');
@@ -188,7 +188,7 @@ export async function getZakiDailyCoaching(context: {
 }
 
 /**
- * Ask Zaki for a modified workout when recovery is yellow (34-66%).
+ * Ask MY Assistant for a modified workout when recovery is yellow (34-66%).
  */
 export async function getZakiWorkoutModification(context: {
   sessionName: string;

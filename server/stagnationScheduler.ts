@@ -110,9 +110,9 @@ export async function checkAndNotifyStagnation(): Promise<{
 
   // Build notification content
   const exerciseList = stagnantExercises.map(e => `• ${e}`).join('\n');
-  const title = `⚠️ Zaki Alert: Plateau Detected — ${new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`;
+  const title = `⚠️ MY Assistant Alert: Plateau Detected — ${new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`;
   const content = [
-    `Zaki has detected stagnation across ${stagnantExercises.length} exercises with no meaningful volume progression over the last 3+ weeks:`,
+    `MY Assistant has detected stagnation across ${stagnantExercises.length} exercises with no meaningful volume progression over the last 3+ weeks:`,
     '',
     exerciseList,
     '',

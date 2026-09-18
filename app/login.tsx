@@ -120,7 +120,7 @@ export default function LoginScreen() {
         >
           <View style={s.hero}>
             <Image source={require('@/assets/images/icon.png')} style={s.appIcon} />
-            <Text style={[s.title, { color: fg }]}>Banana Pro Gym</Text>
+            <Text style={[s.title, { color: fg }]}>MY Lifestyle</Text>
             <Text style={[s.subtitle, { color: mt }]}>
               {isSignup
                 ? 'Create an account to train, or to coach others.'

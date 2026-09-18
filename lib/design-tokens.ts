@@ -52,7 +52,7 @@ export const Radius = {
 export const Shadow = {
   none: {},
   /** Primary CTA — lime-colored shadow */
-  cta: (color = '#C8F53C') => ({
+  cta: (color = '#2EBFBF') => ({
     shadowColor: color,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
@@ -60,7 +60,7 @@ export const Shadow = {
     elevation: 8,
   }),
   /** CTA pressed state — tighter */
-  ctaPress: (color = '#C8F53C') => ({
+  ctaPress: (color = '#2EBFBF') => ({
     shadowColor: color,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.30,
@@ -221,7 +221,7 @@ export const SemanticColors = {
 
 // ── LIME ACCENT RAMP ──────────────────────────────────────
 export const Lime = {
-  base: '#C8F53C',
+  base: '#2EBFBF',
   bright: '#D9FF57',
   dim: '#A6CC32',
   /** Soft tinted background */

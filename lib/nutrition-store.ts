@@ -3,6 +3,8 @@
 // ============================================================
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { MacroTargets } from '@/shared/coach-types';
+import { getCoachTargets } from './coach-plan-sync';
 import { syncNutritionDay } from './db-sync-fetch';
 import { isTrainingDay, NUTRITION_TARGETS, SUPPLEMENTS } from './training-program';
 
@@ -49,10 +51,11 @@ function getTodayString(): string {
   return new Date().toLocaleDateString('en-CA');
 }
 
-function getDefaultNutrition(date?: string): DailyNutrition {
+function getDefaultNutrition(date?: string, coachTargets?: MacroTargets | null): DailyNutrition {
   const d = date || getTodayString();
   const training = isTrainingDay(new Date(d + 'T00:00:00'));
-  const targets = training ? NUTRITION_TARGETS.training : NUTRITION_TARGETS.rest;
+  // A linked coach's meal plan wins over the built-in defaults.
+  const targets = coachTargets ?? (training ? NUTRITION_TARGETS.training : NUTRITION_TARGETS.rest);
   return {
     date: d,
     isTrainingDay: training,
@@ -74,7 +77,11 @@ export async function getDailyNutrition(date?: string): Promise<DailyNutrition> 
       if (parsed[d]) return parsed[d];
     }
   } catch (_e) { /* ignore */ }
-  return getDefaultNutrition(d);
+  let coachTargets: MacroTargets | null = null;
+  try {
+    coachTargets = await getCoachTargets(isTrainingDay(new Date(d + 'T00:00:00')));
+  } catch { /* offline / no plan */ }
+  return getDefaultNutrition(d, coachTargets);
 }
 
 export async function saveDailyNutrition(nutrition: DailyNutrition): Promise<void> {

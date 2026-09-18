@@ -291,7 +291,7 @@ async function startServer() {
 
 startServer().catch(console.error);
 
-// Start Zaki daily digest scheduler (fires at 07:00 Dubai time every day)
+// Start Coach Mohamad Yousry daily digest scheduler (fires at 07:00 Dubai time every day)
 startDailyDigestScheduler();
 // Start stagnation notification scheduler (fires at 06:55 Dubai time every day)
 startStagnationScheduler();

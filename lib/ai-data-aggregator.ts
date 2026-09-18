@@ -196,7 +196,7 @@ function computeVolumeTrend(
 
 export async function buildUserSnapshot(): Promise<UserSnapshot> {
   const now = new Date();
-  // Use schedule-aware session (reads Zaki's override from AsyncStorage)
+  // Use schedule-aware session (reads MY Assistant's override from AsyncStorage)
   const todaySession = await getTodaySessionFromSchedule();
 
   // Parallel data fetching
@@ -471,7 +471,7 @@ export function snapshotToPromptContext(snap: UserSnapshot): string {
   const lines: string[] = [];
 
   lines.push(`=== USER TRAINING SNAPSHOT (${snap.timestamp.split('T')[0]}) ===`);
-  // User profile — always first so Zaki knows who he's coaching
+  // User profile — always first so MY Assistant knows who he's coaching
   if (snap.userProfile) {
     const p = snap.userProfile;
     const parts: string[] = [];
@@ -563,7 +563,7 @@ export function snapshotToPromptContext(snap: UserSnapshot): string {
     }
   }
 
-  // Nutrition excluded from Zaki context (per user request)
+  // Nutrition excluded from MY Assistant context (per user request)
 
   // Progress
   if (snap.progressSummaries.length > 0) {
@@ -628,7 +628,7 @@ export function snapshotToPromptContext(snap: UserSnapshot): string {
   // Active schedule
   lines.push(`\n--- ACTIVE TRAINING SCHEDULE ---`);
   if (snap.scheduleOverride) {
-    lines.push(`Custom schedule (set by ${snap.scheduleOverride.appliedByZaki ? 'Zaki' : 'user'} on ${snap.scheduleOverride.appliedAt.split('T')[0]}): ${snap.scheduleOverride.description}`);
+    lines.push(`Custom schedule (set by ${snap.scheduleOverride.appliedByZaki ? 'MY Assistant' : 'user'} on ${snap.scheduleOverride.appliedAt.split('T')[0]}): ${snap.scheduleOverride.description}`);
   } else {
     lines.push(`Default schedule (Upper/Lower 4-day split):`);
   }

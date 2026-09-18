@@ -225,6 +225,47 @@ export class NotificationService {
     await AsyncStorage.setItem('notification_settings', JSON.stringify(updated));
   }
 
+  /**
+   * Weekly workout reminders chosen in onboarding.
+   * `times` maps ISO weekday (1 = Monday … 7 = Sunday) → "HH:mm".
+   * Replaces any reminders scheduled by a previous call.
+   */
+  async scheduleWorkoutReminders(
+    times: Partial<Record<number, string>>,
+    content: { title: string; body: string },
+  ): Promise<string[]> {
+    if (Platform.OS === 'web') return [];
+    const IDS_KEY = 'workout_reminder_ids';
+    try {
+      const prev = await AsyncStorage.getItem(IDS_KEY);
+      if (prev) {
+        for (const id of JSON.parse(prev) as string[]) {
+          await Notifications.cancelScheduledNotificationAsync(id).catch(() => {});
+        }
+      }
+    } catch {
+      // nothing to clear
+    }
+    const ids: string[] = [];
+    for (const [isoDay, hhmm] of Object.entries(times)) {
+      if (!hhmm) continue;
+      const [h, m] = hhmm.split(':').map(Number);
+      // expo weekday: 1 = Sunday … 7 = Saturday
+      const weekday = (Number(isoDay) % 7) + 1;
+      try {
+        const id = await Notifications.scheduleNotificationAsync({
+          content: { title: content.title, body: content.body, sound: true, data: { type: 'workout_reminder' } },
+          trigger: { type: Notifications.SchedulableTriggerInputTypes.WEEKLY, weekday, hour: h, minute: m },
+        });
+        ids.push(id);
+      } catch (error) {
+        console.error('Failed to schedule workout reminder:', error);
+      }
+    }
+    await AsyncStorage.setItem(IDS_KEY, JSON.stringify(ids));
+    return ids;
+  }
+
   async cancelAllNotifications(): Promise<void> {
     await Notifications.cancelAllScheduledNotificationsAsync();
   }

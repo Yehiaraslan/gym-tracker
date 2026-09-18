@@ -25,6 +25,9 @@ import {
   getRecentNutrition,
 } from '@/lib/nutrition-store';
 import { NUTRITION_TARGETS, MEAL_SCHEDULE, SUPPLEMENTS, isTrainingDay } from '@/lib/training-program';
+import { loadCoachMealPlan } from '@/lib/coach-plan-sync';
+import type { CoachMealPlan } from '@/shared/coach-types';
+import { useI18n } from '@/lib/i18n';
 import * as Haptics from 'expo-haptics';
 import uaeFoodDb from '@/lib/data/uae-food-database.json';
 import { WaterTracker } from '@/components/water-tracker';
@@ -147,17 +150,21 @@ export default function NutritionTab() {
   const [customFat, setCustomFat] = useState('');
   const [copyingYesterday, setCopyingYesterday] = useState(false);
   const [weeklyAdherence, setWeeklyAdherence] = useState<{ daysHit: number; total: number; pct: number } | null>(null);
+  const [coachPlan, setCoachPlan] = useState<CoachMealPlan | null>(null);
+  const { t } = useI18n();
 
   // ── Load data on mount ───────────────────────────────────
   useEffect(() => {
     let mounted = true;
     const load = async () => {
-      const [log, custom, recent] = await Promise.all([
+      const [log, custom, recent, cp] = await Promise.all([
         getDailyNutrition(today),
         loadCustomFoods(),
         getRecentNutrition(7),
+        loadCoachMealPlan().catch(() => null),
       ]);
       if (mounted) {
+        setCoachPlan(cp);
         setTodayLog(log);
         setCustomFoods(custom);
         // Compute weekly protein adherence
@@ -182,8 +189,12 @@ export default function NutritionTab() {
 
   // ── Effective log (with defaults while loading) ──────────
   const isTrain = isTrainingDay(new Date());
-  const targets = isTrain ? NUTRITION_TARGETS.training : NUTRITION_TARGETS.rest;
-  const log: DailyNutrition = todayLog ?? {
+  // A linked coach's meal plan overrides the built-in targets, including on
+  // a day that was created before the plan arrived.
+  const targets = coachPlan
+    ? (isTrain ? coachPlan.trainingDay : coachPlan.restDay)
+    : (isTrain ? NUTRITION_TARGETS.training : NUTRITION_TARGETS.rest);
+  const baseLog: DailyNutrition = todayLog ?? {
     date: today,
     isTrainingDay: isTrain,
     meals: [],
@@ -192,6 +203,40 @@ export default function NutritionTab() {
     targetCarbs: targets.carbs,
     targetFat: targets.fat,
     supplementsChecked: DEFAULT_SUPPLEMENTS,
+  };
+  const log: DailyNutrition = coachPlan
+    ? { ...baseLog, targetCalories: targets.calories, targetProtein: targets.protein, targetCarbs: targets.carbs, targetFat: targets.fat }
+    : baseLog;
+
+  /** Log every food of one coach meal into today's matching slot. */
+  const logCoachMeal = async (mealNumber: number) => {
+    const meal = coachPlan?.meals.find(m => m.mealNumber === mealNumber);
+    if (!meal || meal.foods.length === 0) return;
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const next: DailyNutrition = {
+      ...log,
+      meals: [
+        ...log.meals,
+        ...meal.foods.map(f => ({
+          id: generateId(),
+          mealNumber: mealNumber as 1 | 2 | 3 | 4 | 5,
+          foodName: f.foodName,
+          protein: f.protein,
+          carbs: f.carbs,
+          fat: f.fat,
+          calories: f.calories,
+          timestamp: new Date().toISOString(),
+        })),
+      ],
+    };
+    await saveDailyNutrition(next);
+    setTodayLog(next);
+  };
+  const coachMealLogged = (mealNumber: number) => {
+    const meal = coachPlan?.meals.find(m => m.mealNumber === mealNumber);
+    if (!meal || meal.foods.length === 0) return false;
+    const names = new Set(log.meals.filter(m => m.mealNumber === mealNumber).map(m => m.foodName));
+    return meal.foods.every(f => names.has(f.foodName));
   };
 
   // ── Macro totals ─────────────────────────────────────────
@@ -364,6 +409,51 @@ export default function NutritionTab() {
           </TouchableOpacity>
         </View>
 
+        {/* ── Coach's meal plan ──────────────────────────── */}
+        {coachPlan && (
+          <View style={[s.mealCard, { backgroundColor: surf, borderColor: pri + '55', padding: 14, marginBottom: 12 }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <Text style={{ fontSize: 18 }}>🍽️</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: fg, fontSize: 15, fontWeight: '700' }}>{t('coachMealsTitle')}</Text>
+                <Text style={{ color: mut, fontSize: 11 }}>{coachPlan.name} · Coach {coachPlan.coachName}</Text>
+              </View>
+              <Text style={{ color: pri, fontSize: 11, fontWeight: '700' }}>{targets.calories} kcal · P{targets.protein}</Text>
+            </View>
+            {coachPlan.meals.map(meal => {
+              const kcal = meal.foods.reduce((a, f) => a + f.calories, 0);
+              const done = coachMealLogged(meal.mealNumber);
+              return (
+                <View key={meal.mealNumber} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: 1, borderTopColor: bord, paddingVertical: 8 }}>
+                  <View style={[s.mealBadge, { backgroundColor: pri + '22' }]}>
+                    <Text style={[s.mealBadgeText, { color: pri }]}>{meal.mealNumber}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: fg, fontSize: 13, fontWeight: '600' }}>{meal.name}{meal.time ? ` · ${meal.time}` : ''}</Text>
+                    <Text style={{ color: mut, fontSize: 11 }} numberOfLines={2}>
+                      {meal.foods.length ? meal.foods.map(f => `${f.foodName} ${f.servingGrams}g`).join(', ') : meal.notes || '—'}
+                    </Text>
+                    {!!meal.notes && meal.foods.length > 0 && <Text style={{ color: mut, fontSize: 11, fontStyle: 'italic' }}>{meal.notes}</Text>}
+                  </View>
+                  <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                    <Text style={{ color: mut, fontSize: 11 }}>{kcal} kcal</Text>
+                    {meal.foods.length > 0 && (
+                      <TouchableOpacity
+                        onPress={() => logCoachMeal(meal.mealNumber)}
+                        disabled={done}
+                        style={{ backgroundColor: done ? colors.success + '22' : pri, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 }}
+                      >
+                        <Text style={{ color: done ? colors.success : colors.primaryInk, fontSize: 11, fontWeight: '800' }}>{done ? '✓ ' + t('logged') : t('logMeal')}</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              );
+            })}
+            {!!coachPlan.notes && <Text style={{ color: mut, fontSize: 12, marginTop: 6, lineHeight: 17 }}>{coachPlan.notes}</Text>}
+          </View>
+        )}
+
         {/* ── Same as Yesterday Button ───────────────────── */}
         {log.meals.length === 0 && (
           <TouchableOpacity
@@ -439,7 +529,7 @@ export default function NutritionTab() {
               <Text style={{
                 fontSize: 18,
                 fontWeight: '800',
-                color: weeklyAdherence.pct >= 80 ? '#C8F53C' : weeklyAdherence.pct >= 50 ? '#F59E0B' : '#EF4444',
+                color: weeklyAdherence.pct >= 80 ? '#2EBFBF' : weeklyAdherence.pct >= 50 ? '#F59E0B' : '#EF4444',
               }}>
                 {weeklyAdherence.pct}%
               </Text>
@@ -455,7 +545,7 @@ export default function NutritionTab() {
                       flex: 1,
                       height: 8,
                       borderRadius: 4,
-                      backgroundColor: hit ? '#C8F53C' : logged ? '#EF4444' : colors.cardBorder,
+                      backgroundColor: hit ? '#2EBFBF' : logged ? '#EF4444' : colors.cardBorder,
                     }}
                   />
                 );

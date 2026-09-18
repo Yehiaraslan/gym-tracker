@@ -266,13 +266,13 @@ export default function SplitWorkoutScreen() {
     Animated.stagger(20, confettiAnims).start();
   };
 
-  // Zaki workout modification (yellow recovery)
+  // MY Assistant workout modification (yellow recovery)
   const [zakiModifLoading, setZakiModifLoading] = useState(false);
   const [zakiModifResult, setZakiModifResult] = useState<string | null>(null);
   const [showZakiModif, setShowZakiModif] = useState(false);
   const zakiWorkoutModifMutation = trpc.zaki.workoutModification.useMutation();
 
-  // Zaki mid-workout check-in
+  // MY Assistant mid-workout check-in
   const [showZakiCheckIn, setShowZakiCheckIn] = useState(false);
   const [zakiCheckInLoading, setZakiCheckInLoading] = useState(false);
   const [zakiCheckInResult, setZakiCheckInResult] = useState<string | null>(null);
@@ -293,14 +293,14 @@ export default function SplitWorkoutScreen() {
   const [cardioDistance, setCardioDistance] = useState<string>('');
   const [cardioIntensity, setCardioIntensity] = useState<CardioIntensity>('moderate');
   const [cardioNotes, setCardioNotes] = useState<string>('');
-  // Zaki form review
+  // MY Assistant form review
   const [formMediaMap, setFormMediaMap] = useState<Record<string, { uri: string; base64: string; type: 'photo' | 'video' }[]>>({});
   const [formReviewModal, setFormReviewModal] = useState<{ exerciseName: string } | null>(null);
   const [formReviewLoading, setFormReviewLoading] = useState(false);
   const [formReviewResult, setFormReviewResult] = useState<string | null>(null);
   const formReviewMutation = trpc.zaki.formReview.useMutation();
 
-  // Zaki equipment verify
+  // MY Assistant equipment verify
   const [equipVerifyModal, setEquipVerifyModal] = useState<{ exerciseIndex: number; exerciseName: string } | null>(null);
   const [equipImageUri, setEquipImageUri] = useState<string | null>(null);
   const [equipImageBase64, setEquipImageBase64] = useState<string | null>(null);
@@ -434,7 +434,7 @@ export default function SplitWorkoutScreen() {
       });
       setFormReviewResult(result.feedback);
     } catch {
-      setFormReviewResult('Zaki could not analyze the media. Please try again.');
+      setFormReviewResult('MY Assistant could not analyze the media. Please try again.');
     } finally {
       setFormReviewLoading(false);
     }
@@ -492,7 +492,7 @@ export default function SplitWorkoutScreen() {
       });
       setZakiModifResult(result.response);
     } catch (e) {
-      setZakiModifResult('Zaki is unavailable right now. Trust your body and reduce load by 10-15%.');
+      setZakiModifResult('MY Assistant is unavailable right now. Trust your body and reduce load by 10-15%.');
     } finally {
       setZakiModifLoading(false);
     }
@@ -537,7 +537,7 @@ export default function SplitWorkoutScreen() {
       setZakiCheckInResult(result.response);
       if (result.zakiSessionId) setZakiCheckInSessionId(result.zakiSessionId);
     } catch {
-      setZakiCheckInResult('Zaki is unavailable right now. Trust your instincts and listen to your body.');
+      setZakiCheckInResult('MY Assistant is unavailable right now. Trust your instincts and listen to your body.');
     } finally {
       setZakiCheckInLoading(false);
     }
@@ -599,7 +599,7 @@ export default function SplitWorkoutScreen() {
         const consecutive = await getConsecutiveTopRange(sessionType, ex.name, ex.repsMax);
         hints[ex.name] = consecutive >= 1 && !isDeload;
       }
-      // Override with Zaki's pending weights if the user tapped "Load These Weights"
+      // Override with MY Assistant's pending weights if the user tapped "Load These Weights"
       const pending = await consumePendingWeights();
       if (pending && Object.keys(pending).length > 0) {
         for (const ex of exercises) {
@@ -607,7 +607,7 @@ export default function SplitWorkoutScreen() {
           if (kg && kg > 0) {
             suggestions[ex.name] = {
               weight: kg,
-              reason: `💪 Zaki suggested ${kg}kg based on your schedule plan`,
+              reason: `💪 MY Assistant suggested ${kg}kg based on your schedule plan`,
             };
           }
         }
@@ -732,7 +732,7 @@ export default function SplitWorkoutScreen() {
       sets: [],
       skipped: false,
     })));
-    // Trigger Zaki warm-up generation
+    // Trigger MY Assistant warm-up generation
     if (!warmupDone && warmupItems.length === 0) {
       setWarmupLoading(true);
       zakiWarmupMutation.mutate(
@@ -971,7 +971,7 @@ export default function SplitWorkoutScreen() {
       setShowSummary(true);
     }
 
-    // Auto-generate Zaki debrief in the background (non-blocking)
+    // Auto-generate MY Assistant debrief in the background (non-blocking)
     setZakiDebriefLoading(true);
     setZakiDebrief(null);
     try {
@@ -999,7 +999,7 @@ export default function SplitWorkoutScreen() {
       const focus = lines.find((l: string) => l.toLowerCase().includes('focus') || l.toLowerCase().includes('next') || l.includes('3.')) || lines[2] || '';
       setZakiDebrief({ wellDone, improve, focus });
     } catch (e) {
-      console.warn('[split-workout] Zaki debrief failed:', e);
+      console.warn('[split-workout] MY Assistant debrief failed:', e);
     } finally {
       setZakiDebriefLoading(false);
     }
@@ -1263,20 +1263,20 @@ export default function SplitWorkoutScreen() {
           {/* AI Coach Analysis */}
           <View className="px-6 mb-4">
             <TouchableOpacity
-              onPress={() => router.push('/ai-coaching-dashboard' as any)}
+              onPress={() => router.push('/(tabs)/coach' as any)}
               className="rounded-2xl p-4 flex-row items-center"
-              style={{ backgroundColor: '#6366F115', borderWidth: 1, borderColor: '#6366F140', gap: 10 }}
+              style={{ backgroundColor: '#2EBFBF15', borderWidth: 1, borderColor: '#2EBFBF40', gap: 10 }}
               activeOpacity={0.8}
             >
-              <Text style={{ fontSize: 22 }}>🧠</Text>
+              <Text style={{ fontSize: 22 }}>💬</Text>
               <View style={{ flex: 1 }}>
-                <Text className="text-sm font-bold text-cardForeground">Get AI Analysis</Text>
-                <Text className="text-xs text-cardMuted">Personalized insights on this workout</Text>
+                <Text className="text-sm font-bold text-cardForeground">Ask Coach Mohamad</Text>
+                <Text className="text-xs text-cardMuted">Send him a note about this workout</Text>
               </View>
               <Text style={{ color: '#6366F1', fontSize: 18 }}>→</Text>
             </TouchableOpacity>
           </View>
-          {/* Zaki Post-Workout Debrief Card */}
+          {/* MY Assistant Post-Workout Debrief Card */}
           {(zakiDebriefLoading || zakiDebrief) && (
             <View className="px-6 mb-4">
               <View
@@ -1285,11 +1285,11 @@ export default function SplitWorkoutScreen() {
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
                   <Text style={{ fontSize: 20 }}>🤖</Text>
-                  <Text className="text-sm font-bold text-cardForeground ml-2">Zaki's Debrief</Text>
+                  <Text className="text-sm font-bold text-cardForeground ml-2">MY Assistant's Debrief</Text>
                   {zakiDebriefLoading && <ActivityIndicator size="small" color="#7C3AED" style={{ marginLeft: 8 }} />}
                 </View>
                 {zakiDebriefLoading ? (
-                  <Text className="text-xs text-cardMuted">Zaki is reviewing your session...</Text>
+                  <Text className="text-xs text-cardMuted">MY Assistant is reviewing your session...</Text>
                 ) : zakiDebrief ? (
                   <View style={{ gap: 8 }}>
                     {zakiDebrief.wellDone ? (
@@ -1517,7 +1517,7 @@ export default function SplitWorkoutScreen() {
             </View>
           )}
 
-          {/* ── Zaki Recovery Nudge Banner (recovery < 50%, Strength session, not yet started) ── */}
+          {/* ── MY Assistant Recovery Nudge Banner (recovery < 50%, Strength session, not yet started) ── */}
           {nudgeAlternative && (
             <View className="px-6 mb-3">
               <View
@@ -1531,7 +1531,7 @@ export default function SplitWorkoutScreen() {
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                   <Text style={{ color: '#EF4444', fontWeight: '700', fontSize: 14 }}>
-                    🔴 Recovery {Math.round(recovery!.recoveryScore)}% — Zaki Recommends
+                    🔴 Recovery {Math.round(recovery!.recoveryScore)}% — MY Assistant Recommends
                   </Text>
                   <TouchableOpacity onPress={() => setNudgeDismissed(true)} style={{ padding: 4 }}>
                     <Text style={{ color: '#EF4444', fontSize: 16 }}>✕</Text>
@@ -1563,7 +1563,7 @@ export default function SplitWorkoutScreen() {
             </View>
           )}
 
-          {/* Zaki Modification Button — shown only when recovery is yellow (34-66%) */}
+          {/* MY Assistant Modification Button — shown only when recovery is yellow (34-66%) */}
           {recovery && recovery.recoveryScore >= 34 && recovery.recoveryScore < 67 && (
             <View className="px-6 mb-3">
               <TouchableOpacity
@@ -1573,11 +1573,11 @@ export default function SplitWorkoutScreen() {
               >
                 <Text style={{ fontSize: 18 }}>🤖</Text>
                 <Text className="font-semibold ml-2" style={{ color: '#F59E0B' }}>
-                  Ask Zaki to Modify Session
+                  Ask Coach to Modify Session
                 </Text>
               </TouchableOpacity>
               <Text className="text-xs text-cardMuted text-center mt-1">
-                Recovery {Math.round(recovery.recoveryScore)}% — Zaki will adapt this session to your body
+                Recovery {Math.round(recovery.recoveryScore)}% — MY Assistant will adapt this session to your body
               </Text>
             </View>
           )}
@@ -1752,7 +1752,7 @@ export default function SplitWorkoutScreen() {
         />
         <HowtoModal exerciseName={howtoExercise} onClose={() => setHowtoExercise(null)} />
 
-        {/* Zaki Modification Result Modal */}
+        {/* MY Assistant Modification Result Modal */}
         <Modal
           visible={showZakiModif}
           animationType="slide"
@@ -1775,7 +1775,7 @@ export default function SplitWorkoutScreen() {
               <View className="flex-row items-center justify-between mb-4">
                 <View className="flex-row items-center gap-2">
                   <Text style={{ fontSize: 22 }}>🤖</Text>
-                  <Text className="text-lg font-bold text-cardForeground">Zaki’s Modification</Text>
+                  <Text className="text-lg font-bold text-cardForeground">MY Assistant’s Modification</Text>
                 </View>
                 <TouchableOpacity
                   onPress={() => setShowZakiModif(false)}
@@ -1798,7 +1798,7 @@ export default function SplitWorkoutScreen() {
               <ScrollView showsVerticalScrollIndicator={false}>
                 {zakiModifLoading ? (
                   <View className="items-center py-8">
-                    <Text className="text-cardMuted text-base">Zaki is analysing your session…</Text>
+                    <Text className="text-cardMuted text-base">MY Assistant is analysing your session…</Text>
                   </View>
                 ) : (
                   <Text className="text-cardForeground text-sm leading-relaxed" style={{ lineHeight: 22 }}>
@@ -1862,7 +1862,7 @@ export default function SplitWorkoutScreen() {
       </View>
 
       <ScrollView ref={scrollRef} className="flex-1 px-4 pt-4" contentContainerStyle={{ paddingBottom: 120 }}>
-        {/* ── Zaki Warm-Up Block ── */}
+        {/* ── MY Assistant Warm-Up Block ── */}
         {!warmupDone && (
           <View
             style={{
@@ -1878,7 +1878,7 @@ export default function SplitWorkoutScreen() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Text style={{ fontSize: 18 }}>🤖</Text>
                 <View>
-                  <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 14 }}>Zaki's Warm-Up</Text>
+                  <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 14 }}>MY Assistant's Warm-Up</Text>
                   <Text style={{ color: colors.cardMuted, fontSize: 11 }}>Tailored for {sessionDisplayName}</Text>
                 </View>
               </View>
@@ -2233,7 +2233,7 @@ export default function SplitWorkoutScreen() {
                         ? <IconSymbol name="play.fill" size={16} color="#FF0000" />
                         : <Text style={{ fontSize: 15 }}>📖</Text>}
                     </TouchableOpacity>
-                    {/* Zaki form review button */}
+                    {/* MY Assistant form review button */}
                     {started && (
                       <TouchableOpacity
                         onPress={() => {
@@ -2520,7 +2520,7 @@ export default function SplitWorkoutScreen() {
         </TouchableOpacity>
       </ScrollView>
 
-      {/* Floating Zaki Check-In Button */}
+      {/* Floating MY Assistant Check-In Button */}
       <View
         style={{
           position: 'absolute',
@@ -2553,7 +2553,7 @@ export default function SplitWorkoutScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Zaki Mid-Workout Check-In Modal */}
+      {/* MY Assistant Mid-Workout Check-In Modal */}
       <Modal
         visible={showZakiCheckIn}
         animationType="slide"
@@ -2573,7 +2573,7 @@ export default function SplitWorkoutScreen() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Text style={{ fontSize: 22 }}>🤖</Text>
                 <View>
-                  <Text style={{ fontSize: 17, fontWeight: '800', color: colors.cardForeground }}>Zaki Check-In</Text>
+                  <Text style={{ fontSize: 17, fontWeight: '800', color: colors.cardForeground }}>MY Assistant Check-In</Text>
                   <Text style={{ fontSize: 11, color: colors.cardMuted }}>
                     {Math.round(elapsed / 60)}m in · {totalSetsLogged}/{totalSetsTarget} sets
                   </Text>
@@ -2609,7 +2609,7 @@ export default function SplitWorkoutScreen() {
             <ScrollView showsVerticalScrollIndicator={false}>
               {zakiCheckInLoading ? (
                 <View style={{ alignItems: 'center', paddingVertical: 32 }}>
-                  <Text style={{ color: colors.cardMuted, fontSize: 15 }}>Zaki is reading your session…</Text>
+                  <Text style={{ color: colors.cardMuted, fontSize: 15 }}>MY Assistant is reading your session…</Text>
                 </View>
               ) : (
                 <Text style={{ color: colors.cardForeground, fontSize: 14, lineHeight: 22 }}>
@@ -2763,7 +2763,7 @@ export default function SplitWorkoutScreen() {
                 </View>
               ))
             )}
-            {/* Zaki equipment verify shortcut */}
+            {/* MY Assistant equipment verify shortcut */}
             {swapTargetIndex !== null && (
               <TouchableOpacity
                 onPress={() => {
@@ -2779,7 +2779,7 @@ export default function SplitWorkoutScreen() {
                 style={{ marginTop: 4, backgroundColor: '#F59E0B15', borderRadius: 12, paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: '#F59E0B40', flexDirection: 'row', justifyContent: 'center', gap: 8 }}
               >
                 <Text style={{ fontSize: 16 }}>📸</Text>
-                <Text style={{ color: '#F59E0B', fontWeight: '600', fontSize: 14 }}>Verify equipment with Zaki</Text>
+                <Text style={{ color: '#F59E0B', fontWeight: '600', fontSize: 14 }}>Verify equipment with MY Assistant</Text>
               </TouchableOpacity>
             )}
             <TouchableOpacity
@@ -2792,7 +2792,7 @@ export default function SplitWorkoutScreen() {
         </View>
        </Modal>
 
-      {/* ── Zaki Form Review Modal ── */}
+      {/* ── MY Assistant Form Review Modal ── */}
       <Modal
         visible={formReviewModal !== null}
         animationType="slide"
@@ -2802,7 +2802,7 @@ export default function SplitWorkoutScreen() {
         <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' }}>
           <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 40, maxHeight: '85%' }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <Text style={{ fontSize: 18, fontWeight: '800', color: colors.cardForeground }}>🤖 Zaki Form Review</Text>
+              <Text style={{ fontSize: 18, fontWeight: '800', color: colors.cardForeground }}>🤖 MY Assistant Form Review</Text>
               <TouchableOpacity onPress={() => { setFormReviewModal(null); setFormReviewResult(null); }}>
                 <Text style={{ color: colors.cardMuted, fontSize: 16 }}>✕</Text>
               </TouchableOpacity>
@@ -2854,7 +2854,7 @@ export default function SplitWorkoutScreen() {
             >
               {formReviewLoading
                 ? <ActivityIndicator color="#fff" />
-                : <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>Analyze Form with Zaki</Text>
+                : <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>Analyze Form with MY Assistant</Text>
               }
             </TouchableOpacity>
             {/* Result */}
@@ -2867,7 +2867,7 @@ export default function SplitWorkoutScreen() {
         </View>
       </Modal>
 
-      {/* ── Zaki Equipment Verify Modal ── */}
+      {/* ── MY Assistant Equipment Verify Modal ── */}
       <Modal
         visible={equipVerifyModal !== null}
         animationType="slide"
@@ -2884,7 +2884,7 @@ export default function SplitWorkoutScreen() {
             </View>
             {equipVerifyModal && (
               <Text style={{ fontSize: 13, color: colors.cardMuted, marginBottom: 16 }}>
-                Snap a photo of the machine. Zaki will confirm if it works for {equipVerifyModal.exerciseName}.
+                Snap a photo of the machine. MY Assistant will confirm if it works for {equipVerifyModal.exerciseName}.
               </Text>
             )}
             {/* Photo preview */}
@@ -2907,7 +2907,7 @@ export default function SplitWorkoutScreen() {
             >
               {equipVerifyLoading
                 ? <ActivityIndicator color="#fff" />
-                : <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>Ask Zaki</Text>
+                : <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>Ask Coach</Text>
               }
             </TouchableOpacity>
             {/* Result */}
@@ -3042,7 +3042,7 @@ const shareCardStyles = StyleSheet.create({
     width: 4,
     height: 40,
     borderRadius: 2,
-    backgroundColor: '#C8F53C',
+    backgroundColor: '#2EBFBF',
   },
   cardTitle: {
     fontSize: 20,
@@ -3074,7 +3074,7 @@ const shareCardStyles = StyleSheet.create({
   statValue: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#C8F53C',
+    color: '#2EBFBF',
   },
   statLabel: {
     fontSize: 10,
@@ -3123,7 +3123,7 @@ const shareCardStyles = StyleSheet.create({
   },
   footerText: {
     fontSize: 11,
-    color: '#C8F53C',
+    color: '#2EBFBF',
     fontWeight: '700',
     letterSpacing: 1,
     textTransform: 'uppercase',

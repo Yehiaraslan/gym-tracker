@@ -71,7 +71,7 @@ export interface SplitWorkoutSession {
     originalExercise: string;    // Name of the exercise that was replaced
     replacementExercise: string; // Name of the exercise it was replaced with
     timestamp: string;           // ISO timestamp of when the swap happened
-    zakiVerification?: {         // Optional Zaki equipment verification result
+    zakiVerification?: {         // Optional MY Assistant equipment verification result
       suitable: boolean;
       message: string;
     };
@@ -504,11 +504,11 @@ export async function getSplitExerciseSessionCount(
   }).length;
 }
 
-// ── Pending Weight Pre-fill (from Zaki schedule proposal) ──────────────────
+// ── Pending Weight Pre-fill (from MY Assistant schedule proposal) ──────────────────
 const PENDING_WEIGHTS_KEY = '@gym_tracker_pending_weights';
 
 /**
- * Save Zaki's proposed weights so the next workout screen can pre-fill them.
+ * Save MY Assistant's proposed weights so the next workout screen can pre-fill them.
  * weights: { 'Bench Press': 80, 'Squat': 100 }
  */
 export async function savePendingWeights(weights: Record<string, number>): Promise<void> {
@@ -530,7 +530,7 @@ export async function consumePendingWeights(): Promise<Record<string, number> | 
 }
 
 /**
- * Parse Zaki's weightAdjustments text into a flat exercise→kg map.
+ * Parse MY Assistant's weightAdjustments text into a flat exercise→kg map.
  * Input example: "Upper A: Bench Press 80kg×8, Squat 100kg×5. Lower A: Leg Press 120kg×10"
  */
 export function parseZakiWeightText(text: string): Record<string, number> {

@@ -38,7 +38,7 @@ interface PRRecord {
   bodyPart: string;
 }
 
-const ACCENT = '#C8F53C';
+const ACCENT = '#2EBFBF';
 const MEDAL_COLORS = ['#FFD700', '#C0C0C0', '#CD7F32'];
 const MEDALS = ['🥇', '🥈', '🥉'];
 const BODY_PART_ORDER = ['Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core', 'Other'];

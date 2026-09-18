@@ -30,7 +30,7 @@ export function RouteErrorBoundary({ error, retry }: { error: Error; retry: () =
         <TouchableOpacity
           onPress={retry}
           style={{
-            backgroundColor: '#C8F53C',
+            backgroundColor: '#2EBFBF',
             borderRadius: 12,
             paddingVertical: 14,
             alignItems: 'center',

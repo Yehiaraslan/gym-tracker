@@ -57,7 +57,7 @@ export default function ProgressGalleryScreen() {
 
   const [selectedCategory, setSelectedCategory] = useState<PhotoCategory>('front');
 
-  // Zaki body analysis state
+  // MY Assistant body analysis state
   const [zakiAnalysisVisible, setZakiAnalysisVisible] = useState(false);
   const [zakiAnalysisLoading, setZakiAnalysisLoading] = useState(false);
   const [zakiAnalysisResult, setZakiAnalysisResult] = useState<{
@@ -151,7 +151,7 @@ export default function ProgressGalleryScreen() {
             canAskAgain ? 'Permission Required' : 'Photo Library Permission Blocked',
             canAskAgain
               ? 'Please allow access to your photo library to pick a progress photo.'
-              : 'Photo library access was permanently denied. Open Settings → Apps → Banana Pro Gym → Permissions and enable Photos & Videos.',
+              : 'Photo library access was permanently denied. Open Settings → Apps → MY Lifestyle → Permissions and enable Photos & Videos.',
             canAskAgain
               ? [{ text: 'OK' }]
               : [
@@ -254,7 +254,7 @@ export default function ProgressGalleryScreen() {
     ]);
   };
 
-  // Zaki body analysis handler
+  // MY Assistant body analysis handler
   const handleZakiBodyAnalysis = async () => {
     // Gather the most recent photo per category (front, back, side)
     const byCategory: Partial<Record<PhotoCategory, ProgressPhoto>> = {};
@@ -266,7 +266,7 @@ export default function ProgressGalleryScreen() {
       .filter(([, p]) => p && p.uri)
       .slice(0, 3);
     if (selected.length === 0) {
-      Alert.alert('No Photos', 'Add at least one progress photo to get a Zaki body analysis.');
+      Alert.alert('No Photos', 'Add at least one progress photo to get a MY Assistant body analysis.');
       return;
     }
     setZakiAnalysisLoading(true);
@@ -320,7 +320,7 @@ export default function ProgressGalleryScreen() {
       setZakiAnalysisResult(result.analysis as any);
       setZakiAnalysisDate(result.analyzedAt);
     } catch (err) {
-      Alert.alert('Zaki Error', 'Could not complete body analysis. Please try again.');
+      Alert.alert('MY Assistant Error', 'Could not complete body analysis. Please try again.');
       setZakiAnalysisVisible(false);
     } finally {
       setZakiAnalysisLoading(false);
@@ -450,7 +450,7 @@ export default function ProgressGalleryScreen() {
             style={[styles.actionBtn, { backgroundColor: '#7C3AED', flexBasis: '47%', flexGrow: 1, opacity: photos.length === 0 ? 0.4 : 1 }]}
           >
             <Text style={{ fontSize: 16 }}>🤖</Text>
-            <Text style={[styles.actionBtnText, { color: '#fff' }]}>Zaki</Text>
+            <Text style={[styles.actionBtnText, { color: '#fff' }]}>MY Assistant</Text>
           </TouchableOpacity>
         </View>
 
@@ -694,14 +694,14 @@ export default function ProgressGalleryScreen() {
         </View>
       </Modal>
 
-      {/* ── Zaki Body Analysis Modal ── */}
+      {/* ── MY Assistant Body Analysis Modal ── */}
       <Modal visible={zakiAnalysisVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={[styles.bottomSheet, { backgroundColor: colors.surface, maxHeight: '90%' }]}>
             <View style={[styles.sheetHandle, { backgroundColor: colors.cardBorder }]} />
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
               <Text style={{ fontSize: 22 }}>🤖</Text>
-              <Text style={[styles.sheetTitle, { color: colors.cardForeground, marginLeft: 8, marginBottom: 0 }]}>Zaki Body Analysis</Text>
+              <Text style={[styles.sheetTitle, { color: colors.cardForeground, marginLeft: 8, marginBottom: 0 }]}>MY Assistant Body Analysis</Text>
             </View>
             {zakiAnalysisDate && (
               <Text style={{ color: colors.cardMuted, fontSize: 12, marginBottom: 12, textAlign: 'center' }}>
@@ -711,7 +711,7 @@ export default function ProgressGalleryScreen() {
             {zakiAnalysisLoading ? (
               <View style={{ alignItems: 'center', paddingVertical: 40 }}>
                 <ActivityIndicator size="large" color="#7C3AED" />
-                <Text style={{ color: colors.cardMuted, marginTop: 16, fontSize: 14 }}>Zaki is analyzing your photos...</Text>
+                <Text style={{ color: colors.cardMuted, marginTop: 16, fontSize: 14 }}>MY Assistant is analyzing your photos...</Text>
                 <Text style={{ color: colors.cardMuted, marginTop: 4, fontSize: 12 }}>This may take 15-30 seconds</Text>
               </View>
             ) : zakiAnalysisResult ? (

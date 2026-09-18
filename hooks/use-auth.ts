@@ -40,6 +40,9 @@ export function useAuth(options?: UseAuthOptions) {
             name: apiUser.name,
             email: apiUser.email,
             loginMethod: apiUser.loginMethod,
+            // The role decides coach view vs trainee view — dropping it here
+            // silently turned every coach into a trainee on web.
+            role: (apiUser as { role?: string | null }).role ?? null,
             lastSignedIn: new Date(apiUser.lastSignedIn),
           };
           setUser(userInfo);

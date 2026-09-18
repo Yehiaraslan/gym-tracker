@@ -12,7 +12,7 @@ const schemeFromBundleId = `manus${timestamp}`;
 
 const env = {
   // App branding - update these values directly (do not use env vars)
-  appName: "Banana Pro Gym",
+  appName: "MY Lifestyle",
   appSlug: "gym-tracker",
   // S3 URL of the app logo - set this to the URL returned by generate_image when creating custom logo
   // Leave empty to use the default icon from assets/images/icon.png
@@ -40,7 +40,7 @@ const config: ExpoConfig = {
   },
   android: {
     adaptiveIcon: {
-      backgroundColor: "#0A0B0A",
+      backgroundColor: "#0A1226",
       foregroundImage: "./assets/images/android-icon-foreground.png",
       backgroundImage: "./assets/images/android-icon-background.png",
       monochromeImage: "./assets/images/android-icon-monochrome.png",
@@ -88,8 +88,8 @@ const config: ExpoConfig = {
     [
       "expo-media-library",
       {
-        "photosPermission": "Allow Banana Pro Gym to access your photos.",
-        "savePhotosPermission": "Allow Banana Pro Gym to save time-lapse frames to your camera roll.",
+        "photosPermission": "Allow MY Lifestyle to access your photos.",
+        "savePhotosPermission": "Allow MY Lifestyle to save time-lapse frames to your camera roll.",
         "isAccessMediaLocationEnabled": true
       }
     ],
@@ -114,7 +114,7 @@ const config: ExpoConfig = {
         resizeMode: "contain",
         backgroundColor: "#ffffff",
         dark: {
-          backgroundColor: "#000000",
+          backgroundColor: "#0A1226",
         },
       },
     ],
@@ -146,7 +146,7 @@ const config: ExpoConfig = {
         widgets: [
           {
             name: "GymStats",
-            label: "Banana Pro Gym",
+            label: "MY Lifestyle",
             description: "View your streak, today's session, and readiness score",
             minWidth: "180dp",
             minHeight: "110dp",

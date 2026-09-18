@@ -228,7 +228,7 @@ export default function HistoryScreen() {
                           {swap.zakiVerification.suitable ? '✅' : '⚠️'}
                         </Text>
                         <Text style={{ fontSize: 11, color: swap.zakiVerification.suitable ? '#22C55E' : '#F59E0B', flex: 1 }}>
-                          Zaki: {swap.zakiVerification.message}
+                          MY Assistant: {swap.zakiVerification.message}
                         </Text>
                       </View>
                     ) : null}

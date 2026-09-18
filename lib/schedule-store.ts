@@ -27,7 +27,7 @@ export interface ScheduleOverride {
   description: string;
   /** The 7-day session map */
   schedule: CustomSchedule;
-  /** Whether this was applied by Zaki (true) or manually (false) */
+  /** Whether this was applied by MY Assistant (true) or manually (false) */
   appliedByZaki: boolean;
 }
 
@@ -170,9 +170,9 @@ export function buildBackToBackSchedule(
   return buildFullSchedule(partial);
 }
 
-// ── Schedule Serializer (for Zaki prompt) ────────────────────
+// ── Schedule Serializer (for MY Assistant prompt) ────────────────────
 
-/** Format a CustomSchedule as a compact string for Zaki's prompt */
+/** Format a CustomSchedule as a compact string for MY Assistant's prompt */
 export function scheduleToString(schedule: CustomSchedule): string {
   return ALL_DAYS.map(day => `${day.slice(0, 3)}: ${schedule[day]}`).join(' | ');
 }
@@ -191,9 +191,9 @@ export interface ScheduleHistoryEntry {
   description: string;
   /** The 7-day session map at time of application */
   schedule: CustomSchedule;
-  /** Whether Zaki applied this (true) or it was reset to default (false) */
+  /** Whether MY Assistant applied this (true) or it was reset to default (false) */
   appliedByZaki: boolean;
-  /** Optional weight suggestions Zaki provided */
+  /** Optional weight suggestions MY Assistant provided */
   weightSuggestions?: string;
 }
 

@@ -4,6 +4,8 @@
 import { useState, useCallback, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
+import { syncCoachPlans } from '@/lib/coach-plan-sync';
+import { isCoachRole } from './_layout';
 import { Text, View, TouchableOpacity, ScrollView, Platform, StyleSheet, Image, Modal, Dimensions, RefreshControl, TextInput, FlatList } from 'react-native';
 import { loadUserProfile, type UserProfile } from '@/lib/profile-store';
 import { ScreenContainer } from '@/components/screen-container';
@@ -149,7 +151,7 @@ export default function HomeScreen() {
 
   // Async schedule: loads override from AsyncStorage on focus, falls back to default.
   // Initial state is 'rest' until the async loadSchedule() resolves with the real value
-  // (which reads Zaki's schedule override from AsyncStorage).
+  // (which reads Coach Mohamad Yousry's schedule override from AsyncStorage).
   const [todaySession, setTodaySession] = useState<SessionType>('rest');
   const [scheduleLoaded, setScheduleLoaded] = useState(false);
   const [scheduleWeek, setScheduleWeek] = useState<{ date: Date; session: SessionType; dayName: string }[] | null>(null);
@@ -304,7 +306,7 @@ export default function HomeScreen() {
           setWeightEntries(recent);
         }
       } catch {}
-      // Detect missed sessions in the last 7 days (using Zaki's schedule override if set)
+      // Detect missed sessions in the last 7 days (using Coach Mohamad Yousry's schedule override if set)
       const completedDates = workouts.filter(w => w.completed).map(w => w.date);
       const activeSchedule = await getActiveSchedule();
       const missed = getMissedSessions(completedDates, 7, activeSchedule as Record<string, SessionType>);
@@ -316,12 +318,21 @@ export default function HomeScreen() {
   // Reload every time the tab comes into focus so nutrition/workout data is always fresh
   useFocusEffect(
     useCallback(() => {
+      // A coach lands on their roster, not the athlete dashboard.
+      if (isCoachRole(authUser?.role)) {
+        router.replace('/(tabs)/athletes' as any);
+        return;
+      }
       loadData();
-      loadSchedule();
       loadUserProfile().then(setUserProfile);
       loadPinSyncState().then(setSyncState);
-      loadCustomProgram().then(setCustomProgram);
-    }, [loadData, loadSchedule])
+      // Pull anything the coach assigned BEFORE reading the schedule/program,
+      // so a new plan shows up on this very focus.
+      syncCoachPlans().catch(() => null).finally(() => {
+        loadSchedule();
+        loadCustomProgram().then(setCustomProgram);
+      });
+    }, [loadData, loadSchedule, authUser?.role, router])
   );
 
   // ── Dynamic lookups that adapt to custom programs ──
@@ -568,7 +579,7 @@ export default function HomeScreen() {
                   <Text style={s.warningIcon}>👤</Text>
                   <View style={{ flex: 1 }}>
                     <Text style={[s.warningTitle, { color: '#3B82F6' }]}>Complete your profile</Text>
-                    <Text style={[s.warningSub, { color: screenMut }]}>Zaki needs your height, weight & goal for personalised coaching</Text>
+                    <Text style={[s.warningSub, { color: screenMut }]}>Coach Mohamad Yousry needs your height, weight & goal for personalised coaching</Text>
                   </View>
                   <Text style={{ color: '#3B82F6', fontSize: 18 }}>›</Text>
                 </TouchableOpacity>
@@ -753,6 +764,13 @@ export default function HomeScreen() {
               textTransform: 'uppercase',
               marginBottom: Space._2,
             }}>TODAY'S QUEST</Text>
+            {customProgram?.assignedByCoach ? (
+              <View style={{ alignSelf: 'flex-start', backgroundColor: colors.primarySoft, borderColor: colors.primaryEdge, borderWidth: 1, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, marginBottom: Space._2 }}>
+                <Text style={{ color: colors.primary, fontSize: 10, fontWeight: '800', letterSpacing: 0.4 }}>
+                  PLAN BY COACH {customProgram.assignedByCoach.coachName.toUpperCase()}
+                </Text>
+              </View>
+            ) : null}
             <View style={s.heroRow}>
               <Text style={{ fontSize: 48, marginRight: Space._3 }}>{getEmoji(todaySession)}</Text>
               <View style={{ flex: 1 }}>
@@ -896,7 +914,7 @@ export default function HomeScreen() {
                 ? { backgroundColor: '#F59E0B20', borderColor: '#F59E0B' }
                 : { backgroundColor: '#10B98120', borderColor: '#10B981' },
             ]}
-            onPress={() => router.push('/ai-coaching-dashboard' as any)}
+            onPress={() => router.push('/(tabs)/coach' as any)}
             activeOpacity={0.85}
           >
             <Text style={s.deloadBannerEmoji}>

@@ -1,7 +1,7 @@
 /** @type {const} */
 const themeColors = {
   // ── Banana Pro Design System ────────────────────────────────────────────
-  // Dark-first, lime-on-near-black, RPG-inflected.
+  // Dark-first, MY Lifestyle brand: teal (#2EBFBF) on deep navy (#0A1226 / #1E3A74).
   // Three-tier surface model with warm-neutral foreground.
   //
   // Surfaces:
@@ -29,27 +29,27 @@ const themeColors = {
   // ───��────────────────────────────────────────────────────────────────────
 
   // ── Surfaces ──
-  primary:         { light: '#C8F53C', dark: '#C8F53C' },
-  background:      { light: '#0A0B0A', dark: '#0A0B0A' },
-  surface:         { light: '#14171A', dark: '#14171A' },
-  surface2:        { light: '#1A1D1A', dark: '#1A1D1A' },
-  surface3:        { light: '#23272A', dark: '#23272A' },
+  primary:         { light: '#2EBFBF', dark: '#2EBFBF' },
+  background:      { light: '#0A1226', dark: '#0A1226' },
+  surface:         { light: '#111D38', dark: '#111D38' },
+  surface2:        { light: '#162547', dark: '#162547' },
+  surface3:        { light: '#1E3A74', dark: '#1E3A74' },
 
   // ── Foreground — warm-neutral ──
-  foreground:      { light: '#F5F7F2', dark: '#F5F7F2' },
-  cardForeground:  { light: '#EDEEE8', dark: '#EDEEE8' },
-  fg3:             { light: '#C9CCC3', dark: '#C9CCC3' },
-  muted:           { light: '#8A907F', dark: '#8A907F' },
-  cardMuted:       { light: '#747A6B', dark: '#747A6B' },
-  mute3:           { light: '#555A4E', dark: '#555A4E' },
-  primaryInk:      { light: '#0A0B0A', dark: '#0A0B0A' },
+  foreground:      { light: '#F2F6FA', dark: '#F2F6FA' },
+  cardForeground:  { light: '#E8EEF5', dark: '#E8EEF5' },
+  fg3:             { light: '#BFCBDD', dark: '#BFCBDD' },
+  muted:           { light: '#8A9BB8', dark: '#8A9BB8' },
+  cardMuted:       { light: '#7C8DAA', dark: '#7C8DAA' },
+  mute3:           { light: '#55658A', dark: '#55658A' },
+  primaryInk:      { light: '#06101F', dark: '#06101F' },
 
   // ── Borders ──
-  border:          { light: '#242827', dark: '#242827' },
-  cardBorder:      { light: '#2E322E', dark: '#2E322E' },
+  border:          { light: '#20345E', dark: '#20345E' },
+  cardBorder:      { light: '#294273', dark: '#294273' },
 
   // ── Tint (tab bar active) ──
-  tint:            { light: '#C8F53C', dark: '#C8F53C' },
+  tint:            { light: '#2EBFBF', dark: '#2EBFBF' },
 
   // ── Semantic ──
   success:         { light: '#4ADE80', dark: '#4ADE80' },
@@ -66,9 +66,9 @@ const themeColors = {
   infoSoft:        { light: 'rgba(59,130,246,0.14)', dark: 'rgba(59,130,246,0.14)' },
 
   // ── Brand soft tints ──
-  primarySoft:     { light: 'rgba(200,245,60,0.14)', dark: 'rgba(200,245,60,0.14)' },
-  primaryEdge:     { light: 'rgba(200,245,60,0.35)', dark: 'rgba(200,245,60,0.35)' },
-  onPrimary:       { light: '#0A0B0A', dark: '#0A0B0A' },
+  primarySoft:     { light: 'rgba(46,191,191,0.14)', dark: 'rgba(46,191,191,0.14)' },
+  primaryEdge:     { light: 'rgba(46,191,191,0.35)', dark: 'rgba(46,191,191,0.35)' },
+  onPrimary:       { light: '#06101F', dark: '#06101F' },
 
   // ── Session colors ──
   sessionUpperA:   { light: '#3B82F6', dark: '#3B82F6' },  // blue

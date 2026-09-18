@@ -78,7 +78,7 @@ export default function WidgetsScreen() {
             Home Screen Widgets
           </Text>
           <Text style={{ color: colors.cardMuted }}>
-            Add Banana Pro Gym to your home screen for quick access to your
+            Add MY Lifestyle to your home screen for quick access to your
             stats
           </Text>
         </View>
@@ -123,7 +123,7 @@ export default function WidgetsScreen() {
             <Text style={{ color: colors.cardMuted, fontSize: 14, lineHeight: 20 }}>
               1. Long press your home screen{'\n'}
               2. Tap the + button to add a widget{'\n'}
-              3. Search for "Banana Pro Gym"{'\n'}
+              3. Search for "MY Lifestyle"{'\n'}
               4. Select your preferred widget size
             </Text>
           </View>
@@ -148,7 +148,7 @@ export default function WidgetsScreen() {
             <Text style={{ color: colors.cardMuted, fontSize: 14, lineHeight: 20 }}>
               1. Long press your home screen{'\n'}
               2. Tap "Widgets"{'\n'}
-              3. Find and tap "Banana Pro Gym"{'\n'}
+              3. Find and tap "MY Lifestyle"{'\n'}
               4. Drag to place on home screen
             </Text>
           </View>

@@ -1,0 +1,1 @@
+ALTER TABLE `coach_messages` MODIFY COLUMN `createdAt` timestamp(3) NOT NULL DEFAULT (now());

@@ -1,6 +1,6 @@
 // ============================================================
 // CUSTOM EXERCISES STORE
-// Stores exercises dynamically created by Zaki AI Coach.
+// Stores exercises dynamically created by MY Assistant AI Coach.
 // These exercises extend the default PROGRAM_SESSIONS library.
 // ============================================================
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -9,7 +9,7 @@ import type { ProgramExercise } from './training-program';
 const CUSTOM_EXERCISES_KEY = '@custom_exercises';
 const CUSTOM_SESSIONS_KEY = '@custom_sessions';
 
-/** A custom exercise created by Zaki, with optional video/instructions */
+/** A custom exercise created by MY Assistant, with optional video/instructions */
 export interface CustomExercise extends ProgramExercise {
   id: string;
   gifUrl?: string;
@@ -19,7 +19,7 @@ export interface CustomExercise extends ProgramExercise {
   createdAt: string;
 }
 
-/** A custom session (e.g., "Cardio", "Mobility") added by Zaki */
+/** A custom session (e.g., "Cardio", "Mobility") added by MY Assistant */
 export interface CustomSession {
   id: string;
   name: string;
@@ -106,8 +106,8 @@ export async function getExercisesForSession(
 }
 
 /**
- * Parse Zaki's response for exercise creation commands.
- * Zaki outputs JSON blocks like:
+ * Parse MY Assistant's response for exercise creation commands.
+ * MY Assistant outputs JSON blocks like:
  * ```json
  * {"action":"add_exercise","name":"Treadmill Run","sets":1,"repsMin":1,"repsMax":1,"restSeconds":60,"notes":"20 min steady state","muscleGroup":"lower","bodyPart":"cardio","category":"compound","sessionType":"cardio","instructions":["Warm up 5 min","Run at moderate pace","Cool down 5 min"]}
  * ```

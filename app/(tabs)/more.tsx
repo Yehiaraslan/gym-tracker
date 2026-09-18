@@ -9,7 +9,9 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuth } from '@/hooks/use-auth';
 import { useColors } from '@/hooks/use-colors';
+import { isCoachRole } from './_layout';
 
 interface MoreItem {
   emoji: string;
@@ -18,8 +20,8 @@ interface MoreItem {
   route: string;
 }
 
-const MORE_ITEMS: MoreItem[] = [
-  { emoji: '\u{1F91D}', title: 'Coaching', subtitle: 'Coach & athletes', route: '/coaching' },
+const TRAINEE_ITEMS: MoreItem[] = [
+  { emoji: '\u{1F464}', title: 'My Coach', subtitle: 'Plan, meals & messages', route: '/(tabs)/coach' },
   { emoji: '\u{1F49A}', title: 'WHOOP Recovery', subtitle: 'Recovery & strain', route: '/whoop' },
   { emoji: '\u{1F4CA}', title: 'Analytics', subtitle: 'Stats & trends', route: '/(tabs)/analytics' },
   { emoji: '\u{1F4C5}', title: 'Calendar', subtitle: 'Training calendar', route: '/(tabs)/calendar' },
@@ -32,10 +34,19 @@ const MORE_ITEMS: MoreItem[] = [
   { emoji: '\u{2699}\u{FE0F}', title: 'Settings / Profile', subtitle: 'Preferences', route: '/profile' },
 ];
 
+const COACH_ITEMS: MoreItem[] = [
+  { emoji: '\u{1F3CB}\u{FE0F}', title: 'Athletes', subtitle: 'Roster & invites', route: '/(tabs)/athletes' },
+  { emoji: '\u{1F4AC}', title: 'Messages', subtitle: 'Athlete conversations', route: '/(tabs)/messages' },
+  { emoji: '\u{1F4DA}', title: 'Exercise Library', subtitle: 'Form guides & videos', route: '/(tabs)/library' },
+  { emoji: '\u{2699}\u{FE0F}', title: 'Settings / Profile', subtitle: 'Account & language', route: '/profile' },
+];
+
 export default function MoreScreen() {
   const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+  const items = isCoachRole(user?.role) ? COACH_ITEMS : TRAINEE_ITEMS;
 
   const s = styles(colors);
 
@@ -52,7 +63,7 @@ export default function MoreScreen() {
         <Text style={[s.subheading, { color: colors.muted }]}>All features in one place</Text>
 
         <View style={s.grid}>
-          {MORE_ITEMS.map((item) => (
+          {items.map((item) => (
             <TouchableOpacity
               key={item.title}
               style={[

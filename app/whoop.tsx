@@ -84,7 +84,7 @@ export default function WhoopScreen() {
     (r: any) => r.nap === false
   )?.score_state ?? null;
 
-  // Persist full WHOOP biometrics to AsyncStorage so Zaki coaching context has HRV, RHR, sleep stages
+  // Persist full WHOOP biometrics to AsyncStorage so MY Assistant coaching context has HRV, RHR, sleep stages
   useEffect(() => {
     if (!isConnected) return;
     if (!latestRecovery && !latestSleep) return;

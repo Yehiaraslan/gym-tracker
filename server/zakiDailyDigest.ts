@@ -1,13 +1,13 @@
 /**
- * Zaki Daily Digest Scheduler
+ * MY Assistant Daily Digest Scheduler
  *
  * Fires at 7:00 AM server time every day.
- * Calls Agent Zaki for a morning coaching brief and pushes it
+ * Calls Agent MY Assistant for a morning coaching brief and pushes it
  * to the owner via the built-in notifyOwner channel.
  *
  * The digest is intentionally lightweight — no user workout data
  * is available server-side (workouts are stored in AsyncStorage on device).
- * Zaki is prompted to give a motivational, context-aware morning brief
+ * MY Assistant is prompted to give a motivational, context-aware morning brief
  * based on the day of the week and training cycle awareness.
  */
 
@@ -49,7 +49,7 @@ function buildMorningPrompt(): string {
 export function startDailyDigestScheduler(): void {
   // Run at 07:00 every day (server timezone)
   cron.schedule('0 7 * * *', async () => {
-    console.log('[Zaki Daily Digest] Starting morning brief generation...');
+    console.log('[MY Assistant Daily Digest] Starting morning brief generation...');
     try {
       const prompt = buildMorningPrompt();
       const { response } = await askZaki(prompt);
@@ -60,23 +60,23 @@ export function startDailyDigestScheduler(): void {
         : response;
 
       const sent = await notifyOwner({
-        title: `🤖 Zaki's Morning Brief — ${new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`,
+        title: `🤖 MY Assistant's Morning Brief — ${new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`,
         content: response,
       });
 
       if (sent) {
-        console.log(`[Zaki Daily Digest] Sent successfully. Preview: "${preview}"`);
+        console.log(`[MY Assistant Daily Digest] Sent successfully. Preview: "${preview}"`);
       } else {
-        console.warn('[Zaki Daily Digest] notifyOwner returned false — notification may not have been delivered.');
+        console.warn('[MY Assistant Daily Digest] notifyOwner returned false — notification may not have been delivered.');
       }
     } catch (err) {
-      console.error('[Zaki Daily Digest] Failed to generate or send digest:', err);
+      console.error('[MY Assistant Daily Digest] Failed to generate or send digest:', err);
     }
   }, {
     timezone: 'Asia/Dubai', // Yehia's timezone (UTC+4)
   });
 
-  console.log('[Zaki Daily Digest] Scheduler started — will fire daily at 07:00 Dubai time.');
+  console.log('[MY Assistant Daily Digest] Scheduler started — will fire daily at 07:00 Dubai time.');
 }
 
 /**
@@ -86,7 +86,7 @@ export async function triggerDailyDigestNow(): Promise<{ success: boolean; previ
   const prompt = buildMorningPrompt();
   const { response } = await askZaki(prompt);
   const sent = await notifyOwner({
-    title: `🤖 Zaki's Morning Brief — ${new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`,
+    title: `🤖 MY Assistant's Morning Brief — ${new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`,
     content: response,
   });
   return {
@@ -166,7 +166,7 @@ export async function triggerPersonalizedDigestNow(
   const prompt = buildPersonalizedPrompt(input);
   const { response } = await askZaki(prompt);
   const sent = await notifyOwner({
-    title: `🤖 Zaki's Morning Brief — ${new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`,
+    title: `🤖 MY Assistant's Morning Brief — ${new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`,
     content: response,
   });
   return {

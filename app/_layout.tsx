@@ -8,6 +8,7 @@ import "react-native-reanimated";
 import { Platform } from "react-native";
 import "@/lib/_core/nativewind-pressable";
 import { ThemeProvider } from "@/lib/theme-provider";
+import { LanguageProvider } from "@/lib/i18n";
 import { GymProvider } from "@/lib/gym-context";
 import {
   SafeAreaFrameContext,
@@ -40,15 +41,23 @@ export const unstable_settings = {
 
 /** Auth-gated navigation: redirect to login if not authenticated, onboarding if new user */
 function AuthGate() {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, user } = useAuth();
   const segments = useSegments();
   const router = useRouter();
   const [profileChecked, setProfileChecked] = useState(false);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  const isCoach = user?.role === 'trainer' || user?.role === 'admin';
 
   useEffect(() => {
     if (loading || !isAuthenticated) {
       setProfileChecked(false);
+      return;
+    }
+    // A coach has no athlete profile to fill in — the height/weight/goal
+    // questionnaire is for trainees only.
+    if (isCoach) {
+      setNeedsOnboarding(false);
+      setProfileChecked(true);
       return;
     }
     // Check if user has completed onboarding
@@ -68,7 +77,7 @@ function AuthGate() {
     // a stale needsOnboarding here loops the user back to onboarding step 1.
     const unsubscribe = subscribeProfileChanges(checkProfile);
     return unsubscribe;
-  }, [isAuthenticated, loading]);
+  }, [isAuthenticated, loading, isCoach]);
 
   useEffect(() => {
     if (loading) return;
@@ -179,6 +188,7 @@ export default function RootLayout() {
 
   const content = (
     <GestureHandlerRootView style={{ flex: 1 }}>
+      <LanguageProvider>
       <GymProvider>
       <trpc.Provider client={trpcClient} queryClient={queryClient}>
         <QueryClientProvider client={queryClient}>
@@ -195,7 +205,10 @@ export default function RootLayout() {
             <Stack.Screen name="nutrition" options={{ presentation: 'modal' }} />
             <Stack.Screen name="whoop" options={{ presentation: 'modal' }} />
             <Stack.Screen name="program-history" options={{ presentation: 'modal' }} />
-            <Stack.Screen name="ai-coaching-dashboard" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="athlete/[id]" />
+            <Stack.Screen name="chat/[peerId]" />
+            <Stack.Screen name="plan-builder" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="meal-builder" options={{ presentation: 'modal' }} />
             <Stack.Screen name="progress-pictures" options={{ presentation: 'modal' }} />
             <Stack.Screen name="progress-gallery" options={{ presentation: 'modal' }} />
             <Stack.Screen name="body-measurements" options={{ presentation: 'modal' }} />
@@ -216,6 +229,7 @@ export default function RootLayout() {
         </QueryClientProvider>
       </trpc.Provider>
       </GymProvider>
+      </LanguageProvider>
     </GestureHandlerRootView>
   );
 

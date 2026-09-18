@@ -2,7 +2,7 @@
 // PROGRAM SETUP SCREEN
 // Shown after onboarding — recommends a tailored program based
 // on the user's goal, experience, and equipment.
-// Includes Zaki AI generation: full custom program via LLM.
+// Includes MY Assistant AI generation: full custom program via LLM.
 // ============================================================
 import { useState, useEffect, useRef } from 'react';
 import {
@@ -43,7 +43,7 @@ import type { SessionType } from '@/lib/training-program';
 const DAY_ORDER = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const DAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-// ── Zaki AI Questionnaire ─────────────────────────────────────
+// ── MY Assistant AI Questionnaire ─────────────────────────────────────
 
 interface ZakiQuestionnaire {
   daysPerWeek: number;
@@ -93,7 +93,7 @@ export default function ProgramSetupScreen() {
   const [currentProgramName, setCurrentProgramName] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
 
-  // Zaki AI generation
+  // MY Assistant AI generation
   const [showZakiModal, setShowZakiModal] = useState(false);
   const [questionnaire, setQuestionnaire] = useState<ZakiQuestionnaire>(DEFAULT_Q);
   const [generatingAI, setGeneratingAI] = useState(false);
@@ -121,6 +121,10 @@ export default function ProgramSetupScreen() {
         loadCustomProgram(),
       ]);
       setUserProfile(profile);
+      // onboarding already asked how many days — carry it into MY Assistant's questionnaire
+      if (profile.trainingDaysPerWeek) {
+        setQuestionnaire(q => ({ ...q, daysPerWeek: profile.trainingDaysPerWeek }));
+      }
       if (existingProg) {
         setIsChangeMode(true);
         setCurrentProgramName(existingProg.name);
@@ -172,7 +176,7 @@ export default function ProgramSetupScreen() {
       );
       await applyScheduleWithHistory({
         appliedAt: new Date().toISOString(),
-        description: `Applied Zaki AI program: ${aiGeneratedProgram.name}`,
+        description: `Applied MY Assistant AI program: ${aiGeneratedProgram.name}`,
         schedule,
         appliedByZaki: true,
       });
@@ -187,7 +191,7 @@ export default function ProgramSetupScreen() {
     setApplying(false);
   };
 
-  // ── Zaki AI Generation ────────────────────────────────────
+  // ── MY Assistant AI Generation ────────────────────────────────────
 
   const handleGenerateWithZaki = async () => {
     setGeneratingAI(true);
@@ -212,7 +216,7 @@ export default function ProgramSetupScreen() {
         `${name}: ${pr.weight}kg × ${pr.reps} reps (e1RM: ${Math.round(pr.e1rm)}kg)`
       );
 
-      setGenerationStatus('Zaki is designing your custom program...');
+      setGenerationStatus('MY Assistant is designing your custom program...');
 
       const result = await trpcClient.zaki.generateProgram.mutate({
         goal: userProfile?.fitnessGoal || 'muscle_gain',
@@ -294,7 +298,7 @@ export default function ProgramSetupScreen() {
         `${name}: ${(pr as any).weight}kg × ${(pr as any).reps} reps`
       );
 
-      setGenerationStatus('Zaki is refining your program...');
+      setGenerationStatus('MY Assistant is refining your program...');
 
       const result = await trpcClient.zaki.generateProgram.mutate({
         goal: userProfile?.fitnessGoal || 'muscle_gain',
@@ -425,14 +429,14 @@ export default function ProgramSetupScreen() {
           </Text>
           <Text style={[s.headerSubtitle, { color: mt }]}>
             {aiGeneratedProgram
-              ? 'Zaki designed this program specifically for you'
+              ? 'MY Assistant designed this program specifically for you'
               : isChangeMode
               ? `Currently: ${currentProgramName || 'Default Upper/Lower'}. Pick a new program below.`
-              : "Based on your goals and experience, here's what Zaki recommends"}
+              : "Based on your goals and experience, here's what MY Assistant recommends"}
           </Text>
         </View>
 
-        {/* Zaki AI Banner */}
+        {/* MY Assistant AI Banner */}
         {!aiGeneratedProgram && (
           <TouchableOpacity
             style={[s.zakiAIBanner, { backgroundColor: pr + '12', borderColor: pr + '40' }]}
@@ -442,7 +446,7 @@ export default function ProgramSetupScreen() {
             <View style={s.zakiAILeft}>
               <Text style={s.zakiAIEmoji}>🤖</Text>
               <View style={{ flex: 1 }}>
-                <Text style={[s.zakiAITitle, { color: pr }]}>Let Zaki Build My Program</Text>
+                <Text style={[s.zakiAITitle, { color: pr }]}>Let MY Assistant Build My Program</Text>
                 <Text style={[s.zakiAISub, { color: mt }]}>
                   Custom exercises based on your weak points, injuries & preferences
                 </Text>
@@ -456,7 +460,7 @@ export default function ProgramSetupScreen() {
         {aiGeneratedProgram && (
           <View style={[s.aiBadge, { backgroundColor: '#22C55E15', borderColor: '#22C55E40' }]}>
             <Text style={{ color: '#22C55E', fontSize: 13, fontWeight: '700' }}>
-              🤖 Zaki-Generated Program
+              🤖 MY Assistant-Generated Program
             </Text>
             <TouchableOpacity onPress={() => setAiGeneratedProgram(null)} activeOpacity={0.7}>
               <Text style={{ color: mt, fontSize: 12 }}>Use template instead</Text>
@@ -529,9 +533,9 @@ export default function ProgramSetupScreen() {
           ))}
         </View>
 
-        {/* Zaki Note */}
+        {/* MY Assistant Note */}
         <View style={[s.zakiNote, { backgroundColor: pr + '10', borderColor: pr + '30' }]}>
-          <Text style={[s.zakiNoteTitle, { color: pr }]}>Zaki says</Text>
+          <Text style={[s.zakiNoteTitle, { color: pr }]}>MY Assistant says</Text>
           <Text style={[s.zakiNoteText, { color: fg }]}>
             {aiGeneratedProgram
               ? `This program was built specifically for you. ${(aiGeneratedProgram as any).zakiNotes || 'Train hard, recover well, and ask me anytime to adjust.'}`
@@ -566,7 +570,7 @@ export default function ProgramSetupScreen() {
             ))}
 
             <Text style={[s.refinementHint, { color: mt }]}>
-              Tell Zaki what to change. Be specific — e.g. "make it 3 days/week", "replace squats with leg press", "add more chest volume"
+              Tell MY Assistant what to change. Be specific — e.g. "make it 3 days/week", "replace squats with leg press", "add more chest volume"
             </Text>
 
             {generatingAI ? (
@@ -637,7 +641,7 @@ export default function ProgramSetupScreen() {
             ) : (
               <Text style={s.applyBtnText}>
                 {aiGeneratedProgram
-                  ? '🤖 Start Zaki\'s Program'
+                  ? '🤖 Start MY Assistant\'s Program'
                   : isChangeMode ? 'Switch to This Program' : 'Start This Program'}
               </Text>
             )}
@@ -702,7 +706,7 @@ export default function ProgramSetupScreen() {
         </View>
       </ScrollView>
 
-      {/* ── Zaki AI Questionnaire Modal ── */}
+      {/* ── MY Assistant AI Questionnaire Modal ── */}
       <Modal
         visible={showZakiModal}
         animationType="slide"
@@ -720,7 +724,7 @@ export default function ProgramSetupScreen() {
             {/* Modal Header */}
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
               <View>
-                <Text style={{ color: fg, fontSize: 22, fontWeight: '700' }}>🤖 Zaki's Program Builder</Text>
+                <Text style={{ color: fg, fontSize: 22, fontWeight: '700' }}>🤖 MY Assistant's Program Builder</Text>
                 <Text style={{ color: mt, fontSize: 14, marginTop: 4 }}>
                   Answer a few questions for a fully custom program
                 </Text>
@@ -739,7 +743,7 @@ export default function ProgramSetupScreen() {
                   {generationStatus}
                 </Text>
                 <Text style={{ color: mt, fontSize: 14, textAlign: 'center', lineHeight: 20 }}>
-                  Zaki is analyzing your training history and designing a program tailored to your body and goals...
+                  MY Assistant is analyzing your training history and designing a program tailored to your body and goals...
                 </Text>
               </View>
             ) : (
