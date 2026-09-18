@@ -8,14 +8,15 @@
 import { and, desc, eq, gte, inArray, isNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
-  bodyWeightEntries, coachMealPlans, coachMessages, coachWorkoutPlans, foodEntries,
+  bodyWeightEntries, coachMealPlans, coachMessages, coachNotes, coachWorkoutPlans, foodEntries,
   nutritionDays, personalRecords, trainerTrainees, users, workoutExerciseLogs,
   workoutSessions, workoutStreaks,
 } from "../drizzle/schema";
 import type {
-  CoachMealPlan, CoachMealPlanBody, CoachMessage, CoachThread, CoachWorkoutPlan,
-  CoachWorkoutPlanBody, TraineeProgress,
+  CoachMealPlan, CoachMealPlanBody, CoachMessage, CoachNote, CoachThread, CoachWorkoutPlan,
+  CoachWorkoutPlanBody, RosterRow, TraineeProgress,
 } from "../shared/coach-types";
+import { notifyUser } from "./push-service";
 import { newId } from "./auth-service";
 import { getDb } from "./db";
 import { LinkError, assertCanCoach, canCoach, canSeePhotos } from "./trainer-link-service";
@@ -137,6 +138,11 @@ export async function assignWorkoutPlan(trainer: { id: number; name: string | nu
   const id = newId();
   await db.insert(coachWorkoutPlans).values({ id, trainerId: trainer.id, traineeId, name: plan.name, planJson: plan, status: "active" });
   const rows = await db.select().from(coachWorkoutPlans).where(eq(coachWorkoutPlans.id, id)).limit(1);
+  void notifyUser(traineeId, {
+    title: `${trainer.name ?? "Coach"} set your workout plan`,
+    body: `${plan.name} · ${plannedDaysPerWeek(plan)} days/week. Open the app to see it.`,
+    data: { kind: "workout_plan", planId: id },
+  });
   return toWorkoutPlan(rows[0], trainer.name ?? "Coach");
 }
 
@@ -149,6 +155,11 @@ export async function assignMealPlan(trainer: { id: number; name: string | null 
   const id = newId();
   await db.insert(coachMealPlans).values({ id, trainerId: trainer.id, traineeId, name: plan.name, planJson: plan, status: "active" });
   const rows = await db.select().from(coachMealPlans).where(eq(coachMealPlans.id, id)).limit(1);
+  void notifyUser(traineeId, {
+    title: `${trainer.name ?? "Coach"} set your meal plan`,
+    body: `${plan.name} · ${plan.trainingDay.calories} kcal on training days. Open the app to see it.`,
+    data: { kind: "meal_plan", planId: id },
+  });
   return toMealPlan(rows[0], trainer.name ?? "Coach");
 }
 
@@ -215,7 +226,57 @@ export async function sendMessage(senderId: number, recipientId: number, body: s
   await db.insert(coachMessages).values({ id, senderId, recipientId, body: text, createdAt: new Date() });
   const rows = await db.select().from(coachMessages).where(eq(coachMessages.id, id)).limit(1);
   const r = rows[0];
+  const sender = await userById(senderId);
+  void notifyUser(recipientId, {
+    title: sender?.name ? `Message from ${sender.name}` : "New message",
+    body: text.length > 140 ? `${text.slice(0, 137)}…` : text,
+    data: { kind: "message", peerId: senderId },
+  });
   return { id: r.id, senderId: r.senderId, recipientId: r.recipientId, body: r.body, createdAt: r.createdAt.toISOString(), readAt: null };
+}
+
+/** Coach sends the same message to every active trainee. Returns how many received it. */
+export async function broadcast(coachId: number, body: string): Promise<{ sent: number }> {
+  const text = body.trim();
+  if (!text) throw new LinkError("empty", 400, "Write something first.");
+  const db = await requireDb();
+  const links = await db.select({ traineeId: trainerTrainees.traineeId }).from(trainerTrainees)
+    .where(and(eq(trainerTrainees.trainerId, coachId), eq(trainerTrainees.status, "active")));
+  let sent = 0;
+  for (const l of links) {
+    await sendMessage(coachId, l.traineeId, text);
+    sent += 1;
+  }
+  return { sent };
+}
+
+// ── Private coach notes ─────────────────────────────────────────────
+
+export async function addNote(trainerId: number, traineeId: number, body: string): Promise<CoachNote> {
+  const text = body.trim();
+  if (!text) throw new LinkError("empty", 400, "Write something first.");
+  if (text.length > 2000) throw new LinkError("too_long", 400, "Note is too long.");
+  await assertCanCoach(trainerId, traineeId);
+  const db = await requireDb();
+  const id = newId();
+  await db.insert(coachNotes).values({ id, trainerId, traineeId, body: text, createdAt: new Date() });
+  return { id, traineeId, body: text, createdAt: new Date().toISOString() };
+}
+
+export async function listNotes(trainerId: number, traineeId: number): Promise<CoachNote[]> {
+  await assertCanCoach(trainerId, traineeId);
+  const db = await requireDb();
+  const rows = await db.select().from(coachNotes)
+    .where(and(eq(coachNotes.trainerId, trainerId), eq(coachNotes.traineeId, traineeId)))
+    .orderBy(desc(coachNotes.createdAt)).limit(100);
+  return rows.map((r) => ({ id: r.id, traineeId: r.traineeId, body: r.body, createdAt: r.createdAt.toISOString() }));
+}
+
+export async function deleteNote(trainerId: number, noteId: string): Promise<{ ok: true }> {
+  const db = await requireDb();
+  // Scoped to the author: someone else's note id is simply "not found".
+  await db.delete(coachNotes).where(and(eq(coachNotes.id, noteId), eq(coachNotes.trainerId, trainerId)));
+  return { ok: true };
 }
 
 /** Both directions between me and one peer, oldest first. Marks their messages to me as read. */
@@ -284,6 +345,51 @@ function daysAgo(n: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+/** Monday-based week start (YYYY-MM-DD) for a YYYY-MM-DD date. */
+function weekStartOf(date: string): string {
+  const d = new Date(date + "T00:00:00Z");
+  const dow = (d.getUTCDay() + 6) % 7; // Mon=0
+  d.setUTCDate(d.getUTCDate() - dow);
+  return d.toISOString().slice(0, 10);
+}
+
+function plannedDaysPerWeek(plan: Pick<CoachWorkoutPlanBody, "weeklySchedule"> | null | undefined): number {
+  if (!plan?.weeklySchedule) return 0;
+  return Object.values(plan.weeklySchedule).filter((v) => v && v !== "rest").length;
+}
+
+async function lastMessageBetween(a: number, b: number): Promise<string | null> {
+  const db = await requireDb();
+  const last = await db.select({ at: coachMessages.createdAt }).from(coachMessages)
+    .where(or(
+      and(eq(coachMessages.senderId, a), eq(coachMessages.recipientId, b)),
+      and(eq(coachMessages.senderId, b), eq(coachMessages.recipientId, a)),
+    ))
+    .orderBy(desc(coachMessages.createdAt)).limit(1);
+  return last[0]?.at.toISOString() ?? null;
+}
+
+async function loggedNutritionOn(openId: string, date: string): Promise<boolean> {
+  const db = await requireDb();
+  const day = await db.select({ id: nutritionDays.id }).from(nutritionDays)
+    .where(and(eq(nutritionDays.userOpenId, openId), eq(nutritionDays.date, date))).limit(1);
+  if (!day[0]) return false;
+  const n = await db.select({ c: sql<number>`count(*)` }).from(foodEntries).where(eq(foodEntries.nutritionDayId, day[0].id));
+  return Number(n[0]?.c ?? 0) > 0;
+}
+
+async function weightDelta30For(openId: string): Promise<number | null> {
+  const db = await requireDb();
+  const rows = await db.select({ date: bodyWeightEntries.date, kg: bodyWeightEntries.weightKg }).from(bodyWeightEntries)
+    .where(eq(bodyWeightEntries.userOpenId, openId)).orderBy(desc(bodyWeightEntries.date)).limit(60);
+  const withKg = rows.filter((r) => r.kg != null);
+  if (withKg.length < 2) return null;
+  const latest = Number(withKg[0].kg);
+  const cutoff = daysAgo(30);
+  const ref = withKg.find((r) => r.date <= cutoff) ?? withKg[withKg.length - 1];
+  return Math.round((latest - Number(ref.kg)) * 10) / 10;
+}
+
 export async function traineeProgress(trainerId: number, traineeId: number): Promise<TraineeProgress> {
   await assertCanCoach(trainerId, traineeId);
   const trainee = await userById(traineeId);
@@ -295,7 +401,7 @@ export async function traineeProgress(trainerId: number, traineeId: number): Pro
   const sessions = await db.select().from(workoutSessions)
     .where(and(eq(workoutSessions.userOpenId, openId), gte(workoutSessions.date, daysAgo(60))))
     .orderBy(desc(workoutSessions.date)).limit(60);
-  const workouts = [];
+  const workouts: TraineeProgress["workouts"] = [];
   for (const s of sessions) {
     const ex = await db.select({ c: sql<number>`count(*)` }).from(workoutExerciseLogs).where(eq(workoutExerciseLogs.sessionId, s.id));
     workouts.push({
@@ -338,6 +444,34 @@ export async function traineeProgress(trainerId: number, traineeId: number): Pro
   const streakRows = await db.select().from(workoutStreaks).where(eq(workoutStreaks.userOpenId, openId)).limit(1);
   const plans = await plansForTraineeAsCoach(trainerId, traineeId);
 
+  // Adherence: completed workouts per week for the last 4 weeks vs the plan.
+  const planned = plannedDaysPerWeek(plans.workoutPlan);
+  const today = daysAgo(0);
+  const thisWeek = weekStartOf(today);
+  const weekStarts: string[] = [];
+  for (let i = 3; i >= 0; i--) {
+    const d = new Date(thisWeek + "T00:00:00Z");
+    d.setUTCDate(d.getUTCDate() - i * 7);
+    weekStarts.push(d.toISOString().slice(0, 10));
+  }
+  const weeklyWorkouts = weekStarts.map((ws) => ({
+    weekStart: ws,
+    count: workouts.filter((w) => w.completed && weekStartOf(w.date) === ws).length,
+  }));
+  let workoutAdherencePct: number | null = null;
+  if (planned > 0) {
+    // Only count full weeks plus the current week pro-rata by elapsed days.
+    const dow = (new Date(today + "T00:00:00Z").getUTCDay() + 6) % 7; // Mon=0
+    const elapsedFrac = (dow + 1) / 7;
+    const expected = planned * 3 + planned * elapsedFrac;
+    const done = weeklyWorkouts.reduce((a, w) => a + w.count, 0);
+    workoutAdherencePct = Math.max(0, Math.min(100, Math.round((done / expected) * 100)));
+  }
+  const withTarget = nutrition.filter((n) => n.targetCalories && n.targetCalories > 0);
+  const nutritionAdherencePct = withTarget.length
+    ? Math.round((withTarget.filter((n) => { const p = n.calories / n.targetCalories!; return p >= 0.9 && p <= 1.1; }).length / withTarget.length) * 100)
+    : null;
+
   return {
     trainee: { id: trainee.id, name: trainee.name ?? "", email: trainee.email ?? null, photosShared },
     workouts, workoutsLast7, workoutsLast30, bodyWeight, nutrition,
@@ -347,11 +481,19 @@ export async function traineeProgress(trainerId: number, traineeId: number): Pro
       : null,
     activeWorkoutPlan: plans.workoutPlan ? { id: plans.workoutPlan.id, name: plans.workoutPlan.name, createdAt: plans.workoutPlan.createdAt } : null,
     activeMealPlan: plans.mealPlan ? { id: plans.mealPlan.id, name: plans.mealPlan.name, createdAt: plans.mealPlan.createdAt } : null,
+    plannedDaysPerWeek: planned,
+    weeklyWorkouts,
+    workoutAdherencePct,
+    nutritionAdherencePct,
+    weightDelta30: await weightDelta30For(openId),
+    loggedNutritionToday: await loggedNutritionOn(openId, today),
+    trainedToday: workouts.some((w) => w.completed && w.date === today),
+    lastMessageAt: await lastMessageBetween(trainerId, traineeId),
   };
 }
 
 /** Roster enriched with the signals a coach scans first. */
-export async function rosterOverview(trainerId: number) {
+export async function rosterOverview(trainerId: number): Promise<RosterRow[]> {
   const db = await requireDb();
   const links = await db.select({
     linkId: trainerTrainees.id, userId: users.id, openId: users.openId, name: users.name, email: users.email,
@@ -360,7 +502,7 @@ export async function rosterOverview(trainerId: number) {
     .innerJoin(users, eq(users.id, trainerTrainees.traineeId))
     .where(and(eq(trainerTrainees.trainerId, trainerId), eq(trainerTrainees.status, "active")));
 
-  const out = [];
+  const out: RosterRow[] = [];
   for (const l of links) {
     const last = await db.select({ date: workoutSessions.date }).from(workoutSessions)
       .where(and(eq(workoutSessions.userOpenId, l.openId), eq(workoutSessions.completed, true)))
@@ -369,17 +511,45 @@ export async function rosterOverview(trainerId: number) {
       .where(and(eq(workoutSessions.userOpenId, l.openId), eq(workoutSessions.completed, true), gte(workoutSessions.date, daysAgo(7))));
     const unread = await db.select({ c: sql<number>`count(*)` }).from(coachMessages)
       .where(and(eq(coachMessages.senderId, l.userId), eq(coachMessages.recipientId, trainerId), isNull(coachMessages.readAt)));
-    const wp = await db.select({ name: coachWorkoutPlans.name }).from(coachWorkoutPlans)
+    const wp = await db.select({ name: coachWorkoutPlans.name, planJson: coachWorkoutPlans.planJson }).from(coachWorkoutPlans)
       .where(and(eq(coachWorkoutPlans.trainerId, trainerId), eq(coachWorkoutPlans.traineeId, l.userId), eq(coachWorkoutPlans.status, "active"))).limit(1);
     const mp = await db.select({ name: coachMealPlans.name }).from(coachMealPlans)
       .where(and(eq(coachMealPlans.trainerId, trainerId), eq(coachMealPlans.traineeId, l.userId), eq(coachMealPlans.status, "active"))).limit(1);
+    const today = daysAgo(0);
+    const lastWorkoutDate = last[0]?.date ?? null;
+    const planned = wp[0] ? plannedDaysPerWeek(parseJson<CoachWorkoutPlanBody>(wp[0].planJson)) : 0;
+    const workoutsLast7 = Number(wk[0]?.c ?? 0);
+    const unreadN = Number(unread[0]?.c ?? 0);
+    const sinceIso = (l.since ?? new Date()).toISOString();
+    const daysLinked = Math.floor((Date.now() - new Date(sinceIso).getTime()) / 86400000);
+    const daysSinceWorkout = lastWorkoutDate
+      ? Math.floor((new Date(today + "T00:00:00Z").getTime() - new Date(lastWorkoutDate + "T00:00:00Z").getTime()) / 86400000)
+      : null;
+
+    // Attention triage, most urgent reason wins.
+    let attention: RosterRow["attention"] = "ok";
+    let attentionReason: string | null = null;
+    if (!wp[0] && !mp[0]) { attention = "attention"; attentionReason = "no_plan"; }
+    else if (daysSinceWorkout === null && daysLinked >= 3) { attention = "attention"; attentionReason = "never_trained"; }
+    else if (daysSinceWorkout !== null && daysSinceWorkout >= 5) { attention = "attention"; attentionReason = "inactive"; }
+    else if (unreadN > 0) { attention = "watch"; attentionReason = "unread"; }
+    else if (planned > 0 && workoutsLast7 < Math.max(1, planned - 1)) { attention = "watch"; attentionReason = "behind_plan"; }
+
     out.push({
       linkId: l.linkId, userId: l.userId, name: l.name ?? "", email: l.email ?? null,
-      photosShared: l.photosSharedAt != null, since: (l.since ?? new Date()).toISOString(),
-      lastWorkoutDate: last[0]?.date ?? null, workoutsLast7: Number(wk[0]?.c ?? 0),
-      unread: Number(unread[0]?.c ?? 0),
+      photosShared: l.photosSharedAt != null, since: sinceIso,
+      lastWorkoutDate, workoutsLast7,
+      unread: unreadN,
       workoutPlanName: wp[0]?.name ?? null, mealPlanName: mp[0]?.name ?? null,
+      plannedDaysPerWeek: planned,
+      trainedToday: lastWorkoutDate === today,
+      loggedNutritionToday: await loggedNutritionOn(l.openId, today),
+      weightDelta30: await weightDelta30For(l.openId),
+      lastMessageAt: await lastMessageBetween(trainerId, l.userId),
+      attention, attentionReason,
     });
   }
+  const rank = { attention: 0, watch: 1, ok: 2 } as const;
+  out.sort((a, b) => rank[a.attention] - rank[b.attention] || b.unread - a.unread || a.name.localeCompare(b.name));
   return out;
 }

@@ -29,6 +29,7 @@ import { GUEST_CODE } from '@/constants/oauth';
 import * as Api from '@/lib/_core/api';
 import * as Auth from '@/lib/_core/auth';
 import { notifyAuthChanged } from '@/hooks/use-auth';
+import { resetProfileForNewAccount } from '@/lib/profile-store';
 
 type Mode = 'signin' | 'signup';
 type Role = 'user' | 'trainer';
@@ -74,6 +75,10 @@ export default function LoginScreen() {
         mode === 'signup'
           ? await Api.signupWithPassword({ email: e, password, name: name.trim() || undefined, role })
           : await Api.loginWithPassword({ email: e, password });
+      if (mode === 'signup' && result.user?.openId) {
+        // Brand-new account → blank profile → onboarding runs for it.
+        await resetProfileForNewAccount(result.user.openId, name);
+      }
       await persist(result.sessionToken, result.user, 'password');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';

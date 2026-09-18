@@ -2,6 +2,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import * as trainerLink from "./trainer-link-service";
 import * as coachSvc from "./coach-service";
+import * as push from "./push-service";
 import { COOKIE_NAME } from "../shared/const.js";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
@@ -132,6 +133,48 @@ export const appRouter = router({
     unreadCount: protectedProcedure.query(async ({ ctx }) => {
       return coachSvc.unreadCount(ctx.user.id);
     }),
+    // — coach only: private notes + broadcast —
+    notes: protectedProcedure
+      .input(z.object({ traineeId: z.number().int().positive() }))
+      .query(async ({ ctx, input }) => {
+        return wrapLink(() => coachSvc.listNotes(ctx.user.id, input.traineeId));
+      }),
+    addNote: protectedProcedure
+      .input(z.object({ traineeId: z.number().int().positive(), body: z.string().min(1).max(2000) }))
+      .mutation(async ({ ctx, input }) => {
+        return wrapLink(() => coachSvc.addNote(ctx.user.id, input.traineeId, input.body));
+      }),
+    deleteNote: protectedProcedure
+      .input(z.object({ noteId: z.string().min(1).max(64) }))
+      .mutation(async ({ ctx, input }) => {
+        return wrapLink(() => coachSvc.deleteNote(ctx.user.id, input.noteId));
+      }),
+    broadcast: protectedProcedure
+      .input(z.object({ body: z.string().min(1).max(4000) }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "trainer" && ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Only a coach can broadcast." });
+        }
+        return wrapLink(() => coachSvc.broadcast(ctx.user.id, input.body));
+      }),
+  }),
+
+  // Device push tokens. The token is bound to the calling user; a phone that
+  // changes accounts simply re-registers under the new one.
+  push: router({
+    register: protectedProcedure
+      .input(z.object({ token: z.string().min(10).max(255), platform: z.enum(["android", "ios", "web"]) }))
+      .mutation(async ({ ctx, input }) => {
+        if (!push.isExpoPushToken(input.token)) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Not an Expo push token." });
+        }
+        return push.registerToken(ctx.user.id, input.token, input.platform);
+      }),
+    unregister: protectedProcedure
+      .input(z.object({ token: z.string().min(10).max(255) }))
+      .mutation(async ({ ctx, input }) => {
+        return push.unregisterToken(ctx.user.id, input.token);
+      }),
   }),
 
   auth: router({

@@ -551,6 +551,36 @@ export const coachMessages = mysqlTable("coach_messages", {
   inboxIdx: index("cm_inbox_idx").on(table.recipientId, table.readAt),
 }));
 
+// ── Coach private notes ─────────────────────────────────────────────
+// Only the coach who wrote a note can read or delete it. Never delivered to
+// the trainee, never included in any trainee-facing query.
+export const coachNotes = mysqlTable("coach_notes", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  trainerId: int("trainerId").notNull(),
+  traineeId: int("traineeId").notNull(),
+  body: text("body").notNull(),
+  createdAt: timestamp("createdAt", { fsp: 3 }).defaultNow().notNull(),
+}, (table) => ({
+  pairIdx: index("cn_pair_idx").on(table.trainerId, table.traineeId, table.createdAt),
+}));
+
+// ── Push tokens ─────────────────────────────────────────────────────
+// One row per device. A token belongs to whoever last registered it, so a
+// shared phone that switches accounts re-homes the token on login.
+export const pushTokens = mysqlTable("push_tokens", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  token: varchar("token", { length: 255 }).notNull().unique(),
+  platform: varchar("platform", { length: 16 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  userIdx: index("pt_user_idx").on(table.userId),
+}));
+
+export type CoachNoteRow = typeof coachNotes.$inferSelect;
+export type PushTokenRow = typeof pushTokens.$inferSelect;
+
 export type CoachWorkoutPlanRow = typeof coachWorkoutPlans.$inferSelect;
 export type CoachMealPlanRow = typeof coachMealPlans.$inferSelect;
 export type CoachMessageRow = typeof coachMessages.$inferSelect;

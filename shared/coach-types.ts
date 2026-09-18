@@ -143,6 +143,48 @@ export interface TraineeProgress {
   streak: { currentStreak: number; bestStreak: number; lastWorkoutDate: string | null } | null;
   activeWorkoutPlan: { id: string; name: string; createdAt: string } | null;
   activeMealPlan: { id: string; name: string; createdAt: string } | null;
+  /** Plan adherence: planned training days per week from the active plan. */
+  plannedDaysPerWeek: number;
+  /** Completed workouts per ISO week, oldest first, last entry = current week. */
+  weeklyWorkouts: Array<{ weekStart: string; count: number }>;
+  /** 0–100 over the last 4 weeks vs plannedDaysPerWeek (null when no plan). */
+  workoutAdherencePct: number | null;
+  /** Days within ±10% of calorie target over the days that had a target. */
+  nutritionAdherencePct: number | null;
+  /** Latest body weight vs ~30 days ago (kg, negative = lost). */
+  weightDelta30: number | null;
+  loggedNutritionToday: boolean;
+  trainedToday: boolean;
+  lastMessageAt: string | null;
+}
+
+export interface CoachNote {
+  id: string;
+  traineeId: number;
+  body: string;
+  createdAt: string;
+}
+
+export interface RosterRow {
+  linkId: string;
+  userId: number;
+  name: string;
+  email: string | null;
+  photosShared: boolean;
+  since: string;
+  lastWorkoutDate: string | null;
+  workoutsLast7: number;
+  unread: number;
+  workoutPlanName: string | null;
+  mealPlanName: string | null;
+  plannedDaysPerWeek: number;
+  trainedToday: boolean;
+  loggedNutritionToday: boolean;
+  weightDelta30: number | null;
+  lastMessageAt: string | null;
+  /** 'ok' | 'watch' | 'attention' — computed server-side so every client agrees. */
+  attention: 'ok' | 'watch' | 'attention';
+  attentionReason: string | null;
 }
 
 export function macroCalories(protein: number, carbs: number, fat: number): number {

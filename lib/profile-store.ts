@@ -61,14 +61,45 @@ const DEFAULT_PROFILE: UserProfile = {
   onboardingCompleted: false,
 };
 
+// The profile is stored PER ACCOUNT. A phone that signs out of one account and
+// into another must not carry the first account's name, goal or "onboarding
+// done" flag across (2026-09-18: a fresh sign-up skipped onboarding because the
+// previous tester's profile sat under one shared key). Signed-out / guest
+// sessions fall back to the legacy shared key.
+async function profileKey(): Promise<string> {
+  try {
+    const Auth = await import('@/lib/_core/auth');
+    const info = await Auth.getUserInfo();
+    if (info?.openId && info.id !== 0) return `${PROFILE_KEY}:${info.openId}`;
+  } catch {
+    // fall through
+  }
+  return PROFILE_KEY;
+}
+
 export async function loadUserProfile(): Promise<UserProfile> {
   try {
-    const raw = await AsyncStorage.getItem(PROFILE_KEY);
+    const raw = await AsyncStorage.getItem(await profileKey());
     if (!raw) return DEFAULT_PROFILE;
     return { ...DEFAULT_PROFILE, ...JSON.parse(raw) };
   } catch {
     return DEFAULT_PROFILE;
   }
+}
+
+/**
+ * Called right after a NEW account is created: start that account from a blank
+ * profile (carrying only the sign-up name) so the onboarding always runs for it.
+ */
+export async function resetProfileForNewAccount(openId: string, name?: string | null): Promise<void> {
+  const fresh: UserProfile = { ...DEFAULT_PROFILE, name: (name ?? '').trim() };
+  await AsyncStorage.setItem(`${PROFILE_KEY}:${openId}`, JSON.stringify(fresh));
+  profileListeners.forEach((listener) => listener());
+}
+
+/** Sign-out hygiene: drop the legacy shared profile so it can never leak into the next login. */
+export async function clearLegacySharedProfile(): Promise<void> {
+  try { await AsyncStorage.removeItem(PROFILE_KEY); } catch { /* ignore */ }
 }
 
 // The root AuthGate caches "needs onboarding" from a one-time profile read;
@@ -84,7 +115,7 @@ export function subscribeProfileChanges(listener: () => void): () => void {
 }
 
 export async function saveUserProfile(profile: UserProfile): Promise<void> {
-  await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+  await AsyncStorage.setItem(await profileKey(), JSON.stringify(profile));
   // Keep the signed-in identity's display name in step with the profile so
   // the account never shows as a generic "Guest".
   if (profile.name && profile.name.trim()) {

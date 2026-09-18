@@ -5,10 +5,12 @@ import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
-import { Platform } from "react-native";
+import { AppState, Platform } from "react-native";
+import * as Notifications from "expo-notifications";
 import "@/lib/_core/nativewind-pressable";
 import { ThemeProvider } from "@/lib/theme-provider";
-import { LanguageProvider } from "@/lib/i18n";
+import { LanguageProvider, useI18n } from "@/lib/i18n";
+import { checkCoachEventsAndNotify, registerCurrentDevice, routeForNotificationData } from "@/lib/push-registration";
 import { GymProvider } from "@/lib/gym-context";
 import {
   SafeAreaFrameContext,
@@ -60,12 +62,12 @@ function AuthGate() {
       setProfileChecked(true);
       return;
     }
-    // Check if user has completed onboarding
-    // Existing users with profile data (name or fitnessGoal) are treated as onboarded
+    // Check if THIS account has completed onboarding (profile is stored per
+    // account — see profile-store). No "has some data" shortcut: a name from
+    // the sign-up form is not an onboarding.
     const checkProfile = () => {
       loadUserProfile().then(profile => {
-        const hasExistingData = !!(profile.name || profile.fitnessGoal);
-        setNeedsOnboarding(!profile.onboardingCompleted && !hasExistingData);
+        setNeedsOnboarding(!profile.onboardingCompleted);
         setProfileChecked(true);
       }).catch(() => {
         setNeedsOnboarding(true);
@@ -101,6 +103,23 @@ function AuthGate() {
       router.replace('/onboarding');
     }
   }, [isAuthenticated, loading, segments, profileChecked, needsOnboarding]);
+
+  // Push: bind this device to the signed-in account, announce coach events on
+  // foreground, and route notification taps. Native only.
+  const { lang } = useI18n();
+  useEffect(() => {
+    if (Platform.OS === 'web' || loading || !isAuthenticated) return;
+    let cancelled = false;
+    registerCurrentDevice().catch(() => {});
+    const run = () => { if (!cancelled) checkCoachEventsAndNotify({ isCoach, lang }).catch(() => {}); };
+    run();
+    const sub = AppState.addEventListener('change', (st) => { if (st === 'active') run(); });
+    const tap = Notifications.addNotificationResponseReceivedListener((resp) => {
+      const route = routeForNotificationData(resp.notification.request.content.data as Record<string, unknown>, isCoach);
+      if (route) router.push(route as any);
+    });
+    return () => { cancelled = true; sub.remove(); tap.remove(); };
+  }, [isAuthenticated, loading, isCoach, lang]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return null;
 }

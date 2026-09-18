@@ -98,8 +98,20 @@ export function useAuth(options?: UseAuthOptions) {
       console.error("[Auth] Logout API call failed:", err);
       // Continue with logout even if API call fails
     } finally {
+      try {
+        const push = await import("@/lib/push-registration");
+        await push.unregisterCurrentDevice();
+      } catch {
+        // best-effort
+      }
       await Auth.removeSessionToken();
       await Auth.clearUserInfo();
+      try {
+        const store = await import("@/lib/profile-store");
+        await store.clearLegacySharedProfile();
+      } catch {
+        // best-effort
+      }
       setUser(null);
       setError(null);
     }

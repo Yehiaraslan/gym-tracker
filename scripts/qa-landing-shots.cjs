@@ -19,7 +19,7 @@ const PROFILE = {
   const browser = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--no-sandbox', '--disable-gpu'] });
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
   await ctx.addInitScript((p) => {
-    localStorage.setItem('@gym_user_profile', JSON.stringify(p));
+    localStorage.setItem('@gym_user_profile:qa', JSON.stringify(p));
     localStorage.setItem('@app_language', 'en');
   }, PROFILE);
   const page = await ctx.newPage();

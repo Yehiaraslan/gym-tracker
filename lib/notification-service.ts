@@ -63,6 +63,13 @@ export class NotificationService {
         lightColor: '#FF6B35',
       });
 
+      await Notifications.setNotificationChannelAsync('coach', {
+        name: 'Coach',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#2EBFBF',
+      });
+
       await Notifications.setNotificationChannelAsync('milestone', {
         name: 'Milestone Unlocks',
         importance: Notifications.AndroidImportance.MAX,

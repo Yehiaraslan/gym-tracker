@@ -162,6 +162,47 @@ s, b = qry("coach.roster", coach_t)
 r2 = (data(b) or [{}])[0]
 check("roster reflects plan names", r2.get("workoutPlanName") == "E2E v2" and r2.get("mealPlanName") == "E2E Cut", json.dumps(r2)[:200])
 
+check("progress carries adherence fields", "weeklyWorkouts" in pg and len(pg["weeklyWorkouts"]) == 4 and pg["plannedDaysPerWeek"] >= 1 and pg["workoutAdherencePct"] is not None and pg["trainedToday"] is False, json.dumps({k: pg.get(k) for k in ("weeklyWorkouts","plannedDaysPerWeek","workoutAdherencePct","nutritionAdherencePct","weightDelta30","trainedToday","loggedNutritionToday","lastMessageAt")})[:300])
+check("roster carries triage fields", "attention" in r2 and r2["attention"] in ("ok","watch","attention") and "plannedDaysPerWeek" in r2 and "trainedToday" in r2, json.dumps(r2)[:300])
+
+# ── private notes ──
+s, b = mut("coach.addNote", {"traineeId": trainee["id"], "body": "Knee: watch depth on squats"}, coach_t)
+note = data(b)
+check("coach adds a private note", s == 200 and note["body"].startswith("Knee"), f"{s} {err(b)}")
+s, b = mut("coach.addNote", {"traineeId": trainee["id"], "body": "sneaky"}, rival_t)
+check("RIVAL cannot add a note", s == 403, f"{s} {err(b)}")
+s, b = qry("coach.notes", coach_t, {"traineeId": trainee["id"]})
+check("coach lists own notes", s == 200 and len(data(b)) == 1 and data(b)[0]["id"] == note["id"], f"{s} {err(b)}")
+s, b = qry("coach.notes", rival_t, {"traineeId": trainee["id"]})
+check("RIVAL cannot list notes", s == 403, f"{s} {err(b)}")
+s, b = mut("coach.deleteNote", {"noteId": note["id"]}, rival_t)
+s, b = qry("coach.notes", coach_t, {"traineeId": trainee["id"]})
+check("RIVAL delete is a no-op", len(data(b)) == 1)
+s, b = mut("coach.deleteNote", {"noteId": note["id"]}, coach_t)
+s, b = qry("coach.notes", coach_t, {"traineeId": trainee["id"]})
+check("coach deletes own note", s == 200 and data(b) == [], f"{s} {data(b)}")
+
+# ── broadcast ──
+s, b = mut("coach.broadcast", {"body": "Gym closed Friday — train Saturday instead."}, coach_t)
+check("coach broadcasts to all athletes", s == 200 and data(b)["sent"] == 1, f"{s} {err(b)}")
+s, b = mut("coach.broadcast", {"body": "hello"}, trainee_t)
+check("trainee cannot broadcast", s == 403, f"{s} {err(b)}")
+s, b = qry("coach.thread", trainee_t, {"peerId": coach["id"]})
+check("broadcast lands in the trainee thread", data(b)[-1]["body"].startswith("Gym closed"), json.dumps(data(b)[-1])[:120])
+
+# ── push tokens ──
+tok = f"ExponentPushToken[e2e{run[:8]}]"
+s, b = mut("push.register", {"token": tok, "platform": "android"}, trainee_t)
+check("trainee registers push token", s == 200, f"{s} {err(b)}")
+s, b = mut("push.register", {"token": "not-a-token", "platform": "android"}, trainee_t)
+check("garbage token rejected", s == 400, f"{s} {err(b)}")
+s, b = mut("push.register", {"token": tok, "platform": "android"}, coach_t)
+check("same device re-homes to the account that logs in", s == 200, f"{s} {err(b)}")
+s, b = mut("push.unregister", {"token": tok}, trainee_t)
+check("old owner cannot unregister a re-homed token", s == 200, f"{s} {err(b)}")
+s, b = mut("push.unregister", {"token": tok}, coach_t)
+check("current owner unregisters", s == 200, f"{s} {err(b)}")
+
 # ── revoke: plans stop being delivered, messaging closes, history readable ──
 link_id = roster[0]["linkId"]
 s, b = mut("trainerLink.revoke", {"linkId": link_id}, trainee_t)
@@ -171,7 +212,7 @@ check("after revoke, plans are no longer delivered", data(b) == {"workoutPlan": 
 s, b = mut("coach.sendMessage", {"peerId": trainee["id"], "body": "still there?"}, coach_t)
 check("after revoke, coach cannot message", s == 403, f"{s} {err(b)}")
 s, b = qry("coach.thread", trainee_t, {"peerId": coach["id"]})
-check("after revoke, history still readable", s == 200 and len(data(b)) == 2)
+check("after revoke, history still readable", s == 200 and len(data(b)) == 3)
 s, b = qry("coach.traineeProgress", coach_t, {"traineeId": trainee["id"]})
 check("after revoke, progress refused", s == 403, f"{s} {err(b)}")
 

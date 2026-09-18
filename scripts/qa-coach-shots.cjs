@@ -70,9 +70,10 @@ const MESSAGES = [
   { id: 'c', senderId: 28, recipientId: 27, body: 'Done 👍 Leg press felt great, 4×10 at 200kg.', createdAt: iso(30), readAt: null },
 ];
 const ROSTER = [
-  { linkId: 'l1', userId: 28, name: 'Yehia', email: 'yehia@example.com', photosShared: true, since: iso(40000), lastWorkoutDate: day(0), workoutsLast7: 3, unread: 1, workoutPlanName: 'Lean Bulk — Phase 1', mealPlanName: 'Lean Bulk — 2,900 kcal' },
-  { linkId: 'l2', userId: 29, name: 'Sara M.', email: 'sara@example.com', photosShared: false, since: iso(20000), lastWorkoutDate: day(1), workoutsLast7: 4, unread: 0, workoutPlanName: 'Fat Loss Circuit', mealPlanName: 'Cut — 1,800 kcal' },
-  { linkId: 'l3', userId: 30, name: 'Omar K.', email: 'omar@example.com', photosShared: false, since: iso(5000), lastWorkoutDate: day(6), workoutsLast7: 0, unread: 2, workoutPlanName: null, mealPlanName: null },
+  { linkId: 'l1', userId: 28, name: 'Yehia', email: 'yehia@example.com', photosShared: true, since: iso(40000), lastWorkoutDate: day(0), workoutsLast7: 3, unread: 1, workoutPlanName: 'Lean Bulk — Phase 1', mealPlanName: 'Lean Bulk — 2,900 kcal', plannedDaysPerWeek: 4, trainedToday: true, loggedNutritionToday: true, weightDelta30: -1.2, lastMessageAt: iso(30), attention: 'watch', attentionReason: 'unread' },
+  { linkId: 'l2', userId: 29, name: 'Sara M.', email: 'sara@example.com', photosShared: false, since: iso(20000), lastWorkoutDate: day(1), workoutsLast7: 4, unread: 0, workoutPlanName: 'Fat Loss Circuit', mealPlanName: 'Cut — 1,800 kcal', plannedDaysPerWeek: 4, trainedToday: false, loggedNutritionToday: true, weightDelta30: -2.4, lastMessageAt: iso(3000), attention: 'ok', attentionReason: null },
+  { linkId: 'l3', userId: 30, name: 'Omar K.', email: 'omar@example.com', photosShared: false, since: iso(5000), lastWorkoutDate: day(6), workoutsLast7: 0, unread: 2, workoutPlanName: null, mealPlanName: null, plannedDaysPerWeek: 0, trainedToday: false, loggedNutritionToday: false, weightDelta30: null, lastMessageAt: iso(600), attention: 'attention', attentionReason: 'no_plan' },
+  { linkId: 'l4', userId: 31, name: 'Karim H.', email: 'karim@example.com', photosShared: false, since: iso(30000), lastWorkoutDate: day(8), workoutsLast7: 0, unread: 0, workoutPlanName: 'Strength 5x5', mealPlanName: 'Maintain — 2,400 kcal', plannedDaysPerWeek: 3, trainedToday: false, loggedNutritionToday: false, weightDelta30: 0.8, lastMessageAt: iso(9000), attention: 'attention', attentionReason: 'inactive' },
 ];
 const PROGRESS = {
   trainee: { id: 28, name: 'Yehia', email: 'yehia@example.com', photosShared: true },
@@ -88,7 +89,15 @@ const PROGRESS = {
   streak: { currentStreak: 5, bestStreak: 9, lastWorkoutDate: day(0) },
   activeWorkoutPlan: { id: 'p1', name: PLAN.name, createdAt: PLAN.createdAt },
   activeMealPlan: { id: 'm1', name: MEAL.name, createdAt: MEAL.createdAt },
+  plannedDaysPerWeek: 4,
+  weeklyWorkouts: [21, 14, 7, 0].map((d, i) => ({ weekStart: day(d + 3), count: [4, 3, 4, 3][i] })),
+  workoutAdherencePct: 88, nutritionAdherencePct: 71, weightDelta30: -1.2,
+  loggedNutritionToday: true, trainedToday: true, lastMessageAt: iso(30),
 };
+const NOTES = [
+  { id: 'n1', traineeId: 28, body: 'Left knee — keep squat depth to parallel until pain-free 2 weeks.', createdAt: iso(2000) },
+  { id: 'n2', traineeId: 28, body: 'Prefers morning sessions. Travelling 3–6 Oct.', createdAt: iso(8000) },
+];
 const THREADS = [
   { peerId: 28, peerName: 'Yehia', peerEmail: 'yehia@example.com', lastMessage: MESSAGES[2].body, lastAt: MESSAGES[2].createdAt, unread: 1 },
   { peerId: 30, peerName: 'Omar K.', peerEmail: 'omar@example.com', lastMessage: 'When does my plan start?', lastAt: iso(600), unread: 2 },
@@ -104,6 +113,9 @@ const FIXTURES = {
   'coach.traineeProgress': PROGRESS,
   'coach.traineePlans': { workoutPlan: PLAN, mealPlan: MEAL },
   'coach.sendMessage': MESSAGES[0],
+  'coach.notes': NOTES,
+  'coach.addNote': NOTES[0],
+  'coach.broadcast': { sent: 4 },
   'trainerLink.myTrainers': [{ linkId: 'l1', userId: 27, name: 'Mohamad Yousry', email: 'coach@example.com', status: 'active', photosShared: true, since: iso(40000) }],
   'trainerLink.myTrainees': ROSTER,
   'trainerLink.createInvite': { code: 'MY7K2P9Q', expiresAt: iso(-7 * 1440) },
@@ -142,7 +154,7 @@ async function mockApi(page, user) {
   for (const lang of ['en', 'ar']) {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
     await ctx.addInitScript(({ p, l, u }) => {
-      localStorage.setItem('@gym_user_profile', JSON.stringify(p));
+      localStorage.setItem('@gym_user_profile:' + u.openId, JSON.stringify(p));
       localStorage.setItem('@app_language', l);
       localStorage.setItem('manus-runtime-user-info', JSON.stringify(u));
     }, { p: PROFILE, l: lang, u: TRAINEE_USER });
@@ -170,11 +182,28 @@ async function mockApi(page, user) {
   await shoot(ctx, '/athlete/28?name=Yehia', 'coach-athlete-progress');
   await shoot(ctx, '/athlete/28?name=Yehia', 'coach-athlete-plan', async (p) => { await p.getByText('Plan', { exact: true }).first().click(); await p.waitForTimeout(500); });
   await shoot(ctx, '/athlete/28?name=Yehia', 'coach-athlete-meals', async (p) => { await p.getByText('Meals', { exact: true }).first().click(); await p.waitForTimeout(500); });
+  await shoot(ctx, '/athlete/28?name=Yehia', 'coach-athlete-notes', async (p) => { await p.getByText('Notes', { exact: true }).first().click(); await p.waitForTimeout(500); });
+  await shoot(ctx, '/athlete/28?name=Yehia', 'coach-athlete-nudge', async (p) => { await p.getByText('⚡', { exact: true }).first().click(); await p.waitForTimeout(500); });
+  await shoot(ctx, '/athletes', 'coach-athletes-broadcast', async (p) => { await p.getByText(/Message everyone/).first().click(); await p.waitForTimeout(500); });
+  await shoot(ctx, '/athletes', 'coach-athletes-filter', async (p) => { await p.getByText(/^Attention/).first().click(); await p.waitForTimeout(500); });
   await shoot(ctx, '/chat/28?name=Yehia', 'coach-chat');
   await shoot(ctx, '/plan-builder?traineeId=28&name=Yehia', 'coach-plan-builder');
   await shoot(ctx, '/meal-builder?traineeId=28&name=Yehia', 'coach-meal-builder');
   await shoot(ctx, '/more', 'coach-more');
   await ctx.close();
+
+  // ── Coach view (Arabic) ──
+  const ctxAr = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+  await ctxAr.addInitScript(({ l, u }) => {
+    localStorage.setItem('@app_language', l);
+    localStorage.setItem('manus-runtime-user-info', JSON.stringify(u));
+  }, { l: 'ar', u: COACH_USER });
+  ctxAr.on('page', (page) => mockApi(page, COACH_USER).catch(() => {}));
+  await shoot(ctxAr, '/athletes', 'coach-athletes-ar');
+  await shoot(ctxAr, '/athlete/28?name=Yehia', 'coach-athlete-progress-ar');
+  await shoot(ctxAr, '/athlete/28?name=Yehia', 'coach-athlete-notes-ar', async (p) => { await p.getByText('ملاحظات', { exact: true }).first().click(); await p.waitForTimeout(500); });
+  await shoot(ctxAr, '/messages', 'coach-messages-ar');
+  await ctxAr.close();
 
   await browser.close();
   fs.writeFileSync(path.join(OUT, 'errors.txt'), errors.join('\n'));
