@@ -1,78 +1,43 @@
 // ============================================================
-// HOME SCREEN — Phy-style dark card dashboard
+// HOME SCREEN — schedule-first athlete landing.
+//   1. Week / month calendar of the training schedule, landing on today
+//   2. The selected day's session with its exercises and a Start button
+// Gamification (player card, quests, XP, achievements) was removed on
+// 2026-09-18 at Yehia's request; something else will replace it later.
 // ============================================================
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
+import { Text, View, TouchableOpacity, ScrollView, Platform, StyleSheet, Image, RefreshControl } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { syncCoachPlans } from '@/lib/coach-plan-sync';
 import { isCoachRole } from './_layout';
-import { Text, View, TouchableOpacity, ScrollView, Platform, StyleSheet, Image, Modal, Dimensions, RefreshControl, TextInput, FlatList } from 'react-native';
 import { loadUserProfile, type UserProfile } from '@/lib/profile-store';
 import { ScreenContainer } from '@/components/screen-container';
 import { useColors } from '@/hooks/use-colors';
-import * as Haptics from 'expo-haptics';
+import { useI18n, localizeDigits } from '@/lib/i18n';
 import {
-  getTodaySession,
-  getSessionForDate,
   SESSION_NAMES,
-  SESSION_COLORS,
-  getMesocycleInfo,
   getMissedSessions,
   PROGRAM_SESSIONS,
   type SessionType,
+  type ProgramExercise,
 } from '@/lib/training-program';
 import { loadCustomProgram, getProgramProgress, suggestNextProgram, type CustomProgram } from '@/lib/custom-program-store';
 import {
-  getTodaySessionFromSchedule,
-  getWeekScheduleFromStore,
   getActiveSchedule,
   saveScheduleOverride,
-  buildFullSchedule,
+  type CustomSchedule,
   type DayName,
 } from '@/lib/schedule-store';
-import {
-  getRecentSplitWorkouts,
-  type SplitWorkoutSession,
-} from '@/lib/split-workout-store';
-import { getMesocycleStartDate } from '@/lib/coach-engine';
-import { getStreakData, type StreakData } from '@/lib/streak-tracker';
-import { getDailyNutrition, type DailyNutrition } from '@/lib/nutrition-store';
-import { useGym } from '@/lib/gym-context';
+import { getSplitWorkouts, type SplitWorkoutSession } from '@/lib/split-workout-store';
 import { WhoopReconnectBanner } from '@/components/whoop-reconnect-banner';
 import { loadPinSyncState, type PinSyncState } from '@/lib/pin-sync-store';
 import { trpc } from '@/lib/trpc';
 import { getDeviceId } from '@/lib/device-id';
 import { useAuth } from '@/hooks/use-auth';
 import { hasResumableWorkout, type ActiveWorkoutState } from '@/lib/active-workout-store';
-import {
-  getAllPRs,
-  getTrackedExerciseNames,
-  getVolumeHistory,
-  getDeloadWeekDates,
-} from '@/lib/split-workout-store';
-import {
-  getTodayRecoveryData,
-  getWeeklyRecoveryData,
-  getRecoveryTrend,
-  getWeeklyAverageRecovery,
-  type RecoveryData,
-  type WeeklyRecoveryData,
-} from '@/lib/whoop-recovery-service';
-import { getRecentNutrition, getMacroTotals } from '@/lib/nutrition-store';
-import { getActiveRecommendations, type CoachRecommendation } from '@/lib/coach-engine';
-import { getWorkoutsInLastDays } from '@/lib/streak-tracker';
-import { NUTRITION_TARGETS } from '@/lib/training-program';
-import Svg, { Polyline, Line, Circle, Text as SvgText, Path, Defs, LinearGradient as SvgGradient, Stop, Rect } from 'react-native-svg';
-import { PlayerCard } from '@/components/player-card';
-import { DailyChallengesCard } from '@/components/daily-challenges-card';
-import { StreakShieldRow } from '@/components/streak-shield-row';
-import { TransformationJourneyCard } from '@/components/transformation-journey-card';
-import { AchievementStrip } from '@/components/achievement-strip';
-import { RPGStatsCard } from '@/components/rpg-stats-card';
-import { getAvailableShields } from '@/lib/streak-shield';
-import { getProgressPhotos } from '@/lib/progress-photos';
-import { getUnlockedAchievements, ALL_ACHIEVEMENTS } from '@/lib/achievements';
-import { getRewardProgress } from '@/lib/milestone-rewards';
+import { ScheduleCalendar, toDateStr, fromDateStr, type CalendarMode } from '@/components/schedule-calendar';
 import {
   Space,
   Radius,
@@ -81,15 +46,12 @@ import {
   Shadow,
   ActiveOpacity,
   ColorPool,
-  SemanticColors,
   Gutter,
-  Stack,
   StackLg,
   CardPadLg,
 } from '@/lib/design-tokens';
-const SCREEN_WIDTH = Dimensions.get('window').width;
 
-const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const DAY_NAMES: DayName[] = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 // Default lookup tables for the hardcoded Upper/Lower split
 const DEFAULT_DOT_COLORS: Record<string, string> = {
@@ -108,15 +70,6 @@ const DEFAULT_SESSION_EMOJI: Record<string, string> = {
   rest: '😴',
 };
 
-const DEFAULT_SESSION_SUBTITLE: Record<string, string> = {
-  'upper-a': 'Chest · Back · Shoulders · Arms',
-  'lower-a': 'Quads · Hamstrings · Glutes · Calves',
-  'upper-b': 'Volume push/pull — hypertrophy focus',
-  'lower-b': 'Volume legs — hypertrophy focus',
-  rest: 'Recovery is where gains are made',
-};
-
-// Auto-assign emoji based on session name keywords
 function guessSessionEmoji(sessionId: string, sessionName?: string): string {
   const lower = (sessionName || sessionId).toLowerCase();
   if (lower.includes('push')) return '💪';
@@ -131,75 +84,36 @@ function guessSessionEmoji(sessionId: string, sessionName?: string): string {
   return '🏋️';
 }
 
-// Auto-generate subtitle from exercises in a session
-function guessSessionSubtitle(sessionId: string, program: CustomProgram | null): string {
-  if (sessionId === 'rest') return 'Recovery is where gains are made';
-  if (!program?.sessions?.[sessionId]) return '';
-  const exercises = program.sessions[sessionId];
-  const bodyParts = [...new Set(exercises.map(e => e.bodyPart).filter(Boolean))];
-  return bodyParts.slice(0, 4).join(' \u00b7 ') || `${exercises.length} exercises`;
-}
-
-// Color pool for custom sessions — imported from design tokens
-const COLOR_POOL = ColorPool;
-
 export default function HomeScreen() {
   const colors = useColors();
   const router = useRouter();
-  const { store } = useGym();
   const { user: authUser } = useAuth();
+  const { t, lang, isRTL } = useI18n();
 
-  // Async schedule: loads override from AsyncStorage on focus, falls back to default.
-  // Initial state is 'rest' until the async loadSchedule() resolves with the real value
-  // (which reads Coach Mohamad Yousry's schedule override from AsyncStorage).
-  const [todaySession, setTodaySession] = useState<SessionType>('rest');
-  const [scheduleLoaded, setScheduleLoaded] = useState(false);
-  const [scheduleWeek, setScheduleWeek] = useState<{ date: Date; session: SessionType; dayName: string }[] | null>(null);
-  const isRest = todaySession === 'rest';
-  const today = new Date();
-  // Use local date string to avoid UTC offset issues (e.g., Dubai UTC+4 at 2am shows wrong day with ISO)
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const todayStr = toDateStr(new Date());
 
-  const [streak, setStreak] = useState<StreakData | null>(null);
-  const [meso, setMeso] = useState<{ daysUntilDeload: number; currentWeek: number; totalWeeks: number } | null>(null);
-  const [nutrition, setNutrition] = useState<DailyNutrition | null>(null);
-  const [recentWorkouts, setRecentWorkouts] = useState<SplitWorkoutSession[]>([]);
+  // ── Schedule + program ──
+  const [schedule, setSchedule] = useState<CustomSchedule | null>(null);
+  const [customProgram, setCustomProgram] = useState<CustomProgram | null>(null);
+  const [workouts, setWorkouts] = useState<SplitWorkoutSession[]>([]);
+  const [selectedDate, setSelectedDate] = useState<string>(todayStr);
+  const [calMode, setCalMode] = useState<CalendarMode>('week');
+
+  // ── Banners ──
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [missedSessions, setMissedSessions] = useState<Array<{ date: string; sessionType: SessionType; sessionName: string; daysAgo: number }>>([]);
   const [dismissedMakeup, setDismissedMakeup] = useState<Set<string>>(new Set());
   const [reschedulingDate, setReschedulingDate] = useState<string | null>(null);
   const [rescheduleToast, setRescheduleToast] = useState<string | null>(null);
-  const [previewDay, setPreviewDay] = useState<{ date: string; session: SessionType; label: string } | null>(null);
   const [syncState, setSyncState] = useState<PinSyncState | null>(null);
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [resumableWorkout, setResumableWorkout] = useState<ActiveWorkoutState | null>(null);
-
-  // Banner priority queue state (Enhancement 2)
   const [bannerIndex, setBannerIndex] = useState(0);
-
-  // Progress tab data merged into Home
-  const [prs, setPrs] = useState<Record<string, { e1rm: number; weight: number; reps: number; date: string }>>({});
-  const [recovery, setRecovery] = useState<RecoveryData | null>(null);
-  const [weeklyRecovery, setWeeklyRecovery] = useState<WeeklyRecoveryData[]>([]);
-  const [recentNutrition, setRecentNutrition] = useState<DailyNutrition[]>([]);
-  const [recommendations, setRecommendations] = useState<CoachRecommendation[]>([]);
-  const [workoutsThisWeek, setWorkoutsThisWeek] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
-  // Custom program state — loaded on focus, used for dynamic display names/colors
-  const [customProgram, setCustomProgram] = useState<CustomProgram | null>(null);
-  // Body weight sparkline data (last 30 days)
-  const [weightEntries, setWeightEntries] = useState<{ date: string; weight: number }[]>([]);
 
-  // RPG dashboard state
-  const [shields, setShields] = useState(0);
-  const [rewardProgress, setRewardProgress] = useState<{ nextReward: any; daysUntil: number; progressPercentage: number } | null>(null);
-  const [progressPhotos, setProgressPhotos] = useState<any[]>([]);
-  const [achievements, setAchievements] = useState<any[]>([]);
-
-  // Load deviceId once on mount
   useEffect(() => { getDeviceId().then(setDeviceId); }, []);
 
-  // WHOOP data via tRPC server (v2 API — snake_case fields)
+  // WHOOP recovery (only used for the low-recovery warning)
   const whoopStatusQ = trpc.whoop.status.useQuery(
     { deviceId: deviceId! },
     { enabled: !!deviceId, staleTime: 60_000, retry: 1 }
@@ -209,113 +123,25 @@ export default function HomeScreen() {
     { deviceId: deviceId!, days: 7 },
     { enabled: !!deviceId && whoopConnected, staleTime: 60_000, retry: 1 }
   );
-  const whoopSleepQ = trpc.whoop.sleep.useQuery(
-    { deviceId: deviceId!, days: 7 },
-    { enabled: !!deviceId && whoopConnected, staleTime: 60_000, retry: 1 }
-  );
 
-  // Build this week's 7-day strip (uses schedule override if set, else default)
-  const weekDays = (scheduleWeek ?? Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(today);
-    d.setDate(today.getDate() - today.getDay() + i);
-    return { date: d, session: getSessionForDate(d), dayName: DAY_LABELS[i] };
-  })).map((day, i) => ({
-    date: day.date,
-    label: DAY_LABELS[i],
-    session: day.session,
-    isToday: `${day.date.getFullYear()}-${String(day.date.getMonth() + 1).padStart(2, '0')}-${String(day.date.getDate()).padStart(2, '0')}` === todayStr,
-  }));
-
-  // Weekly weight average
-  const recentWeights = [...store.weightEntries]
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 7);
-  const avgWeight = recentWeights.length > 0
-    ? (recentWeights.reduce((s, e) => s + e.weight, 0) / recentWeights.length).toFixed(1)
-    : null;
-
-  // Last night sleep (local log)
-  const lastSleep = [...store.sleepEntries]
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-
-  const loadSchedule = useCallback(async () => {
+  const loadAll = useCallback(async () => {
     try {
-      const [session, week] = await Promise.all([
-        getTodaySessionFromSchedule(),
-        getWeekScheduleFromStore(new Date()),
-      ]);
-      setTodaySession(session);
-      setScheduleWeek(week);
-    } catch (_) {} finally {
-      setScheduleLoaded(true);
-    }
-  }, []);
-
-  const loadData = useCallback(async () => {
-    try {
-      const [streakData, startDate, nutritionData, workouts, prData, rec, weekRec, nutri7, recs, weekCount, resumable, shieldsData, photosData, achievementsData] = await Promise.all([
-        getStreakData(),
-        getMesocycleStartDate(),
-        getDailyNutrition().catch(() => null),
-        getRecentSplitWorkouts(10),
-        getAllPRs(),
-        getTodayRecoveryData().catch(() => null),
-        getWeeklyRecoveryData().catch(() => []),
-        getRecentNutrition(7).catch(() => []),
-        getActiveRecommendations().catch(() => []),
-        getWorkoutsInLastDays(7).catch(() => 0),
+      const [sched, program, all, resumable] = await Promise.all([
+        getActiveSchedule(),
+        loadCustomProgram(),
+        getSplitWorkouts().catch(() => [] as SplitWorkoutSession[]),
         hasResumableWorkout(),
-        getAvailableShields().catch(() => 0),
-        getProgressPhotos().catch(() => []),
-        getUnlockedAchievements().catch(() => []),
       ]);
-      setStreak(streakData);
-      const mesoInfo = getMesocycleInfo(startDate);
-      setMeso({
-        daysUntilDeload: mesoInfo.daysUntilDeload,
-        currentWeek: mesoInfo.currentWeek,
-        totalWeeks: mesoInfo.totalWeeks,
-      });
-      setNutrition(nutritionData);
-      setRecentWorkouts(workouts);
-      setPrs(prData);
-      setRecovery(rec);
-      setWeeklyRecovery(weekRec);
-      setRecentNutrition(nutri7);
-      setRecommendations(recs);
-      setWorkoutsThisWeek(weekCount);
+      setSchedule(sched);
+      setCustomProgram(program);
+      setWorkouts(all);
       setResumableWorkout(resumable);
-      setShields(shieldsData);
-      setProgressPhotos(photosData);
-      setAchievements(achievementsData);
-      // Compute reward progress (synchronous)
-      const rp = getRewardProgress(streakData.currentStreak);
-      setRewardProgress(rp);
-      // Load body weight entries for sparkline
-      try {
-        const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
-        const raw = await AsyncStorage.getItem('gym_store');
-        if (raw) {
-          const store = JSON.parse(raw);
-          const entries: { date: string; weight: number }[] = (store.weightEntries || []);
-          const cutoff = new Date();
-          cutoff.setDate(cutoff.getDate() - 30);
-          const recent = entries
-            .filter(e => new Date(e.date) >= cutoff)
-            .sort((a, b) => a.date.localeCompare(b.date));
-          setWeightEntries(recent);
-        }
-      } catch {}
-      // Detect missed sessions in the last 7 days (using Coach Mohamad Yousry's schedule override if set)
-      const completedDates = workouts.filter(w => w.completed).map(w => w.date);
-      const activeSchedule = await getActiveSchedule();
-      const missed = getMissedSessions(completedDates, 7, activeSchedule as Record<string, SessionType>);
-      setMissedSessions(missed);
+      const completedDates = all.filter(w => w.completed).map(w => w.date);
+      setMissedSessions(getMissedSessions(completedDates, 7, sched as Record<string, SessionType>));
     } catch (_) {}
     setRefreshing(false);
   }, []);
 
-  // Reload every time the tab comes into focus so nutrition/workout data is always fresh
   useFocusEffect(
     useCallback(() => {
       // A coach lands on their roster, not the athlete dashboard.
@@ -323,33 +149,32 @@ export default function HomeScreen() {
         router.replace('/(tabs)/athletes' as any);
         return;
       }
-      loadData();
       loadUserProfile().then(setUserProfile);
       loadPinSyncState().then(setSyncState);
       // Pull anything the coach assigned BEFORE reading the schedule/program,
       // so a new plan shows up on this very focus.
-      syncCoachPlans().catch(() => null).finally(() => {
-        loadSchedule();
-        loadCustomProgram().then(setCustomProgram);
-      });
-    }, [loadData, loadSchedule, authUser?.role, router])
+      syncCoachPlans().catch(() => null).finally(() => { loadAll(); });
+    }, [loadAll, authUser?.role, router])
   );
 
-  // ── Dynamic lookups that adapt to custom programs ──
-  const getColor = (sessionId: string): string => {
+  // ── Lookups ──
+  const sessionForDate = useCallback((dateStr: string): SessionType => {
+    if (!schedule) return 'rest';
+    const dayName = DAY_NAMES[fromDateStr(dateStr).getDay()];
+    return schedule[dayName] ?? 'rest';
+  }, [schedule]);
+
+  const getColor = useCallback((sessionId: string): string => {
     if (sessionId === 'rest') return DEFAULT_DOT_COLORS.rest;
-    // Check custom program colors first
     if (customProgram?.sessionColors?.[sessionId]) return customProgram.sessionColors[sessionId];
-    // Fall back to defaults
     if (DEFAULT_DOT_COLORS[sessionId]) return DEFAULT_DOT_COLORS[sessionId];
-    // Auto-assign from color pool based on session index
     const sessionKeys = customProgram ? Object.keys(customProgram.sessionNames) : [];
     const idx = sessionKeys.indexOf(sessionId);
-    return COLOR_POOL[idx >= 0 ? idx % COLOR_POOL.length : 0];
-  };
+    return ColorPool[idx >= 0 ? idx % ColorPool.length : 0];
+  }, [customProgram]);
 
   const getName = (sessionId: string): string => {
-    if (sessionId === 'rest') return 'Rest Day';
+    if (sessionId === 'rest') return t('homeRestDay');
     if (customProgram?.sessionNames?.[sessionId]) return customProgram.sessionNames[sessionId];
     return SESSION_NAMES[sessionId as keyof typeof SESSION_NAMES] || sessionId;
   };
@@ -359,30 +184,56 @@ export default function HomeScreen() {
     return guessSessionEmoji(sessionId, customProgram?.sessionNames?.[sessionId]);
   };
 
-  const getSubtitle = (sessionId: string): string => {
-    if (DEFAULT_SESSION_SUBTITLE[sessionId]) return DEFAULT_SESSION_SUBTITLE[sessionId];
-    return guessSessionSubtitle(sessionId, customProgram);
+  const getExercises = (sessionId: string): ProgramExercise[] => {
+    if (sessionId === 'rest') return [];
+    if (customProgram?.sessions?.[sessionId]) return customProgram.sessions[sessionId];
+    return (PROGRAM_SESSIONS as Record<string, ProgramExercise[]>)[sessionId] ?? [];
   };
 
-  const handleStartWorkout = () => {
+  const completedDates = useMemo(() => new Set(workouts.filter(w => w.completed).map(w => w.date)), [workouts]);
+
+  // ── Selected day ──
+  const selSession = sessionForDate(selectedDate);
+  const selIsRest = selSession === 'rest';
+  const selDone = completedDates.has(selectedDate);
+  const selExercises = getExercises(selSession);
+  const selColor = getColor(selSession);
+  const selDate = fromDateStr(selectedDate);
+  const dayDiff = Math.round((selDate.getTime() - fromDateStr(todayStr).getTime()) / 86400000);
+  const relLabel = dayDiff === 0 ? t('homeToday') : dayDiff === 1 ? t('homeTomorrow') : dayDiff === -1 ? t('homeYesterday') : null;
+  const dayKeys = ['daySun', 'dayMon', 'dayTue', 'dayWed', 'dayThu', 'dayFri', 'daySat'] as const;
+  const monthKeys = ['monthJan', 'monthFeb', 'monthMar', 'monthApr', 'monthMay', 'monthJun', 'monthJul', 'monthAug', 'monthSep', 'monthOct', 'monthNov', 'monthDec'] as const;
+  const longDate = `${t(dayKeys[selDate.getDay()])} ${localizeDigits(selDate.getDate(), lang)} ${t(monthKeys[selDate.getMonth()])}`;
+  const bodyParts = [...new Set(selExercises.map(e => e.bodyPart).filter(Boolean))].slice(0, 4).join(' · ');
+
+  // This week's progress (Sunday-based week containing today)
+  const weekProgress = useMemo(() => {
+    const today = fromDateStr(todayStr);
+    const start = new Date(today); start.setDate(today.getDate() - today.getDay());
+    let planned = 0; let done = 0;
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(start); d.setDate(start.getDate() + i);
+      const ds = toDateStr(d);
+      if (sessionForDate(ds) !== 'rest') planned++;
+      if (completedDates.has(ds)) done++;
+    }
+    return { planned, done };
+  }, [todayStr, sessionForDate, completedDates]);
+
+  const startSession = (sessionType: SessionType, date: string, extra: Record<string, string> = {}) => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.push({ pathname: '/split-workout', params: { sessionType: todaySession, date: todayStr } } as any);
+    router.push({ pathname: '/split-workout', params: { sessionType, date, ...extra } } as any);
   };
-
-  // Check if today's workout is already completed
-  const todayDone = !isRest && recentWorkouts.some(w => w.date === todayStr && w.completed);
 
   // Reschedule a missed session into today's slot by swapping the schedule
   const handleRescheduleToToday = async (missed: { date: string; sessionType: SessionType; sessionName: string }) => {
-    if (reschedulingDate) return; // prevent double-tap
+    if (reschedulingDate) return;
     setReschedulingDate(missed.date);
     try {
       if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       const activeSchedule = await getActiveSchedule();
-      const todayDayName = new Date().toLocaleDateString('en-US', { weekday: 'long' }) as DayName;
-      const missedDate = new Date(missed.date + 'T12:00:00');
-      const missedDayName = missedDate.toLocaleDateString('en-US', { weekday: 'long' }) as DayName;
-      // Swap: put missed session on today, put today's session on missed day
+      const todayDayName = DAY_NAMES[new Date().getDay()];
+      const missedDayName = DAY_NAMES[fromDateStr(missed.date).getDay()];
       const todayOriginal = activeSchedule[todayDayName];
       const newSchedule = { ...activeSchedule, [todayDayName]: missed.sessionType, [missedDayName]: todayOriginal };
       await saveScheduleOverride({
@@ -391,64 +242,29 @@ export default function HomeScreen() {
         schedule: newSchedule,
         appliedByZaki: false,
       });
-      // Dismiss the missed banner and show toast
       setDismissedMakeup(prev => new Set([...prev, missed.date]));
-      setRescheduleToast(`${missed.sessionName} moved to today ✓`);
+      setRescheduleToast(t('homeMovedToToday', { name: missed.sessionName }));
       setTimeout(() => setRescheduleToast(null), 3000);
-      // Refresh today's session
-      const updated = await getTodaySessionFromSchedule();
-      setTodaySession(updated);
+      setSelectedDate(todayStr);
+      await loadAll();
     } catch (e) {
-      // silently fail — user can still tap "Make it up today"
+      // silently fail — user can still tap "Start now"
     } finally {
       setReschedulingDate(null);
     }
   };
 
-  // WHOOP v2 API: snake_case fields (recovery_score, hrv_rmssd_milli, resting_heart_rate)
+  // WHOOP v2 API: snake_case fields
   const latestRecoveryRecord = (whoopRecoveryQ.data?.records as any[])?.find(
     (r: any) => r.score_state === 'SCORED' && r.score != null
   );
   const recoveryScore: number | null = latestRecoveryRecord?.score?.recovery_score != null
     ? Math.round(latestRecoveryRecord.score.recovery_score) : null;
-  const hrv: number | null = latestRecoveryRecord?.score?.hrv_rmssd_milli != null
-    ? Math.round(latestRecoveryRecord.score.hrv_rmssd_milli) : null;
-  const rhr: number | null = latestRecoveryRecord?.score?.resting_heart_rate != null
-    ? Math.round(latestRecoveryRecord.score.resting_heart_rate) : null;
-  const recoveryColor = recoveryScore == null ? colors.muted
-    : recoveryScore >= 67 ? '#22C55E'
-    : recoveryScore >= 34 ? '#F59E0B'
-    : '#EF4444';
+  const todaySession = sessionForDate(todayStr);
+  const todayDone = completedDates.has(todayStr);
+  const showLowRecoveryWarning = recoveryScore != null && recoveryScore < 33 && !todayDone && todaySession !== 'rest';
 
-  // WHOOP sleep data from sleep endpoint (v2)
-  const latestSleepRecord = (whoopSleepQ.data?.records as any[])?.find(
-    (r: any) => r.nap === false && r.score_state === 'SCORED' && r.score != null
-  );
-  const whoopSleepHrs: number | null = latestSleepRecord?.score?.stage_summary != null
-    ? Math.round((
-        (latestSleepRecord.score.stage_summary.total_light_sleep_time_milli ?? 0)
-        + (latestSleepRecord.score.stage_summary.total_slow_wave_sleep_time_milli ?? 0)
-        + (latestSleepRecord.score.stage_summary.total_rem_sleep_time_milli ?? 0)
-      ) / 3_600_000 * 10) / 10
-    : null;
-  const whoopSleepQuality: number | null = latestSleepRecord?.score?.sleep_performance_percentage ?? null;
-
-  // Low recovery warning: show when WHOOP recovery < 33%, workout not done, not a rest day
-  const showLowRecoveryWarning = recoveryScore != null && recoveryScore < 33 && !todayDone && !isRest;
-
-  const calConsumed = nutrition ? nutrition.meals.reduce((s, m) => s + m.calories, 0) : 0;
-  const protConsumed = nutrition ? nutrition.meals.reduce((s, m) => s + m.protein, 0) : 0;
-  const carbConsumed = nutrition ? nutrition.meals.reduce((s, m) => s + (m.carbs ?? 0), 0) : 0;
-  const fatConsumed = nutrition ? nutrition.meals.reduce((s, m) => s + (m.fat ?? 0), 0) : 0;
-  const calTarget = nutrition?.targetCalories ?? 2750;
-  const protTarget = nutrition?.targetProtein ?? 180;
-  const carbTarget = nutrition?.targetCarbs ?? 300;
-  const fatTarget = nutrition?.targetFat ?? 80;
-
-  const bg = colors.background;
   const surf = colors.surface;
-  const surf2 = colors.surface2;
-  const surf3 = colors.surface3;
   const bord = colors.cardBorder;
   const fg = colors.cardForeground;
   const mut = colors.cardMuted;
@@ -456,30 +272,34 @@ export default function HomeScreen() {
   const screenMut = colors.muted;
   const pri = colors.primary;
   const ink = colors.primaryInk;
+  const rowDir = isRTL ? 'row-reverse' : 'row';
+  const txtAlign = isRTL ? 'right' : 'left';
+
+  const startLabel = selDone ? `✓ ${t('homeCompleted')}`
+    : dayDiff > 0 ? t('homeStartEarly')
+    : dayDiff < 0 ? t('homeLogSession')
+    : t('homeStartWorkout');
 
   return (
     <ScreenContainer containerClassName="bg-background">
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: Gutter, paddingTop: Space._2, paddingBottom: Space._10 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); loadSchedule(); }} tintColor={pri} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadAll(); }} tintColor={pri} />}
       >
-        {/* ── WHOOP Reconnect Banner (shown when token expired) ── */}
         <WhoopReconnectBanner />
 
-        {/* ── Smart Banner Priority Queue ── */}
-        {/* Reschedule toast (always shown independently) */}
         {rescheduleToast != null && (
-          <View style={[s.warningBanner, { backgroundColor: '#22C55E20', borderColor: '#22C55E', marginBottom: 8 }]}>
+          <View style={[s.warningBanner, { backgroundColor: '#22C55E20', borderColor: '#22C55E', marginBottom: 8, flexDirection: rowDir }]}>
             <Text style={s.warningIcon}>✅</Text>
-            <Text style={[s.warningTitle, { color: '#22C55E', flex: 1 }]}>{rescheduleToast}</Text>
+            <Text style={[s.warningTitle, { color: '#22C55E', flex: 1, textAlign: txtAlign }]}>{rescheduleToast}</Text>
           </View>
         )}
+
+        {/* ── Smart banner queue ── */}
         {(() => {
-          // Collect all active banners into a priority-ordered array
           const banners: { key: string; priority: number; render: () => ReactNode }[] = [];
 
-          // Priority 1: Missed workout
           const visibleMissed = missedSessions.filter(m => !dismissedMakeup.has(m.date));
           if (visibleMissed.length > 0) {
             const last = visibleMissed[0];
@@ -488,42 +308,34 @@ export default function HomeScreen() {
               key: 'missed_workout',
               priority: 1,
               render: () => (
-                <View style={[s.warningBanner, { backgroundColor: '#F59E0B15', borderColor: '#F59E0B', marginBottom: 0, flexDirection: 'column', alignItems: 'flex-start', gap: 8 }]}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%' }}>
+                <View style={[s.warningBanner, { backgroundColor: '#F59E0B15', borderColor: '#F59E0B', marginBottom: 0, flexDirection: 'column', alignItems: isRTL ? 'flex-end' : 'flex-start', gap: 8 }]}>
+                  <View style={{ flexDirection: rowDir, alignItems: 'center', width: '100%', gap: 8 }}>
                     <Text style={s.warningIcon}>📅</Text>
                     <View style={{ flex: 1 }}>
-                      <Text style={[s.warningTitle, { color: '#F59E0B' }]}>
-                        Missed: {last.sessionName} ({last.daysAgo === 1 ? 'yesterday' : `${last.daysAgo} days ago`})
+                      <Text style={[s.warningTitle, { color: '#F59E0B', textAlign: txtAlign }]}>
+                        {t('homeMissed', { name: last.sessionName })} · {last.daysAgo === 1 ? t('homeYesterday') : t('homeDaysAgo', { n: localizeDigits(last.daysAgo, lang) })}
                       </Text>
                     </View>
                     <TouchableOpacity
-                      onPress={() => {
-                        const allDates = new Set(visibleMissed.map(m => m.date));
-                        setDismissedMakeup(prev => new Set([...prev, ...allDates]));
-                      }}
+                      onPress={() => setDismissedMakeup(prev => new Set([...prev, ...visibleMissed.map(m => m.date)]))}
                       style={{ padding: 4 }}
                     >
-                      <Text style={{ color: screenMut, fontSize: 11 }}>{visibleMissed.length > 1 ? `Dismiss All (${visibleMissed.length})` : '✕'}</Text>
+                      <Text style={{ color: screenMut, fontSize: 11 }}>{visibleMissed.length > 1 ? t('homeDismissAll', { n: visibleMissed.length }) : '✕'}</Text>
                     </TouchableOpacity>
                   </View>
-                  <View style={{ flexDirection: 'row', gap: 8, paddingLeft: 32 }}>
+                  <View style={{ flexDirection: rowDir, gap: 8 }}>
                     <TouchableOpacity
                       onPress={() => handleRescheduleToToday(last)}
                       disabled={isRescheduling}
                       style={{ backgroundColor: '#F59E0B', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, opacity: isRescheduling ? 0.6 : 1 }}
                     >
-                      <Text style={{ color: '#000', fontSize: 12, fontWeight: '700' }}>
-                        {isRescheduling ? '⏳ Moving…' : '📆 Schedule for today'}
-                      </Text>
+                      <Text style={{ color: '#000', fontSize: 12, fontWeight: '700' }}>{isRescheduling ? '⏳' : `📆 ${t('homeScheduleForToday')}`}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                      onPress={() => {
-                        if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        router.push({ pathname: '/split-workout', params: { sessionType: last.sessionType, date: last.date } } as any);
-                      }}
+                      onPress={() => startSession(last.sessionType, last.date)}
                       style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: '#F59E0B' }}
                     >
-                      <Text style={{ color: '#F59E0B', fontSize: 12, fontWeight: '700' }}>Start now →</Text>
+                      <Text style={{ color: '#F59E0B', fontSize: 12, fontWeight: '700' }}>{t('startNow')} →</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -531,32 +343,28 @@ export default function HomeScreen() {
             });
           }
 
-          // Priority 2: Low recovery
           if (showLowRecoveryWarning) {
             banners.push({
               key: 'low_recovery',
               priority: 2,
               render: () => (
-                <View style={[s.warningBanner, { backgroundColor: '#EF444415', borderColor: '#EF4444', marginBottom: 0 }]}>
+                <View style={[s.warningBanner, { backgroundColor: '#EF444415', borderColor: '#EF4444', marginBottom: 0, flexDirection: rowDir }]}>
                   <Text style={s.warningIcon}>⚠️</Text>
                   <View style={{ flex: 1 }}>
-                    <Text style={[s.warningTitle, { color: '#EF4444' }]}>Low Recovery ({recoveryScore}%)</Text>
-                    <Text style={[s.warningSub, { color: screenMut }]}>Your body needs rest — deload mode uses 70% weight & half sets</Text>
-                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                    <Text style={[s.warningTitle, { color: '#EF4444', textAlign: txtAlign }]}>{t('homeLowRecovery', { n: recoveryScore! })}</Text>
+                    <Text style={[s.warningSub, { color: screenMut, textAlign: txtAlign }]}>{t('homeLowRecoverySub')}</Text>
+                    <View style={{ flexDirection: rowDir, gap: 8, marginTop: 8 }}>
                       <TouchableOpacity
                         style={{ backgroundColor: '#EF4444', paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10 }}
-                        onPress={() => {
-                          if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                          router.push({ pathname: '/split-workout', params: { sessionType: todaySession, date: todayStr, deload: 'true' } } as any);
-                        }}
+                        onPress={() => startSession(todaySession, todayStr, { deload: 'true' })}
                       >
-                        <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>🏳️ Switch to Deload</Text>
+                        <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>🏳️ {t('homeSwitchDeload')}</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={{ backgroundColor: '#EF444430', paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10 }}
-                        onPress={handleStartWorkout}
+                        onPress={() => startSession(todaySession, todayStr)}
                       >
-                        <Text style={{ color: '#EF4444', fontWeight: '600', fontSize: 13 }}>Train Anyway</Text>
+                        <Text style={{ color: '#EF4444', fontWeight: '600', fontSize: 13 }}>{t('homeTrainAnyway')}</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -565,30 +373,28 @@ export default function HomeScreen() {
             });
           }
 
-          // Priority 3: Profile incomplete
           if (userProfile && (!userProfile.name || !userProfile.dateOfBirth || !userProfile.heightCm || !userProfile.weightKg || !userProfile.fitnessGoal)) {
             banners.push({
               key: 'profile_incomplete',
               priority: 3,
               render: () => (
                 <TouchableOpacity
-                  style={[s.warningBanner, { backgroundColor: '#3B82F615', borderColor: '#3B82F6', marginBottom: 0 }]}
+                  style={[s.warningBanner, { backgroundColor: pri + '15', borderColor: pri, marginBottom: 0, flexDirection: rowDir }]}
                   onPress={() => router.push('/profile' as any)}
                   activeOpacity={0.8}
                 >
                   <Text style={s.warningIcon}>👤</Text>
                   <View style={{ flex: 1 }}>
-                    <Text style={[s.warningTitle, { color: '#3B82F6' }]}>Complete your profile</Text>
-                    <Text style={[s.warningSub, { color: screenMut }]}>Coach Mohamad Yousry needs your height, weight & goal for personalised coaching</Text>
+                    <Text style={[s.warningTitle, { color: pri, textAlign: txtAlign }]}>{t('homeCompleteProfile')}</Text>
+                    <Text style={[s.warningSub, { color: screenMut, textAlign: txtAlign }]}>{t('homeCompleteProfileSub')}</Text>
                   </View>
-                  <Text style={{ color: '#3B82F6', fontSize: 18 }}>›</Text>
+                  <Text style={{ color: pri, fontSize: 18 }}>{isRTL ? '‹' : '›'}</Text>
                 </TouchableOpacity>
               ),
             });
           }
 
-          // Priority 4: Program complete
-          if (customProgram) {
+          if (customProgram && !customProgram.assignedByCoach) {
             const progress = getProgramProgress(customProgram);
             if (progress.isComplete) {
               const suggestion = suggestNextProgram(
@@ -601,21 +407,13 @@ export default function HomeScreen() {
                 key: 'program_complete',
                 priority: 4,
                 render: () => (
-                  <View style={[s.warningBanner, { backgroundColor: '#22C55E15', borderColor: '#22C55E', marginBottom: 0 }]}>
+                  <View style={[s.warningBanner, { backgroundColor: '#22C55E15', borderColor: '#22C55E', marginBottom: 0, flexDirection: rowDir }]}>
                     <Text style={s.warningIcon}>🌟</Text>
                     <View style={{ flex: 1 }}>
-                      <Text style={[s.warningTitle, { color: '#22C55E' }]}>Program Complete!</Text>
-                      <Text style={[s.warningSub, { color: screenMut }]}>{suggestion.reason}</Text>
-                      <TouchableOpacity
-                        onPress={() => {
-                          if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                          router.push('/program-setup' as any);
-                        }}
-                        style={{ marginTop: 8 }}
-                      >
-                        <Text style={{ color: '#22C55E', fontSize: 13, fontWeight: '700' }}>
-                          Switch to {suggestion.template.name} →
-                        </Text>
+                      <Text style={[s.warningTitle, { color: '#22C55E', textAlign: txtAlign }]}>{t('homeProgramComplete')}</Text>
+                      <Text style={[s.warningSub, { color: screenMut, textAlign: txtAlign }]}>{suggestion.reason}</Text>
+                      <TouchableOpacity onPress={() => router.push('/program-setup' as any)} style={{ marginTop: 8 }}>
+                        <Text style={{ color: '#22C55E', fontSize: 13, fontWeight: '700', textAlign: txtAlign }}>{t('homeSwitchTo', { name: suggestion.template.name })} →</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -624,54 +422,28 @@ export default function HomeScreen() {
             }
           }
 
-          // Sort by priority and render only the current banner
           banners.sort((a, b) => a.priority - b.priority);
           if (banners.length === 0) return null;
-          const safeIdx = bannerIndex % banners.length;
-          const currentBanner = banners[safeIdx];
-
+          const currentBanner = banners[bannerIndex % banners.length];
           return (
             <View style={{ marginBottom: 8, position: 'relative' }}>
               {currentBanner.render()}
               {banners.length > 1 && (
                 <TouchableOpacity
-                  onPress={() => {
-                    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setBannerIndex((bannerIndex + 1) % banners.length);
-                  }}
-                  style={{
-                    position: 'absolute',
-                    bottom: 8,
-                    right: 8,
-                    backgroundColor: '#00000040',
-                    paddingHorizontal: 8,
-                    paddingVertical: 3,
-                    borderRadius: 10,
-                  }}
+                  onPress={() => setBannerIndex((bannerIndex + 1) % banners.length)}
+                  style={{ position: 'absolute', bottom: 8, right: 8, backgroundColor: '#00000040', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 }}
                   activeOpacity={0.7}
                 >
-                  <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>
-                    {banners.length - 1} more alert{banners.length - 1 > 1 ? 's' : ''} ▼
-                  </Text>
+                  <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>+{banners.length - 1} ▼</Text>
                 </TouchableOpacity>
               )}
             </View>
           );
         })()}
 
-        {/* ── Header with gradient backdrop ── */}
-        <View style={{ marginHorizontal: -Gutter, marginTop: -Space._2, paddingHorizontal: Gutter, paddingTop: Space._2, paddingBottom: Space._4, marginBottom: Space._2 }}>
-          <Svg width={SCREEN_WIDTH} height={100} style={{ position: 'absolute', top: 0, left: 0 }}>
-            <Defs>
-              <SvgGradient id="headerGrad" x1="0" y1="0" x2="0" y2="1">
-                <Stop offset="0" stopColor="#3B82F6" stopOpacity="0.12" />
-                <Stop offset="1" stopColor="#3B82F6" stopOpacity="0" />
-              </SvgGradient>
-            </Defs>
-            <Rect x="0" y="0" width={SCREEN_WIDTH} height={100} fill="url(#headerGrad)" />
-          </Svg>
-          <View style={[s.row, { alignItems: 'center' }]}>
-          <TouchableOpacity onPress={() => router.push('/profile' as any)} activeOpacity={0.85} style={s.avatarBtn}>
+        {/* ── Header ── */}
+        <View style={[s.row, { alignItems: 'center', flexDirection: rowDir, marginBottom: StackLg }]}>
+          <TouchableOpacity onPress={() => router.push('/profile' as any)} activeOpacity={0.85}>
             {userProfile?.profilePhotoUri ? (
               <Image source={{ uri: userProfile.profilePhotoUri }} style={[s.avatarImg, { borderColor: pri }]} />
             ) : (
@@ -680,560 +452,155 @@ export default function HomeScreen() {
               </View>
             )}
           </TouchableOpacity>
-          <View style={{ flex: 1, marginLeft: 10 }}>
-            <Text style={[s.headerName, { color: screenFg }]}>{authUser?.name || userProfile?.name || 'Athlete'}</Text>
-            {userProfile?.fitnessGoal ? (
-              <Text style={{ color: screenMut, fontSize: 12, textTransform: 'capitalize' }}>{userProfile.fitnessGoal.replace('_', ' ')}</Text>
-            ) : null}
+          <View style={{ flex: 1, marginHorizontal: 10 }}>
+            <Text style={[s.headerName, { color: screenFg, textAlign: txtAlign }]} numberOfLines={1}>{authUser?.name || userProfile?.name || t('athleteFallback')}</Text>
+            <Text style={{ color: screenMut, fontSize: 12, textAlign: txtAlign }}>
+              {t('homeThisWeekProgress', { done: localizeDigits(weekProgress.done, lang), planned: localizeDigits(weekProgress.planned, lang) })}
+            </Text>
           </View>
-          {/* Sync status pill */}
           <TouchableOpacity
-            style={[s.syncPill, {
-              backgroundColor: syncState?.linked ? '#22C55E15' : surf,
-              borderColor: syncState?.linked ? '#22C55E40' : bord,
-              marginRight: 6,
-            }]}
+            style={[s.syncPill, { backgroundColor: syncState?.linked ? '#22C55E15' : surf, borderColor: syncState?.linked ? '#22C55E40' : bord, marginHorizontal: 6 }]}
             onPress={() => router.push('/pin-sync' as any)}
             activeOpacity={0.7}
           >
             <View style={[s.syncDotSmall, { backgroundColor: syncState?.linked ? '#22C55E' : '#94A3B8' }]} />
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[s.iconBtn, { backgroundColor: surf, borderColor: bord }]}
-            onPress={() => router.push('/progress-pictures' as any)}
-          >
+          <TouchableOpacity style={[s.iconBtn, { backgroundColor: surf, borderColor: bord }]} onPress={() => router.push('/progress-pictures' as any)}>
             <Text style={{ fontSize: 16 }}>📸</Text>
           </TouchableOpacity>
-          </View>
         </View>
 
-        {/* ── Resume Workout Banner ── */}
+        {/* ── Resume in-progress workout ── */}
         {resumableWorkout && (
           <TouchableOpacity
-            style={[s.warningBanner, { backgroundColor: '#3B82F615', borderColor: '#3B82F6', marginBottom: 8 }]}
-            onPress={() => {
-              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              router.push({ pathname: '/split-workout', params: { sessionType: resumableWorkout.sessionType, date: todayStr } } as any);
-            }}
+            style={[s.warningBanner, { backgroundColor: pri + '15', borderColor: pri, marginBottom: StackLg, flexDirection: rowDir }]}
+            onPress={() => startSession(resumableWorkout.sessionType, todayStr)}
             activeOpacity={0.8}
           >
             <Text style={s.warningIcon}>⏱️</Text>
             <View style={{ flex: 1 }}>
-              <Text style={[s.warningTitle, { color: '#3B82F6' }]}>In-Progress: {getName(resumableWorkout.sessionType)}</Text>
-              <Text style={[s.warningSub, { color: mut }]}>
-                {resumableWorkout.exerciseLogs.filter(e => e.sets.length > 0).length} exercises started · {Math.round(resumableWorkout.elapsed / 60)}min elapsed
+              <Text style={[s.warningTitle, { color: pri, textAlign: txtAlign }]}>{t('homeInProgress', { name: getName(resumableWorkout.sessionType) })}</Text>
+              <Text style={[s.warningSub, { color: mut, textAlign: txtAlign }]}>
+                {t('homeInProgressSub', { n: resumableWorkout.exerciseLogs.filter(e => e.sets.length > 0).length, m: Math.round(resumableWorkout.elapsed / 60) })}
               </Text>
             </View>
-            <View style={{ backgroundColor: '#3B82F6', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 }}>
-              <Text style={{ color: '#fff', fontWeight: '700', fontSize: 12 }}>Resume</Text>
+            <View style={{ backgroundColor: pri, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 }}>
+              <Text style={{ color: ink, fontWeight: '700', fontSize: 12 }}>{t('homeResume')}</Text>
             </View>
           </TouchableOpacity>
         )}
 
-        {/* ── Player Card ── */}
-        <PlayerCard
-          userName={userProfile?.name || 'Athlete'}
-          profilePhoto={userProfile?.profilePhotoUri || null}
-          xpState={store.xpState}
-          streak={streak?.currentStreak ?? 0}
-          shields={shields}
+        {/* ── Schedule calendar ── */}
+        <ScheduleCalendar
+          mode={calMode}
+          onModeChange={setCalMode}
+          selectedDate={selectedDate}
+          onSelect={setSelectedDate}
+          todayStr={todayStr}
+          sessionForDate={sessionForDate}
+          colorFor={getColor}
+          completedDates={completedDates}
         />
 
-        {/* ── Today's Quest Hero ── */}
-        <TouchableOpacity
-          style={[s.heroCard, { backgroundColor: surf, borderColor: getColor(todaySession) + '40', overflow: 'hidden', padding: 0 }]}
-          onPress={handleStartWorkout}
-          activeOpacity={ActiveOpacity.secondary}
-        >
-          {/* Gradient background */}
-          <Svg width="100%" height="100%" style={{ position: 'absolute', top: 0, left: 0 }}>
-            <Defs>
-              <SvgGradient id="heroGrad" x1="0" y1="0" x2="1" y2="1">
-                <Stop offset="0" stopColor={getColor(todaySession)} stopOpacity="0.18" />
-                <Stop offset="1" stopColor={getColor(todaySession)} stopOpacity="0.02" />
-              </SvgGradient>
-            </Defs>
-            <Rect x="0" y="0" width="100%" height="100%" rx={Radius.hero} fill="url(#heroGrad)" />
-          </Svg>
+        {/* ── Selected day card ── */}
+        <View style={[s.dayCard, { backgroundColor: surf, borderColor: selIsRest ? bord : selColor + '55', marginTop: StackLg }]}>
+          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, backgroundColor: selIsRest ? bord : selColor, opacity: 0.9 }} />
           <View style={{ padding: CardPadLg }}>
-            <Text style={{
-              color: colors.muted,
-              fontSize: FontSize.eyebrow,
-              fontWeight: FontWeight.semi,
-              letterSpacing: 1,
-              textTransform: 'uppercase',
-              marginBottom: Space._2,
-            }}>TODAY'S QUEST</Text>
-            {customProgram?.assignedByCoach ? (
-              <View style={{ alignSelf: 'flex-start', backgroundColor: colors.primarySoft, borderColor: colors.primaryEdge, borderWidth: 1, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, marginBottom: Space._2 }}>
-                <Text style={{ color: colors.primary, fontSize: 10, fontWeight: '800', letterSpacing: 0.4 }}>
-                  PLAN BY COACH {customProgram.assignedByCoach.coachName.toUpperCase()}
+            <View style={{ flexDirection: rowDir, alignItems: 'center', justifyContent: 'space-between', marginBottom: Space._2 }}>
+              <Text style={{ color: mut, fontSize: FontSize.eyebrow, fontWeight: FontWeight.semi, letterSpacing: 1 }}>
+                {(relLabel ? `${relLabel} · ` : '') + longDate}
+              </Text>
+              {selDone && (
+                <View style={{ backgroundColor: colors.successStrong + '22', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
+                  <Text style={{ color: colors.successStrong, fontSize: 10, fontWeight: '800' }}>✓ {t('homeCompleted').toUpperCase()}</Text>
+                </View>
+              )}
+            </View>
+
+            {customProgram?.assignedByCoach && !selIsRest ? (
+              <View style={{ alignSelf: isRTL ? 'flex-end' : 'flex-start', backgroundColor: colors.primarySoft, borderColor: colors.primaryEdge, borderWidth: 1, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, marginBottom: Space._2 }}>
+                <Text style={{ color: pri, fontSize: 10, fontWeight: '800', letterSpacing: 0.4 }}>
+                  {t('homePlanBy', { name: customProgram.assignedByCoach.coachName }).toUpperCase()}
                 </Text>
               </View>
             ) : null}
-            <View style={s.heroRow}>
-              <Text style={{ fontSize: 48, marginRight: Space._3 }}>{getEmoji(todaySession)}</Text>
+
+            <View style={{ flexDirection: rowDir, alignItems: 'center', marginBottom: Space._3 }}>
+              <Text style={{ fontSize: 44, marginHorizontal: Space._3 }}>{getEmoji(selSession)}</Text>
               <View style={{ flex: 1 }}>
-                <Text style={{
-                  color: fg,
-                  fontSize: FontSize.hero,
-                  fontWeight: FontWeight.heavy,
-                  letterSpacing: -0.2,
-                }}>{getName(todaySession)}</Text>
-                <Text style={{
-                  color: mut,
-                  fontSize: FontSize.body,
-                  lineHeight: 20,
-                  marginTop: 2,
-                }}>{getSubtitle(todaySession)}</Text>
+                <Text style={{ color: fg, fontSize: FontSize.hero, fontWeight: FontWeight.heavy, letterSpacing: -0.2, textAlign: txtAlign }}>{getName(selSession)}</Text>
+                <Text style={{ color: mut, fontSize: FontSize.body, lineHeight: 20, marginTop: 2, textAlign: txtAlign }}>
+                  {selIsRest ? t('homeRestHint') : (bodyParts || t('homeExercises', { n: localizeDigits(selExercises.length, lang) }))}
+                </Text>
               </View>
             </View>
-            {!isRest && (
+
+            {/* Exercise preview */}
+            {!selIsRest && selExercises.length > 0 && (
+              <View style={{ marginBottom: Space._3, gap: 6 }}>
+                {selExercises.slice(0, 5).map((ex, i) => (
+                  <View key={`${ex.name}-${i}`} style={{ flexDirection: rowDir, alignItems: 'center', gap: 10 }}>
+                    <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: selColor + '22', alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ color: selColor, fontSize: 11, fontWeight: '800' }}>{localizeDigits(i + 1, lang)}</Text>
+                    </View>
+                    <Text style={{ color: fg, fontSize: FontSize.bodySm, fontWeight: '600', flex: 1, textAlign: txtAlign }} numberOfLines={1}>{ex.name}</Text>
+                    <Text style={{ color: mut, fontSize: FontSize.meta }}>
+                      {localizeDigits(ex.sets, lang)} × {ex.repsMin === 0 ? 'max' : `${localizeDigits(ex.repsMin, lang)}–${localizeDigits(ex.repsMax, lang)}`}
+                    </Text>
+                  </View>
+                ))}
+                {selExercises.length > 5 && (
+                  <Text style={{ color: mut, fontSize: FontSize.meta, textAlign: txtAlign, marginTop: 2 }}>{t('homeMoreExercises', { n: localizeDigits(selExercises.length - 5, lang) })}</Text>
+                )}
+              </View>
+            )}
+
+            {/* No plan at all */}
+            {!selIsRest && selExercises.length === 0 && (
+              <View style={{ marginBottom: Space._3 }}>
+                <Text style={{ color: fg, fontSize: FontSize.bodySm, fontWeight: '700', textAlign: txtAlign }}>{t('homeNoPlan')}</Text>
+                <Text style={{ color: mut, fontSize: FontSize.meta, textAlign: txtAlign, marginTop: 2 }}>{t('homeNoPlanHint')}</Text>
+                <TouchableOpacity onPress={() => router.push('/program-setup' as any)} style={{ marginTop: 8, alignSelf: isRTL ? 'flex-end' : 'flex-start' }}>
+                  <Text style={{ color: pri, fontSize: 13, fontWeight: '700' }}>{t('homeSetUpProgram')} →</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {!selIsRest && (
               <TouchableOpacity
                 style={{
-                  backgroundColor: todayDone ? colors.successStrong : getColor(todaySession),
+                  backgroundColor: selDone ? colors.successStrong : selColor,
                   borderRadius: Radius.button,
                   paddingVertical: Space._3 + 2,
                   alignItems: 'center',
-                  ...Shadow.cta(todayDone ? colors.successStrong : getColor(todaySession)),
+                  ...Shadow.cta(selDone ? colors.successStrong : selColor),
                 }}
-                onPress={handleStartWorkout}
+                onPress={() => startSession(selSession, selectedDate)}
                 activeOpacity={ActiveOpacity.primary}
+                accessibilityLabel="start-session"
               >
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Space._2 }}>
-                  <Text style={{ color: ink, fontSize: FontSize.body + 1, fontWeight: FontWeight.bold }}>
-                    {todayDone ? '✓ Completed' : isRest ? 'Log Recovery' : 'Start Quest'}
-                  </Text>
-                  {!todayDone && !isRest && (
-                    <View style={{ backgroundColor: ink + '20', borderRadius: Radius.chip, paddingHorizontal: Space._2, paddingVertical: 2 }}>
-                      <Text style={{ color: ink, fontSize: FontSize.eyebrow, fontWeight: FontWeight.semi }}>+100 XP</Text>
-                    </View>
-                  )}
-                </View>
+                <Text style={{ color: '#fff', fontSize: FontSize.body + 1, fontWeight: FontWeight.bold }}>{startLabel}</Text>
               </TouchableOpacity>
             )}
           </View>
-        </TouchableOpacity>
-
-        {/* ── Daily Challenges ── */}
-        <View style={{ marginTop: StackLg }}>
-          <DailyChallengesCard />
         </View>
-
-        {/* ── Streak Shield Row ── */}
-        {streak && (
-          <View style={{ marginTop: StackLg }}>
-            <StreakShieldRow
-              streak={streak.currentStreak}
-              bestStreak={streak.bestStreak}
-              shields={shields}
-              nextReward={rewardProgress?.nextReward ?? null}
-              rewardProgress={rewardProgress?.progressPercentage ?? 0}
-              daysUntilReward={rewardProgress?.daysUntil ?? 0}
-            />
-          </View>
-        )}
-
-        {/* ── Transformation Journey ── */}
-        <View style={{ marginTop: StackLg }}>
-          <TransformationJourneyCard
-            earliestPhoto={progressPhotos.length > 0 ? { uri: progressPhotos[progressPhotos.length - 1].uri, date: progressPhotos[progressPhotos.length - 1].date } : null}
-            latestPhoto={progressPhotos.length > 1 ? { uri: progressPhotos[0].uri, date: progressPhotos[0].date } : null}
-            daysSinceStart={progressPhotos.length > 0 ? Math.floor((Date.now() - new Date(progressPhotos[progressPhotos.length - 1].date).getTime()) / 86400000) : 0}
-            weightChange={weightEntries.length >= 2 ? weightEntries[weightEntries.length - 1].weight - weightEntries[0].weight : null}
-            onViewJourney={() => router.push('/progress-gallery' as any)}
-            onTakePhoto={() => router.push('/progress-gallery' as any)}
-          />
-        </View>
-
-        {/* ── Achievement Strip ── */}
-        <View style={{ marginTop: StackLg }}>
-          <AchievementStrip
-            unlockedAchievements={achievements}
-            totalAchievements={ALL_ACHIEVEMENTS.length}
-          />
-        </View>
-
-        {/* ── RPG Stats Card ── */}
-        {(() => {
-          const topPR = Object.values(prs).reduce((max, pr) => Math.max(max, pr.e1rm), 0);
-          const strengthScore = Math.min(100, Math.round(topPR / 2));
-          const enduranceScore = Math.min(100, (streak?.currentStreak ?? 0) * 3);
-          const recoveryScoreVal = recoveryScore ?? (recovery?.recoveryScore ?? 50);
-          const proteinAdherence = protTarget > 0 ? Math.min(100, Math.round((protConsumed / protTarget) * 100)) : 0;
-          return (
-            <View style={{ marginTop: StackLg }}>
-              <RPGStatsCard
-                strength={strengthScore}
-                endurance={enduranceScore}
-                recovery={recoveryScoreVal}
-                nutrition={proteinAdherence}
-              />
-            </View>
-          );
-        })()}
-
-        {/* ── 7-Day Week Strip ── */}
-        <View style={[s.card, { backgroundColor: surf, borderColor: bord, paddingVertical: Space._3, marginTop: StackLg }]}>
-          <View style={s.weekRow}>
-            {weekDays.map((d, i) => {
-              const dateStr = `${d.date.getFullYear()}-${String(d.date.getMonth() + 1).padStart(2, '0')}-${String(d.date.getDate()).padStart(2, '0')}`;
-              const isCompleted = recentWorkouts.some(w => w.date === dateStr && w.completed);
-              const dotColor = getColor(d.session);
-              return (
-                <TouchableOpacity
-                  key={i}
-                  style={s.dayCol}
-                  onPress={() => {
-                    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    if (!d.isToday) {
-                      setPreviewDay({ date: dateStr, session: d.session, label: d.label });
-                    }
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[s.dayLabel, { color: d.isToday ? fg : mut, fontWeight: d.isToday ? '700' : '400' }]}>
-                    {d.label}
-                  </Text>
-                  <View style={[s.dayDot, { backgroundColor: d.isToday ? pri : dotColor, opacity: d.session === 'rest' ? 0.4 : 1 }]} />
-                  {isCompleted && <View style={[s.checkDot, { backgroundColor: '#22C55E' }]} />}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-
-        {/* ── Deload Countdown Banner (weeks 4-5 only) ── */}
-        {meso && meso.currentWeek >= 4 && (
-          <TouchableOpacity
-            style={[
-              s.deloadBanner,
-              meso.daysUntilDeload === 0
-                ? { backgroundColor: '#EF444420', borderColor: '#EF4444' }
-                : meso.daysUntilDeload <= 3
-                ? { backgroundColor: '#F59E0B20', borderColor: '#F59E0B' }
-                : { backgroundColor: '#10B98120', borderColor: '#10B981' },
-            ]}
-            onPress={() => router.push('/(tabs)/coach' as any)}
-            activeOpacity={0.85}
-          >
-            <Text style={s.deloadBannerEmoji}>
-              {meso.daysUntilDeload === 0 ? '🔴' : meso.daysUntilDeload <= 3 ? '🟠' : '🟡'}
-            </Text>
-            <View style={{ flex: 1 }}>
-              <Text style={[
-                s.deloadBannerTitle,
-                { color: meso.daysUntilDeload === 0 ? '#EF4444' : meso.daysUntilDeload <= 3 ? '#F59E0B' : '#10B981' },
-              ]}>
-                {meso.daysUntilDeload === 0
-                  ? 'Deload Week — Active Now'
-                  : `Deload in ${meso.daysUntilDeload} day${meso.daysUntilDeload !== 1 ? 's' : ''}`}
-              </Text>
-              <Text style={[s.deloadBannerSub, { color: screenMut }]}>
-                {meso.daysUntilDeload === 0
-                  ? 'Week 5/5 · 70% weight & half sets today'
-                  : `Week ${meso.currentWeek}/${meso.totalWeeks} · Prepare to back off soon`}
-              </Text>
-            </View>
-            <Text style={[s.deloadBannerArrow, { color: screenMut }]}>›</Text>
-          </TouchableOpacity>
-        )}
-
-        {/* ── Day Preview Modal ── */}
-        <Modal visible={!!previewDay} transparent animationType="fade" onRequestClose={() => setPreviewDay(null)}>
-          <TouchableOpacity style={{ flex: 1, backgroundColor: '#00000080', justifyContent: 'center', alignItems: 'center' }} onPress={() => setPreviewDay(null)} activeOpacity={1}>
-            <View style={{ backgroundColor: surf, borderRadius: 20, padding: 24, width: '80%', borderWidth: 1, borderColor: bord }}>
-              {previewDay && (
-                <>
-                  <Text style={{ color: fg, fontSize: 20, fontWeight: '700', marginBottom: 4 }}>{previewDay.label}</Text>
-                  <Text style={{ color: mut, fontSize: 14, marginBottom: 16 }}>{getName(previewDay.session)}</Text>
-                  <Text style={{ color: mut, fontSize: 13 }}>{getSubtitle(previewDay.session)}</Text>
-                  <TouchableOpacity
-                    style={{ marginTop: 20, backgroundColor: pri, borderRadius: 12, paddingVertical: 10, alignItems: 'center' }}
-                    onPress={() => {
-                      setPreviewDay(null);
-                      router.push({ pathname: '/split-workout', params: { sessionType: previewDay.session, date: previewDay.date } } as any);
-                    }}
-                  >
-                    <Text style={{ color: '#fff', fontWeight: '700' }}>Start This Session</Text>
-                  </TouchableOpacity>
-                </>
-              )}
-            </View>
-          </TouchableOpacity>
-        </Modal>
       </ScrollView>
-
-      {/* ── Quick Start FAB (only shown when there IS a workout today) ── */}
-      {!isRest && scheduleLoaded && (
-        <TouchableOpacity
-          onPress={() => {
-            if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            router.push({ pathname: '/split-workout', params: { sessionType: todaySession, date: todayStr } } as any);
-          }}
-          activeOpacity={ActiveOpacity.secondary}
-          style={{
-            position: 'absolute',
-            bottom: 90,
-            right: Space._5,
-            width: 56,
-            height: 56,
-            borderRadius: Radius.fab,
-            backgroundColor: pri,
-            alignItems: 'center',
-            justifyContent: 'center',
-            ...Shadow.fab,
-          }}
-        >
-          <Text style={{ color: ink, fontSize: 22, marginLeft: 2 }}>▶</Text>
-        </TouchableOpacity>
-      )}
     </ScreenContainer>
-  );
-}
-
-// ---- Helper Functions ----
-
-function calculateReadiness(
-  recovery: RecoveryData | null,
-  avgRecovery: number | null,
-  streak: StreakData | null,
-  workoutsThisWeek: number,
-): number {
-  let score = 70;
-  if (recovery) {
-    score = recovery.recoveryScore * 0.4;
-    score += recovery.sleepScore * 0.3;
-  }
-  if (workoutsThisWeek <= 4) score += 20;
-  else if (workoutsThisWeek === 5) score += 10;
-  else score += 5;
-  if (streak && streak.currentStreak >= 3) score += 10;
-  else if (streak && streak.currentStreak >= 1) score += 5;
-  return Math.round(Math.min(100, Math.max(0, score)));
-}
-
-function ReadinessBar({ label, value, progress, color, colors }: {
-  label: string; value: string; progress: number; color: string;
-  colors: ReturnType<typeof useColors>;
-}) {
-  return (
-    <View>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 3 }}>
-        <Text style={{ fontSize: 11, color: (colors as any).cardMuted ?? colors.muted }}>{label}</Text>
-        <Text style={{ fontSize: 11, fontWeight: '600', color }}>{value}</Text>
-      </View>
-      <View style={{ height: 5, borderRadius: 3, backgroundColor: (colors as any).cardBorder ?? colors.border, overflow: 'hidden' }}>
-        <View style={{ height: 5, borderRadius: 3, width: `${Math.max(2, progress * 100)}%`, backgroundColor: color } as any} />
-      </View>
-    </View>
-  );
-}
-
-// ── SVG Helper Components ──
-
-function SectionHeader({ icon, title, accent, colors: c }: { icon: string; title: string; accent: string; colors: ReturnType<typeof useColors> }) {
-  const gradId = `grad_${title.replace(/\s/g, '')}`;
-  // Section headers sit on navy background — use white foreground
-  const headerColor = c.foreground;
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 6 }}>
-      <Text style={{ fontSize: 13 }}>{icon}</Text>
-      <Text style={{ fontSize: 11, fontWeight: '600', letterSpacing: 1, color: headerColor }}>{title}</Text>
-      <Svg height={1} style={{ flex: 1, marginLeft: 6 }}>
-        <Defs>
-          <SvgGradient id={gradId} x1="0" y1="0" x2="1" y2="0">
-            <Stop offset="0" stopColor={accent} stopOpacity="0.5" />
-            <Stop offset="1" stopColor={accent} stopOpacity="0" />
-          </SvgGradient>
-        </Defs>
-        <Rect x="0" y="0" width="100%" height="1" fill={`url(#${gradId})`} />
-      </Svg>
-    </View>
-  );
-}
-
-function ProgressRing({ score, color, size = 56, strokeWidth = 6 }: { score: number; color: string; size?: number; strokeWidth?: number }) {
-  const r = (size - strokeWidth) / 2;
-  const cx = size / 2;
-  const cy = size / 2;
-  const circ = 2 * Math.PI * r;
-  const pct = Math.max(0, Math.min(100, score));
-  const offset = circ - (pct / 100) * circ;
-  const gradId = `ring_${size}_${color.replace('#', '')}`;
-  return (
-    <Svg width={size} height={size}>
-      <Defs>
-        <SvgGradient id={gradId} x1="0" y1="0" x2="1" y2="1">
-          <Stop offset="0" stopColor={color} stopOpacity="1" />
-          <Stop offset="1" stopColor={color} stopOpacity="0.4" />
-        </SvgGradient>
-      </Defs>
-      <Circle cx={cx} cy={cy} r={r} stroke="#1E2433" strokeWidth={strokeWidth} fill="none" />
-      <Circle
-        cx={cx} cy={cy} r={r}
-        stroke={`url(#${gradId})`}
-        strokeWidth={strokeWidth}
-        fill="none"
-        strokeDasharray={`${circ}`}
-        strokeDashoffset={offset}
-        strokeLinecap="round"
-        transform={`rotate(-90, ${cx}, ${cy})`}
-      />
-      <SvgText x={cx} y={cy + 1} textAnchor="middle" alignmentBaseline="central" fontSize={size * 0.28} fontWeight="800" fill={color}>
-        {Math.round(score)}
-      </SvgText>
-    </Svg>
-  );
-}
-
-// ── MacroDonut: 3-segment donut chart for protein/carbs/fat ──────────────────
-function MacroDonut({
-  protein, carbs, fat,
-  proteinTarget, carbsTarget, fatTarget,
-  size = 56, strokeWidth = 7,
-}: {
-  protein: number; carbs: number; fat: number;
-  proteinTarget: number; carbsTarget: number; fatTarget: number;
-  size?: number; strokeWidth?: number;
-}) {
-  const r = (size - strokeWidth) / 2;
-  const cx = size / 2;
-  const cy = size / 2;
-  const circ = 2 * Math.PI * r;
-
-  // Clamp each macro to its target, then compute arc proportions
-  const protPct = proteinTarget > 0 ? Math.min(1, protein / proteinTarget) : 0;
-  const carbPct = carbsTarget > 0 ? Math.min(1, carbs / carbsTarget) : 0;
-  const fatPct = fatTarget > 0 ? Math.min(1, fat / fatTarget) : 0;
-
-  // Each segment occupies 1/3 of the ring; filled portion = pct of that third
-  const segLen = circ / 3;
-  const gap = 4; // px gap between segments
-  const protLen = Math.max(0, protPct * segLen - gap);
-  const carbLen = Math.max(0, carbPct * segLen - gap);
-  const fatLen = Math.max(0, fatPct * segLen - gap);
-
-  const totalPct = Math.round(((protein * 4 + carbs * 4 + fat * 9) / Math.max(1, proteinTarget * 4 + carbsTarget * 4 + fatTarget * 9)) * 100);
-
-  return (
-    <Svg width={size} height={size}>
-      {/* Track */}
-      <Circle cx={cx} cy={cy} r={r} stroke="#1E2433" strokeWidth={strokeWidth} fill="none" />
-      {/* Protein segment (blue) */}
-      <Circle
-        cx={cx} cy={cy} r={r}
-        stroke="#3B82F6"
-        strokeWidth={strokeWidth}
-        fill="none"
-        strokeDasharray={`${protLen} ${circ - protLen}`}
-        strokeDashoffset={circ * 0}
-        strokeLinecap="round"
-        transform={`rotate(-90, ${cx}, ${cy})`}
-      />
-      {/* Carbs segment (amber) */}
-      <Circle
-        cx={cx} cy={cy} r={r}
-        stroke="#F59E0B"
-        strokeWidth={strokeWidth}
-        fill="none"
-        strokeDasharray={`${carbLen} ${circ - carbLen}`}
-        strokeDashoffset={-(segLen)}
-        strokeLinecap="round"
-        transform={`rotate(-90, ${cx}, ${cy})`}
-      />
-      {/* Fat segment (rose) */}
-      <Circle
-        cx={cx} cy={cy} r={r}
-        stroke="#F43F5E"
-        strokeWidth={strokeWidth}
-        fill="none"
-        strokeDasharray={`${fatLen} ${circ - fatLen}`}
-        strokeDashoffset={-(segLen * 2)}
-        strokeLinecap="round"
-        transform={`rotate(-90, ${cx}, ${cy})`}
-      />
-      {/* Center label */}
-      <SvgText x={cx} y={cy + 1} textAnchor="middle" alignmentBaseline="central" fontSize={size * 0.24} fontWeight="800" fill="#ECEDEE">
-        {totalPct}%
-      </SvgText>
-    </Svg>
-  );
-}
-
-function MacroRing({ consumed, target, color, label }: { consumed: number; target: number; color: string; label: string }) {
-  const pct = target > 0 ? Math.min(100, (consumed / target) * 100) : 0;
-  return (
-    <View style={{ alignItems: 'center', gap: 4 }}>
-      <ProgressRing score={pct} color={color} size={48} strokeWidth={5} />
-      <Text style={{ fontSize: 10, color: '#64748B', fontWeight: '500' }}>{label}</Text>
-    </View>
   );
 }
 
 const s = StyleSheet.create({
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  headerName: { fontSize: 30, fontWeight: '800', letterSpacing: -0.5 },
-  avatarBtn: { position: 'relative' },
+  headerName: { fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
   avatarImg: { width: 48, height: 48, borderRadius: 24, borderWidth: 2 },
   avatarPlaceholder: { width: 48, height: 48, borderRadius: 24, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
   avatarEmoji: { fontSize: 20 },
   iconBtn: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
-
-  heroCard: { borderRadius: Radius.hero, borderWidth: 1, padding: Space._4, marginBottom: Space._3 + 2 },
-  heroRow: { flexDirection: 'row', alignItems: 'center', marginBottom: Space._3 },
-
-  card: { borderRadius: Radius.hero, borderWidth: 1, padding: Space._4, marginBottom: Space._3 + 2, ...Shadow.card },
-
-  weekRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  dayCol: { alignItems: 'center', gap: Space._2 - 2 },
-  dayLabel: { fontSize: FontSize.meta },
-  dayDot: { width: 14, height: 14, borderRadius: 7 },
-  checkDot: { width: 6, height: 6, borderRadius: 3, marginTop: -2 },
-
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: Space._3, marginBottom: Space._3 + 2 },
-  metricCard: { width: '48%', borderRadius: Radius.hero, borderWidth: 1, padding: Space._3 + 2, position: 'relative', ...Shadow.card },
-  metricIcon: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center', marginBottom: Space._2 },
-  metricIconText: { fontSize: FontSize.title },
-  metricChevron: { position: 'absolute', top: Space._3 + 2, right: Space._3 + 2, fontSize: FontSize.title },
-  metricLabel: { fontSize: FontSize.meta, marginBottom: Space._1 },
-  metricValueRow: { flexDirection: 'row', alignItems: 'baseline' },
-  metricValue: { fontSize: 20, fontWeight: '700' },
-  metricValueLg: { fontSize: 28, fontWeight: '700' },
-  metricUnit: { fontSize: FontSize.bodySm },
-  metricDash: { width: 20, height: 3, borderRadius: 2, marginBottom: Space._1 },
-  metricSub: { fontSize: FontSize.eyebrow, marginTop: 2 },
-
-  sectionLabel: { fontSize: FontSize.eyebrow, fontWeight: '600', letterSpacing: 1 },
-  link: { fontSize: FontSize.bodySm, fontWeight: '600' },
-  macroLabel: { fontSize: FontSize.body },
-  macroValue: { fontSize: FontSize.body, fontWeight: '600' },
-  progressBar: { height: 4, borderRadius: Radius.bar, overflow: 'hidden' },
-  progressFill: { height: 4, borderRadius: Radius.bar },
-
-  whoopIcon: { fontSize: FontSize.body, fontWeight: '700' },
-  whoopScore: { fontSize: 40, fontWeight: '800', lineHeight: 44 },
-  whoopStatus: { fontSize: FontSize.bodySm, marginTop: 2 },
-  whoopMetricVal: { fontSize: FontSize.section, fontWeight: '700' },
-
-  coachCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: Radius.hero, borderWidth: 1, padding: Space._3 + 2, marginBottom: Space._3 },
-  coachLeft: { flexDirection: 'row', alignItems: 'center', gap: Space._3, flex: 1 },
-  coachIconWrap: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
-  coachIcon: { fontSize: 22 },
-  coachTitle: { fontSize: FontSize.section - 1, fontWeight: '700', marginBottom: 2 },
-  coachSub: { fontSize: FontSize.meta, lineHeight: 16 },
-  coachBadge: { paddingHorizontal: Space._2 + 2, paddingVertical: 5, borderRadius: Radius.modal },
-  coachBadgeText: { fontSize: FontSize.meta, fontWeight: '700' },
-
+  dayCard: { borderRadius: Radius.hero, borderWidth: 1, overflow: 'hidden', ...Shadow.card },
   warningBanner: { flexDirection: 'row', alignItems: 'center', gap: Space._2 + 2, borderRadius: Radius.button, borderWidth: 1.5, padding: Space._3, marginBottom: Space._3 },
   warningIcon: { fontSize: 20 },
   warningTitle: { fontSize: FontSize.bodySm, fontWeight: '700', marginBottom: 2 },
   warningSub: { fontSize: FontSize.meta, lineHeight: 16 },
   syncPill: { width: 32, height: 32, borderRadius: Radius.hero, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   syncDotSmall: { width: 8, height: 8, borderRadius: Radius.bar },
-  deloadBanner: { flexDirection: 'row', alignItems: 'center', gap: Space._2 + 2, borderRadius: Radius.button, borderWidth: 1.5, padding: Space._3, marginBottom: Space._3 },
-  deloadBannerEmoji: { fontSize: 20 },
-  deloadBannerTitle: { fontSize: FontSize.bodySm, fontWeight: '700', marginBottom: 2 },
-  deloadBannerSub: { fontSize: FontSize.meta, lineHeight: 16 },
-  deloadBannerArrow: { fontSize: 20, fontWeight: '700' },
 });

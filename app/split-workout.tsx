@@ -84,8 +84,10 @@ export default function SplitWorkoutScreen() {
   useKeepAwake();
   const colors = useColors();
   const router = useRouter();
-  const params = useLocalSearchParams<{ sessionType?: string; session?: string; deload?: string }>();
+  const params = useLocalSearchParams<{ sessionType?: string; session?: string; deload?: string; date?: string }>();
   const sessionType = (params.sessionType as SessionType) || (params.session as SessionType) || getTodaySession();
+  // The Home calendar can start/log a session for a specific day; default to today.
+  const targetDate = /^\d{4}-\d{2}-\d{2}$/.test(params.date ?? '') ? (params.date as string) : localDateStr();
   const [isDeload, setIsDeload] = useState(params.deload === 'true');
   // Gym store exercises (for custom videoId lookup)
   const [gymExercises, setGymExercises] = useState<Exercise[]>([]);
@@ -908,7 +910,7 @@ export default function SplitWorkoutScreen() {
 
     const session: SplitWorkoutSession = {
       id: generateId(),
-      date: localDateStr(),
+      date: targetDate,
       sessionType,
       exercises: exerciseLogs,
       startTime: startTime.toISOString(),
