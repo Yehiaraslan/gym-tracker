@@ -173,9 +173,12 @@ export default function HomeScreen() {
   }, [schedule, overrides]);
 
   // Every session the athlete can place on a day: the program's sessions, or the default split.
-  const availableSessions: SessionType[] = customProgram?.sessionNames
-    ? Object.keys(customProgram.sessionNames)
-    : (Object.keys(PROGRAM_SESSIONS) as SessionType[]);
+  // No coach plan yet → nothing to place: the built-in split is gone for everyone.
+  const availableSessions: SessionType[] = !coachGate?.hasPlan
+    ? []
+    : customProgram?.sessionNames
+      ? Object.keys(customProgram.sessionNames)
+      : (Object.keys(PROGRAM_SESSIONS) as SessionType[]);
 
   /** Put `session` on `dateStr` (one-off). `null` clears the override, back to the weekly plan. */
   const placeSession = async (dateStr: string, session: SessionType | null) => {
@@ -209,6 +212,7 @@ export default function HomeScreen() {
   const getExercises = (sessionId: string): ProgramExercise[] => {
     if (sessionId === 'rest') return [];
     if (customProgram?.sessions?.[sessionId]) return customProgram.sessions[sessionId];
+    if (!coachGate?.hasPlan) return [];
     return (PROGRAM_SESSIONS as Record<string, ProgramExercise[]>)[sessionId] ?? [];
   };
 
@@ -616,7 +620,7 @@ export default function HomeScreen() {
                 <Text style={{ color: '#fff', fontSize: FontSize.body + 1, fontWeight: FontWeight.bold }}>{startLabel}</Text>
               </TouchableOpacity>
             )}
-            {!selDone && (
+            {!selDone && availableSessions.length > 0 && (
               <TouchableOpacity
                 style={{ marginTop: Space._2 + 2, borderRadius: Radius.button, paddingVertical: Space._3, alignItems: 'center', borderWidth: 1, borderColor: selIsRest ? pri : bord, backgroundColor: selIsRest ? pri + '14' : 'transparent' }}
                 onPress={() => { if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setPickerOpen(true); }}

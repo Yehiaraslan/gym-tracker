@@ -39,7 +39,6 @@ import YoutubePlayer from 'react-native-youtube-iframe';
 import { Image } from 'expo-image';
 import {
   type SessionType,
-  PROGRAM_SESSIONS,
   SESSION_NAMES,
   SESSION_COLORS,
   getTodaySession,
@@ -92,7 +91,8 @@ export default function SplitWorkoutScreen() {
   // Gym store exercises (for custom videoId lookup)
   const [gymExercises, setGymExercises] = useState<Exercise[]>([]);
   useEffect(() => { loadStore().then(s => setGymExercises(s.exercises)); }, []);
-  const defaultExercises = sessionType !== 'rest' ? (PROGRAM_SESSIONS[sessionType] ?? []) : [];
+  // Built-in split is gone: start empty and let getSessionExercises (coach-gated) fill the list.
+  const defaultExercises: ProgramExercise[] = [];
   const [programExercises, setProgramExercises] = useState<ProgramExercise[]>(defaultExercises);
   const [swappableExercises, setSwappableExercises] = useState<ProgramExercise[]>([]);
   // Tracks the ORIGINAL exercise name for each slot — used for swap lookup so
