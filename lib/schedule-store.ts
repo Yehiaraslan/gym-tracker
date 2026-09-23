@@ -77,6 +77,11 @@ export async function clearScheduleOverride(): Promise<void> {
  * This is the single source of truth for "what session is on which day".
  */
 export async function getActiveSchedule(): Promise<CustomSchedule> {
+  // Linked to a coach but no plan yet → nothing is scheduled. The default
+  // Sun/Mon/Wed/Thu split is for solo athletes only; a coached trainee
+  // trains what the coach sends (Yehia, 2026-09-23).
+  const { isWaitingForCoachPlan } = await import('./coach-gate');
+  if (await isWaitingForCoachPlan()) return buildFullSchedule({});
   const override = await loadScheduleOverride();
   return override?.schedule ?? defaultSchedule();
 }

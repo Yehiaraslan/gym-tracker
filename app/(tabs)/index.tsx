@@ -11,6 +11,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { Text, View, TouchableOpacity, ScrollView, Platform, StyleSheet, Image, RefreshControl, Modal } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { syncCoachPlans } from '@/lib/coach-plan-sync';
+import { loadCoachGate, type CoachGateState } from '@/lib/coach-gate';
 import { isCoachRole } from './_layout';
 import { loadUserProfile, type UserProfile } from '@/lib/profile-store';
 import { ScreenContainer } from '@/components/screen-container';
@@ -94,6 +95,7 @@ export default function HomeScreen() {
 
   // ── Schedule + program ──
   const [schedule, setSchedule] = useState<CustomSchedule | null>(null);
+  const [coachGate, setCoachGate] = useState<CoachGateState | null>(null);
   const [overrides, setOverrides] = useState<DateOverrides>({});
   const [pickerOpen, setPickerOpen] = useState(false);
   const [customProgram, setCustomProgram] = useState<CustomProgram | null>(null);
@@ -128,14 +130,16 @@ export default function HomeScreen() {
 
   const loadAll = useCallback(async () => {
     try {
-      const [sched, program, all, resumable, ov] = await Promise.all([
+      const [sched, program, all, resumable, ov, gate] = await Promise.all([
         getActiveSchedule(),
         loadCustomProgram(),
         getSplitWorkouts().catch(() => [] as SplitWorkoutSession[]),
         hasResumableWorkout(),
         loadDateOverrides(),
+        loadCoachGate(),
       ]);
       setSchedule(sched);
+      setCoachGate(gate);
       setCustomProgram(program);
       setWorkouts(all);
       setResumableWorkout(resumable);
@@ -298,6 +302,18 @@ export default function HomeScreen() {
         contentContainerStyle={{ paddingHorizontal: Gutter, paddingTop: Space._2, paddingBottom: Space._10 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadAll(); }} tintColor={pri} />}
       >
+        {coachGate?.linked && !coachGate.hasPlan && (
+          <View style={[s.warningBanner, { backgroundColor: surf, borderColor: pri, marginBottom: 12, flexDirection: 'column', alignItems: isRTL ? 'flex-end' : 'flex-start', gap: 6 }]}>
+            <View style={{ flexDirection: rowDir, alignItems: 'center', gap: 8, width: '100%' }}>
+              <Text style={s.warningIcon}>⏳</Text>
+              <Text style={[s.warningTitle, { color: fg, textAlign: txtAlign, flex: 1 }]}>{t('homeWaitingCoachTitle', { name: coachGate.coachName || 'Coach' })}</Text>
+            </View>
+            <Text style={[s.warningSub, { color: mut, textAlign: txtAlign }]}>{t('homeWaitingCoachBody')}</Text>
+            <TouchableOpacity onPress={() => router.push('/(tabs)/coach' as any)} style={{ marginTop: 4 }}>
+              <Text style={{ color: pri, fontSize: 13, fontWeight: '700', textAlign: txtAlign }}>{t('homeWaitingCoachCta')} →</Text>
+            </TouchableOpacity>
+          </View>
+        )}
         <WhoopReconnectBanner />
 
         {rescheduleToast != null && (

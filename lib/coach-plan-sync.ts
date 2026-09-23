@@ -12,6 +12,7 @@ import {
   archiveProgram, loadCustomProgram, saveCustomProgram, type CustomProgram,
 } from './custom-program-store';
 import { applyScheduleWithHistory, buildFullSchedule, type DayName } from './schedule-store';
+import { saveCoachGate } from './coach-gate';
 import type { ProgramExercise, SessionType } from './training-program';
 import type { BodyPart } from './types';
 
@@ -97,12 +98,23 @@ export interface CoachSyncResult {
 export async function syncCoachPlans(): Promise<CoachSyncResult> {
   const none: CoachSyncResult = { workoutPlan: null, mealPlan: null, appliedWorkout: false, appliedMeal: false };
   let plans: { workoutPlan: CoachWorkoutPlan | null; mealPlan: CoachMealPlan | null };
+  let linkedCoach: string | null = null;
   try {
     const { trpcClient } = await import('./trpc');
     plans = await trpcClient.coach.myPlans.query();
+    // Link state decides whether the trainee waits for the coach's plan or
+    // may use the built-in defaults (never both).
+    try {
+      const trainers = await trpcClient.trainerLink.myTrainers.query();
+      const active = (trainers ?? []).find((l) => l.status === 'active');
+      linkedCoach = active ? (active.name || plans.workoutPlan?.coachName || 'Coach') : null;
+    } catch {
+      linkedCoach = plans.workoutPlan ? plans.workoutPlan.coachName : null;
+    }
   } catch {
     return none;
   }
+  await saveCoachGate({ linked: linkedCoach != null, hasPlan: !!plans.workoutPlan, coachName: linkedCoach });
 
   let appliedWorkout = false;
   let appliedMeal = false;

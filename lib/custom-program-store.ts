@@ -74,6 +74,9 @@ export async function getSessionExercises(sessionType: string): Promise<ProgramE
   if (custom?.sessions?.[sessionType]) {
     return custom.sessions[sessionType];
   }
+  // A coached trainee never gets the built-in exercises — they wait for the plan.
+  const { isWaitingForCoachPlan } = await import('./coach-gate');
+  if (await isWaitingForCoachPlan()) return [];
   // Fall back to default
   const defaultKey = sessionType as keyof typeof PROGRAM_SESSIONS;
   return PROGRAM_SESSIONS[defaultKey] ?? [];
