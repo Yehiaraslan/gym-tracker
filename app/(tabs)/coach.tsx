@@ -8,7 +8,7 @@ import {
   ActivityIndicator, Alert, Image, Linking, Platform, RefreshControl, ScrollView,
   StyleSheet, Switch, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChatThread } from '@/components/coach/chat-thread';
 import { COACH } from '@/constants/coach';
@@ -22,7 +22,8 @@ export default function CoachTab() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { t, isRTL, lang } = useI18n();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const router = useRouter();
   const isGuest = !user || user.id === 0 || user.loginMethod === 'guest' || user.openId?.startsWith('guest-');
 
   const [code, setCode] = useState('');
@@ -109,6 +110,13 @@ export default function CoachTab() {
         {isGuest ? (
           <View style={[s.card, card]}>
             <Text style={[s.cardBody, { color: mt, textAlign: align }]}>{t('guestNotice')}</Text>
+            <TouchableOpacity
+              onPress={async () => { await logout(); router.replace('/login' as any); }}
+              style={[s.btn, { backgroundColor: colors.primary, marginTop: 12 }]}
+              activeOpacity={0.8}
+            >
+              <Text style={s.btnText}>{t('guestCta')}</Text>
+            </TouchableOpacity>
           </View>
         ) : trainers.isLoading ? (
           <ActivityIndicator color={mt} style={{ marginVertical: 16 }} />

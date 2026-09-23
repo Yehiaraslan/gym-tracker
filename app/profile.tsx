@@ -522,11 +522,22 @@ export default function ProfileScreen() {
         </View>
 
         {/* Account section */}
-        {authUser && (
+        {(() => {
+          const guest = !authUser || authUser.id === 0 || authUser.loginMethod === 'guest' || authUser.openId?.startsWith('guest-');
+          return (
           <View style={styles.accountSection}>
             <Text style={[styles.accountEmail, { color: colors.cardMuted }]}>
-              Signed in as {authUser.email || authUser.name || 'User'}
+              {guest ? 'Using the app without an account' : `Signed in as ${authUser?.email || authUser?.name || 'User'}`}
             </Text>
+            {guest && (
+              <TouchableOpacity
+                onPress={async () => { await logout(); router.replace('/login' as any); }}
+                style={[styles.logoutBtn, { borderColor: colors.primary }]}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.logoutText, { color: colors.primary }]}>Sign in / Create account</Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity
               onPress={() => {
                 Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
@@ -547,7 +558,8 @@ export default function ProfileScreen() {
               <Text style={[styles.logoutText, { color: colors.error }]}>Sign Out</Text>
             </TouchableOpacity>
           </View>
-        )}
+          );
+        })()}
       </ScrollView>
 
       {/* Photo source picker modal — replaces Alert.alert (broken on web) */}
