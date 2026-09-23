@@ -302,15 +302,15 @@ export default function HomeScreen() {
         contentContainerStyle={{ paddingHorizontal: Gutter, paddingTop: Space._2, paddingBottom: Space._10 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadAll(); }} tintColor={pri} />}
       >
-        {coachGate?.linked && !coachGate.hasPlan && (
+        {!coachGate?.hasPlan && (
           <View style={[s.warningBanner, { backgroundColor: surf, borderColor: pri, marginBottom: 12, flexDirection: 'column', alignItems: isRTL ? 'flex-end' : 'flex-start', gap: 6 }]}>
             <View style={{ flexDirection: rowDir, alignItems: 'center', gap: 8, width: '100%' }}>
               <Text style={s.warningIcon}>⏳</Text>
-              <Text style={[s.warningTitle, { color: fg, textAlign: txtAlign, flex: 1 }]}>{t('homeWaitingCoachTitle', { name: coachGate.coachName || 'Coach' })}</Text>
+              <Text style={[s.warningTitle, { color: fg, textAlign: txtAlign, flex: 1 }]}>{coachGate?.linked ? t('homeWaitingCoachTitle', { name: coachGate.coachName || 'Coach' }) : t('homeNoCoachTitle')}</Text>
             </View>
-            <Text style={[s.warningSub, { color: mut, textAlign: txtAlign }]}>{t('homeWaitingCoachBody')}</Text>
+            <Text style={[s.warningSub, { color: mut, textAlign: txtAlign }]}>{coachGate?.linked ? t('homeWaitingCoachBody') : t('homeNoCoachBody')}</Text>
             <TouchableOpacity onPress={() => router.push('/(tabs)/coach' as any)} style={{ marginTop: 4 }}>
-              <Text style={{ color: pri, fontSize: 13, fontWeight: '700', textAlign: txtAlign }}>{t('homeWaitingCoachCta')} →</Text>
+              <Text style={{ color: pri, fontSize: 13, fontWeight: '700', textAlign: txtAlign }}>{coachGate?.linked ? t('homeWaitingCoachCta') : t('homeNoCoachCta')} →</Text>
             </TouchableOpacity>
           </View>
         )}

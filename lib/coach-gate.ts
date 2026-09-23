@@ -44,8 +44,13 @@ export async function clearCoachGate(): Promise<void> {
   try { await AsyncStorage.removeItem(KEY); } catch { /* best-effort */ }
 }
 
-/** True when the trainee must wait: linked to a coach, no plan applied yet. */
+/**
+ * True whenever no coach plan is applied — linked or not. There is no
+ * built-in default programme any more: every athlete trains what their
+ * coach sends, and an unlinked athlete is told to link first
+ * (Yehia, 2026-09-23: "anyone who signs in ... always wait for the coach plans").
+ */
 export async function isWaitingForCoachPlan(): Promise<boolean> {
   const g = await loadCoachGate();
-  return g.linked && !g.hasPlan;
+  return !g.hasPlan;
 }
